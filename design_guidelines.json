@@ -1,0 +1,109 @@
+{
+  "theme": "light_default_with_dark_toggle",
+  "archetype": "3_Pastel_Soft_mixed_with_5_Jewel_Luxury",
+  "project_name": "الحراج الجديد",
+  "core_identity": "Modern, luxurious, advanced, slightly calm. Not a typical flat tech app. Feels premium and highly localized for Saudi/Gulf.",
+  "colors": {
+    "light": {
+      "background": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "surface_elevated": "#F1F5F9",
+      "primary": "#89CFF0",
+      "primary_hover": "#6DAEE0",
+      "primary_foreground": "#0B192C",
+      "secondary": "#0A1128",
+      "accent": "#D4AF37",
+      "text_main": "#0F172A",
+      "text_muted": "#64748B",
+      "border": "#E2E8F0",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "danger": "#EF4444"
+    },
+    "dark": {
+      "background": "#0A1128",
+      "surface": "#151E32",
+      "surface_elevated": "#1E293B",
+      "primary": "#89CFF0",
+      "primary_hover": "#A8D8EA",
+      "primary_foreground": "#0A1128",
+      "secondary": "#1E293B",
+      "accent": "#D4AF37",
+      "text_main": "#F8FAFC",
+      "text_muted": "#94A3B8",
+      "border": "#1E293B",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "danger": "#EF4444"
+    }
+  },
+  "typography": {
+    "arabic_fonts": {
+      "headings": "Alexandria, sans-serif",
+      "body": "Tajawal, sans-serif"
+    },
+    "latin_fonts": {
+      "headings": "Outfit, sans-serif",
+      "body": "Plus Jakarta Sans, sans-serif"
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-bold",
+      "h3": "text-xl sm:text-2xl font-bold",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-muted",
+      "logo": "font-black tracking-tighter"
+    }
+  },
+  "spacing_and_layout": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "bento_grid": "grid grid-cols-1 md:grid-cols-12 gap-6",
+    "corners": "rounded-2xl for main cards, rounded-full for pills and small buttons",
+    "shadows_light": "shadow-sm border border-slate-100",
+    "shadows_dark": "shadow-none border border-slate-800"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary_foreground rounded-full px-6 py-3 font-bold hover:opacity-90 transition-all",
+      "secondary": "bg-secondary text-white rounded-full px-6 py-3 font-bold"
+    },
+    "cards": {
+      "listing_card": "bg-surface rounded-2xl overflow-hidden border border-border transition-transform hover:-translate-y-1 relative",
+      "category_card": "aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 border border-border bg-surface_elevated"
+    },
+    "navigation": {
+      "bottom_nav": "fixed bottom-0 w-full bg-surface/80 backdrop-blur-xl border-t border-border flex justify-around py-4 z-50",
+      "top_bar": "sticky top-0 w-full bg-surface/80 backdrop-blur-xl z-40 flex justify-between items-center py-4 px-4"
+    },
+    "special": {
+      "ai_badge": "absolute top-2 right-2 bg-primary/20 text-primary border border-primary/30 backdrop-blur-md rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1",
+      "reels_feed": "snap-y snap-mandatory h-[80vh] overflow-y-scroll"
+    }
+  },
+  "pages_layout": {
+    "home": "Top bar with search & dark mode toggle. Hero section with abstract luxury banner. Horizontal scrollable Reels/Stories avatars. Bento grid of 15+ categories. 'Featured Nearby' section using listing_cards.",
+    "listing_detail": "Image gallery header with 360 viewer overlay toggle. Price block with AI 'Good Price' badge. Seller profile card. Map block showing exact pin. Sticky bottom action bar (Chat, Call, Offer).",
+    "post_listing": "Multi-step form. Step 1: Visual category selector. Step 2: Dynamic fields (auto-changes based on category). Step 3: Media upload. Step 4: AI enhancements.",
+    "chat": "WhatsApp style. Header with seller info. Message bubbles (Light: gray/baby blue, Dark: slate/baby blue). Bottom input with attach/voice icons.",
+    "map": "Full screen map. Custom map_pin_assets. Bottom sheet for selected listing preview. Toggle for 'Heatmap' in header.",
+    "auctions": "Live video/image header. Massive countdown timer. Scrolling bid history feed. Fixed bottom bid input with preset increments (+100, +500)."
+  },
+  "image_urls": {
+    "hero_banner": "https://images.unsplash.com/photo-1709626011483-5bb4b5470ac9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGJhYnklMjBibHVlJTIwbHV4dXJ5JTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3Nzc4MzcxNjN8MA&ixlib=rb-4.1.0&q=85",
+    "category_car": "https://images.unsplash.com/photo-1760689044812-9572c8e9289c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHw0fHxsdXh1cnklMjBzcG9ydCUyMGNhciUyMG9uJTIwcm9hZHxlbnwwfHx8fDE3Nzc4MzcxNTh8MA&ixlib=rb-4.1.0&q=85",
+    "category_real_estate": "https://images.unsplash.com/photo-1649225560384-0294a3c7be55?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBzYXVkaSUyMHJlYWwlMjBlc3RhdGUlMjBhcGFydG1lbnR8ZW58MHx8fHwxNzc3ODM3MTU4fDA&ixlib=rb-4.1.0&q=85",
+    "category_livestock": "https://images.unsplash.com/photo-1518978288375-f36cefcc992e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NjZ8MHwxfHNlYXJjaHwxfHxjYW1lbCUyMGluJTIwZGVzZXJ0fGVufDB8fHx8MTc3NzgzNzE1OHww&ixlib=rb-4.1.0&q=85",
+    "category_electronics": "https://images.unsplash.com/photo-1777013211433-689cef726241?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHw0fHxoaWdoJTIwZW5kJTIwZWxlY3Ryb25pY3MlMjBzbWFydHBob25lJTIwbGFwdG9wfGVufDB8fHx8MTc3NzgzNzE2M3ww&ixlib=rb-4.1.0&q=85",
+    "map_preview": "https://images.unsplash.com/photo-1529775768124-fb874e73ac7e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzbWFydHBob25lJTIwZGlzcGxheWluZyUyMG1hcHxlbnwwfHx8fDE3Nzc4MzcxNjN8MA&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Ensure global support for direction: rtl. Arabic is the primary language.",
+    "Implement a strict Light/Dark mode toggle. Default is Light. Dark mode MUST use solid dark navy (#0A1128), no gradients, to meet E1 rules.",
+    "When applying font classes, use 'font-arabic' for Alexandria/Tajawal and 'font-latin' for Outfit/Plus Jakarta Sans. If implementing quickly, standardizing on Alexandria for headings globally works.",
+    "Build the UI in React (.js files, not .tsx) using Tailwind CSS.",
+    "Use Phosphor Icons or Lucide React for consistent, high-end iconography. The 'Messages' icon must be prominently featured in the bottom nav.",
+    "DO NOT USE INTER FONT. DO NOT USE GENERIC PURPLE/TEAL GRADIENTS. Stick to the Baby Blue and Navy scheme.",
+    "Add 'data-testid' to all interactive elements for robust testing.",
+    "Include 'الجديد' in a smaller font size next to 'الحراج' in the top app bar."
+  ]
+}
