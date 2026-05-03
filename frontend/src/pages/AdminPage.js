@@ -1,0 +1,261 @@
+import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2 } from "lucide-react";
+
+export default function AdminPage() {
+    const { user, loading } = useAuth();
+    const nav = useNavigate();
+    const [tab, setTab] = useState("stats");
+
+    useEffect(() => {
+        if (!loading && (!user || user.role !== "admin")) nav("/");
+    }, [user, loading, nav]);
+
+    if (loading || !user) return <div className="p-10 text-center font-arabic">جاري التحميل...</div>;
+    if (user.role !== "admin") return null;
+
+    const tabs = [
+        { key: "stats", label: "الإحصائيات", icon: BarChart3 },
+        { key: "moderation", label: "مراجعة الإعلانات", icon: Shield },
+        { key: "users", label: "المستخدمون", icon: Users },
+        { key: "reports", label: "البلاغات", icon: Flag },
+        { key: "ads", label: "الإعلانات", icon: ImageIcon },
+        { key: "theme", label: "الهوية البصرية", icon: Palette },
+    ];
+
+    return (
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24">
+            <h1 className="font-arabic font-black text-2xl sm:text-3xl text-[var(--text)] mb-1 flex items-center gap-2">
+                <Shield className="w-6 h-6 text-[var(--accent)]" /> لوحة الإدارة
+            </h1>
+            <p className="text-sm text-[var(--text-muted)] font-arabic-body mb-5">إدارة كاملة لمنصة الحراج بلس</p>
+
+            <div className="flex gap-2 overflow-x-auto no-scrollbar mb-5 pb-2">
+                {tabs.map((tb) => (
+                    <button key={tb.key} data-testid={`admin-tab-${tb.key}`} onClick={() => setTab(tb.key)} className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full font-arabic font-bold text-sm border ${tab === tb.key ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>
+                        <tb.icon className="w-4 h-4" /> {tb.label}
+                    </button>
+                ))}
+            </div>
+
+            {tab === "stats" && <StatsPanel />}
+            {tab === "moderation" && <ModerationPanel />}
+            {tab === "users" && <UsersPanel />}
+            {tab === "reports" && <ReportsPanel />}
+            {tab === "ads" && <AdsPanel />}
+            {tab === "theme" && <ThemePanel />}
+        </div>
+    );
+}
+
+function StatsPanel() {
+    const [stats, setStats] = useState(null);
+    useEffect(() => { api.get("/admin/stats").then(({ data }) => setStats(data)); }, []);
+    if (!stats) return <div className="p-6 text-center font-arabic">تحميل...</div>;
+    const items = [
+        { label: "إجمالي المستخدمين", value: stats.users },
+        { label: "مستخدمون جدد (24س)", value: stats.new_users_24h },
+        { label: "إجمالي الإعلانات", value: stats.listings },
+        { label: "إعلانات نشطة", value: stats.active_listings },
+        { label: "بانتظار المراجعة", value: stats.pending_moderation, danger: true },
+        { label: "بلاغات مفتوحة", value: stats.open_reports, danger: true },
+        { label: "رسائل (24س)", value: stats.messages_24h },
+        { label: "إعلانات بنرات نشطة", value: stats.ads },
+    ];
+    return (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {items.map((it) => (
+                <div key={it.label} className={`bg-[var(--surface)] rounded-2xl p-4 border ${it.danger && it.value > 0 ? "border-[var(--danger)]" : "border-[var(--border)]"}`}>
+                    <div className={`font-latin font-black text-2xl sm:text-3xl ${it.danger && it.value > 0 ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>{it.value}</div>
+                    <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{it.label}</div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function ModerationPanel() {
+    const [items, setItems] = useState([]);
+    const reload = () => api.get("/admin/listings/pending").then(({ data }) => setItems(data));
+    useEffect(() => { reload(); }, []);
+    const approve = async (id) => { await api.post(`/admin/listings/${id}/approve`); reload(); };
+    const reject = async (id) => { await api.post(`/admin/listings/${id}/reject`); reload(); };
+    if (items.length === 0) return <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)] text-[var(--text-muted)] font-arabic-body">لا توجد إعلانات بانتظار المراجعة ✅</div>;
+    return (
+        <div className="space-y-3">
+            {items.map((l) => (
+                <div key={l.id} className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                    {l.images?.[0] && <img src={l.images[0]} alt="" className="w-20 h-20 rounded-xl object-cover" />}
+                    <div className="flex-1">
+                        <Link to={`/listing/${l.id}`} target="_blank" className="font-arabic font-bold text-sm text-[var(--text)] hover:text-[var(--primary)]">{l.title}</Link>
+                        <p className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-2">{l.description}</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button data-testid={`approve-${l.id}`} onClick={() => approve(l.id)} className="bg-[var(--success)] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1"><Check className="w-3 h-3" /> موافقة</button>
+                        <button data-testid={`reject-${l.id}`} onClick={() => reject(l.id)} className="bg-[var(--danger)] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1"><X className="w-3 h-3" /> رفض</button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function UsersPanel() {
+    const [users, setUsers] = useState([]);
+    const reload = () => api.get("/admin/users").then(({ data }) => setUsers(data));
+    useEffect(() => { reload(); }, []);
+    return (
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <table className="w-full text-sm font-arabic-body">
+                <thead className="bg-[var(--surface-elevated)]">
+                    <tr>
+                        <th className="text-start p-3 font-arabic">الاسم</th>
+                        <th className="text-start p-3 font-arabic hidden sm:table-cell">البريد</th>
+                        <th className="text-start p-3 font-arabic">الدولة</th>
+                        <th className="text-start p-3 font-arabic">الحالة</th>
+                        <th className="text-start p-3 font-arabic">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {users.map((u) => (
+                        <tr key={u.id} className="border-t border-[var(--border)]">
+                            <td className="p-3 font-bold text-[var(--text)]">{u.name}</td>
+                            <td className="p-3 text-[var(--text-muted)] hidden sm:table-cell text-xs">{u.email}</td>
+                            <td className="p-3 text-[var(--text-muted)]">{u.country_code}</td>
+                            <td className="p-3">
+                                {u.banned ? <span className="text-red-500 font-bold">محظور</span> : u.verified ? <span className="text-[var(--success)] font-bold">موثّق</span> : <span className="text-[var(--text-muted)]">عادي</span>}
+                            </td>
+                            <td className="p-3 flex gap-1">
+                                {!u.verified && <button onClick={async () => { await api.post(`/admin/users/${u.id}/verify`); reload(); }} className="bg-[var(--primary)]/15 text-[var(--primary)] px-2 py-1 rounded-full text-xs font-bold">توثيق</button>}
+                                {u.banned ? (
+                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/unban`); reload(); }} className="bg-[var(--success)]/15 text-[var(--success)] px-2 py-1 rounded-full text-xs font-bold">إلغاء حظر</button>
+                                ) : (
+                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/ban`); reload(); }} className="bg-red-500/15 text-red-500 px-2 py-1 rounded-full text-xs font-bold">حظر</button>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function ReportsPanel() {
+    const [reports, setReports] = useState([]);
+    const reload = () => api.get("/admin/reports").then(({ data }) => setReports(data));
+    useEffect(() => { reload(); }, []);
+    return (
+        <div className="space-y-2">
+            {reports.length === 0 && <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)] text-[var(--text-muted)] font-arabic-body">لا توجد بلاغات</div>}
+            {reports.map((r) => (
+                <div key={r.id} className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] flex items-center gap-3">
+                    <div className="flex-1">
+                        <div className="font-arabic font-bold text-sm text-[var(--text)]">{r.target_type} #{r.target_id.slice(0, 8)}</div>
+                        <div className="text-xs text-[var(--text-muted)] font-arabic-body">{r.reason}</div>
+                    </div>
+                    <span className={`text-xs font-bold ${r.status === "open" ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>{r.status === "open" ? "مفتوح" : "مغلق"}</span>
+                    {r.status === "open" && <button onClick={async () => { await api.post(`/admin/reports/${r.id}/close`); reload(); }} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold">إغلاق</button>}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function AdsPanel() {
+    const [ads, setAds] = useState([]);
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({ title: "", image_url: "", link_url: "", placement: "home_top", active: true, country_code: "" });
+    const reload = () => api.get("/admin/ads").then(({ data }) => setAds(data));
+    useEffect(() => { reload(); }, []);
+    const create = async (e) => {
+        e.preventDefault();
+        const payload = { ...form, country_code: form.country_code || null };
+        await api.post("/admin/ads", payload);
+        setForm({ title: "", image_url: "", link_url: "", placement: "home_top", active: true, country_code: "" });
+        setShowForm(false);
+        reload();
+    };
+    const remove = async (id) => { if (!window.confirm("حذف الإعلان؟")) return; await api.delete(`/admin/ads/${id}`); reload(); };
+    return (
+        <div className="space-y-3">
+            <button data-testid="new-ad-btn" onClick={() => setShowForm(!showForm)} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-full font-arabic font-bold text-sm flex items-center gap-2"><Plus className="w-4 h-4" /> إضافة بنر إعلاني</button>
+            {showForm && (
+                <form onSubmit={create} className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-3 font-arabic-body">
+                    <input data-testid="ad-title-input" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="عنوان الإعلان" className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                    <input data-testid="ad-image-input" required value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="رابط الصورة (https://...)" className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                    <input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="رابط عند الضغط (اختياري)" className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                    <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none">
+                        <option value="home_top">الرئيسية - أعلى</option>
+                        <option value="home_middle">الرئيسية - وسط</option>
+                        <option value="home_bottom">الرئيسية - أسفل</option>
+                        <option value="listing_bottom">صفحة المنتج - أسفل</option>
+                        <option value="sidebar">شريط جانبي</option>
+                    </select>
+                    <button type="submit" className="bg-[var(--success)] text-white px-4 py-2 rounded-full font-arabic font-bold text-sm">حفظ</button>
+                </form>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {ads.map((a) => (
+                    <div key={a.id} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                        <img src={a.image_url} alt={a.title} className="w-full h-32 object-cover" />
+                        <div className="p-3 flex items-center justify-between">
+                            <div>
+                                <div className="font-arabic font-bold text-sm text-[var(--text)]">{a.title}</div>
+                                <div className="text-xs text-[var(--text-muted)] font-arabic-body">{a.placement}</div>
+                            </div>
+                            <button data-testid={`del-ad-${a.id}`} onClick={() => remove(a.id)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ThemePanel() {
+    const [theme, setTheme] = useState({});
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    useEffect(() => { api.get("/meta/theme").then(({ data }) => setTheme(data)); }, []);
+    const save = async (e) => {
+        e.preventDefault();
+        setBusy(true); setMsg("");
+        try {
+            await api.post("/admin/theme", theme);
+            setMsg("تم الحفظ ✅ يرجى تحديث الصفحة لرؤية التغييرات");
+        } catch (_) { setMsg("فشل الحفظ"); } finally { setBusy(false); }
+    };
+    return (
+        <form onSubmit={save} className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] space-y-4 max-w-2xl font-arabic-body">
+            <h3 className="font-arabic font-bold text-lg text-[var(--text)]">تخصيص الهوية البصرية</h3>
+            {msg && <div className="bg-[var(--primary)]/10 text-[var(--primary)] rounded-xl p-3 text-sm">{msg}</div>}
+            <ColorField label="اللون الأساسي" value={theme.primary_color} onChange={(v) => setTheme({ ...theme, primary_color: v })} />
+            <ColorField label="اللون الثانوي" value={theme.secondary_color} onChange={(v) => setTheme({ ...theme, secondary_color: v })} />
+            <ColorField label="لون التمييز" value={theme.accent_color} onChange={(v) => setTheme({ ...theme, accent_color: v })} />
+            <div>
+                <label className="block text-sm font-bold mb-1 text-[var(--text)]">اسم الموقع</label>
+                <input value={theme.site_name || ""} onChange={(e) => setTheme({ ...theme, site_name: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+            </div>
+            <div>
+                <label className="block text-sm font-bold mb-1 text-[var(--text)]">شعار رئيسي</label>
+                <input value={theme.tagline_ar || ""} onChange={(e) => setTheme({ ...theme, tagline_ar: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+            </div>
+            <button data-testid="save-theme-btn" disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 rounded-full font-arabic font-bold text-sm">{busy ? "جاري الحفظ..." : "حفظ"}</button>
+        </form>
+    );
+}
+
+function ColorField({ label, value, onChange }) {
+    return (
+        <div>
+            <label className="block text-sm font-bold mb-1 text-[var(--text)]">{label}</label>
+            <div className="flex items-center gap-2">
+                <input type="color" value={value || "#000000"} onChange={(e) => onChange(e.target.value)} className="w-12 h-10 rounded-xl border border-[var(--border)] cursor-pointer" />
+                <input value={value || ""} onChange={(e) => onChange(e.target.value)} className="flex-1 bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none font-mono" />
+            </div>
+        </div>
+    );
+}

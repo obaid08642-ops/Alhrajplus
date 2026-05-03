@@ -1,0 +1,80 @@
+import { Link } from "react-router-dom";
+import { Heart, MapPin, TrendingUp, Star, Sparkles, Crown } from "lucide-react";
+import { useState } from "react";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+
+export default function ListingCard({ listing, compact = true }) {
+    const { user } = useAuth();
+    const [fav, setFav] = useState(false);
+
+    const toggleFav = async (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (!user) return;
+        try {
+            const { data } = await api.post(`/favorites/${listing.id}`);
+            setFav(data.favorited);
+        } catch (_) {}
+    };
+
+    const ts = listing.created_at ? new Date(listing.created_at) : null;
+    const timeAgo = ts ? formatTimeAgo(ts) : "";
+
+    return (
+        <Link
+            to={`/listing/${listing.id}`}
+            data-testid={`listing-card-${listing.id}`}
+            className="group bg-[var(--surface)] rounded-2xl overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--primary)]/15 transition-all duration-300 cursor-pointer flex flex-col"
+        >
+            <div className={`relative overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-square"}`}>
+                {listing.images?.[0] ? (
+                    <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                ) : (
+                    <div className="w-full h-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">لا توجد صورة</div>
+                )}
+                <button onClick={toggleFav} data-testid={`fav-btn-${listing.id}`} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/85 hover:bg-white flex items-center justify-center shadow-md backdrop-blur">
+                    <Heart className={`w-3.5 h-3.5 ${fav ? "fill-red-500 text-red-500" : "text-[var(--secondary)]"}`} />
+                </button>
+                {listing.verified && (
+                    <span className="absolute top-2 left-2 bg-[var(--primary)]/95 text-[var(--primary-fg)] rounded-full px-2 py-0.5 text-[9px] font-black font-arabic flex items-center gap-1">
+                        <Star className="w-2.5 h-2.5 fill-current" /> موثّق
+                    </span>
+                )}
+                {listing.ai_badge === "good" && (
+                    <span className="absolute bottom-2 left-2 bg-[var(--success)]/95 text-white rounded-full px-2 py-0.5 text-[9px] font-black font-arabic flex items-center gap-1">
+                        <TrendingUp className="w-2.5 h-2.5" /> صفقة
+                    </span>
+                )}
+            </div>
+            <div className="p-2.5 flex-1 flex flex-col justify-between">
+                <h3 className="font-arabic font-bold text-sm text-[var(--text)] line-clamp-2 mb-1.5 group-hover:text-[var(--primary)] transition-colors min-h-[2.5em]">{listing.title}</h3>
+                <div>
+                    <div className="flex items-baseline gap-1 mb-1">
+                        {listing.price ? (
+                            <>
+                                <span className="font-latin font-black text-base text-[var(--secondary)] dark:text-[var(--primary)]">{Number(listing.price).toLocaleString()}</span>
+                                <span className="text-[10px] text-[var(--text-muted)] font-arabic-body">{listing.currency || "ر.س"}</span>
+                            </>
+                        ) : (
+                            <span className="text-xs text-[var(--text-muted)] font-arabic">على السوم</span>
+                        )}
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] font-arabic-body">
+                        <span className="flex items-center gap-0.5 truncate"><MapPin className="w-2.5 h-2.5 shrink-0" /> {listing.city}</span>
+                        <span className="shrink-0">{timeAgo}</span>
+                    </div>
+                </div>
+            </div>
+        </Link>
+    );
+}
+
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diff = (now - date) / 1000;
+    if (diff < 60) return "الآن";
+    if (diff < 3600) return `${Math.floor(diff / 60)}د`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}س`;
+    if (diff < 2592000) return `${Math.floor(diff / 86400)}ي`;
+    return `${Math.floor(diff / 2592000)}ش`;
+}

@@ -1,0 +1,62 @@
+{
+  "summary": "Backend-only testing of Haraj Plus (الحراج بلس). 44 pytest cases covering meta, auth, listings, favorites, chat, reports, ads, admin, cloudinary. 43/44 passed (97.7%). Only failure is brute-force lockout which is functionally broken due to identifier design (IP+email) vs K8s ingress rotating source IPs.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/login",
+        "issue": "Brute-force lockout NOT working behind Kubernetes ingress. Identifier is built as `f\"{request.client.host}:{email}\"` but the ingress load-balances requests across multiple pod/proxy IPs (observed 10.64.128.135 and 10.64.130.10 in MongoDB login_attempts). Each IP accumulates <5 fails, so `fails >= 5` condition never triggers. Confirmed via 7 rapid wrong-password attempts returning 401 every time (expected 429 after attempt 6). This defeats the 5-attempts/15-min security requirement specified in auth playbook and problem statement.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "startup: login_attempts TTL index",
+        "issue": "Index `db.login_attempts.create_index(\"ts\", expireAfterSeconds=900)` will not auto-expire documents because `ts` is stored as an ISO-8601 string, not a BSON Date. MongoDB TTL only works on Date fields. Collection will grow unbounded."
+      },
+      {
+        "endpoint": "GET /api/listings/{id}",
+        "issue": "Views counter is incremented on every GET with no rate limiting / cookie-based dedupe; easy to inflate artificially."
+      },
+      {
+        "endpoint": "GET /api/ads",
+        "issue": "Ads endpoint ignores `placement` filter when `country_code` is also provided because the subsequent `$or` overwrites any previous `$or` (not problematic here but fragile). Also when `country_code` is provided, placement filter is kept via `q[\"placement\"]` so actually fine — keep but double-check: current code is OK, minor observation on filter combining if future `q` fields add $or."
+      },
+      {
+        "endpoint": "cookies",
+        "issue": "secure=True + samesite='none' cookies will NOT work if any client accesses via http (dev/localhost). Fine for the preview URL which is https. Just flagging."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_haraj_plus.py",
+    "/app/test_reports/pytest/haraj_plus_results.xml"
+  ],
+  "action_items": [
+    "FIX brute-force lockout: change identifier to email only (e.g. `identifier = email`) OR prefer `request.headers.get('x-forwarded-for', '').split(',')[0].strip() or request.client.host` combined with email. Email-only keying is safer behind multi-IP ingress. Without this fix, the 'strong security against hackers' requirement is violated.",
+    "FIX login_attempts TTL: store `ts` as `datetime.now(timezone.utc)` (BSON Date) instead of `.isoformat()` string, then the TTL index will work; also update comparison to use datetime, not str. Alternatively keep string but periodically purge.",
+    "Consider using X-Forwarded-For for logging real client IP (currently records pod IPs).",
+    "Remove stray `return listing` from test_create_car_listing (cosmetic pytest warning) — already in test file, not production."
+  ],
+  "critical_code_review_comments": [
+    "Brute-force identifier design is incompatible with multi-replica/ingress deployment — must key by email (and optionally XFF).",
+    "TTL index on stringified timestamps is ineffective; will silently accumulate data.",
+    "No rate-limiting on /api/auth/register, /api/reports, /api/chat/send or /api/listings POST — spam/abuse vector.",
+    "Listing views counter has no dedupe and is auth-less, easy to manipulate.",
+    "server.py is ~780 lines and mixes models, routes, and security — fine for MVP but consider splitting into modules (auth, listings, chat, admin) as features grow.",
+    "`moderation='pending' if any_banned_word...` still sets `status='active'`; a pending listing is visible in GET /api/listings because only `moderation != 'rejected'` is filtered. Consider filtering `moderation == 'approved'` on public list to truly hide suspicious content.",
+    "Admin endpoints don't audit-log actions (bans, approvals) — consider an admin_actions collection for accountability.",
+    "Cloudinary signature returns cloud_name/api_key — that's fine (they're public) but confirm api_secret never returned (it isn't).",
+    "`GET /api/chat/messages/{convo_id}` uses `convo_id.split('_')` but user IDs are UUIDs which already contain hyphens, not underscores, so this works, but fragile if ID scheme changes."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_haraj_plus.py (new)"
+  ],
+  "success_rate": {"backend": "97.7%", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 (works). Fresh test users auto-created per run.",
+  "seed_data_creation": "Admin seeded correctly on startup. Default theme seeded. Sample ad seeded. Categories/countries served from seed_data.py constants (not DB).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Test file at /app/backend/tests/test_haraj_plus.py runs 44 tests in ~12s. After main agent fixes the brute-force identifier (switch to email-only keying), simply rerun `pytest backend/tests/test_haraj_plus.py::TestAuth::test_brute_force_lockout_after_5 -v`. All other endpoints verified healthy. Tests use REACT_APP_BACKEND_URL and prefix test data with TEST_ where relevant. DB is `haraj_plus_db`. Be aware: K8s ingress rotates client IPs (observed 10.64.128.135 & 10.64.130.10).",
+  "rca_of_the_issue": "Brute-force lockout bypass RCA: (1) /api/auth/login builds identifier = f'{request.client.host}:{email}'. (2) Kubernetes ingress/load-balancer round-robins incoming requests across multiple pod IPs, so consecutive login attempts from the SAME client are recorded under DIFFERENT identifier strings (confirmed via mongosh: alternating 10.64.128.135/10.64.130.10 for same email). (3) count_documents filter on identifier therefore never reaches 5 for either IP. Reproduction: register any user, POST /api/auth/login 7x with wrong password → all return 401, never 429. Mitigation: change identifier to just `email.lower()` (and/or parse X-Forwarded-For first hop) so lockout is keyed per-account regardless of source IP. Additionally convert `ts` to datetime Date so the TTL index actually expires old attempts after 900s."
+}
