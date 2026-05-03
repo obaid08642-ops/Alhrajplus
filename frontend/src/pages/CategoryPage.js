@@ -11,7 +11,7 @@ export default function CategoryPage() {
     const { categoryKey } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
-    const { t } = useI18n();
+    const { t, pickName } = useI18n();
     const [category, setCategory] = useState(null);
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -66,7 +66,7 @@ export default function CategoryPage() {
             <div className="flex items-center gap-2 mb-4 sm:mb-6">
                 <Link to="/" className="text-[var(--text-muted)] hover:text-[var(--primary)]"><ChevronLeft className="w-5 h-5 rotate-180" /></Link>
                 <div>
-                    <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)]">{category.name_ar}</h1>
+                    <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)]">{pickName(category)}</h1>
                     <p className="text-xs sm:text-sm text-[var(--text-muted)] font-arabic-body">{listings.length} إعلان</p>
                 </div>
                 <button data-testid="toggle-filters" onClick={() => setShowFilters(!showFilters)} className="ms-auto flex items-center gap-1.5 bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text)] px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold border border-[var(--border)] transition-all font-arabic">
@@ -79,7 +79,7 @@ export default function CategoryPage() {
                 <button data-testid="sub-all" onClick={() => updateFilter("subcategory", "")} className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-arabic font-bold border ${!filters.subcategory ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>الكل</button>
                 {category.subcategories?.map((s) => (
                     <button key={s.key} data-testid={`sub-${s.key}`} onClick={() => updateFilter("subcategory", s.key)} className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-arabic font-bold border ${filters.subcategory === s.key ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>
-                        {s.name_ar}
+                        {pickName(s)}
                     </button>
                 ))}
             </div>
@@ -109,17 +109,13 @@ export default function CategoryPage() {
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                     {listings.map((l, i) => (
-                        <>
-                            <ListingCard key={l.id} listing={l} compact />
-                            {(i + 1) % 10 === 0 && (
-                                <div key={`ad-${i}`} className="col-span-2 sm:col-span-3 lg:col-span-5">
-                                    <AdSlot placement="home_middle" />
-                                </div>
-                            )}
-                        </>
+                        <ListingCard key={l.id} listing={l} compact />
                     ))}
                 </div>
             )}
+            <div className="mt-6">
+                <AdSlot placement="home_middle" />
+            </div>
         </div>
     );
 }

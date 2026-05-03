@@ -131,8 +131,9 @@ class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     phone: str = Field(min_length=8, max_length=20)
-    country_code: str = Field(min_length=2, max_length=3)  # SA, AE, ...
+    country_code: str = Field(min_length=2, max_length=3)
     city: Optional[str] = None
+    referral_code: Optional[str] = None
 
 class LoginIn(BaseModel):
     email: EmailStr
@@ -214,15 +215,24 @@ async def get_theme():
 # ============================================================
 @api.post("/auth/register")
 async def register(body: RegisterIn, response: Response):
-    # validate country
     valid_codes = {c["code"] for c in COUNTRIES}
     if body.country_code not in valid_codes:
         raise HTTPException(400, "Invalid country code")
+    # Validate phone format per country
+    if not validate_phone(body.country_code, body.phone):
+        raise HTTPException(400, f"رقم الجوال غير صحيح لدولة {body.country_code}. تحقق من البادئة والطول")
     email = body.email.lower().strip()
     existing = await db.users.find_one({"$or": [{"email": email}, {"phone_full": f"{body.country_code}{body.phone}"}]})
     if existing:
         raise HTTPException(400, "البريد أو رقم الجوال مسجل مسبقاً")
     uid = str(uuid.uuid4())
+    # Validate referral code if provided
+    referred_by = None
+    if body.referral_code:
+        rcode = body.referral_code.strip().upper()
+        ref_user = await db.users.find_one({"referral_code": rcode})
+        if ref_user:
+            referred_by = rcode
     user = {
         "id": uid,
         "name": body.name.strip(),
@@ -239,6 +249,8 @@ async def register(body: RegisterIn, response: Response):
         "bio": "",
         "language": "ar",
         "banned": False,
+        "referral_code": gen_referral_code(body.name),
+        "referred_by": referred_by,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(user)
@@ -307,9 +319,132 @@ async def refresh_token(request: Request, response: Response):
 
 
 # ============================================================
+# Phone validation rules per country
+# ============================================================
+PHONE_RULES = {
+    "SA": {"prefix": "5", "length": 9},
+    "AE": {"prefix": ["50", "52", "54", "55", "56", "58"], "length": 9},
+    "KW": {"prefix": ["5", "6", "9"], "length": 8},
+    "QA": {"prefix": ["3", "5", "6", "7"], "length": 8},
+    "BH": {"prefix": ["3", "6", "9"], "length": 8},
+    "OM": {"prefix": ["7", "9"], "length": 8},
+}
+
+def validate_phone(country_code: str, phone: str) -> bool:
+    rule = PHONE_RULES.get(country_code)
+    if not rule:
+        return True
+    if len(phone) != rule["length"]:
+        return False
+    prefixes = rule["prefix"] if isinstance(rule["prefix"], list) else [rule["prefix"]]
+    return any(phone.startswith(p) for p in prefixes)
+
+
+# ============================================================
+# Forgot Password
+# ============================================================
+class ForgotIn(BaseModel):
+    email: EmailStr
+
+class ResetIn(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+@api.post("/auth/forgot-password")
+async def forgot_password(body: ForgotIn):
+    email = body.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    if user:
+        token = secrets.token_urlsafe(32)
+        await db.password_reset_tokens.insert_one({
+            "token": token, "user_id": user["id"],
+            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+            "used": False, "created_at": datetime.now(timezone.utc),
+        })
+        print(f"[PWD-RESET] {email} -> /reset-password?token={token}")
+    return {"message": "If email is registered, a reset link will be sent"}
+
+@api.post("/auth/reset-password")
+async def reset_password(body: ResetIn):
+    rec = await db.password_reset_tokens.find_one({"token": body.token, "used": False})
+    if not rec:
+        raise HTTPException(400, "رابط غير صالح أو مستخدم")
+    if rec["expires_at"] < datetime.now(timezone.utc):
+        raise HTTPException(400, "انتهت صلاحية الرابط")
+    await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
+    await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
+    return {"success": True}
+
+
+# ============================================================
+# AI Price Suggestion (market-based heuristic)
+# ============================================================
+class PriceSuggestIn(BaseModel):
+    category: str
+    custom_fields: dict = {}
+    title: str = ""
+    country_code: Optional[str] = None
+
+@api.post("/ai/price-suggest")
+async def ai_price_suggest(body: PriceSuggestIn):
+    q: dict = {"category": body.category, "status": "active", "moderation": "approved", "price": {"$gt": 0}}
+    if body.country_code:
+        q["country_code"] = body.country_code
+    cursor = db.listings.find(q, {"_id": 0, "price": 1}).limit(100)
+    items = await cursor.to_list(length=100)
+    if len(items) < 2:
+        return {"suggested_min": None, "suggested_max": None, "average": None, "samples": len(items),
+                "note": "لا توجد بيانات كافية بعد. كن أول من ينشر!"}
+    prices = sorted([i["price"] for i in items if i.get("price")])
+    avg = sum(prices) / len(prices)
+    p25 = prices[len(prices) // 4]
+    p75 = prices[(3 * len(prices)) // 4]
+    return {"suggested_min": round(p25, 2), "suggested_max": round(p75, 2),
+            "average": round(avg, 2), "samples": len(prices),
+            "note": f"متوسط السوق بناءً على {len(prices)} إعلان مماثل"}
+
+
+# ============================================================
+# Referral System
+# ============================================================
+def gen_referral_code(name: str) -> str:
+    base = "".join(c for c in name if c.isalnum())[:4].upper() or "USER"
+    return f"{base}{secrets.token_hex(3).upper()}"
+
+@api.get("/referral/me")
+async def get_my_referral(user: dict = Depends(get_current_user)):
+    code = user.get("referral_code")
+    if not code:
+        code = gen_referral_code(user["name"])
+        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": code}})
+    invited = await db.users.count_documents({"referred_by": code})
+    badge = None
+    if invited >= 25: badge = "موثّق ذهبي ⭐"
+    elif invited >= 10: badge = "موثّق فضي 🥈"
+    elif invited >= 5: badge = "موثّق برونزي 🥉"
+    next_m = 5 if invited < 5 else (10 if invited < 10 else (25 if invited < 25 else None))
+    return {"code": code, "invited_count": invited, "badge": badge, "next_milestone": next_m}
+
+@api.get("/referral/leaderboard")
+async def referral_leaderboard():
+    pipeline = [
+        {"$match": {"referred_by": {"$ne": None, "$exists": True}}},
+        {"$group": {"_id": "$referred_by", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}, {"$limit": 10},
+    ]
+    rows = await db.users.aggregate(pipeline).to_list(length=10)
+    enriched = []
+    for r in rows:
+        u = await db.users.find_one({"referral_code": r["_id"]}, {"_id": 0, "name": 1, "city": 1, "verified": 1})
+        if u:
+            u["invites"] = r["count"]
+            enriched.append(u)
+    return enriched
+
+
+# ============================================================
 # Cloudinary upload signing
 # ============================================================
-@api.get("/cloudinary/signature")
 async def cloudinary_signature(
     resource_type: str = Query("image"),
     folder: str = Query("listings"),
@@ -346,6 +481,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     if not cat:
         raise HTTPException(400, "فئة غير صالحة")
     listing_id = str(uuid.uuid4())
+    is_banned = any_banned_word(f"{body.title} {body.description}")
     doc = {
         "id": listing_id,
         "user_id": user["id"],
@@ -364,8 +500,8 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "lat": body.lat,
         "lng": body.lng,
         "show_phone": body.show_phone,
-        "status": "active",  # active | pending | rejected | sold
-        "moderation": "pending" if any_banned_word(f"{body.title} {body.description}") else "approved",
+        "status": "active",
+        "moderation": "pending" if is_banned else "approved",
         "views": 0,
         "favorites": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -757,6 +893,9 @@ async def startup():
     # Seed default theme
     if await db.settings.find_one({"_key": "theme"}) is None:
         await db.settings.insert_one({"_key": "theme", "value": DEFAULT_THEME})
+    # Backfill referral codes for users without one
+    async for u in db.users.find({"referral_code": {"$exists": False}}, {"_id": 0, "id": 1, "name": 1}):
+        await db.users.update_one({"id": u["id"]}, {"$set": {"referral_code": gen_referral_code(u.get("name", "USER"))}})
     # Seed sample ad
     if await db.ads.count_documents({}) == 0:
         await db.ads.insert_one({

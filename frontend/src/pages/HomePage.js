@@ -11,11 +11,14 @@ import AdSlot from "@/components/listings/AdSlot";
 const HERO_BG = "https://images.unsplash.com/photo-1709626011483-5bb4b5470ac9?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600";
 
 export default function HomePage() {
-    const { t } = useI18n();
+    const { t, pickName } = useI18n();
     const { user } = useAuth();
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [layout, setLayout] = useState(localStorage.getItem("hp_layout") || "grid");
+
+    useEffect(() => { localStorage.setItem("hp_layout", layout); }, [layout]);
 
     useEffect(() => {
         const load = async () => {
@@ -34,9 +37,9 @@ export default function HomePage() {
     return (
         <div className="space-y-6 sm:space-y-10 pb-6">
             <Hero t={t} />
-            <CategoriesGrid categories={categories} t={t} />
+            <CategoriesGrid categories={categories} t={t} pickName={pickName} />
             <AdSlot placement="home_top" className="max-w-7xl mx-auto px-4 sm:px-6" />
-            <NearbySection listings={listings} loading={loading} t={t} />
+            <NearbySection listings={listings} loading={loading} t={t} layout={layout} setLayout={setLayout} />
             <AdSlot placement="home_middle" className="max-w-7xl mx-auto px-4 sm:px-6" />
             <CTASection t={t} user={user} />
         </div>
@@ -74,7 +77,7 @@ function Hero({ t }) {
     );
 }
 
-function CategoriesGrid({ categories, t }) {
+function CategoriesGrid({ categories, t, pickName }) {
     return (
         <section className="max-w-7xl mx-auto px-3 sm:px-6">
             <div className="flex items-center justify-between mb-3 sm:mb-5">
@@ -94,10 +97,10 @@ function CategoriesGrid({ categories, t }) {
                             className="group relative aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border border-[var(--border)] bg-[var(--surface)] p-2 sm:p-4 flex flex-col items-center justify-center gap-1.5 sm:gap-2 hover:border-[var(--primary)] hover:-translate-y-1 transition-all duration-300 animate-fade-up"
                             style={{ animationDelay: `${i * 25}ms` }}
                         >
-                            <div className="relative w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-[var(--surface-elevated)] group-hover:bg-[var(--primary)]/20 flex items-center justify-center transition-all">
-                                <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-[var(--primary)]" strokeWidth={2} />
+                            <div className="relative w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-[var(--primary)]/15 group-hover:bg-[var(--primary)]/25 flex items-center justify-center transition-all">
+                                <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-[var(--primary)]" strokeWidth={2.2} />
                             </div>
-                            <span className="relative font-arabic font-bold text-xs sm:text-base text-[var(--text)] text-center">{c.name_ar}</span>
+                            <span className="relative font-arabic font-bold text-xs sm:text-base text-[var(--text)] text-center">{pickName(c)}</span>
                         </Link>
                     );
                 })}
@@ -106,25 +109,35 @@ function CategoriesGrid({ categories, t }) {
     );
 }
 
-function NearbySection({ listings, loading, t }) {
+function NearbySection({ listings, loading, t, layout, setLayout }) {
     return (
         <section className="max-w-7xl mx-auto px-3 sm:px-6">
-            <div className="flex items-center justify-between mb-3 sm:mb-5">
+            <div className="flex items-center justify-between mb-3 sm:mb-5 gap-2">
                 <div>
                     <h2 className="font-arabic font-black text-xl sm:text-2xl text-[var(--text)]">{t("sec_nearby")}</h2>
                     <p className="text-xs sm:text-sm text-[var(--text-muted)] font-arabic-body mt-0.5">{t("sec_nearby_sub")}</p>
                 </div>
-                <Link to="/search" data-testid="view-all-listings" className="text-xs sm:text-sm text-[var(--primary)] font-bold font-arabic">{t("view_all")} →</Link>
+                <div className="flex items-center gap-2">
+                    <div className="bg-[var(--surface-elevated)] rounded-full p-1 flex border border-[var(--border)]">
+                        <button data-testid="layout-grid" onClick={() => setLayout("grid")} className={`px-3 py-1 rounded-full text-[10px] sm:text-xs font-arabic font-bold transition-all ${layout === "grid" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "text-[var(--text-muted)]"}`}>{t("layout_grid")}</button>
+                        <button data-testid="layout-wide" onClick={() => setLayout("wide")} className={`px-3 py-1 rounded-full text-[10px] sm:text-xs font-arabic font-bold transition-all ${layout === "wide" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "text-[var(--text-muted)]"}`}>{t("layout_wide")}</button>
+                    </div>
+                    <Link to="/search" data-testid="view-all-listings" className="text-xs sm:text-sm text-[var(--primary)] font-bold font-arabic">{t("view_all")} →</Link>
+                </div>
             </div>
             {loading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                        <div key={i} className="aspect-[4/3] rounded-2xl bg-[var(--surface-elevated)] animate-pulse"></div>
+                <div className={layout === "wide" ? "space-y-3" : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"}>
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className={`${layout === "wide" ? "h-28" : "aspect-[4/3]"} rounded-2xl bg-[var(--surface-elevated)] animate-pulse`}></div>
                     ))}
                 </div>
             ) : listings.length === 0 ? (
                 <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)]">
                     <p className="text-[var(--text-muted)] font-arabic-body">{t("no_results")} — كن أول من ينشر!</p>
+                </div>
+            ) : layout === "wide" ? (
+                <div className="space-y-3">
+                    {listings.map((l) => <WideListingCard key={l.id} listing={l} />)}
                 </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -132,6 +145,32 @@ function NearbySection({ listings, loading, t }) {
                 </div>
             )}
         </section>
+    );
+}
+
+function WideListingCard({ listing }) {
+    return (
+        <Link to={`/listing/${listing.id}`} data-testid={`wide-listing-${listing.id}`} className="group flex bg-[var(--surface)] rounded-2xl overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] hover:shadow-lg transition-all">
+            <div className="w-32 sm:w-48 shrink-0 aspect-square overflow-hidden bg-[var(--surface-elevated)]">
+                {listing.images?.[0] ? (
+                    <img src={listing.images[0]} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                ) : <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs">لا توجد صورة</div>}
+            </div>
+            <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between">
+                <div>
+                    <h3 className="font-arabic font-bold text-sm sm:text-base text-[var(--text)] line-clamp-2 mb-1 group-hover:text-[var(--primary)]">{listing.title}</h3>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-2">{listing.description}</p>
+                </div>
+                <div className="flex items-baseline justify-between mt-2">
+                    <div>
+                        {listing.price ? (
+                            <span className="font-latin font-black text-lg sm:text-xl text-[var(--primary)]">{Number(listing.price).toLocaleString()} <span className="text-xs">{listing.currency}</span></span>
+                        ) : <span className="text-xs text-[var(--text-muted)] font-arabic">على السوم</span>}
+                    </div>
+                    <span className="text-[10px] text-[var(--text-muted)] font-arabic-body">{listing.city}</span>
+                </div>
+            </div>
+        </Link>
     );
 }
 

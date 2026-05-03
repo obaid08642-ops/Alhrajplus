@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2 } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
 
 export default function ProfilePage() {
@@ -13,6 +13,7 @@ export default function ProfilePage() {
     const [tab, setTab] = useState("listings");
     const [myListings, setMyListings] = useState([]);
     const [favorites, setFavorites] = useState([]);
+    const [referral, setReferral] = useState(null);
 
     useEffect(() => {
         if (!loading && !user) nav("/login");
@@ -22,6 +23,7 @@ export default function ProfilePage() {
         if (!user) return;
         api.get("/listings/me/mine").then(({ data }) => setMyListings(data));
         api.get("/favorites").then(({ data }) => setFavorites(data));
+        api.get("/referral/me").then(({ data }) => setReferral(data));
     }, [user]);
 
     const removeListing = async (id) => {
@@ -56,6 +58,41 @@ export default function ProfilePage() {
                     <Stat label="المفضلة" value={favorites.length} />
                     <Stat label="درجة الموثوقية" value={user.trust_score || 50} />
                 </div>
+            </div>
+
+            {/* Referral Card */}
+            {referral && (
+                <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10 rounded-3xl p-5 border border-[var(--primary)]/30 mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Gift className="w-5 h-5 text-[var(--primary)]" />
+                        <h3 className="font-arabic font-black text-base text-[var(--text)]">{t("referral_program")}</h3>
+                        {referral.badge && <span className="ms-auto text-xs font-bold text-[var(--accent)] font-arabic">{referral.badge}</span>}
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-3">ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً (5 = 🥉 برونزي، 10 = 🥈 فضي، 25 = ⭐ ذهبي)</p>
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-[var(--surface)] rounded-xl px-3 py-2 border border-[var(--border)] flex items-center justify-between">
+                            <span className="font-mono font-black text-sm text-[var(--primary)]">{referral.code}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-arabic-body">{referral.invited_count} مدعو</span>
+                        </div>
+                        <button data-testid="copy-referral-btn" onClick={() => {
+                            const link = `${window.location.origin}/register?ref=${referral.code}`;
+                            navigator.clipboard.writeText(link);
+                            alert("تم نسخ رابط الدعوة ✅");
+                        }} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl px-4 py-2 font-arabic font-bold text-xs flex items-center gap-1">
+                            <Copy className="w-3.5 h-3.5" /> {t("copy_link")}
+                        </button>
+                    </div>
+                    {referral.next_milestone && (
+                        <div className="mt-3 text-[10px] text-[var(--text-muted)] font-arabic-body">
+                            بقي {referral.next_milestone - referral.invited_count} أصدقاء للوصول للمستوى التالي
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Premium locked notice */}
+            <div className="bg-[var(--surface)] rounded-2xl p-3 border border-dashed border-[var(--border)] mb-4 text-center text-xs text-[var(--text-muted)] font-arabic-body">
+                {t("premium_locked")}
             </div>
 
             <div className="flex gap-2 mb-4">

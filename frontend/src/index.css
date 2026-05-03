@@ -23,18 +23,18 @@ code {
 
 @layer base {
     :root {
-        /* Light Mode - Baby Blue Pastel Luxury */
-        --bg: #F8FAFC;
+        /* Light Mode - Baby Blue Pastel Luxury (more saturated) */
+        --bg: #F1F6FA;
         --surface: #FFFFFF;
-        --surface-elevated: #F1F5F9;
-        --primary: #89CFF0;
-        --primary-hover: #6DAEE0;
-        --primary-fg: #0B192C;
+        --surface-elevated: #E8F2FA;
+        --primary: #4FB6E6;
+        --primary-hover: #2196D9;
+        --primary-fg: #FFFFFF;
         --secondary: #0A1128;
         --accent: #D4AF37;
         --text: #0F172A;
-        --text-muted: #64748B;
-        --border: #E2E8F0;
+        --text-muted: #475569;
+        --border: #CBD5E1;
         --success: #10B981;
         --warning: #F59E0B;
         --danger: #EF4444;
@@ -66,14 +66,14 @@ code {
         --bg: #0A1128;
         --surface: #151E32;
         --surface-elevated: #1E293B;
-        --primary: #89CFF0;
-        --primary-hover: #A8D8EA;
+        --primary: #6CC2EE;
+        --primary-hover: #89CFF0;
         --primary-fg: #0A1128;
         --secondary: #1E293B;
-        --accent: #D4AF37;
+        --accent: #E8C547;
         --text: #F8FAFC;
         --text-muted: #94A3B8;
-        --border: #1E293B;
+        --border: #334155;
         --success: #10B981;
         --warning: #F59E0B;
         --danger: #EF4444;

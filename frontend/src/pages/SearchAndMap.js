@@ -91,6 +91,7 @@ export function SearchPage() {
 export function MapPage() {
     const { user } = useAuth();
     const [items, setItems] = useState([]);
+    const [myPos, setMyPos] = useState(null);
     const center = [24.7136, 46.6753];
 
     useEffect(() => {
@@ -98,12 +99,26 @@ export function MapPage() {
             .then(({ data }) => setItems(data));
     }, [user]);
 
+    const locate = () => {
+        if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setMyPos([pos.coords.latitude, pos.coords.longitude]),
+            () => alert("تعذر الوصول للموقع")
+        );
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24">
-            <h1 className="font-arabic font-black text-xl sm:text-2xl text-[var(--text)] mb-3">الإعلانات على الخريطة</h1>
+            <div className="flex items-center justify-between mb-3">
+                <h1 className="font-arabic font-black text-xl sm:text-2xl text-[var(--text)]">الإعلانات على الخريطة</h1>
+                <button data-testid="map-locate-btn" onClick={locate} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-4 py-2 font-bold text-xs flex items-center gap-1.5 font-arabic">
+                    📍 موقعي الحالي
+                </button>
+            </div>
             <div className="h-[70vh] rounded-3xl overflow-hidden border border-[var(--border)]">
-                <MapContainer center={items[0] ? [items[0].lat, items[0].lng] : center} zoom={items.length ? 10 : 6} className="w-full h-full">
+                <MapContainer center={myPos || (items[0] ? [items[0].lat, items[0].lng] : center)} zoom={myPos ? 13 : (items.length ? 10 : 6)} className="w-full h-full" key={myPos ? myPos.join(",") : "default"}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
+                    {myPos && <Marker position={myPos}><Popup>موقعك الحالي</Popup></Marker>}
                     {items.map((it) => (
                         <Marker key={it.id} position={[it.lat, it.lng]}>
                             <Popup>

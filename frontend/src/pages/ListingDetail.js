@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
+import ImageViewer from "@/components/ImageViewer";
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -22,10 +23,11 @@ export default function ListingDetail() {
     const { id } = useParams();
     const nav = useNavigate();
     const { user } = useAuth();
-    const { t } = useI18n();
+    const { t, pickName, pickLabel } = useI18n();
     const [listing, setListing] = useState(null);
     const [similar, setSimilar] = useState([]);
     const [activeImg, setActiveImg] = useState(0);
+    const [showViewer, setShowViewer] = useState(false);
     const [showPhone, setShowPhone] = useState(false);
     const [categories, setCategories] = useState([]);
 
@@ -64,15 +66,20 @@ export default function ListingDetail() {
                 <div className="lg:col-span-2 space-y-4">
                     {/* Image gallery */}
                     <div className="bg-[var(--surface)] rounded-3xl overflow-hidden border border-[var(--border)]">
-                        <div className="relative aspect-[16/10] bg-[var(--surface-elevated)]">
+                        <div className="relative aspect-[16/10] bg-[var(--surface-elevated)] cursor-zoom-in" onClick={() => listing.images?.length && setShowViewer(true)}>
                             {listing.images?.length ? (
                                 <img src={listing.images[activeImg]} alt={listing.title} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] font-arabic">لا توجد صور</div>
                             )}
                             <div className="absolute top-3 start-3 flex gap-2">
-                                <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{cat?.name_ar}</span>
+                                <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{pickName(cat)}</span>
                             </div>
+                            {listing.images?.length > 0 && (
+                                <button data-testid="open-viewer-btn" onClick={(e) => { e.stopPropagation(); setShowViewer(true); }} className="absolute top-3 end-3 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur hover:bg-black/80">
+                                    <Maximize2 className="w-3 h-3" /> عرض كامل
+                                </button>
+                            )}
                             <div className="absolute bottom-3 end-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{activeImg + 1} / {listing.images?.length || 0}</div>
                         </div>
                         {listing.images?.length > 1 && (
@@ -123,9 +130,21 @@ export default function ListingDetail() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-arabic-body">
                                 {cat?.fields?.filter((f) => listing.custom_fields[f.key]).map((f) => (
                                     <div key={f.key} className="bg-[var(--surface-elevated)] rounded-xl p-3 border border-[var(--border)]">
-                                        <div className="text-xs text-[var(--text-muted)] mb-1">{f.label_ar}</div>
+                                        <div className="text-xs text-[var(--text-muted)] mb-1">{pickLabel(f)}</div>
                                         <div className="text-sm font-bold text-[var(--text)]">{listing.custom_fields[f.key]}</div>
                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Videos */}
+                    {listing.videos?.length > 0 && (
+                        <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
+                            <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">الفيديو</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {listing.videos.map((v, i) => (
+                                    <video key={i} src={v} controls preload="metadata" className="w-full rounded-2xl bg-black aspect-video" />
                                 ))}
                             </div>
                         </div>
@@ -183,32 +202,44 @@ export default function ListingDetail() {
 
                         {/* Contact actions */}
                         <div className="space-y-2.5">
-                            {listing.show_phone !== false && listing.seller?.phone_full && (
+                            {listing.show_phone !== false && listing.seller?.phone_full ? (
                                 <>
-                                    {showPhone ? (
-                                        <a data-testid="call-link" href={`tel:${listing.seller.phone_full}`} className="w-full bg-[var(--success)] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
-                                            <Phone className="w-4 h-4" /> {listing.seller.phone_full}
-                                        </a>
-                                    ) : (
-                                        <button data-testid="show-phone-btn" onClick={() => setShowPhone(true)} className="w-full bg-[var(--success)]/95 hover:bg-[var(--success)] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
-                                            <Phone className="w-4 h-4" /> إظهار رقم الجوال
+                                    <a data-testid="call-link" href={`tel:${listing.seller.phone_full}`} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                        <Phone className="w-4 h-4" /> {showPhone ? listing.seller.phone_full : "اتصال مباشر"}
+                                    </a>
+                                    {!showPhone && (
+                                        <button data-testid="show-phone-btn" onClick={() => setShowPhone(true)} className="w-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 text-[var(--text)] rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic">
+                                            <Eye className="w-3.5 h-3.5" /> إظهار رقم الجوال
                                         </button>
                                     )}
                                     <a data-testid="whatsapp-link" href={`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`مرحباً، بخصوص إعلان: ${listing.title}`)}`} target="_blank" rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
                                         <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
                                     </a>
                                 </>
-                            )}
+                            ) : null}
                             <button data-testid="chat-with-seller-btn" onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
-                                <MessageCircle className="w-4 h-4" /> مراسلة داخل التطبيق
+                                <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
                             </button>
                             <button data-testid="report-btn" className="w-full bg-[var(--surface-elevated)] hover:bg-red-50 dark:hover:bg-red-900/20 text-[var(--text-muted)] hover:text-red-600 rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic transition-colors">
                                 <Flag className="w-3.5 h-3.5" /> الإبلاغ عن الإعلان
                             </button>
                         </div>
+
+                        {/* Safety disclaimer */}
+                        <div className="mt-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-2xl p-3">
+                            <div className="flex items-start gap-2">
+                                <ShieldAlert className="w-4 h-4 text-[var(--warning)] shrink-0 mt-0.5" />
+                                <div>
+                                    <div className="font-arabic font-bold text-xs text-[var(--text)] mb-1">{t("disclaimer_short")}</div>
+                                    <p className="text-[11px] text-[var(--text-muted)] font-arabic-body leading-relaxed">{t("disclaimer_text")}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
         </div>
     );
 }

@@ -61,11 +61,12 @@ export default function TopBar() {
                             {available.map((l) => (
                                 <button key={l} onClick={() => { setLang(l); setOpenMenu(null); }} data-testid={`lang-opt-${l}`}
                                     className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${lang === l ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}>
-                                    {l === "ar" && "العربية"}
-                                    {l === "en" && "English"}
-                                    {l === "ur" && "اردو"}
-                                    {l === "tl" && "Filipino"}
-                                    {l === "fr" && "Français"}
+                                    {l === "ar" && "🇸🇦 العربية"}
+                                    {l === "en" && "🇬🇧 English"}
+                                    {l === "ur" && "🇵🇰 اردو"}
+                                    {l === "hi" && "🇮🇳 हिन्दी"}
+                                    {l === "bn" && "🇧🇩 বাংলা"}
+                                    {l === "fr" && "🇫🇷 Français"}
                                 </button>
                             ))}
                         </div>

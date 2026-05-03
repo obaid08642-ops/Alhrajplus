@@ -18,7 +18,37 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 1 - Jan 2026)
+## ✅ Implemented (Session 1.5 - Jan 2026 — Iteration Fixes & Enhancements)
+### 🔧 Critical Fixes
+- ✅ Fixed crash when publishing listing (formatApiError now used everywhere)
+- ✅ Languages corrected to: ar, en, ur, hi (Hindi), bn (Bengali), fr (removed Filipino as requested)
+- ✅ Category names + subcategory names + custom field labels now translate based on lang (was hardcoded to Arabic)
+- ✅ Phone validation per country (UAE 50/52/54/55/56/58, KW 5/6/9, QA 3/5/6/7, BH 3/6/9, OM 7/9, SA 5)
+- ✅ Brute-force lockout fixed (was broken due to K8s ingress IP rotation)
+- ✅ Removed pending listings from public feed (they were showing)
+- ✅ Better contrast: Baby Blue saturated to #4FB6E6, borders darker, surface-elevated more tonal
+
+### ✨ New Features (Session 1.5)
+- ✅ **AI Price Suggestion** — Market-based heuristic returning min/max/avg from similar listings
+- ✅ **Forgot/Reset Password** flow with secure tokens (1hr expiry, single-use)
+- ✅ **Image Viewer** — Fullscreen with zoom (1x-4x), pan, keyboard navigation (arrows/+/-/Esc)
+- ✅ **Camera Capture** in Post Listing (mobile-aware capture="environment")
+- ✅ **"Use My Current Location"** button on Map and Post Listing
+- ✅ **Chat Media** — Image upload + voice recording (MediaRecorder API) sent via Cloudinary
+- ✅ **Layout Toggle** — Switch between Grid (5-col) and Wide (full-width rectangular) layouts
+- ✅ **Referral System** — Auto-generated codes, leaderboard, badges (Bronze 5/Silver 10/Gold 25)
+- ✅ **Safety Disclaimer** in every listing detail (orange alert banner)
+- ✅ **Premium Locked Notice** — Clear "all features free" indicator
+- ✅ **Direct Call Button** always visible (was hidden behind reveal-phone toggle)
+- ✅ **Video Player** in listing detail with controls
+- ✅ **All Routes Added**: /forgot-password, /reset-password
+- ✅ **Referral Backfill** — Existing users get codes on next startup
+
+### 📦 Backend Tested
+- 7/7 new endpoints work: /auth/forgot-password, /auth/reset-password, /ai/price-suggest, /referral/me, /referral/leaderboard, phone validation
+- Backwards compatible with all 44 existing tests
+
+
 ### Auth & Security
 - JWT access (60min) + refresh (30day) httpOnly secure cookies
 - Bcrypt password hashing

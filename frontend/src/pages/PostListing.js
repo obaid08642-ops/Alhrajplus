@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "@/lib/api";
+import api, { formatApiError } from "@/lib/api";
 import * as Icons from "lucide-react";
-import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles } from "lucide-react";
+import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -11,7 +11,7 @@ import "leaflet/dist/leaflet.css";
 export default function PostListing() {
     const nav = useNavigate();
     const { user, loading } = useAuth();
-    const { t } = useI18n();
+    const { t, pickName, pickLabel } = useI18n();
     const [step, setStep] = useState(1);
     const [categories, setCategories] = useState([]);
     const [countries, setCountries] = useState([]);
@@ -99,8 +99,25 @@ export default function PostListing() {
             const { data } = await api.post("/listings", payload);
             nav(`/listing/${data.id}`);
         } catch (e) {
-            setErr(e.response?.data?.detail || "فشل النشر");
+            setErr(formatApiError(e.response?.data?.detail) || e.message || "فشل النشر");
         } finally { setBusy(false); }
+    };
+
+    const aiSuggestPrice = async () => {
+        try {
+            const { data } = await api.post("/ai/price-suggest", {
+                category: form.category,
+                custom_fields: form.custom_fields,
+                title: form.title,
+                country_code: user?.country_code,
+            });
+            if (data.suggested_min) {
+                setForm((f) => ({ ...f, price: String(Math.round((data.suggested_min + data.suggested_max) / 2)) }));
+                alert(`💡 ${data.note}\nنطاق السوق: ${data.suggested_min.toLocaleString()} - ${data.suggested_max.toLocaleString()}`);
+            } else {
+                alert(data.note || "لا توجد بيانات كافية");
+            }
+        } catch (_) { alert("تعذر اقتراح السعر"); }
     };
 
     const canNext = () => {
@@ -146,7 +163,7 @@ export default function PostListing() {
                                 <button key={c.key} data-testid={`pick-cat-${c.key}`} onClick={() => setForm({ ...form, category: c.key, subcategory: "", custom_fields: {} })}
                                     className={`aspect-square rounded-2xl border-2 p-3 flex flex-col items-center justify-center gap-2 transition-all ${selected ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)]/50"}`}>
                                     <Icon className={`w-6 h-6 ${selected ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`} />
-                                    <span className="font-arabic text-xs sm:text-sm font-bold text-[var(--text)] text-center">{c.name_ar}</span>
+                                    <span className="font-arabic text-xs sm:text-sm font-bold text-[var(--text)] text-center">{pickName(c)}</span>
                                 </button>
                             );
                         })}
@@ -159,7 +176,7 @@ export default function PostListing() {
                                 {cat.subcategories.map((s) => (
                                     <button key={s.key} data-testid={`pick-sub-${s.key}`} onClick={() => setForm({ ...form, subcategory: s.key })}
                                         className={`px-4 py-2 rounded-full text-sm font-arabic font-bold border ${form.subcategory === s.key ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}>
-                                        {s.name_ar}
+                                        {pickName(s)}
                                     </button>
                                 ))}
                             </div>
@@ -190,6 +207,11 @@ export default function PostListing() {
                                 <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">العملة</label>
                                 <input value={country?.currency || "ر.س"} disabled className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text-muted)] outline-none font-arabic-body" />
                             </div>
+                            <div className="self-end">
+                                <button type="button" data-testid="ai-price-btn" onClick={aiSuggestPrice} className="flex items-center gap-1 bg-gradient-to-r from-[var(--accent)] to-amber-400 text-[var(--secondary)] rounded-xl px-3 py-2.5 text-xs font-bold font-arabic">
+                                    <Sparkle className="w-3.5 h-3.5" /> {t("ai_price_suggest")}
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -197,7 +219,7 @@ export default function PostListing() {
                     {cat?.fields?.map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
-                                {f.label_ar} {f.required && <span className="text-red-500">*</span>}
+                                {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}
                             </label>
                             {f.type === "select" ? (
                                 <select data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
@@ -226,20 +248,24 @@ export default function PostListing() {
             {step === 3 && (
                 <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)] space-y-4">
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)]">{t("upload_media")}</h2>
-                    <div className="grid grid-cols-2 gap-3">
-                        <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] py-8 flex flex-col items-center justify-center gap-2 transition-all">
+                    <div className="grid grid-cols-3 gap-3">
+                        <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] py-6 flex flex-col items-center justify-center gap-2 transition-all">
                             <ImageIcon className="w-6 h-6 text-[var(--primary)]" />
-                            <span className="font-arabic font-bold text-sm text-[var(--text)]">إضافة صور</span>
-                            <span className="text-xs text-[var(--text-muted)] font-arabic-body">حتى 10 صور</span>
+                            <span className="font-arabic font-bold text-xs text-[var(--text)]">{t("gallery")}</span>
                             <input data-testid="upload-images" type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files, "image")} disabled={busy} />
                         </label>
-                        <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] py-8 flex flex-col items-center justify-center gap-2 transition-all">
+                        <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] py-6 flex flex-col items-center justify-center gap-2 transition-all">
+                            <CameraIcon className="w-6 h-6 text-[var(--primary)]" />
+                            <span className="font-arabic font-bold text-xs text-[var(--text)]">{t("camera")}</span>
+                            <input data-testid="capture-camera" type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFiles(e.target.files, "image")} disabled={busy} />
+                        </label>
+                        <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] py-6 flex flex-col items-center justify-center gap-2 transition-all">
                             <Video className="w-6 h-6 text-[var(--accent)]" />
-                            <span className="font-arabic font-bold text-sm text-[var(--text)]">إضافة فيديو</span>
-                            <span className="text-xs text-[var(--text-muted)] font-arabic-body">حد أقصى 100MB</span>
+                            <span className="font-arabic font-bold text-xs text-[var(--text)]">فيديو</span>
                             <input data-testid="upload-videos" type="file" accept="video/*" className="hidden" onChange={(e) => onFiles(e.target.files, "video")} disabled={busy} />
                         </label>
                     </div>
+                    <p className="text-[10px] text-[var(--text-muted)] font-arabic-body text-center">📸 يمكنك رفع 8-16 صورة من زوايا مختلفة لإنشاء معاينة دوّارة 360° تلقائية</p>
                     {busy && <div className="text-center text-sm font-arabic text-[var(--primary)]">جاري الرفع...</div>}
                     {form.images.length > 0 && (
                         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -267,8 +293,19 @@ export default function PostListing() {
             {/* Step 4: Location + Confirm */}
             {step === 4 && (
                 <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)] space-y-4">
-                    <h2 className="font-arabic font-bold text-lg text-[var(--text)] flex items-center gap-2"><MapPin className="w-4 h-4 text-[var(--primary)]" /> حدد الموقع على الخريطة</h2>
-                    <p className="text-xs text-[var(--text-muted)] font-arabic-body">اضغط على الخريطة لتحديد الموقع الدقيق (اختياري)</p>
+                    <div className="flex items-center justify-between gap-2">
+                        <h2 className="font-arabic font-bold text-lg text-[var(--text)] flex items-center gap-2"><MapPin className="w-4 h-4 text-[var(--primary)]" /> حدد الموقع</h2>
+                        <button type="button" data-testid="use-my-location-btn" onClick={() => {
+                            if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+                            navigator.geolocation.getCurrentPosition(
+                                (pos) => setForm((f) => ({ ...f, lat: pos.coords.latitude, lng: pos.coords.longitude })),
+                                () => alert("تعذر الوصول للموقع. تأكد من السماح بالموقع")
+                            );
+                        }} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1 font-arabic">
+                            <Locate className="w-3.5 h-3.5" /> {t("use_my_location")}
+                        </button>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body">اضغط على الخريطة أو استخدم زر الموقع الحالي</p>
                     <div className="h-64 sm:h-80 rounded-2xl overflow-hidden border border-[var(--border)]">
                         <MapContainer center={[form.lat || 24.7136, form.lng || 46.6753]} zoom={form.lat ? 14 : 6} className="w-full h-full">
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
@@ -285,7 +322,7 @@ export default function PostListing() {
                     <div className="bg-[var(--surface-elevated)] rounded-xl p-4 mt-4">
                         <h3 className="font-arabic font-bold text-sm text-[var(--text)] mb-2">ملخص الإعلان</h3>
                         <div className="text-sm font-arabic-body text-[var(--text-muted)] space-y-1">
-                            <div>الفئة: <span className="text-[var(--text)] font-bold">{cat?.name_ar}</span></div>
+                            <div>الفئة: <span className="text-[var(--text)] font-bold">{pickName(cat)}</span></div>
                             <div>العنوان: <span className="text-[var(--text)] font-bold">{form.title}</span></div>
                             <div>السعر: <span className="text-[var(--text)] font-bold">{form.price ? `${Number(form.price).toLocaleString()} ${form.currency}` : "على السوم"}</span></div>
                             <div>المدينة: <span className="text-[var(--text)] font-bold">{form.city}</span></div>

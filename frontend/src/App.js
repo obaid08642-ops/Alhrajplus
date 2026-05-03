@@ -6,7 +6,7 @@ import { I18nProvider } from "@/contexts/I18nContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import HomePage from "@/pages/HomePage";
-import { LoginPage, RegisterPage } from "@/pages/Auth";
+import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "@/pages/Auth";
 import CategoryPage from "@/pages/CategoryPage";
 import ListingDetail from "@/pages/ListingDetail";
 import PostListing from "@/pages/PostListing";
@@ -34,6 +34,8 @@ function App() {
                         <Routes>
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/register" element={<RegisterPage />} />
+                            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                            <Route path="/reset-password" element={<ResetPasswordPage />} />
                             <Route path="/" element={<Layout><HomePage /></Layout>} />
                             <Route path="/category/:categoryKey" element={<Layout><CategoryPage /></Layout>} />
                             <Route path="/listing/:id" element={<Layout><ListingDetail /></Layout>} />

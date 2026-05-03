@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
-import { Send, ChevronRight, MessageCircle, Image as ImageIcon, MapPin } from "lucide-react";
+import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 
@@ -49,22 +49,64 @@ export default function ChatPage() {
         return () => clearInterval(id);
     }, [activeConvoId]);
 
-    const send = async () => {
-        if (!input.trim() || !activeOther) return;
-        const text = input.trim();
-        setInput("");
+    const send = async (extra = {}) => {
+        if (!activeOther) return;
+        const text = (extra.text ?? input).trim();
+        if (!text && !extra.image && !extra.voice) return;
+        if (!extra.image && !extra.voice) setInput("");
         try {
             const { data: msg } = await api.post("/chat/send", {
                 receiver_id: activeOther.id,
                 listing_id: initialListing || null,
-                text,
+                text: extra.image || extra.voice ? null : text,
+                image: extra.image || null,
+                voice: extra.voice || null,
             });
             setMessages((m) => [...m, msg]);
-            const cid = msg.convo_id;
-            setActiveConvoId(cid);
+            setActiveConvoId(msg.convo_id);
             setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
         } catch (_) {}
     };
+
+    const uploadAndSend = async (file, type) => {
+        try {
+            const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: type === "voice" ? "video" : "image", folder: "chat" } });
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("api_key", sig.api_key);
+            fd.append("timestamp", sig.timestamp);
+            fd.append("signature", sig.signature);
+            fd.append("folder", sig.folder);
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/${type === "voice" ? "video" : "image"}/upload`, { method: "POST", body: fd });
+            const out = await res.json();
+            if (out.secure_url) {
+                if (type === "voice") send({ voice: out.secure_url });
+                else send({ image: out.secure_url });
+            }
+        } catch (_) { alert("فشل الرفع"); }
+    };
+
+    const [recording, setRecording] = useState(false);
+    const [recorder, setRecorder] = useState(null);
+
+    const startRecord = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mr = new MediaRecorder(stream);
+            const chunks = [];
+            mr.ondataavailable = (e) => chunks.push(e.data);
+            mr.onstop = async () => {
+                const blob = new Blob(chunks, { type: "audio/webm" });
+                const file = new File([blob], `voice_${Date.now()}.webm`, { type: "audio/webm" });
+                await uploadAndSend(file, "voice");
+                stream.getTracks().forEach((t) => t.stop());
+            };
+            mr.start();
+            setRecorder(mr);
+            setRecording(true);
+        } catch (_) { alert("تعذر الوصول للميكروفون"); }
+    };
+    const stopRecord = () => { recorder?.stop(); setRecording(false); setRecorder(null); };
 
     const openConvo = (c) => {
         setActiveConvoId(c.id);
@@ -126,9 +168,11 @@ export default function ChatPage() {
                                     const mine = m.sender_id === user.id;
                                     return (
                                         <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`} data-testid={`msg-${m.id}`}>
-                                            <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm font-arabic-body ${mine ? "bg-[var(--primary)] text-[var(--primary-fg)] rounded-br-md" : "bg-[var(--surface-elevated)] text-[var(--text)] rounded-bl-md border border-[var(--border)]"}`}>
+                                            <div className={`max-w-[75%] rounded-2xl ${m.image || m.voice ? "p-1" : "px-3 py-2"} text-sm font-arabic-body ${mine ? "bg-[var(--primary)] text-[var(--primary-fg)] rounded-br-md" : "bg-[var(--surface-elevated)] text-[var(--text)] rounded-bl-md border border-[var(--border)]"}`}>
+                                                {m.image && <img src={m.image} alt="" className="rounded-xl max-w-full max-h-64 object-cover" />}
+                                                {m.voice && <audio controls src={m.voice} className="max-w-full" />}
                                                 {m.text}
-                                                <div className={`text-[10px] mt-1 ${mine ? "text-[var(--primary-fg)]/60" : "text-[var(--text-muted)]"}`}>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</div>
+                                                <div className={`text-[10px] mt-1 px-1 ${mine ? "text-[var(--primary-fg)]/60" : "text-[var(--text-muted)]"}`}>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</div>
                                             </div>
                                         </div>
                                     );
@@ -136,8 +180,17 @@ export default function ChatPage() {
                                 <div ref={endRef}></div>
                             </div>
                             <div className="p-3 border-t border-[var(--border)] flex items-center gap-2">
+                                <label data-testid="chat-image-btn" className="cursor-pointer w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center">
+                                    <ImageIcon className="w-4 h-4" />
+                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && uploadAndSend(e.target.files[0], "image")} />
+                                </label>
+                                {recording ? (
+                                    <button data-testid="chat-stop-rec" onClick={stopRecord} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse"><Square className="w-3 h-3 fill-current" /></button>
+                                ) : (
+                                    <button data-testid="chat-mic" onClick={startRecord} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center"><Mic className="w-4 h-4" /></button>
+                                )}
                                 <input data-testid="chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="اكتب رسالتك..." className="flex-1 bg-[var(--surface-elevated)] rounded-full px-4 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
-                                <button data-testid="chat-send" onClick={send} className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center hover:bg-[var(--primary-hover)]">
+                                <button data-testid="chat-send" onClick={() => send()} className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center hover:bg-[var(--primary-hover)]">
                                     <Send className="w-4 h-4" />
                                 </button>
                             </div>
