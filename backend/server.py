@@ -252,20 +252,20 @@ async def register(body: RegisterIn, response: Response):
 @api.post("/auth/login")
 async def login(body: LoginIn, request: Request, response: Response):
     email = body.email.lower().strip()
-    ip = request.client.host if request.client else "0.0.0.0"
-    identifier = f"{ip}:{email}"
+    # Identifier keyed per-account (email-only) — IP-based keying breaks behind K8s ingress
+    identifier = email
     # brute force lockout
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
     fails = await db.login_attempts.count_documents({
         "identifier": identifier,
-        "ts": {"$gt": cutoff.isoformat()}
+        "ts": {"$gt": cutoff}
     })
     if fails >= 5:
         raise HTTPException(429, "تم قفل الحساب مؤقتاً. حاول بعد 15 دقيقة")
 
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(body.password, user["password_hash"]):
-        await db.login_attempts.insert_one({"identifier": identifier, "ts": datetime.now(timezone.utc).isoformat()})
+        await db.login_attempts.insert_one({"identifier": identifier, "ts": datetime.now(timezone.utc)})
         raise HTTPException(401, "البريد أو كلمة المرور غير صحيحة")
     if user.get("banned"):
         raise HTTPException(403, "تم حظر حسابك")
@@ -395,7 +395,7 @@ async def list_listings(
     limit: int = 30,
     skip: int = 0,
 ):
-    query: dict = {"status": "active", "moderation": {"$ne": "rejected"}}
+    query: dict = {"status": "active", "moderation": "approved"}
     if country_code:
         query["country_code"] = country_code
     if category:
