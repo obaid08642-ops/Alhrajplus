@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw, Edit3, RefreshCw, CheckCircle2, Trash2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -71,9 +71,72 @@ export default function ListingDetail() {
         nav(`/chat?to=${listing.user_id}&listing=${listing.id}`);
     };
 
+    const isOwner = user && user.id === listing.user_id;
+
+    const handleRepublish = async () => {
+        if (!confirm("سيتم إعادة نشر الإعلان في أعلى القائمة. متابعة؟")) return;
+        try {
+            const { data } = await api.post(`/listings/${listing.id}/republish`);
+            alert(data.message || "تم التجديد");
+            const r = await api.get(`/listings/${listing.id}`);
+            setListing(r.data);
+        } catch (e) {
+            alert(e.response?.data?.detail || "تعذر التجديد");
+        }
+    };
+
+    const handleMarkSold = async () => {
+        if (!confirm("هل تم بيع المنتج فعلاً؟ سيتم إخفاء الإعلان من القائمة العامة.")) return;
+        try {
+            await api.post(`/listings/${listing.id}/mark-sold`);
+            alert("✅ تم تحديد الإعلان كمباع. شكراً لاستخدامك الحراج بلس!");
+            nav("/profile");
+        } catch (e) {
+            alert(e.response?.data?.detail || "تعذر التحديث");
+        }
+    };
+
+    const handleDelete = async () => {
+        const sold = confirm("هل تم بيع المنتج؟ اختر OK = تم البيع، Cancel = حذف فقط");
+        try {
+            if (sold) {
+                await api.post(`/listings/${listing.id}/mark-sold`);
+            }
+            await api.delete(`/listings/${listing.id}`);
+            alert(sold ? "✅ شكراً، نتمنى لك بيعاً موفقاً دائماً!" : "تم حذف الإعلان");
+            nav("/profile");
+        } catch (e) {
+            alert(e.response?.data?.detail || "تعذر الحذف");
+        }
+    };
+
+    const handleEdit = () => {
+        nav(`/post?edit=${listing.id}`);
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24">
             <Link to="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)] mb-4 font-arabic"><ChevronLeft className="w-4 h-4 rotate-180" /> العودة</Link>
+
+            {isOwner && (
+                <div data-testid="owner-actions" className="bg-gradient-to-r from-[var(--primary)]/10 to-[var(--accent)]/10 border border-[var(--primary)]/30 rounded-2xl p-3 mb-4 flex flex-wrap gap-2 items-center">
+                    <span className="text-xs font-arabic font-bold text-[var(--text)] me-auto flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" /> هذا إعلانك — تحكم به
+                    </span>
+                    <button data-testid="edit-listing-btn" onClick={handleEdit} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1">
+                        <Edit3 className="w-3 h-3" /> تعديل
+                    </button>
+                    <button data-testid="republish-btn" onClick={handleRepublish} className="bg-[var(--success)] hover:opacity-90 text-white rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1">
+                        <RefreshCw className="w-3 h-3" /> تجديد النشر
+                    </button>
+                    <button data-testid="mark-sold-btn" onClick={handleMarkSold} className="bg-[var(--accent)] hover:opacity-90 text-[var(--secondary)] rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> تم البيع
+                    </button>
+                    <button data-testid="delete-listing-btn" onClick={handleDelete} className="bg-red-500/10 hover:bg-red-500/20 text-red-600 rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1">
+                        <Trash2 className="w-3 h-3" /> حذف
+                    </button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* Left/Main */}
@@ -197,7 +260,41 @@ export default function ListingDetail() {
                     {/* Ad slot under listing */}
                     <AdSlot placement="listing_bottom" />
 
-                    {/* Similar listings */}
+                    {/* Seller Info & Contact (always before similar listings) */}
+                    <div data-testid="seller-info-block" className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)] lg:hidden">
+                        <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-4">{t("seller_info")}</h2>
+                        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[var(--border)]">
+                            <div className="w-12 h-12 rounded-full bg-[var(--primary)] flex items-center justify-center text-[var(--primary-fg)] font-bold text-lg font-arabic">
+                                {listing.seller?.name?.[0] || "U"}
+                            </div>
+                            <div className="flex-1">
+                                <div className="font-arabic font-bold text-sm text-[var(--text)] flex items-center gap-1">
+                                    {listing.seller?.name}
+                                    {listing.seller?.verified && <Star className="w-3.5 h-3.5 fill-[var(--primary)] text-[var(--primary)]" />}
+                                </div>
+                                <div className="text-xs text-[var(--text-muted)] font-arabic-body">
+                                    {t("joined")} {listing.seller?.created_at ? new Date(listing.seller.created_at).toLocaleDateString("ar") : ""}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-2.5">
+                            {listing.show_phone !== false && listing.seller?.phone_full && (
+                                <>
+                                    <a href={`tel:${listing.seller.phone_full}`} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                        <Phone className="w-4 h-4" /> {showPhone ? listing.seller.phone_full : "اتصال مباشر"}
+                                    </a>
+                                    <a href={`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`مرحباً، بخصوص إعلان: ${listing.title}`)}`} target="_blank" rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
+                                        <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
+                                    </a>
+                                </>
+                            )}
+                            <button onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Similar listings — placed AFTER seller info as requested */}
                     {similar.length > 0 && (
                         <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
                             <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-4 flex items-center gap-2">

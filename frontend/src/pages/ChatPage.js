@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
-import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon } from "lucide-react";
+import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon, Languages, Radio, StopCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 
 export default function ChatPage() {
     const { user, loading: au } = useAuth();
-    const { t } = useI18n();
+    const { t, lang } = useI18n();
     const [searchParams] = useSearchParams();
     const initialTo = searchParams.get("to");
     const initialListing = searchParams.get("listing");
@@ -16,6 +16,10 @@ export default function ChatPage() {
     const [activeOther, setActiveOther] = useState(null);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
+    const [translations, setTranslations] = useState({}); // {msgId: translatedText}
+    const [translating, setTranslating] = useState(null); // msgId being translated
+    const [liveShareId, setLiveShareId] = useState(null);
+    const liveWatchRef = useRef(null);
     const endRef = useRef();
 
     useEffect(() => {
@@ -58,6 +62,61 @@ export default function ChatPage() {
             },
             () => alert("تعذر الوصول للموقع")
         );
+    };
+
+    const startLiveShare = async () => {
+        if (!activeOther) return;
+        if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+        const minutes = parseInt(prompt("لكم دقيقة تشارك موقعك الحي؟ (1-60)", "15") || "0", 10);
+        if (!minutes || minutes < 1 || minutes > 60) return;
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const { data } = await api.post("/chat/location-share", {
+                        receiver_id: activeOther.id,
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        duration_minutes: minutes,
+                    });
+                    setLiveShareId(data.id);
+                    // Watch position and refresh chat to pick up the share message
+                    const wid = navigator.geolocation.watchPosition((p) => {
+                        // For now we just keep the share record as-is; future enhancement: PATCH endpoint
+                    }, () => {}, { enableHighAccuracy: true });
+                    liveWatchRef.current = wid;
+                    // auto-stop after duration
+                    setTimeout(() => stopLiveShare(data.id), minutes * 60 * 1000);
+                    // refetch conversation
+                    const r = await api.get(`/chat/messages/${[user.id, activeOther.id].sort().join("_")}`);
+                    setMessages(r.data);
+                } catch (e) {
+                    alert(e.response?.data?.detail || "تعذر بدء المشاركة");
+                }
+            },
+            () => alert("تعذر الوصول للموقع")
+        );
+    };
+
+    const stopLiveShare = async (id) => {
+        try {
+            if (id) await api.post(`/chat/location-share/${id}/stop`);
+        } catch (_) {}
+        if (liveWatchRef.current != null) {
+            navigator.geolocation.clearWatch(liveWatchRef.current);
+            liveWatchRef.current = null;
+        }
+        setLiveShareId(null);
+    };
+
+    const translateMsg = async (m) => {
+        if (translations[m.id] || !m.text) return;
+        setTranslating(m.id);
+        try {
+            const { data } = await api.post("/ai/translate", { text: m.text, target_lang: lang });
+            setTranslations((tr) => ({ ...tr, [m.id]: data.text }));
+        } catch (_) {
+            alert("تعذرت الترجمة");
+        } finally { setTranslating(null); }
     };
 
     const send = async (extra = {}) => {
@@ -178,18 +237,40 @@ export default function ChatPage() {
                             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
                                 {messages.map((m) => {
                                     const mine = m.sender_id === user.id;
+                                    const liveShare = m.location?.live_share_id;
                                     return (
                                         <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`} data-testid={`msg-${m.id}`}>
                                             <div className={`max-w-[75%] rounded-2xl ${m.image || m.voice ? "p-1" : "px-3 py-2"} text-sm font-arabic-body ${mine ? "bg-[var(--primary)] text-[var(--primary-fg)] rounded-br-md" : "bg-[var(--surface-elevated)] text-[var(--text)] rounded-bl-md border border-[var(--border)]"}`}>
                                                 {m.image && <img src={m.image} alt="" className="rounded-xl max-w-full max-h-64 object-cover" />}
                                                 {m.voice && <audio controls src={m.voice} className="max-w-full" />}
-                                                {m.location && (
+                                                {m.location && !liveShare && (
                                                     <a href={`https://www.google.com/maps/search/?api=1&query=${m.location.lat},${m.location.lng}`} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 ${m.image || m.voice ? "p-2" : ""}`}>
                                                         <MapPin className="w-4 h-4" /> <span className="underline">عرض الموقع</span>
                                                     </a>
                                                 )}
-                                                {m.text}
-                                                <div className={`text-[10px] mt-1 px-1 ${mine ? "text-[var(--primary-fg)]/60" : "text-[var(--text-muted)]"}`}>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</div>
+                                                {liveShare && (
+                                                    <a href={`https://www.google.com/maps/search/?api=1&query=${m.location.lat},${m.location.lng}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-red-500/15 rounded-lg border border-red-500/30">
+                                                        <Radio className="w-4 h-4 text-red-500 animate-pulse" />
+                                                        <div>
+                                                            <div className="font-bold text-red-500">موقع حي مباشر</div>
+                                                            <div className="text-[10px] underline">عرض على الخريطة</div>
+                                                        </div>
+                                                    </a>
+                                                )}
+                                                {m.text && <div>{m.text}</div>}
+                                                {translations[m.id] && (
+                                                    <div className={`mt-1.5 pt-1.5 border-t ${mine ? "border-white/20" : "border-[var(--border)]"} text-[12px] italic flex items-start gap-1`}>
+                                                        <Languages className="w-3 h-3 mt-0.5 shrink-0" /> {translations[m.id]}
+                                                    </div>
+                                                )}
+                                                <div className={`text-[10px] mt-1 px-1 flex items-center gap-2 ${mine ? "text-[var(--primary-fg)]/60" : "text-[var(--text-muted)]"}`}>
+                                                    <span>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>
+                                                    {m.text && !mine && !translations[m.id] && (
+                                                        <button data-testid={`translate-btn-${m.id}`} onClick={() => translateMsg(m)} disabled={translating === m.id} className="hover:underline flex items-center gap-0.5 text-[10px] font-bold">
+                                                            <Languages className="w-3 h-3" /> {translating === m.id ? "..." : "ترجم"}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -202,6 +283,11 @@ export default function ChatPage() {
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && uploadAndSend(e.target.files[0], "image")} />
                                 </label>
                                 <button data-testid="chat-location-btn" onClick={sendLocation} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="موقع"><MapPin className="w-4 h-4" /></button>
+                                {liveShareId ? (
+                                    <button data-testid="live-share-stop" onClick={() => stopLiveShare(liveShareId)} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0 animate-pulse" title="إيقاف الموقع الحي"><StopCircle className="w-4 h-4" /></button>
+                                ) : (
+                                    <button data-testid="live-share-start" onClick={startLiveShare} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-red-500/15 hover:text-red-500 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="موقع حي"><Radio className="w-4 h-4" /></button>
+                                )}
                                 {recording ? (
                                     <button data-testid="chat-stop-rec" onClick={stopRecord} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse shrink-0"><Square className="w-3 h-3 fill-current" /></button>
                                 ) : (

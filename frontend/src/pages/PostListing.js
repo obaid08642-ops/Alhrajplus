@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api, { formatApiError } from "@/lib/api";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate } from "lucide-react";
@@ -10,9 +10,11 @@ import "leaflet/dist/leaflet.css";
 
 export default function PostListing() {
     const nav = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get("edit");
     const { user, loading } = useAuth();
     const { t, pickName, pickLabel } = useI18n();
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(editId ? 2 : 1);
     const [categories, setCategories] = useState([]);
     const [countries, setCountries] = useState([]);
     const [busy, setBusy] = useState(false);
@@ -42,6 +44,29 @@ export default function PostListing() {
         api.get("/meta/categories").then(({ data }) => setCategories(data));
         api.get("/meta/countries").then(({ data }) => setCountries(data));
     }, []);
+
+    // Load existing listing for editing
+    useEffect(() => {
+        if (!editId) return;
+        api.get(`/listings/${editId}`).then(({ data }) => {
+            setForm({
+                category: data.category || "",
+                subcategory: data.subcategory || "",
+                title: data.title || "",
+                description: data.description || "",
+                price: data.price?.toString() || "",
+                currency: data.currency || "ر.س",
+                custom_fields: data.custom_fields || {},
+                images: data.images || [],
+                videos: data.videos || [],
+                city: data.city || "",
+                district: data.district || "",
+                lat: data.lat || null,
+                lng: data.lng || null,
+                show_phone: data.show_phone !== false,
+            });
+        }).catch(() => alert("تعذر تحميل الإعلان"));
+    }, [editId]);
 
     useEffect(() => {
         if (user?.city) setForm((f) => ({ ...f, city: user.city }));
@@ -96,8 +121,13 @@ export default function PostListing() {
                 ...form,
                 price: form.price ? parseFloat(form.price) : null,
             };
-            const { data } = await api.post("/listings", payload);
-            nav(`/listing/${data.id}`);
+            if (editId) {
+                const { data } = await api.put(`/listings/${editId}`, payload);
+                nav(`/listing/${data.id}`);
+            } else {
+                const { data } = await api.post("/listings", payload);
+                nav(`/listing/${data.id}`);
+            }
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || e.message || "فشل النشر");
         } finally { setBusy(false); }

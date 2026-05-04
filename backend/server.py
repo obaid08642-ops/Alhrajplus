@@ -62,6 +62,9 @@ EMERGENT_AUTH_URL = os.environ.get(
     "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 ).strip()
 
+# Emergent LLM Key (for AI features)
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
+
 # DB
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -1004,6 +1007,259 @@ async def public_ads(placement: Optional[str] = None, country_code: Optional[str
 
 
 # ============================================================
+# AI Features (Image search + Translate) — Emergent LLM Key
+# ============================================================
+class AIImageSearchIn(BaseModel):
+    image_base64: str  # data URL or raw base64
+
+class AITranslateIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    target_lang: str = Field(min_length=2, max_length=5)  # ar|en|ur|hi|bn|fr
+
+LANG_NAMES = {
+    "ar": "Arabic", "en": "English", "ur": "Urdu",
+    "hi": "Hindi", "bn": "Bengali", "fr": "French",
+}
+
+@api.post("/ai/image-search")
+async def ai_image_search(body: AIImageSearchIn):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "خدمة الذكاء الاصطناعي غير مفعلة")
+    # Strip data URL prefix if present
+    raw = body.image_base64
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    if len(raw) < 100:
+        raise HTTPException(400, "صورة غير صالحة")
+
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        logger.error(f"emergentintegrations import failed: {e}")
+        raise HTTPException(500, "خدمة الذكاء الاصطناعي غير متوفرة")
+
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"img-search-{uuid.uuid4().hex[:8]}",
+        system_message=(
+            "أنت مساعد بحث في تطبيق إعلانات مبوبة. مهمتك تحليل الصورة وإرجاع كلمات بحث "
+            "قصيرة ومركزة باللغة العربية (3 إلى 6 كلمات فقط) تصف المنتج الرئيسي في الصورة. "
+            "أرجع الكلمات فقط بدون أي شرح أو إيموجي. مثال: 'تويوتا كامري 2020 أبيض'."
+        ),
+    ).with_model("gemini", "gemini-2.5-flash")
+
+    img = ImageContent(image_base64=raw)
+    msg = UserMessage(text="حلل هذه الصورة وأرجع كلمات البحث المناسبة فقط:", file_contents=[img])
+    try:
+        text = await chat.send_message(msg)
+        # Sanitize
+        query = (text or "").strip().strip('"').strip("'").splitlines()[0][:120]
+        return {"query": query}
+    except Exception as e:
+        logger.error(f"[AI image-search] {e}")
+        raise HTTPException(500, "تعذر تحليل الصورة")
+
+
+@api.post("/ai/translate")
+async def ai_translate(body: AITranslateIn):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "خدمة الترجمة غير مفعلة")
+    target = body.target_lang.lower()
+    if target not in LANG_NAMES:
+        raise HTTPException(400, "لغة غير مدعومة")
+    # Cache by hash to avoid repeat calls
+    import hashlib
+    cache_key = hashlib.sha1(f"{target}:{body.text}".encode()).hexdigest()
+    cached = await db.translation_cache.find_one({"key": cache_key}, {"_id": 0})
+    if cached:
+        return {"text": cached["translated"], "cached": True}
+
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+    except Exception as e:
+        logger.error(f"emergentintegrations import failed: {e}")
+        raise HTTPException(500, "خدمة الترجمة غير متوفرة")
+
+    target_name = LANG_NAMES[target]
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"translate-{uuid.uuid4().hex[:8]}",
+        system_message=(
+            f"You are a professional translator. Translate the user's message to {target_name}. "
+            "Output ONLY the translated text without any explanation, prefix, or quotes. "
+            "Preserve numbers, prices, phone numbers, and proper nouns as-is."
+        ),
+    ).with_model("gemini", "gemini-2.5-flash")
+    try:
+        translated = await chat.send_message(UserMessage(text=body.text))
+        out = (translated or "").strip().strip('"').strip("'")
+        await db.translation_cache.insert_one({
+            "key": cache_key, "target": target, "source": body.text,
+            "translated": out, "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        return {"text": out, "cached": False}
+    except Exception as e:
+        logger.error(f"[AI translate] {e}")
+        raise HTTPException(500, "تعذر الترجمة")
+
+
+# ============================================================
+# Listing Edit / Republish / Sold
+# ============================================================
+class ListingUpdateIn(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    currency: Optional[str] = None
+    custom_fields: Optional[dict] = None
+    images: Optional[List[str]] = None
+    videos: Optional[List[str]] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    show_phone: Optional[bool] = None
+
+@api.put("/listings/{listing_id}")
+async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = Depends(get_current_user)):
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if item["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(403, "غير مصرح بتعديل هذا الإعلان")
+    update_data = body.model_dump(exclude_unset=True, exclude_none=True)
+    if not update_data:
+        raise HTTPException(400, "لا يوجد بيانات للتعديل")
+    # Re-moderate if title/description changed
+    if "title" in update_data or "description" in update_data:
+        text_check = f"{update_data.get('title', item['title'])} {update_data.get('description', item['description'])}"
+        update_data["moderation"] = "pending" if any_banned_word(text_check) else "approved"
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.listings.update_one({"id": listing_id}, {"$set": update_data})
+    new_item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    return new_item
+
+@api.post("/listings/{listing_id}/republish")
+async def republish_listing(listing_id: str, user: dict = Depends(get_current_user)):
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if item["user_id"] != user["id"]:
+        raise HTTPException(403, "غير مصرح")
+    last_repub = item.get("last_republished_at") or item.get("created_at")
+    try:
+        last_dt = datetime.fromisoformat(last_repub) if isinstance(last_repub, str) else last_repub
+        if last_dt.tzinfo is None:
+            last_dt = last_dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        last_dt = datetime.now(timezone.utc) - timedelta(days=2)
+    elapsed = datetime.now(timezone.utc) - last_dt
+    if elapsed < timedelta(hours=24):
+        remaining_h = max(0, 24 - int(elapsed.total_seconds() // 3600))
+        raise HTTPException(400, f"يمكن التجديد كل 24 ساعة. متبقي ~{remaining_h} ساعة")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.listings.update_one(
+        {"id": listing_id},
+        {"$set": {
+            "status": "active",
+            "last_republished_at": now,
+            "created_at": now,  # bumps to top of newest sort
+            "updated_at": now,
+        },
+         "$inc": {"republish_count": 1}},
+    )
+    return {"success": True, "message": "تم تجديد الإعلان وإعادة نشره في الأعلى"}
+
+@api.post("/listings/{listing_id}/mark-sold")
+async def mark_sold(listing_id: str, user: dict = Depends(get_current_user)):
+    item = await db.listings.find_one({"id": listing_id})
+    if not item:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if item["user_id"] != user["id"]:
+        raise HTTPException(403, "غير مصرح")
+    await db.listings.update_one(
+        {"id": listing_id},
+        {"$set": {
+            "status": "sold",
+            "sold_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    return {"success": True}
+
+
+# ============================================================
+# Live Location Sharing (consent-based, time-limited)
+# ============================================================
+class LocationShareIn(BaseModel):
+    receiver_id: str
+    lat: float
+    lng: float
+    duration_minutes: int = Field(default=15, ge=1, le=60)
+
+@api.post("/chat/location-share")
+async def share_live_location(body: LocationShareIn, user: dict = Depends(get_current_user)):
+    if body.receiver_id == user["id"]:
+        raise HTTPException(400, "لا يمكنك مشاركة موقعك مع نفسك")
+    receiver = await db.users.find_one({"id": body.receiver_id}, {"_id": 0, "id": 1})
+    if not receiver:
+        raise HTTPException(404, "المستقبل غير موجود")
+    sid = str(uuid.uuid4())
+    expires = datetime.now(timezone.utc) + timedelta(minutes=body.duration_minutes)
+    doc = {
+        "id": sid,
+        "sender_id": user["id"],
+        "receiver_id": body.receiver_id,
+        "lat": body.lat, "lng": body.lng,
+        "expires_at": expires.isoformat(),
+        "active": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.location_shares.insert_one(doc)
+    # Also send a chat message for the share
+    convo_id = "_".join(sorted([user["id"], body.receiver_id]))
+    await db.messages.insert_one({
+        "id": str(uuid.uuid4()),
+        "convo_id": convo_id,
+        "sender_id": user["id"],
+        "receiver_id": body.receiver_id,
+        "text": f"📍 شارك موقعه الحي ({body.duration_minutes} دقيقة)",
+        "image": None, "voice": None,
+        "location": {"lat": body.lat, "lng": body.lng, "live_share_id": sid, "expires_at": expires.isoformat()},
+        "read": False,
+        "ts": datetime.now(timezone.utc).isoformat(),
+    })
+    doc.pop("_id", None)
+    return doc
+
+@api.get("/chat/location-share/{share_id}")
+async def get_location_share(share_id: str, user: dict = Depends(get_current_user)):
+    doc = await db.location_shares.find_one({"id": share_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "غير موجود")
+    if user["id"] not in (doc["sender_id"], doc["receiver_id"]):
+        raise HTTPException(403, "غير مصرح")
+    expires_at = doc["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        await db.location_shares.update_one({"id": share_id}, {"$set": {"active": False}})
+        doc["active"] = False
+    return doc
+
+@api.post("/chat/location-share/{share_id}/stop")
+async def stop_location_share(share_id: str, user: dict = Depends(get_current_user)):
+    doc = await db.location_shares.find_one({"id": share_id})
+    if not doc:
+        raise HTTPException(404)
+    if doc["sender_id"] != user["id"]:
+        raise HTTPException(403)
+    await db.location_shares.update_one({"id": share_id}, {"$set": {"active": False}})
+    return {"success": True}
+
+
+# ============================================================
 # Admin endpoints
 # ============================================================
 admin_router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
@@ -1125,6 +1381,8 @@ async def startup():
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
     await db.bids.create_index([("listing_id", 1), ("amount", -1)])
     await db.bids.create_index("ts")
+    await db.location_shares.create_index("expires_at", expireAfterSeconds=0)
+    await db.translation_cache.create_index("key", unique=True)
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
     await db.reports.create_index("status")
     # Seed admin (idempotent)

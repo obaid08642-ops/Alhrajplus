@@ -1,0 +1,55 @@
+{
+  "summary": "Iteration 3 testing of Haraj Plus Session 3 features — AI translate (Gemini), AI image-search validation, listing update/republish/mark-sold, live location sharing, Snapchat removal, Spin360 WebGL viewer, mobile DOM order, and chat live-share UI. Backend: 29/29 pytest cases pass (100%). Frontend: all critical UI flows validated end-to-end. Overall pass rate 100%.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/ai/translate", "issue": "No per-IP rate limit — a user could repeatedly call translate on distinct texts and burn quota. Cache protects on repeats only. Consider adding a simple per-user rate limiter."},
+      {"endpoint": "POST /api/ai/image-search", "issue": "Only size validation (<100 chars). No real MIME/type check; malformed non-image base64 will still be forwarded to Gemini and fail with 500. Consider validating signature (e.g., first few bytes indicate PNG/JPEG)."},
+      {"endpoint": "PUT /api/listings/{id}", "issue": "No length caps on description/title updates (relies only on Optional fields with no Field(max_length=...)). Could allow oversized payloads."},
+      {"endpoint": "POST /api/listings/{id}/republish", "issue": "Mutates created_at to bump listing to top. This breaks original creation-time audit trail. Consider keeping original created_at + using a separate `bumped_at` for sort."},
+      {"endpoint": "GET /api/chat/location-share/{id}", "issue": "Lazy expiry — only flips active=false when fetched; consider background sweeper to mark all expired shares inactive (so DB is accurate)."},
+      {"endpoint": "POST /api/chat/send + /chat/location-share", "issue": "Both mutate messages but do not update db.conversations (last_message/last_ts) for location-share path, meaning live-share messages don't bump the conversation to top of list. /chat/send does upsert, /location-share does not."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "NearbySection (Home) — CARRY-OVER FROM ITER 2", "issue": "React warning still present: 'Each child in a list should have a unique \"key\" prop'. Check render method of NearbySection — add key={listing.id} on the .map.", "selector": "NearbySection grid", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login page after Snapchat removal", "issues": ["X (Twitter) button occupies half the social row width now — looks slightly unbalanced because Google + X are only 2 buttons. Fine but consider a subtle layout polish (e.g., full-width X or add a placeholder for future provider)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3_features.py",
+    "/app/test_reports/pytest/iteration_3_results.xml"
+  ],
+  "action_items": [
+    "Add key={l.id} in NearbySection .map() — still unfixed from iter 2.",
+    "Optional: validate image MIME signature in /api/ai/image-search before passing to Gemini.",
+    "Optional: republish endpoint should use separate bumped_at instead of mutating created_at.",
+    "Optional: /chat/location-share should also upsert conversation doc (last_message='[موقع حي]') so convo jumps to top of list."
+  ],
+  "critical_code_review_comments": [
+    "AI translate caching correctly keyed by sha1(target+text); second identical call returns cached=true within ms — verified by test.",
+    "Listing update correctly re-runs moderation on title/description change (text_check) and preserves other fields via exclude_unset+exclude_none.",
+    "Republish 24h guard computes elapsed from last_republished_at|created_at with safe ISO parsing and tz-aware fallback. Returns remaining hours in Arabic error text.",
+    "Location-share: sender_id/receiver_id enforced; self-share blocked (400); non-existent receiver returns 404; stop endpoint restricted to sender; GET returns 403 for non-participants. All verified by pytest.",
+    "Spin360Viewer: real Three.js WebGLRenderer canvas mounted inside data-testid=spin360-viewer (WebGL driver messages confirm GPU path). Frame count & rotate interactions preserved from iter 2.",
+    "ListingDetail mobile DOM order verified: seller-info-block at y=726 appears BEFORE 'منتجات مماثلة' heading at y=1070. Desktop has lg:hidden on the in-flow seller card (sticky sidebar handles desktop).",
+    "Auth backend prioritises httpOnly cookie over Authorization header in get_current_user (server.py:160). This is fine but means same-browser multi-account testing requires clear_cookies — informational.",
+    "Chat translate button (data-testid=translate-btn-{id}) correctly gated by m.text && !mine && !translations[m.id] in ChatPage.js:268 — only renders on non-mine incoming messages. Verified by code review + admin receiving chatter msg in DB.",
+    "EMERGENT_LLM_KEY is live and AI translate round-trips to Gemini 2.5 Flash in ~1–2s per fresh call; caching works so identical calls are free.",
+    "Snapchat fully removed from /app/frontend/src/pages/Auth.js (no snapchat-login-btn testid, no 'سناب' text). Only Google + X present."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3_features.py (new, 29 tests)"
+  ],
+  "success_rate": {"backend": "100% (29/29 new tests)", "frontend": "100% on critical flows"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 — works.",
+  "seed_data_creation": "Created TEST 360 car listing id=ac7a5fa4-34bc-4711-9f53-801470385003 owned by admin (4 picsum images) for Spin360 verification. Multiple TEST_owner_*/TEST_other_*/TEST_third_*/TEST_Chatter*/TEST_ch* users and TEST listings created via tests; all prefixed with TEST for easy cleanup. Translation cache now seeded with 1 fresh Arabic->English entry used for caching test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New test file /app/backend/tests/test_iteration3_features.py (29 tests) covers: AI translate (incl. caching), AI image-search validation, listing PUT/republish/mark-sold auth+ownership, location-share full flow (create/get/stop/auth). Existing /app/backend/tests/test_new_features.py (16 tests) and /app/backend/tests/test_haraj_plus.py remain valid. Run all: pytest /app/backend/tests/ -v. Frontend data-testids verified live: owner-actions, edit-listing-btn, republish-btn, mark-sold-btn, delete-listing-btn, open-spin360-btn, spin360-viewer (with <canvas>), seller-info-block, image-search-btn, chat-location-btn, live-share-start, live-share-stop, translate-btn-{id}, chat-image-btn. Auth prioritises httpOnly cookie > Authorization header — when testing multi-user flows via in-browser fetch, registration overwrites cookies. Use requests library from shell for multi-user seed (see /tmp/send_to_admin.py pattern).",
+  "rca_of_the_issue": "N/A — no bugs found. One test-environment observation: Playwright in-browser multi-account flows require clear_cookies between logins because /api/auth/register sets httpOnly access_token cookie that overrides any Authorization: Bearer header on subsequent fetch calls (server.py:160-163 reads cookie first). Not a product bug."
+}

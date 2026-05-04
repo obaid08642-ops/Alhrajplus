@@ -40,13 +40,30 @@ export default function TopBar() {
         r.start();
     };
 
-    const startImageSearch = (file) => {
+    const startImageSearch = async (file) => {
         if (!file) return;
-        // For now: notify (real visual search with AI in next session)
+        if (file.size > 8 * 1024 * 1024) { alert("حجم الصورة كبير جداً (الحد الأقصى 8MB)"); return; }
         const reader = new FileReader();
-        reader.onload = () => {
-            sessionStorage.setItem("imageSearchData", reader.result);
-            nav("/search?image=1");
+        reader.onload = async () => {
+            try {
+                const dataUrl = reader.result;
+                const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/ai/image-search`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ image_base64: dataUrl }),
+                });
+                if (!res.ok) {
+                    alert("تعذر تحليل الصورة. حاول لاحقاً.");
+                    return;
+                }
+                const data = await res.json();
+                const q = (data.query || "").trim();
+                if (!q) { alert("لم نتمكن من فهم الصورة. حاول بصورة أوضح."); return; }
+                nav(`/search?q=${encodeURIComponent(q)}&from=image`);
+            } catch (e) {
+                alert("خطأ في البحث بالصورة");
+            }
         };
         reader.readAsDataURL(file);
     };
