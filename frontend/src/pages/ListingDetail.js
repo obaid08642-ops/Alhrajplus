@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2 } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -10,6 +10,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
+import Spin360Viewer from "@/components/Spin360Viewer";
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -18,6 +19,18 @@ L.Icon.Default.mergeOptions({
     iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
     shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
+
+function buildHologramIcon({ price, currency }) {
+    const display = price ? Number(price).toLocaleString() : "★";
+    const sub = price ? (currency || "ر.س") : "إعلان";
+    return L.divIcon({
+        className: "hologram-pin-wrap",
+        iconSize: [78, 78],
+        iconAnchor: [39, 70],
+        popupAnchor: [0, -64],
+        html: `<div class="hologram-pin"><div class="hp-ring hp-ring-1"></div><div class="hp-ring hp-ring-2"></div><div class="hp-chip"><div class="hp-price">${display}</div><div class="hp-curr">${sub}</div></div><div class="hp-stem"></div><div class="hp-base"></div></div>`,
+    });
+}
 
 export default function ListingDetail() {
     const { id } = useParams();
@@ -28,6 +41,7 @@ export default function ListingDetail() {
     const [similar, setSimilar] = useState([]);
     const [activeImg, setActiveImg] = useState(0);
     const [showViewer, setShowViewer] = useState(false);
+    const [show360, setShow360] = useState(false);
     const [showPhone, setShowPhone] = useState(false);
     const [categories, setCategories] = useState([]);
 
@@ -78,6 +92,11 @@ export default function ListingDetail() {
                             {listing.images?.length > 0 && (
                                 <button data-testid="open-viewer-btn" onClick={(e) => { e.stopPropagation(); setShowViewer(true); }} className="absolute top-3 end-3 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur hover:bg-black/80">
                                     <Maximize2 className="w-3 h-3" /> عرض كامل
+                                </button>
+                            )}
+                            {listing.images?.length >= 3 && (
+                                <button data-testid="open-spin360-btn" onClick={(e) => { e.stopPropagation(); setShow360(true); }} className="absolute top-3 end-28 bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur hover:opacity-90 shadow-lg">
+                                    <RotateCw className="w-3 h-3" /> 360°
                                 </button>
                             )}
                             <div className="absolute bottom-3 end-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{activeImg + 1} / {listing.images?.length || 0}</div>
@@ -162,7 +181,7 @@ export default function ListingDetail() {
                             <div className="h-72 mt-4">
                                 <MapContainer center={[listing.lat, listing.lng]} zoom={14} className="w-full h-full" scrollWheelZoom={false}>
                                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-                                    <Marker position={[listing.lat, listing.lng]}>
+                                    <Marker position={[listing.lat, listing.lng]} icon={buildHologramIcon({ price: listing.price, currency: listing.currency })}>
                                         <Popup>
                                             <div className="font-arabic">
                                                 <div className="font-bold">{listing.title}</div>
@@ -250,6 +269,7 @@ export default function ListingDetail() {
             </div>
 
             {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
+            {show360 && <Spin360Viewer images={listing.images} onClose={() => setShow360(false)} />}
         </div>
     );
 }

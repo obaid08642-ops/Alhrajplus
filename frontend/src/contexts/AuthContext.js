@@ -18,7 +18,14 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    useEffect(() => { fetchMe(); }, [fetchMe]);
+    useEffect(() => {
+        // CRITICAL: If returning from OAuth callback, skip the /me check.
+        if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
+            setLoading(false);
+            return;
+        }
+        fetchMe();
+    }, [fetchMe]);
 
     const login = async (email, password) => {
         const { data } = await api.post("/auth/login", { email, password });

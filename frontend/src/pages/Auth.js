@@ -5,6 +5,63 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import api, { formatApiError } from "@/lib/api";
 
+// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+function startGoogleLogin() {
+    const redirectUrl = window.location.origin + "/";
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+}
+
+function SocialLoginButtons() {
+    const comingSoon = (provider) => () => {
+        alert(`تسجيل الدخول عبر ${provider} قريباً — بانتظار توفير مفاتيح API`);
+    };
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2 my-3">
+                <div className="flex-1 h-px bg-[var(--border)]"></div>
+                <span className="text-xs text-[var(--text-muted)] font-arabic-body">أو</span>
+                <div className="flex-1 h-px bg-[var(--border)]"></div>
+            </div>
+            <button
+                type="button"
+                data-testid="google-login-btn"
+                onClick={startGoogleLogin}
+                className="w-full bg-white hover:bg-gray-50 text-gray-800 border border-[var(--border)] py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all font-arabic"
+            >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                متابعة بحساب Google
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+                <button
+                    type="button"
+                    data-testid="x-login-btn"
+                    onClick={comingSoon("X (Twitter)")}
+                    className="bg-black hover:bg-gray-900 text-white py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all font-arabic relative"
+                >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2H21.5l-7.55 8.625L23 22h-6.844l-5.36-7.005L4.62 22H1.36l8.07-9.225L1 2h7l4.846 6.405L18.244 2zm-1.197 18h1.86L7.04 4H5.07l11.977 16z"/></svg>
+                    X
+                    <span className="absolute -top-1 -right-1 bg-amber-400 text-black text-[8px] font-bold px-1 py-0.5 rounded-full">قريباً</span>
+                </button>
+                <button
+                    type="button"
+                    data-testid="snapchat-login-btn"
+                    onClick={comingSoon("Snapchat")}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-black py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all font-arabic relative"
+                >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.166.34c2.853-.04 5.49 1.92 6.34 4.6.31 1.05.21 2.18.21 3.27 0 .85-.21 1.7-.07 2.55.31 0 .61-.07.92-.13.21-.04.42-.07.62-.04.42.07.85.21.92.71.07.55-.42.85-.85.99-.42.21-.92.28-1.34.42-.42.21-.71.55-.85.99-.07.21-.07.42 0 .62.42 1.27 1.34 2.4 2.55 3.06.42.21.92.42 1.41.42.21 0 .42-.07.62.07.21.21.21.55 0 .78-.34.42-.85.71-1.34.99-.71.34-1.55.42-2.33.42-.42 0-.85.13-1.2.42-.42.34-.62.85-.92 1.27-.34.42-.78.55-1.27.55-.42 0-.85-.13-1.27-.21-.42-.07-.85-.07-1.27 0-.55.07-1.06.34-1.55.42-.21.07-.42.07-.62 0-.42-.13-.71-.42-.92-.78-.34-.42-.62-.85-1.06-1.13-.42-.28-.99-.34-1.48-.42-.71-.07-1.41-.13-2.05-.42-.55-.21-.99-.55-1.34-.99-.21-.21-.21-.55-.07-.78.21-.21.42-.13.62-.13.42 0 .85-.13 1.27-.34 1.27-.62 2.26-1.84 2.69-3.21.07-.21 0-.42-.07-.62-.21-.42-.55-.78-.99-.92-.42-.13-.85-.21-1.27-.42-.42-.13-.92-.42-.85-.99 0-.42.42-.62.85-.71.21-.07.42 0 .62.04.34.07.62.13.92.13.13-.85-.07-1.7-.07-2.55 0-1.06-.07-2.18.21-3.21C6.747 2.18 9.319.3 12.166.34z"/></svg>
+                    Snap
+                    <span className="absolute -top-1 -right-1 bg-amber-400 text-black text-[8px] font-bold px-1 py-0.5 rounded-full">قريباً</span>
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export function LoginPage() {
     const { login } = useAuth();
     const { t } = useI18n();
@@ -56,6 +113,8 @@ export function LoginPage() {
                         {busy ? t("loading") : t("login")}
                     </button>
                 </form>
+
+                <SocialLoginButtons />
 
                 <div className="text-center mt-5 text-sm font-arabic-body text-[var(--text-muted)]">
                     {t("no_account")} <Link to="/register" data-testid="goto-register" className="text-[var(--primary)] font-bold">{t("register")}</Link>
@@ -157,6 +216,8 @@ export function RegisterPage() {
                     </button>
                 </form>
 
+                <SocialLoginButtons />
+
                 <div className="text-center mt-5 text-sm font-arabic-body text-[var(--text-muted)]">
                     {t("already_have_account")} <Link to="/login" data-testid="goto-login" className="text-[var(--primary)] font-bold">{t("login")}</Link>
                 </div>
@@ -169,6 +230,7 @@ export function ForgotPasswordPage() {
     const { t } = useI18n();
     const [email, setEmail] = useState("");
     const [sent, setSent] = useState(false);
+    const [emailSent, setEmailSent] = useState(false);
     const [resetLink, setResetLink] = useState("");
     const [busy, setBusy] = useState(false);
     const submit = async (e) => {
@@ -177,6 +239,7 @@ export function ForgotPasswordPage() {
         try {
             const { data } = await api.post("/auth/forgot-password", { email });
             setSent(true);
+            setEmailSent(!!data.email_sent);
             if (data.dev_reset_link) setResetLink(data.dev_reset_link);
         } catch (_) {} finally { setBusy(false); }
     };
@@ -185,15 +248,24 @@ export function ForgotPasswordPage() {
             <div className="w-full max-w-md bg-[var(--surface)] rounded-3xl border border-[var(--border)] p-6 sm:p-8 shadow-2xl">
                 <Link to="/login" className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body inline-flex items-center gap-1 mb-3"><ArrowLeft className="w-4 h-4" /> العودة</Link>
                 <h1 className="font-arabic font-black text-2xl text-center text-[var(--text)] mb-1">{t("forgot_password")}</h1>
-                <p className="text-sm text-center text-[var(--text-muted)] mb-6 font-arabic-body">سنرسل لك رابط إعادة التعيين</p>
+                <p className="text-sm text-center text-[var(--text-muted)] mb-6 font-arabic-body">سنرسل لك رابط إعادة التعيين على بريدك الإلكتروني</p>
                 {sent ? (
                     <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-4 text-sm font-arabic-body">
-                        ✅ {t("forgot_email_sent")}
-                        {resetLink && (
-                            <div className="mt-3 pt-3 border-t border-[var(--success)]/30">
-                                <p className="text-xs text-[var(--text-muted)] mb-2">⚠️ <b>وضع تطوير:</b> خدمة الإيميل غير مفعّلة بعد. استخدم الرابط مباشرة:</p>
-                                <Link to={resetLink} data-testid="dev-reset-link" className="bg-[var(--primary)] text-[var(--primary-fg)] inline-block px-4 py-2 rounded-full text-xs font-bold">إعادة تعيين الآن</Link>
-                            </div>
+                        {emailSent ? (
+                            <>
+                                <div className="text-base font-bold mb-1">✅ تم إرسال الرابط بنجاح!</div>
+                                <p className="text-xs text-[var(--text-muted)] mt-2">تحقق من صندوق البريد الوارد ومجلد الـ Spam. الرابط صالح لمدة ساعة.</p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-base font-bold mb-1">✅ تم إنشاء الرابط</div>
+                                {resetLink && (
+                                    <div className="mt-3 pt-3 border-t border-[var(--success)]/30">
+                                        <p className="text-xs text-[var(--text-muted)] mb-2">⚠️ <b>وضع تطوير:</b> خدمة الإيميل غير مفعّلة بعد. استخدم الرابط مباشرة:</p>
+                                        <Link to={resetLink} data-testid="dev-reset-link" className="bg-[var(--primary)] text-[var(--primary-fg)] inline-block px-4 py-2 rounded-full text-xs font-bold">إعادة تعيين الآن</Link>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 ) : (

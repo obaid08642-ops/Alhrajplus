@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 2 testing of Haraj Plus new features (forgot-password, Google OAuth validation, Auctions/bidding, social login UI, Spin360 viewer, hologram map pins). Backend: 16/16 new pytest cases pass (100%). Frontend: all critical UI flows validated end-to-end. Overall pass rate ~100%.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/google", "issue": "Pydantic model `GoogleAuthIn` accepts empty session_id string; current code raises 400 in handler — works but consider Field(min_length=1) for cleaner 422."},
+      {"endpoint": "POST /api/auctions/{id}/bid", "issue": "min_required = top.amount + 1 hard-codes increment of 1 currency unit. For high-value items (cars, real estate) this is unrealistic. Consider configurable min_increment in listing custom_fields."},
+      {"endpoint": "GET /api/auctions/active", "issue": "No `ends_at` / time-window field on auction listings — auctions never naturally expire (status only flips via admin). Consider adding `ends_at` + scheduled job to set status='ended'."},
+      {"endpoint": "POST /api/auth/forgot-password", "issue": "Always returns dev_reset_link in JSON when key is missing — fine for dev but ensure RESEND_API_KEY is set before production launch (currently empty)."},
+      {"endpoint": "Brute-force lockout (carry-over from iter 1)", "issue": "Still NOT verified fixed. test_brute_force_lockout_after_5 in /app/backend/tests/test_haraj_plus.py — main agent should retest."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RegisterPage / select with country flags", "issue": "React hydration warning: '<span> cannot be a child of <option>'. Causes harmless console error on /login & /register. Fix: render plain text inside <option>, not nested <span>.", "selector": "select option > span", "priority": "LOW"},
+      {"component": "NearbySection (Home)", "issue": "React warning: 'Each child in a list should have a unique key prop' — missing key={listing.id} in the listings .map().", "selector": "NearbySection grid", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login/Register", "issues": ["X (Twitter) and Snapchat buttons show 'قريباً' badge correctly; Snap button uses bright yellow (#FFFC00) which has very poor contrast for Snap text — consider darker text for accessibility."]},
+      {"screen": "AuctionsPage AuctionCard", "issues": ["Empty image placeholder shows 'لا توجد صورة' on dark bg — fine, but auction listings created without images degrade visual appeal. Consider seeding placeholder for auctions."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/test_haraj_plus.py",
+    "/app/test_reports/pytest/iteration_2_results.xml"
+  ],
+  "action_items": [
+    "Re-verify brute-force lockout fix from iteration_1 (still flagged).",
+    "Add Field(min_length=1) on GoogleAuthIn.session_id for proper 422 validation.",
+    "Add `key={l.id}` in NearbySection .map() to silence React warning.",
+    "Fix select <option><span> hydration warning in country flag dropdown of registration form.",
+    "Consider adding configurable `min_increment` and `ends_at` to auction listings.",
+    "Set RESEND_API_KEY env var before production to enable real email delivery."
+  ],
+  "critical_code_review_comments": [
+    "AuctionCard / BidDialog flow not directly verifiable in this run because no auction listings existed initially — created one via API; UI rendered correctly with masked top bid '1,500 ر.س'.",
+    "Spin360Viewer correctly opens fullscreen modal with rotation hint, frame counter (1/4), and stop-rotation toggle. data-testid attributes are properly added.",
+    "Hologram pins on /map render as DivIcons with .hologram-pin CSS class (3 found in DOM). Animation visible.",
+    "Splash screen renders briefly then home; horizontal categories, unified search, quick actions (خريطة، حجز طيران، قصص فيديو، مزادات), and listings grid all visible.",
+    "Forgot-password page correctly shows green '✅ تم إنشاء الرابط' card with dev-mode warning + 'إعادة تعيين الآن' button when RESEND_API_KEY is empty — exact behavior requested.",
+    "Google OAuth click correctly navigates to https://auth.emergentagent.com/?redirect=<frontend_url>/ — OAuth flow itself not testable end-to-end without real session.",
+    "X & Snapchat clicks correctly show Arabic 'قريباً' alert messages (no API call attempted)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new)"
+  ],
+  "success_rate": {"backend": "100% (16/16 new tests + regression)", "frontend": "100% on critical flows"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 — works.",
+  "seed_data_creation": "Created TEST auction listing (ساعة فاخرة 1000 ر.س, SA) with one accepted bid of 1500 from a second test user. Created TEST 360 سيارة جميلة listing with 4 picsum images (id=f77f5225-b998-4869-8818-c9d3a0c597ef) for Spin360 verification. Several throwaway TEST_ users created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend test files: /app/backend/tests/test_haraj_plus.py (44 tests, comprehensive) + /app/backend/tests/test_new_features.py (16 tests for forgot-password / Google OAuth / Auctions / regression). Run: `pytest /app/backend/tests/ -v`. Frontend new feature data-testids verified: forgot-email, forgot-submit, google-login-btn, x-login-btn, snapchat-login-btn, open-spin360-btn, spin360-viewer. Hologram pins are DOM elements with class .hologram-pin; .me-pin appears only when geolocation granted. RESEND_API_KEY intentionally empty. Brute-force lockout from iter1 still not retested.",
+  "rca_of_the_issue": "N/A — no critical bugs found in this iteration. Minor React warnings (key prop in NearbySection, span-in-option hydration) are non-blocking but should be cleaned up for code hygiene."
+}

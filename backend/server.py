@@ -8,9 +8,13 @@ load_dotenv()
 import os
 import uuid
 import time
+import asyncio
+import logging
 import secrets
 import bcrypt
 import jwt
+import httpx
+import resend
 import cloudinary
 import cloudinary.utils
 import cloudinary.uploader
@@ -24,6 +28,8 @@ from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from seed_data import COUNTRIES, CATEGORIES, DEFAULT_THEME
+
+logger = logging.getLogger("haraj_plus")
 
 # ============================================================
 # Configuration
@@ -44,6 +50,18 @@ cloudinary.config(
     secure=True,
 )
 
+# Resend (email)
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip()
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+# Emergent Auth
+EMERGENT_AUTH_URL = os.environ.get(
+    "EMERGENT_AUTH_URL",
+    "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+).strip()
+
 # DB
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -62,6 +80,48 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================
+# Email helper (Resend)
+# ============================================================
+async def send_password_reset_email(to_email: str, reset_url: str, user_name: str = "") -> bool:
+    """Send password reset email via Resend. Returns True if sent, False if no API key."""
+    if not RESEND_API_KEY:
+        return False
+    html = f"""
+    <div style="font-family:Arial,Tahoma,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#fff;color:#0F1A35;direction:rtl">
+      <div style="text-align:center;padding:20px 0;border-bottom:2px solid #4FB6E6">
+        <h1 style="color:#0F1A35;font-size:28px;margin:0">الحراج <span style="color:#4FB6E6">بلس</span></h1>
+      </div>
+      <h2 style="color:#0F1A35;font-size:20px">مرحباً {user_name or 'عزيزي المستخدم'} 👋</h2>
+      <p style="color:#475569;font-size:14px;line-height:1.7">
+        لقد طلبت إعادة تعيين كلمة المرور لحسابك. اضغط على الزر أدناه لإنشاء كلمة مرور جديدة.
+        صلاحية الرابط <strong>ساعة واحدة</strong> فقط.
+      </p>
+      <div style="text-align:center;padding:24px 0">
+        <a href="{reset_url}" style="background:#4FB6E6;color:#fff;text-decoration:none;padding:14px 32px;border-radius:999px;font-weight:bold;font-size:14px;display:inline-block">إعادة تعيين كلمة المرور</a>
+      </div>
+      <p style="color:#94A3B8;font-size:12px;line-height:1.7">
+        إذا لم تطلب ذلك، يمكنك تجاهل هذا البريد.<br>
+        أو انسخ الرابط: <span style="color:#4FB6E6;word-break:break-all">{reset_url}</span>
+      </p>
+      <hr style="border:none;border-top:1px solid #E2E8F0;margin:24px 0">
+      <p style="color:#94A3B8;font-size:11px;text-align:center">© 2026 الحراج بلس - السوق الذكي للخليج العربي</p>
+    </div>
+    """
+    params = {
+        "from": SENDER_EMAIL,
+        "to": [to_email],
+        "subject": "إعادة تعيين كلمة المرور - الحراج بلس",
+        "html": html,
+    }
+    try:
+        await asyncio.to_thread(resend.Emails.send, params)
+        return True
+    except Exception as e:
+        logger.error(f"[Resend] Failed: {e}")
+        return False
 
 
 # ============================================================
@@ -352,10 +412,11 @@ class ResetIn(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 @api.post("/auth/forgot-password")
-async def forgot_password(body: ForgotIn):
+async def forgot_password(body: ForgotIn, request: Request):
     email = body.email.lower().strip()
     user = await db.users.find_one({"email": email})
     reset_link = None
+    email_sent = False
     if user:
         token = secrets.token_urlsafe(32)
         await db.password_reset_tokens.insert_one({
@@ -363,12 +424,21 @@ async def forgot_password(body: ForgotIn):
             "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
             "used": False, "created_at": datetime.now(timezone.utc),
         })
+        # Build absolute reset URL using request origin or env
+        origin = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        if not origin:
+            origin = str(request.base_url).rstrip("/")
+        reset_url = f"{origin}/reset-password?token={token}"
         reset_link = f"/reset-password?token={token}"
-        print(f"[PWD-RESET] {email} -> {reset_link}")
-    # MVP: return reset link in response so the dev mode can show it.
-    # In production, replace with email send (SendGrid/SES) and remove this.
-    return {"message": "If email is registered, a reset link will be sent",
-            "dev_reset_link": reset_link}
+        # Try sending email
+        email_sent = await send_password_reset_email(email, reset_url, user.get("name", ""))
+        logger.info(f"[PWD-RESET] {email} sent={email_sent} -> {reset_url}")
+    return {
+        "message": "إذا كان البريد مسجلاً، فسيتم إرسال رابط إعادة التعيين",
+        "email_sent": email_sent,
+        # Provide dev link only when email service is not configured
+        "dev_reset_link": None if email_sent else reset_link,
+    }
 
 @api.post("/auth/reset-password")
 async def reset_password(body: ResetIn):
@@ -380,6 +450,82 @@ async def reset_password(body: ResetIn):
     await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
     await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
     return {"success": True}
+
+
+# ============================================================
+# Google OAuth (Emergent-managed)
+# ============================================================
+class GoogleAuthIn(BaseModel):
+    session_id: str
+
+@api.post("/auth/google")
+async def google_auth(body: GoogleAuthIn, response: Response):
+    """Exchange Emergent session_id for our JWT. Creates user if new, links if email exists."""
+    if not body.session_id:
+        raise HTTPException(400, "session_id required")
+    # Call Emergent backend to get user data
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client_http:
+            r = await client_http.get(
+                EMERGENT_AUTH_URL,
+                headers={"X-Session-ID": body.session_id},
+            )
+        if r.status_code != 200:
+            raise HTTPException(401, "فشل التحقق من Google")
+        info = r.json()
+    except httpx.HTTPError as e:
+        logger.error(f"[GoogleAuth] HTTP error: {e}")
+        raise HTTPException(502, "تعذر الاتصال بخدمة المصادقة")
+
+    g_email = (info.get("email") or "").lower().strip()
+    g_name = info.get("name") or "مستخدم"
+    g_picture = info.get("picture")
+    if not g_email:
+        raise HTTPException(400, "لا يوجد بريد إلكتروني من Google")
+
+    user = await db.users.find_one({"email": g_email})
+    if user:
+        # Link Google + update avatar if missing
+        upd: dict = {"google_linked": True}
+        if not user.get("avatar_url") and g_picture:
+            upd["avatar_url"] = g_picture
+        await db.users.update_one({"id": user["id"]}, {"$set": upd})
+    else:
+        # Create new user from Google profile
+        uid = str(uuid.uuid4())
+        user = {
+            "id": uid,
+            "name": g_name,
+            "email": g_email,
+            "phone": "",
+            "country_code": "SA",
+            "phone_full": "",
+            "city": None,
+            # placeholder unverifiable hash so password login is disabled until reset
+            "password_hash": hash_password(secrets.token_urlsafe(24)),
+            "role": "user",
+            "verified": False,
+            "trust_score": 60,
+            "avatar_url": g_picture,
+            "bio": "",
+            "language": "ar",
+            "banned": False,
+            "google_linked": True,
+            "referral_code": gen_referral_code(g_name),
+            "referred_by": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+
+    if user.get("banned"):
+        raise HTTPException(403, "تم حظر حسابك")
+
+    access = create_access_token(user["id"], g_email, user.get("role", "user"))
+    refresh = create_refresh_token(user["id"])
+    set_auth_cookies(response, access, refresh)
+    user.pop("password_hash", None)
+    user.pop("_id", None)
+    return {"user": user, "access_token": access}
 
 
 # ============================================================
@@ -619,6 +765,71 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
 async def my_listings(user: dict = Depends(get_current_user)):
     items = await db.listings.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
     return items
+
+
+# ============================================================
+# Auctions / Bidding
+# ============================================================
+class BidIn(BaseModel):
+    amount: float = Field(gt=0)
+
+@api.get("/auctions/active")
+async def active_auctions(country_code: Optional[str] = None, limit: int = 30):
+    q: dict = {"category": "auctions", "status": "active", "moderation": "approved"}
+    if country_code:
+        q["country_code"] = country_code
+    items = await db.listings.find(q, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+    # Attach top bid for each
+    for it in items:
+        top = await db.bids.find_one(
+            {"listing_id": it["id"]},
+            {"_id": 0},
+            sort=[("amount", -1)],
+        )
+        it["top_bid"] = top
+        it["bid_count"] = await db.bids.count_documents({"listing_id": it["id"]})
+    return items
+
+@api.get("/auctions/{listing_id}/bids")
+async def auction_bids(listing_id: str, limit: int = 20):
+    bids = await db.bids.find({"listing_id": listing_id}, {"_id": 0}).sort("amount", -1).limit(limit).to_list(length=limit)
+    # Mask bidder names
+    for b in bids:
+        u = await db.users.find_one({"id": b["user_id"]}, {"_id": 0, "name": 1, "verified": 1})
+        if u:
+            name = u.get("name") or "مستخدم"
+            b["bidder_name"] = name[:1] + "***" + (name[-1:] if len(name) > 1 else "")
+            b["verified"] = u.get("verified", False)
+    return bids
+
+@api.post("/auctions/{listing_id}/bid")
+async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if listing.get("category") != "auctions":
+        raise HTTPException(400, "هذا الإعلان ليس مزاد")
+    if listing.get("user_id") == user["id"]:
+        raise HTTPException(400, "لا يمكنك المزايدة على إعلانك")
+    if listing.get("status") != "active":
+        raise HTTPException(400, "المزاد منتهي")
+    # Check current top bid
+    top = await db.bids.find_one({"listing_id": listing_id}, {"_id": 0}, sort=[("amount", -1)])
+    min_required = (top["amount"] if top else (listing.get("price") or 0)) + 1
+    if body.amount < min_required:
+        raise HTTPException(400, f"الحد الأدنى للمزايدة: {min_required}")
+    bid_id = str(uuid.uuid4())
+    bid = {
+        "id": bid_id,
+        "listing_id": listing_id,
+        "user_id": user["id"],
+        "amount": body.amount,
+        "currency": listing.get("currency", "ر.س"),
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.bids.insert_one(bid)
+    bid.pop("_id", None)
+    return {"success": True, "bid": bid}
 
 # Map endpoint - returns listings with lat/lng
 @api.get("/listings/map/nearby")
@@ -912,6 +1123,8 @@ async def startup():
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
     await db.conversations.create_index("id", unique=True)
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
+    await db.bids.create_index([("listing_id", 1), ("amount", -1)])
+    await db.bids.create_index("ts")
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
     await db.reports.create_index("status")
     # Seed admin (idempotent)

@@ -149,3 +149,119 @@ code {
     * { @apply border-border; }
     body { @apply bg-background text-foreground; }
 }
+
+/* ============================================================
+   Hologram Map Pins
+   ============================================================ */
+.hologram-pin-wrap { background: transparent !important; border: none !important; }
+
+.hologram-pin {
+    position: relative;
+    width: 78px;
+    height: 78px;
+    pointer-events: none;
+    transform: translateY(0);
+    animation: hpFloat 3s ease-in-out infinite;
+}
+.hologram-pin .hp-chip {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    background: linear-gradient(180deg, rgba(79,182,230,0.95), rgba(20,33,71,0.95));
+    color: #fff;
+    border: 1.5px solid rgba(137, 207, 240, 0.85);
+    border-radius: 999px;
+    padding: 5px 11px 4px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 6px 20px rgba(20,33,71,0.45),
+                0 0 18px rgba(137,207,240,0.55),
+                inset 0 1px 0 rgba(255,255,255,0.35);
+    text-align: center;
+    line-height: 1;
+    min-width: 42px;
+    font-family: "Cairo", "Tajawal", system-ui, sans-serif;
+}
+.hologram-pin .hp-price {
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+.hologram-pin .hp-curr {
+    font-weight: 600;
+    font-size: 8px;
+    opacity: 0.9;
+    margin-top: 1px;
+}
+.hologram-pin .hp-stem {
+    position: absolute;
+    left: 50%;
+    top: 28px;
+    width: 2px;
+    height: 24px;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(137,207,240,0.9), rgba(137,207,240,0.05));
+    box-shadow: 0 0 8px rgba(137,207,240,0.7);
+}
+.hologram-pin .hp-base {
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    width: 22px;
+    height: 6px;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(137,207,240,0.65), rgba(137,207,240,0));
+    filter: blur(1px);
+}
+.hologram-pin .hp-ring {
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    transform: translateX(-50%);
+    border: 1.5px solid rgba(137, 207, 240, 0.7);
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    animation: hpRing 2.6s linear infinite;
+}
+.hologram-pin .hp-ring-1 { width: 26px; height: 8px; }
+.hologram-pin .hp-ring-2 { width: 26px; height: 8px; animation-delay: 1.3s; }
+
+@keyframes hpFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-4px); }
+}
+@keyframes hpRing {
+    0%   { width: 12px;  opacity: 0.85; }
+    100% { width: 60px;  opacity: 0; }
+}
+
+/* Current location pulse pin */
+.me-pin {
+    position: relative;
+    width: 40px; height: 40px;
+}
+.me-pin .me-core {
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    background: #4FB6E6;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    z-index: 2;
+}
+.me-pin .me-pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(79, 182, 230, 0.5);
+    animation: mePulse 2s ease-out infinite;
+}
+@keyframes mePulse {
+    0%   { transform: scale(0.4); opacity: 0.9; }
+    100% { transform: scale(1.4); opacity: 0; }
+}

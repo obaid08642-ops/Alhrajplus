@@ -7,7 +7,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import ListingCard from "@/components/listings/ListingCard";
-import { Search as SearchIcon, Mic, Camera } from "lucide-react";
+import { Search as SearchIcon, Mic } from "lucide-react";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -15,6 +15,39 @@ L.Icon.Default.mergeOptions({
     iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
     shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
+
+// Hologram pin: floating, glowing price chip with concentric rings
+function buildHologramIcon({ price, currency }) {
+    const display = price ? Number(price).toLocaleString() : "★";
+    const sub = price ? (currency || "ر.س") : "إعلان";
+    return L.divIcon({
+        className: "hologram-pin-wrap",
+        iconSize: [78, 78],
+        iconAnchor: [39, 70],
+        popupAnchor: [0, -64],
+        html: `
+          <div class="hologram-pin">
+            <div class="hp-ring hp-ring-1"></div>
+            <div class="hp-ring hp-ring-2"></div>
+            <div class="hp-chip">
+              <div class="hp-price">${display}</div>
+              <div class="hp-curr">${sub}</div>
+            </div>
+            <div class="hp-stem"></div>
+            <div class="hp-base"></div>
+          </div>
+        `,
+    });
+}
+
+function buildMyLocationIcon() {
+    return L.divIcon({
+        className: "hologram-pin-wrap",
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        html: `<div class="me-pin"><div class="me-core"></div><div class="me-pulse"></div></div>`,
+    });
+}
 
 export function SearchPage() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -118,9 +151,9 @@ export function MapPage() {
             <div className="h-[70vh] rounded-3xl overflow-hidden border border-[var(--border)]">
                 <MapContainer center={myPos || (items[0] ? [items[0].lat, items[0].lng] : center)} zoom={myPos ? 13 : (items.length ? 10 : 6)} className="w-full h-full" key={myPos ? myPos.join(",") : "default"}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-                    {myPos && <Marker position={myPos}><Popup>موقعك الحالي</Popup></Marker>}
+                    {myPos && <Marker position={myPos} icon={buildMyLocationIcon()}><Popup>موقعك الحالي</Popup></Marker>}
                     {items.map((it) => (
-                        <Marker key={it.id} position={[it.lat, it.lng]}>
+                        <Marker key={it.id} position={[it.lat, it.lng]} icon={buildHologramIcon({ price: it.price, currency: it.currency })}>
                             <Popup>
                                 <div className="font-arabic">
                                     <div className="font-bold text-sm">{it.title}</div>
