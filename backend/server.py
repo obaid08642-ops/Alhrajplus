@@ -602,6 +602,54 @@ async def price_badge(listing_id: str):
 
 
 # ============================================================
+# Top Deals of the Day — aggregates best deals across categories
+# ============================================================
+@api.get("/deals/today")
+async def todays_deals(country_code: Optional[str] = None, limit: int = 20):
+    """Returns today's best deals: listings priced significantly below their category median."""
+    # Get all active listings (small subset for performance)
+    q: dict = {"status": "active", "moderation": "approved", "price": {"$gt": 0}}
+    if country_code:
+        q["country_code"] = country_code
+    cursor = db.listings.find(q, {"_id": 0}).limit(500)
+    all_items = await cursor.to_list(length=500)
+
+    # Group prices by category+subcategory for median computation
+    from collections import defaultdict
+    groups: dict = defaultdict(list)
+    for it in all_items:
+        k = (it.get("category"), it.get("subcategory") or "")
+        groups[k].append(it.get("price", 0))
+    medians = {}
+    for k, prices in groups.items():
+        prices_sorted = sorted(p for p in prices if p > 0)
+        if len(prices_sorted) >= 3:
+            medians[k] = prices_sorted[len(prices_sorted) // 2]
+
+    # Find deals: price < 80% of category median
+    deals = []
+    for it in all_items:
+        k = (it.get("category"), it.get("subcategory") or "")
+        median = medians.get(k)
+        if not median:
+            continue
+        price = it.get("price", 0)
+        if price and price < median * 0.8:
+            savings = int(median - price)
+            pct_off = int((1 - price / median) * 100)
+            deals.append({
+                **it,
+                "market_median": int(median),
+                "savings": savings,
+                "discount_pct": pct_off,
+            })
+
+    # Sort by discount percentage
+    deals.sort(key=lambda d: d["discount_pct"], reverse=True)
+    return deals[:limit]
+
+
+# ============================================================
 # Referral System
 # ============================================================
 def gen_referral_code(name: str) -> str:

@@ -46,6 +46,7 @@ export default function HomePage() {
 
 function QuickActions() {
     const items = [
+        { to: "/deals", icon: "🔥", label: "صفقات اليوم", color: "from-emerald-100 to-red-50 dark:from-emerald-900/20 dark:to-red-900/10" },
         { to: "/auctions", icon: "🔨", label: "مزادات", color: "from-amber-100 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/10" },
         { to: "/reels", icon: "🎬", label: "قصص فيديو", color: "from-pink-100 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/10" },
         { to: "/flights", icon: "✈️", label: "حجز طيران", color: "from-blue-100 to-sky-50 dark:from-blue-900/20 dark:to-sky-900/10" },
@@ -53,11 +54,11 @@ function QuickActions() {
     ];
     return (
         <section className="max-w-7xl mx-auto px-3 sm:px-6">
-            <div className="grid grid-cols-4 gap-2 sm:gap-3">
+            <div className="grid grid-cols-5 gap-2 sm:gap-3">
                 {items.map((it) => (
                     <Link key={it.label} to={it.to} data-testid={`quick-${it.label}`} className={`relative bg-gradient-to-br ${it.color} rounded-2xl p-3 sm:p-4 border border-[var(--border)] hover:border-[var(--primary)] hover:-translate-y-0.5 transition-all flex flex-col items-center gap-1.5`}>
                         <span className="text-2xl sm:text-3xl">{it.icon}</span>
-                        <span className="font-arabic font-bold text-xs sm:text-sm text-[var(--text)]">{it.label}</span>
+                        <span className="font-arabic font-bold text-[10px] sm:text-sm text-[var(--text)] text-center">{it.label}</span>
                     </Link>
                 ))}
             </div>

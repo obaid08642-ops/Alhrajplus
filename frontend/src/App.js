@@ -20,6 +20,7 @@ import AdminPage from "@/pages/AdminPage";
 import ReelsPage from "@/pages/ReelsPage";
 import AuctionsPage from "@/pages/AuctionsPage";
 import FlightsPage from "@/pages/FlightsPage";
+import DealsPage from "@/pages/DealsPage";
 import { SettingsPage, TermsPage, PrivacyPage, AboutPage, ContactPage } from "@/pages/StaticPages";
 
 function Layout({ children, hideNav = false }) {
@@ -55,6 +56,7 @@ function AppRouter() {
             <Route path="/reels" element={<Layout><ReelsPage /></Layout>} />
             <Route path="/auctions" element={<Layout><AuctionsPage /></Layout>} />
             <Route path="/flights" element={<Layout><FlightsPage /></Layout>} />
+            <Route path="/deals" element={<Layout><DealsPage /></Layout>} />
             <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
             <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
             <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
