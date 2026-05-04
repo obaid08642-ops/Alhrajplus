@@ -18,8 +18,22 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 2 - Feb 2026 — Major Feature Push)
-### 🆕 New Features
+## ✅ Implemented (Session 3 - Feb 2026 — All Remaining Features)
+### 🆕 Session 3 Highlights
+- ✅ **Real WebGL 3D Viewer** — `Spin360Viewer.js` rebuilt with Three.js. Renders product images on curved 3D meshes with lighting/shadows. Drag to orbit camera, mouse parallax, auto-rotate. Multiple images placed cylindrically for genuine multi-view 3D. Note: For AI-generated 3D mesh from a single photo, integrate Meshy.ai/Tripo3D (paid).
+- ✅ **AI Image Search (Gemini)** — `POST /api/ai/image-search`. User uploads image → Gemini 2.5 Flash extracts Arabic search keywords → routes to `/search?q=...`.
+- ✅ **AI Chat Auto-Translation (Gemini)** — `POST /api/ai/translate` with caching. Translate button on each incoming message renders translation under original.
+- ✅ **Listing Owner Controls** — Edit (re-uses PostListing with `?edit=id`), Republish (24h cooldown), Mark Sold (with confirmation), Delete (asks "تم البيع؟").
+- ✅ **Live Location Sharing** — `POST /api/chat/location-share` (consent-based, 1-60 min duration). Emits a special "live share" message with Radio icon. Sender can stop early. TTL index auto-expires.
+- ✅ **Removed Snapchat** — Cleaner login UI. Only Google (active) + X (coming soon).
+- ✅ **Mobile Layout Fix** — Seller info card now appears BEFORE similar listings on mobile.
+- ✅ **Three.js installed** (`three@0.184.0`).
+
+### 🧪 Testing (Session 3)
+- 29/29 backend pytest cases pass (100%). All frontend flows validated.
+
+
+### 🆕 Session 2 (Earlier in Feb 2026)
 - ✅ **Real Email Sending (Resend)** — `/api/auth/forgot-password` now sends a beautifully designed Arabic HTML email with reset link via Resend (free tier). Falls back to dev_reset_link in JSON when RESEND_API_KEY is empty (no breakage).
 - ✅ **Google Login (Emergent-managed)** — `/api/auth/google` exchanges Emergent session_id for our JWT. Auto-creates new users from Google profile, links to existing accounts by email. AuthCallback component handles `#session_id=...` redirect.
 - ✅ **Social Login UI** — Login & Register pages now show Google (active), X (Twitter), and Snapchat buttons. X/Snap show "قريباً" badge until user provides API keys.
