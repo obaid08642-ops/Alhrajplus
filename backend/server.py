@@ -560,6 +560,48 @@ async def ai_price_suggest(body: PriceSuggestIn):
 
 
 # ============================================================
+# AI Smart Pricing Badge — classifies a listing's price vs market
+# ============================================================
+@api.get("/ai/price-badge/{listing_id}")
+async def price_badge(listing_id: str):
+    """Returns a badge (deal/fair/high) for a listing based on its category's price distribution."""
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "price": 1, "category": 1, "country_code": 1, "subcategory": 1})
+    if not listing or not listing.get("price"):
+        return {"badge": None}
+    q: dict = {
+        "category": listing["category"],
+        "status": "active",
+        "moderation": "approved",
+        "price": {"$gt": 0},
+        "id": {"$ne": listing_id},
+    }
+    if listing.get("country_code"):
+        q["country_code"] = listing["country_code"]
+    if listing.get("subcategory"):
+        q["subcategory"] = listing["subcategory"]
+    cursor = db.listings.find(q, {"_id": 0, "price": 1}).limit(200)
+    items = await cursor.to_list(length=200)
+    if len(items) < 3:
+        return {"badge": None, "reason": "عينة غير كافية للمقارنة"}
+    prices = sorted([i["price"] for i in items if i.get("price")])
+    p = listing["price"]
+    p25 = prices[len(prices) // 4]
+    p75 = prices[(3 * len(prices)) // 4]
+    avg = sum(prices) / len(prices)
+    if p < p25:
+        return {"badge": "deal", "label": "صفقة ممتازة",
+                "sub": f"أقل من 75% من إعلانات مماثلة (متوسط السوق {int(avg):,})",
+                "color": "emerald", "icon": "🔥", "samples": len(prices)}
+    if p > p75:
+        return {"badge": "high", "label": "سعر مرتفع",
+                "sub": f"أعلى من 75% من إعلانات مماثلة (متوسط السوق {int(avg):,})",
+                "color": "amber", "icon": "⚡", "samples": len(prices)}
+    return {"badge": "fair", "label": "سعر مناسب",
+            "sub": f"ضمن متوسط السوق ({int(avg):,})",
+            "color": "blue", "icon": "✓", "samples": len(prices)}
+
+
+# ============================================================
 # Referral System
 # ============================================================
 def gen_referral_code(name: str) -> str:

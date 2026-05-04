@@ -1,0 +1,136 @@
+import { useEffect, useState } from "react";
+import { View, Text, FlatList, StyleSheet, TextInput, ScrollView, TouchableOpacity, RefreshControl, SafeAreaView } from "react-native";
+import api from "../api";
+import { theme } from "../theme";
+import ListingCard from "../components/ListingCard";
+import { useAuth } from "../AuthContext";
+
+export default function HomeScreen({ navigation }) {
+    const { user } = useAuth();
+    const [categories, setCategories] = useState([]);
+    const [listings, setListings] = useState([]);
+    const [q, setQ] = useState("");
+    const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    const load = async () => {
+        try {
+            const [cats, lists] = await Promise.all([
+                api.get("/meta/categories"),
+                api.get("/listings", { params: { country_code: user?.country_code, limit: 30 } }),
+            ]);
+            setCategories(cats.data);
+            setListings(lists.data.items || []);
+        } catch (_) {} finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => { load(); }, [user]);
+
+    const onSearch = () => {
+        if (q.trim()) navigation.navigate("Search", { q: q.trim() });
+    };
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <View style={styles.logo}>
+                    <Text style={styles.logoMain}>الحراج</Text>
+                    <Text style={styles.logoSub}>بلس</Text>
+                </View>
+                <TouchableOpacity onPress={() => navigation.navigate("Profile")} style={styles.avatar}>
+                    <Text style={styles.avatarText}>{user?.name?.[0] || "?"}</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchBox}>
+                <TextInput
+                    value={q}
+                    onChangeText={setQ}
+                    placeholder="ابحث عن أي شيء..."
+                    placeholderTextColor={theme.colors.textMuted}
+                    onSubmitEditing={onSearch}
+                    style={styles.searchInput}
+                    testID="mobile-search-input"
+                />
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catStrip} contentContainerStyle={{ paddingHorizontal: 12 }}>
+                {categories.slice(0, 12).map((c) => (
+                    <TouchableOpacity
+                        key={c.key}
+                        onPress={() => navigation.navigate("Category", { categoryKey: c.key })}
+                        style={styles.catChip}
+                    >
+                        <Text style={styles.catText}>{c.name_ar || c.key}</Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+
+            <FlatList
+                data={listings}
+                numColumns={2}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => <ListingCard listing={item} />}
+                contentContainerStyle={{ padding: 8, paddingBottom: 80 }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+                ListEmptyComponent={
+                    !loading && <View style={styles.empty}><Text style={styles.emptyText}>لا توجد إعلانات حالياً</Text></View>
+                }
+            />
+
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => navigation.navigate("Post")}
+                testID="mobile-post-fab"
+            >
+                <Text style={styles.fabText}>+</Text>
+            </TouchableOpacity>
+        </SafeAreaView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.bg },
+    header: {
+        paddingHorizontal: 16, paddingVertical: 12,
+        flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+        backgroundColor: theme.colors.surface,
+        borderBottomWidth: 1, borderBottomColor: theme.colors.border,
+    },
+    logo: { flexDirection: "row", alignItems: "baseline" },
+    logoMain: { fontSize: 22, fontWeight: "900", color: theme.colors.secondary },
+    logoSub: { fontSize: 14, fontWeight: "700", color: theme.colors.primary, marginStart: 4 },
+    avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.primary, justifyContent: "center", alignItems: "center" },
+    avatarText: { color: theme.colors.primaryFg, fontWeight: "900" },
+    searchBox: { padding: 12 },
+    searchInput: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.full,
+        paddingHorizontal: 18, paddingVertical: 12,
+        borderWidth: 1, borderColor: theme.colors.border,
+        textAlign: "right", color: theme.colors.text, fontSize: 14,
+    },
+    catStrip: { maxHeight: 60, marginBottom: 4 },
+    catChip: {
+        backgroundColor: theme.colors.surface,
+        paddingHorizontal: 14, paddingVertical: 8,
+        borderRadius: theme.radius.full,
+        borderWidth: 1, borderColor: theme.colors.border,
+        marginHorizontal: 4,
+    },
+    catText: { fontSize: 12, fontWeight: "700", color: theme.colors.text },
+    empty: { padding: 40, alignItems: "center" },
+    emptyText: { color: theme.colors.textMuted },
+    fab: {
+        position: "absolute", bottom: 24, alignSelf: "center",
+        backgroundColor: theme.colors.primary,
+        width: 56, height: 56, borderRadius: 28,
+        justifyContent: "center", alignItems: "center",
+        shadowColor: "#000", shadowOpacity: 0.25, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10,
+        elevation: 6,
+    },
+    fabText: { color: theme.colors.primaryFg, fontSize: 30, fontWeight: "900", lineHeight: 32 },
+});

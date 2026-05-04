@@ -11,6 +11,7 @@ import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
 import Spin360Viewer from "@/components/Spin360Viewer";
+import PriceBadge from "@/components/PriceBadge";
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -181,17 +182,17 @@ export default function ListingDetail() {
                             <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)] flex-1">{listing.title}</h1>
                             <button data-testid="share-btn" className="w-10 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)]"><Share2 className="w-4 h-4" /></button>
                         </div>
-                        <div className="flex items-baseline gap-2 mb-4">
+                        <div className="flex items-baseline gap-2 mb-4 flex-wrap">
                             {listing.price ? (
                                 <>
                                     <span className="font-latin font-black text-3xl sm:text-4xl text-[var(--secondary)] dark:text-[var(--primary)]">{Number(listing.price).toLocaleString()}</span>
                                     <span className="text-sm text-[var(--text-muted)] font-arabic-body">{listing.currency || "ر.س"}</span>
-                                    <span className="ms-2 inline-flex items-center gap-1 bg-[var(--success)]/15 text-[var(--success)] text-xs font-bold px-2.5 py-1 rounded-full font-arabic"><TrendingUp className="w-3 h-3" /> سعر مناسب</span>
                                 </>
                             ) : (
                                 <span className="text-xl text-[var(--text-muted)] font-arabic">على السوم</span>
                             )}
                         </div>
+                        {listing.price && <div className="mb-3"><PriceBadge listingId={listing.id} variant="full" /></div>}
                         <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-[var(--text-muted)] font-arabic-body">
                             <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {listing.city}{listing.district ? ` - ${listing.district}` : ""}</span>
                             <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {ts.toLocaleDateString("ar")}</span>

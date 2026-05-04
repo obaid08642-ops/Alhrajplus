@@ -1,0 +1,39 @@
+{
+    "expo": {
+        "name": "الحراج بلس",
+        "slug": "haraj-plus",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "automatic",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#0F1A35"
+        },
+        "assetBundlePatterns": ["**/*"],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.harajplus.app",
+            "infoPlist": {
+                "NSLocationWhenInUseUsageDescription": "يستخدم التطبيق موقعك لعرض الإعلانات القريبة",
+                "NSCameraUsageDescription": "يستخدم التطبيق الكاميرا لإضافة صور للإعلانات",
+                "NSPhotoLibraryUsageDescription": "يستخدم التطبيق مكتبة الصور لإضافة صور للإعلانات"
+            }
+        },
+        "android": {
+            "package": "com.harajplus.app",
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#4FB6E6"
+            },
+            "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA", "READ_EXTERNAL_STORAGE"]
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "extra": {
+            "backendUrl": "https://platform-inspect.preview.emergentagent.com"
+        }
+    }
+}
