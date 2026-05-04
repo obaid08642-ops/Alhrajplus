@@ -18,7 +18,19 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 4 - Feb 2026 — Smart Pricing + Mobile Foundation)
+## ✅ Implemented (Session 5 - Feb 2026 — Deals + Mobile Expansion)
+- ✅ **Top Deals of the Day** — `GET /api/deals/today` aggregates listings priced below 80% of their category+subcategory median. Returns market_median, savings amount, and discount_pct. `/deals` page in web with hero + discount badges + crossed-out median price. Quick-action button added to HomePage (5 cols).
+- ✅ **Mobile App Expansion (Phase 3 Part 2)**:
+  - `PostScreen.js` — Full create/edit flow with camera (expo-image-picker), gallery picker, multi-image upload to Cloudinary, geolocation (expo-location).
+  - `ChatScreen.js` — Conversation list + live chat (polling every 4s) + AI translate button on incoming messages.
+  - `OtherScreens.js` — FavoritesScreen, MyListingsScreen, DealsScreen.
+  - **Bottom Tab Navigator** — 5 tabs: Home / Deals / Post / Chat / Profile with emoji icons.
+  - All mobile screens use the same `EMERGENT_LLM_KEY`-backed AI and share the same backend with web.
+
+### 🧪 Testing (Session 5)
+- 10/10 new + regression backend tests pass. Frontend /deals verified with real discount badges. Mobile app passes lint (not live-tested; Expo project).
+
+
 - ✅ **AI Smart Pricing Badge** — `GET /api/ai/price-badge/{id}` classifies listings as 🔥 صفقة ممتازة / ✓ سعر مناسب / ⚡ سعر مرتفع based on category+subcategory+country price distribution (p25/p75). `PriceBadge.js` component renders a colored card on listing detail (full variant) or a chip (grid variant).
 - ✅ **Resend Email Live** — Password reset emails are now actually sent (verified to account owner). Free tier: until domain is verified at resend.com/domains, emails only send to account owner's email; other addresses fall back to dev_reset_link.
 - ✅ **React Native Mobile Foundation (Phase 3 Start)** — `/app/mobile/` directory with Expo SDK 51: AuthContext using AsyncStorage + JWT bearer, HomeScreen (search, categories, grid), ListingDetailScreen (gallery, owner actions, price badge, seller contact, similar listings), Login/Register, Profile. Shares the same Backend. Run via `cd /app/mobile && npx expo start`.
