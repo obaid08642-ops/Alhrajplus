@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Bell, Globe, Moon, Sun, User, LogOut, Mic, Camera, Shield } from "lucide-react";
+import { Search, Bell, Globe, Moon, Sun, User, LogOut, Mic, Camera, Shield, Settings as SettingsIcon, Info, FileText, Mail } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
@@ -25,29 +25,55 @@ export default function TopBar() {
         }
     };
 
+    const startVoice = () => {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) { alert("المتصفح لا يدعم البحث الصوتي. جرّب Chrome أو Safari الحديث"); return; }
+        const r = new SR();
+        r.lang = "ar-SA";
+        r.continuous = false;
+        r.interimResults = false;
+        r.onresult = (e) => {
+            const text = e.results[0][0].transcript;
+            nav(`/search?q=${encodeURIComponent(text)}`);
+        };
+        r.onerror = () => alert("تعذر تشغيل الميكروفون. تحقق من الأذونات");
+        r.start();
+    };
+
+    const startImageSearch = (file) => {
+        if (!file) return;
+        // For now: notify (real visual search with AI in next session)
+        const reader = new FileReader();
+        reader.onload = () => {
+            sessionStorage.setItem("imageSearchData", reader.result);
+            nav("/search?image=1");
+        };
+        reader.readAsDataURL(file);
+    };
+
     return (
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-[var(--surface)]/75 border-b border-[var(--border)]">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center gap-2 sm:gap-3" ref={ref}>
+        <header className="sticky top-0 z-40 backdrop-blur-xl bg-[var(--surface)]/85 border-b border-[var(--border)]">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center gap-2 sm:gap-3" ref={ref}>
                 <Link to="/" className="flex items-baseline gap-1 sm:gap-1.5 select-none shrink-0" data-testid="logo-link">
-                    <span className="font-arabic font-black text-xl sm:text-2xl tracking-tight text-[var(--secondary)] dark:text-white">الحراج</span>
-                    <span className="font-arabic font-bold text-xs sm:text-sm text-[var(--primary)] -mt-1">بلس</span>
+                    <img src="/logo-haraj.png" alt="" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
                 </Link>
 
-                <div className="flex-1 mx-1 sm:mx-3 relative">
-                    <div className="flex items-center bg-[var(--surface-elevated)] rounded-full px-3 sm:px-4 py-2 sm:py-2.5 border border-[var(--border)] hover:border-[var(--primary)] transition-all">
+                <div className="flex-1 mx-1 sm:mx-2 relative">
+                    <div className="flex items-center bg-[var(--surface-elevated)] rounded-full px-3 py-2 border border-[var(--border)] hover:border-[var(--primary)] focus-within:border-[var(--primary)] transition-all">
                         <Search className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                         <input
                             data-testid="search-input"
                             placeholder={t("search_placeholder")}
                             onKeyDown={handleSearch}
-                            className="bg-transparent flex-1 mx-2 sm:mx-3 outline-none text-sm placeholder:text-[var(--text-muted)] text-[var(--text)] font-arabic-body min-w-0"
+                            className="bg-transparent flex-1 mx-2 outline-none text-xs sm:text-sm placeholder:text-[var(--text-muted)] text-[var(--text)] font-arabic-body min-w-0"
                         />
-                        <button data-testid="voice-search-btn" title="بحث صوتي" className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors hidden sm:block">
+                        <button data-testid="voice-search-btn" onClick={startVoice} title="بحث صوتي" className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0">
                             <Mic className="w-4 h-4" />
                         </button>
-                        <button data-testid="image-search-btn" title="بحث بالصورة" className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors hidden sm:block ms-2">
+                        <label data-testid="image-search-btn" title="بحث بالصورة" className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0 ms-1.5 cursor-pointer">
                             <Camera className="w-4 h-4" />
-                        </button>
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => startImageSearch(e.target.files[0])} />
+                        </label>
                     </div>
                 </div>
 
@@ -92,8 +118,20 @@ export default function TopBar() {
                                 <Link to="/profile" data-testid="profile-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
                                     <User className="w-4 h-4" /> {t("nav_profile")}
                                 </Link>
+                                <Link to="/settings" data-testid="settings-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
+                                    <SettingsIcon className="w-4 h-4" /> الإعدادات
+                                </Link>
+                                <Link to="/about" data-testid="about-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
+                                    <Info className="w-4 h-4" /> عن التطبيق
+                                </Link>
+                                <Link to="/terms" data-testid="terms-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
+                                    <FileText className="w-4 h-4" /> الشروط
+                                </Link>
+                                <Link to="/contact" data-testid="contact-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
+                                    <Mail className="w-4 h-4" /> تواصل / الإعلان
+                                </Link>
                                 {user.role === "admin" && (
-                                    <Link to="/admin" data-testid="admin-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--accent)] font-bold" onClick={() => setOpenMenu(null)}>
+                                    <Link to="/admin" data-testid="admin-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--accent)] font-bold border-t border-[var(--border)]" onClick={() => setOpenMenu(null)}>
                                         <Shield className="w-4 h-4" /> {t("admin_panel")}
                                     </Link>
                                 )}

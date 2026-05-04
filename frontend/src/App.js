@@ -1,10 +1,12 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider } from "@/contexts/I18nContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
+import SplashScreen from "@/components/SplashScreen";
 import HomePage from "@/pages/HomePage";
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "@/pages/Auth";
 import CategoryPage from "@/pages/CategoryPage";
@@ -14,6 +16,10 @@ import ChatPage from "@/pages/ChatPage";
 import ProfilePage from "@/pages/ProfilePage";
 import { SearchPage, MapPage } from "@/pages/SearchAndMap";
 import AdminPage from "@/pages/AdminPage";
+import ReelsPage from "@/pages/ReelsPage";
+import AuctionsPage from "@/pages/AuctionsPage";
+import FlightsPage from "@/pages/FlightsPage";
+import { SettingsPage, TermsPage, PrivacyPage, AboutPage, ContactPage } from "@/pages/StaticPages";
 
 function Layout({ children, hideNav = false }) {
     return (
@@ -26,10 +32,22 @@ function Layout({ children, hideNav = false }) {
 }
 
 function App() {
+    const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("hp_splash_shown"));
+    useEffect(() => {
+        if (showSplash) {
+            const t = setTimeout(() => {
+                setShowSplash(false);
+                sessionStorage.setItem("hp_splash_shown", "1");
+            }, 2200);
+            return () => clearTimeout(t);
+        }
+    }, [showSplash]);
+
     return (
         <I18nProvider>
             <ThemeProvider>
                 <AuthProvider>
+                    {showSplash && <SplashScreen />}
                     <BrowserRouter>
                         <Routes>
                             <Route path="/login" element={<LoginPage />} />
@@ -45,6 +63,14 @@ function App() {
                             <Route path="/search" element={<Layout><SearchPage /></Layout>} />
                             <Route path="/map" element={<Layout><MapPage /></Layout>} />
                             <Route path="/admin" element={<Layout><AdminPage /></Layout>} />
+                            <Route path="/reels" element={<Layout><ReelsPage /></Layout>} />
+                            <Route path="/auctions" element={<Layout><AuctionsPage /></Layout>} />
+                            <Route path="/flights" element={<Layout><FlightsPage /></Layout>} />
+                            <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
+                            <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
+                            <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
+                            <Route path="/about" element={<Layout><AboutPage /></Layout>} />
+                            <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
                         </Routes>
                     </BrowserRouter>
                 </AuthProvider>

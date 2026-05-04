@@ -123,7 +123,6 @@ export default function PostListing() {
     const canNext = () => {
         if (step === 1) return !!form.category;
         if (step === 2) return form.title && form.description && form.city;
-        if (step === 3) return form.images.length > 0;
         return true;
     };
 
@@ -155,8 +154,26 @@ export default function PostListing() {
             {step === 1 && (
                 <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)]">
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-[var(--accent)]" /> {t("choose_category")}</h2>
+
+                    {/* Quick Job/Service shortcuts */}
+                    <div className="grid grid-cols-2 gap-3 mb-5">
+                        <button data-testid="quick-jobs" onClick={() => setForm({ ...form, category: "jobs", subcategory: "", custom_fields: {} })}
+                            className={`relative overflow-hidden rounded-2xl p-4 border-2 text-start transition-all ${form.category === "jobs" ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--border)] bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 hover:border-[var(--primary)]/50"}`}>
+                            <Icons.Briefcase className="w-7 h-7 text-emerald-600 mb-2" />
+                            <h3 className="font-arabic font-black text-base text-[var(--text)]">وظائف 💼</h3>
+                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">عرض وظيفة • طلب عمل</p>
+                        </button>
+                        <button data-testid="quick-services" onClick={() => setForm({ ...form, category: "services", subcategory: "", custom_fields: {} })}
+                            className={`relative overflow-hidden rounded-2xl p-4 border-2 text-start transition-all ${form.category === "services" ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--border)] bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 hover:border-[var(--primary)]/50"}`}>
+                            <Icons.Wrench className="w-7 h-7 text-orange-600 mb-2" />
+                            <h3 className="font-arabic font-black text-base text-[var(--text)]">خدمات 🔧</h3>
+                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">سباك • كهربائي • نظافة • نقل ...</p>
+                        </button>
+                    </div>
+
+                    <div className="text-xs font-arabic font-bold text-[var(--text-muted)] mb-3">أو اختر من الفئات</div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                        {categories.map((c) => {
+                        {categories.filter((c) => c.key !== "jobs" && c.key !== "services").map((c) => {
                             const Icon = Icons[c.icon] || Icons.Shapes;
                             const selected = form.category === c.key;
                             return (

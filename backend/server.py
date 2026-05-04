@@ -141,7 +141,7 @@ class LoginIn(BaseModel):
 
 class ListingIn(BaseModel):
     title: str = Field(min_length=4, max_length=120)
-    description: str = Field(min_length=10, max_length=4000)
+    description: str = Field(min_length=5, max_length=4000)
     price: Optional[float] = None
     currency: Optional[str] = None
     category: str
@@ -154,6 +154,7 @@ class ListingIn(BaseModel):
     lat: Optional[float] = None
     lng: Optional[float] = None
     show_phone: bool = True
+    post_type: Optional[str] = None  # offer | request
 
 class ChatMessageIn(BaseModel):
     listing_id: Optional[str] = None
@@ -354,6 +355,7 @@ class ResetIn(BaseModel):
 async def forgot_password(body: ForgotIn):
     email = body.email.lower().strip()
     user = await db.users.find_one({"email": email})
+    reset_link = None
     if user:
         token = secrets.token_urlsafe(32)
         await db.password_reset_tokens.insert_one({
@@ -361,8 +363,12 @@ async def forgot_password(body: ForgotIn):
             "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
             "used": False, "created_at": datetime.now(timezone.utc),
         })
-        print(f"[PWD-RESET] {email} -> /reset-password?token={token}")
-    return {"message": "If email is registered, a reset link will be sent"}
+        reset_link = f"/reset-password?token={token}"
+        print(f"[PWD-RESET] {email} -> {reset_link}")
+    # MVP: return reset link in response so the dev mode can show it.
+    # In production, replace with email send (SendGrid/SES) and remove this.
+    return {"message": "If email is registered, a reset link will be sent",
+            "dev_reset_link": reset_link}
 
 @api.post("/auth/reset-password")
 async def reset_password(body: ResetIn):
@@ -419,9 +425,12 @@ async def get_my_referral(user: dict = Depends(get_current_user)):
         await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": code}})
     invited = await db.users.count_documents({"referred_by": code})
     badge = None
-    if invited >= 25: badge = "موثّق ذهبي ⭐"
-    elif invited >= 10: badge = "موثّق فضي 🥈"
-    elif invited >= 5: badge = "موثّق برونزي 🥉"
+    if invited >= 25:
+        badge = "موثّق ذهبي ⭐"
+    elif invited >= 10:
+        badge = "موثّق فضي 🥈"
+    elif invited >= 5:
+        badge = "موثّق برونزي 🥉"
     next_m = 5 if invited < 5 else (10 if invited < 10 else (25 if invited < 25 else None))
     return {"code": code, "invited_count": invited, "badge": badge, "next_milestone": next_m}
 
@@ -445,6 +454,7 @@ async def referral_leaderboard():
 # ============================================================
 # Cloudinary upload signing
 # ============================================================
+@api.get("/cloudinary/signature")
 async def cloudinary_signature(
     resource_type: str = Query("image"),
     folder: str = Query("listings"),
@@ -491,6 +501,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "currency": body.currency or "ر.س",
         "category": body.category,
         "subcategory": body.subcategory,
+        "post_type": body.post_type,
         "custom_fields": body.custom_fields,
         "images": body.images,
         "videos": body.videos,
@@ -730,6 +741,41 @@ async def submit_report(body: ReportIn, user: dict = Depends(get_current_user)):
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"id": rid, "success": True}
+
+
+# ============================================================
+# Contact + Account deletion
+# ============================================================
+class ContactIn(BaseModel):
+    subject: str = Field(min_length=2, max_length=200)
+    message: str = Field(min_length=5, max_length=4000)
+    email: Optional[EmailStr] = None
+    name: Optional[str] = None
+
+@api.post("/contact")
+async def submit_contact(body: ContactIn, request: Request):
+    try:
+        user = await get_current_user(request)
+        author_email = user.get("email")
+        author_name = user.get("name")
+    except Exception:
+        author_email = body.email
+        author_name = body.name
+    cid = str(uuid.uuid4())
+    await db.contact_messages.insert_one({
+        "id": cid, "subject": body.subject, "message": body.message,
+        "author_email": author_email, "author_name": author_name,
+        "status": "open", "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"id": cid, "success": True}
+
+@api.post("/auth/request-account-deletion")
+async def request_account_deletion(user: dict = Depends(get_current_user)):
+    await db.account_deletion_requests.insert_one({
+        "user_id": user["id"], "email": user.get("email"),
+        "requested_at": datetime.now(timezone.utc).isoformat(), "status": "pending",
+    })
+    return {"success": True, "message": "تم استلام طلب الحذف"}
 
 
 # ============================================================

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
-import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square } from "lucide-react";
+import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 
@@ -49,18 +49,30 @@ export default function ChatPage() {
         return () => clearInterval(id);
     }, [activeConvoId]);
 
+    const sendLocation = () => {
+        if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                send({ text: `📍 موقعي الحالي`, location: loc });
+            },
+            () => alert("تعذر الوصول للموقع")
+        );
+    };
+
     const send = async (extra = {}) => {
         if (!activeOther) return;
         const text = (extra.text ?? input).trim();
-        if (!text && !extra.image && !extra.voice) return;
-        if (!extra.image && !extra.voice) setInput("");
+        if (!text && !extra.image && !extra.voice && !extra.location) return;
+        if (!extra.image && !extra.voice && !extra.location) setInput("");
         try {
             const { data: msg } = await api.post("/chat/send", {
                 receiver_id: activeOther.id,
                 listing_id: initialListing || null,
-                text: extra.image || extra.voice ? null : text,
+                text: text || null,
                 image: extra.image || null,
                 voice: extra.voice || null,
+                location: extra.location || null,
             });
             setMessages((m) => [...m, msg]);
             setActiveConvoId(msg.convo_id);
@@ -171,6 +183,11 @@ export default function ChatPage() {
                                             <div className={`max-w-[75%] rounded-2xl ${m.image || m.voice ? "p-1" : "px-3 py-2"} text-sm font-arabic-body ${mine ? "bg-[var(--primary)] text-[var(--primary-fg)] rounded-br-md" : "bg-[var(--surface-elevated)] text-[var(--text)] rounded-bl-md border border-[var(--border)]"}`}>
                                                 {m.image && <img src={m.image} alt="" className="rounded-xl max-w-full max-h-64 object-cover" />}
                                                 {m.voice && <audio controls src={m.voice} className="max-w-full" />}
+                                                {m.location && (
+                                                    <a href={`https://www.google.com/maps/search/?api=1&query=${m.location.lat},${m.location.lng}`} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 ${m.image || m.voice ? "p-2" : ""}`}>
+                                                        <MapPin className="w-4 h-4" /> <span className="underline">عرض الموقع</span>
+                                                    </a>
+                                                )}
                                                 {m.text}
                                                 <div className={`text-[10px] mt-1 px-1 ${mine ? "text-[var(--primary-fg)]/60" : "text-[var(--text-muted)]"}`}>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</div>
                                             </div>
@@ -179,18 +196,19 @@ export default function ChatPage() {
                                 })}
                                 <div ref={endRef}></div>
                             </div>
-                            <div className="p-3 border-t border-[var(--border)] flex items-center gap-2">
-                                <label data-testid="chat-image-btn" className="cursor-pointer w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center">
+                            <div className="p-3 border-t border-[var(--border)] flex items-center gap-1.5">
+                                <label data-testid="chat-image-btn" className="cursor-pointer w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="صورة">
                                     <ImageIcon className="w-4 h-4" />
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && uploadAndSend(e.target.files[0], "image")} />
                                 </label>
+                                <button data-testid="chat-location-btn" onClick={sendLocation} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="موقع"><MapPin className="w-4 h-4" /></button>
                                 {recording ? (
-                                    <button data-testid="chat-stop-rec" onClick={stopRecord} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse"><Square className="w-3 h-3 fill-current" /></button>
+                                    <button data-testid="chat-stop-rec" onClick={stopRecord} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse shrink-0"><Square className="w-3 h-3 fill-current" /></button>
                                 ) : (
-                                    <button data-testid="chat-mic" onClick={startRecord} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center"><Mic className="w-4 h-4" /></button>
+                                    <button data-testid="chat-mic" onClick={startRecord} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="رسالة صوتية"><Mic className="w-4 h-4" /></button>
                                 )}
-                                <input data-testid="chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="اكتب رسالتك..." className="flex-1 bg-[var(--surface-elevated)] rounded-full px-4 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
-                                <button data-testid="chat-send" onClick={() => send()} className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center hover:bg-[var(--primary-hover)]">
+                                <input data-testid="chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="اكتب رسالتك..." className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-full px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                                <button data-testid="chat-send" onClick={() => send()} className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center hover:bg-[var(--primary-hover)] shrink-0">
                                     <Send className="w-4 h-4" />
                                 </button>
                             </div>

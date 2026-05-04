@@ -169,11 +169,16 @@ export function ForgotPasswordPage() {
     const { t } = useI18n();
     const [email, setEmail] = useState("");
     const [sent, setSent] = useState(false);
+    const [resetLink, setResetLink] = useState("");
     const [busy, setBusy] = useState(false);
     const submit = async (e) => {
         e.preventDefault();
         setBusy(true);
-        try { await api.post("/auth/forgot-password", { email }); setSent(true); } catch (_) {} finally { setBusy(false); }
+        try {
+            const { data } = await api.post("/auth/forgot-password", { email });
+            setSent(true);
+            if (data.dev_reset_link) setResetLink(data.dev_reset_link);
+        } catch (_) {} finally { setBusy(false); }
     };
     return (
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-10">
@@ -182,9 +187,14 @@ export function ForgotPasswordPage() {
                 <h1 className="font-arabic font-black text-2xl text-center text-[var(--text)] mb-1">{t("forgot_password")}</h1>
                 <p className="text-sm text-center text-[var(--text-muted)] mb-6 font-arabic-body">سنرسل لك رابط إعادة التعيين</p>
                 {sent ? (
-                    <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-4 text-sm font-arabic-body text-center">
+                    <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-4 text-sm font-arabic-body">
                         ✅ {t("forgot_email_sent")}
-                        <p className="text-xs text-[var(--text-muted)] mt-2">(للاختبار: تحقق من سجلات الخادم لرؤية الرابط)</p>
+                        {resetLink && (
+                            <div className="mt-3 pt-3 border-t border-[var(--success)]/30">
+                                <p className="text-xs text-[var(--text-muted)] mb-2">⚠️ <b>وضع تطوير:</b> خدمة الإيميل غير مفعّلة بعد. استخدم الرابط مباشرة:</p>
+                                <Link to={resetLink} data-testid="dev-reset-link" className="bg-[var(--primary)] text-[var(--primary-fg)] inline-block px-4 py-2 rounded-full text-xs font-bold">إعادة تعيين الآن</Link>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <form onSubmit={submit} className="space-y-3">

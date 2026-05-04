@@ -153,12 +153,22 @@ export default function ListingDetail() {
                     {/* Map */}
                     {listing.lat && listing.lng && (
                         <div className="bg-[var(--surface)] rounded-3xl overflow-hidden border border-[var(--border)]">
-                            <h2 className="font-arabic font-bold text-lg text-[var(--text)] p-4 sm:p-6 pb-0 flex items-center gap-2"><MapPin className="w-4 h-4 text-[var(--primary)]" /> {t("location_on_map")}</h2>
+                            <div className="flex items-center justify-between p-4 sm:p-6 pb-0">
+                                <h2 className="font-arabic font-bold text-lg text-[var(--text)] flex items-center gap-2"><MapPin className="w-4 h-4 text-[var(--primary)]" /> {t("location_on_map")}</h2>
+                                <a data-testid="open-in-maps" href={`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`} target="_blank" rel="noopener noreferrer" className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-3 py-1.5 text-xs font-arabic font-bold flex items-center gap-1">
+                                    🧭 الاتجاهات
+                                </a>
+                            </div>
                             <div className="h-72 mt-4">
                                 <MapContainer center={[listing.lat, listing.lng]} zoom={14} className="w-full h-full" scrollWheelZoom={false}>
                                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                                     <Marker position={[listing.lat, listing.lng]}>
-                                        <Popup>{listing.title}</Popup>
+                                        <Popup>
+                                            <div className="font-arabic">
+                                                <div className="font-bold">{listing.title}</div>
+                                                <a href={`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline text-xs">افتح الاتجاهات</a>
+                                            </div>
+                                        </Popup>
                                     </Marker>
                                 </MapContainer>
                             </div>
