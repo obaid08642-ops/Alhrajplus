@@ -18,7 +18,24 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 1.5 - Jan 2026 — Iteration Fixes & Enhancements)
+## ✅ Implemented (Session 2 - Feb 2026 — Major Feature Push)
+### 🆕 New Features
+- ✅ **Real Email Sending (Resend)** — `/api/auth/forgot-password` now sends a beautifully designed Arabic HTML email with reset link via Resend (free tier). Falls back to dev_reset_link in JSON when RESEND_API_KEY is empty (no breakage).
+- ✅ **Google Login (Emergent-managed)** — `/api/auth/google` exchanges Emergent session_id for our JWT. Auto-creates new users from Google profile, links to existing accounts by email. AuthCallback component handles `#session_id=...` redirect.
+- ✅ **Social Login UI** — Login & Register pages now show Google (active), X (Twitter), and Snapchat buttons. X/Snap show "قريباً" badge until user provides API keys.
+- ✅ **Live Auctions with Bidding** — New endpoints: `GET /api/auctions/active`, `GET /api/auctions/{id}/bids`, `POST /api/auctions/{id}/bid`. Frontend has full BidDialog with current top bid, bid history, masked bidder names, and validation.
+- ✅ **360° Spin Viewer** — New `Spin360Viewer.js` component. Shows on listing detail when ≥3 images. Drag horizontally to rotate, auto-spin on open, hologram floor reflection.
+- ✅ **Hologram Map Pins** — Custom Leaflet `divIcon` with floating glass-morphism price chip, glowing rings, and animated stem. Used on `/map` page and listing detail map.
+- ✅ **Splash Screen** (2-second logo splash on first load).
+- ✅ **HomePage Refactor** — Horizontal categories with show-more, unified search, quick action buttons (Auctions / Reels / Flights / Map).
+- ✅ **Skyscanner Affiliate Flights** — `/flights` page builds deep-link search URLs to Skyscanner (no API needed, affiliate-ready).
+- ✅ **Reels Vertical Video Feed** — TikTok-style scroll, autoplay, mute toggle, action bar.
+
+### 🧪 Testing (Session 2)
+- 16/16 new pytest cases pass (100%): forgot-password, Google validation, Auctions/bidding, regression on existing endpoints.
+- All critical frontend UI flows validated: social buttons, forgot-password dev link, auction empty state, hologram pins CSS, 360° button visibility, splash screen.
+
+
 ### 🔧 Critical Fixes
 - ✅ Fixed crash when publishing listing (formatApiError now used everywhere)
 - ✅ Languages corrected to: ar, en, ur, hi (Hindi), bn (Bengali), fr (removed Filipino as requested)
