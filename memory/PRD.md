@@ -18,8 +18,17 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 3 - Feb 2026 — All Remaining Features)
-### 🆕 Session 3 Highlights
+## ✅ Implemented (Session 4 - Feb 2026 — Smart Pricing + Mobile Foundation)
+- ✅ **AI Smart Pricing Badge** — `GET /api/ai/price-badge/{id}` classifies listings as 🔥 صفقة ممتازة / ✓ سعر مناسب / ⚡ سعر مرتفع based on category+subcategory+country price distribution (p25/p75). `PriceBadge.js` component renders a colored card on listing detail (full variant) or a chip (grid variant).
+- ✅ **Resend Email Live** — Password reset emails are now actually sent (verified to account owner). Free tier: until domain is verified at resend.com/domains, emails only send to account owner's email; other addresses fall back to dev_reset_link.
+- ✅ **React Native Mobile Foundation (Phase 3 Start)** — `/app/mobile/` directory with Expo SDK 51: AuthContext using AsyncStorage + JWT bearer, HomeScreen (search, categories, grid), ListingDetailScreen (gallery, owner actions, price badge, seller contact, similar listings), Login/Register, Profile. Shares the same Backend. Run via `cd /app/mobile && npx expo start`.
+
+### 🧪 Testing (Session 4)
+- 12/12 new + 29/29 regression backend tests pass (**41/41 total**).
+- Frontend price badge verified on live listing; owner actions + 360° viewer regression green.
+
+
+### 🆕 Session 3 (Earlier Feb 2026 — AI + 3D + Edit Flows)
 - ✅ **Real WebGL 3D Viewer** — `Spin360Viewer.js` rebuilt with Three.js. Renders product images on curved 3D meshes with lighting/shadows. Drag to orbit camera, mouse parallax, auto-rotate. Multiple images placed cylindrically for genuine multi-view 3D. Note: For AI-generated 3D mesh from a single photo, integrate Meshy.ai/Tripo3D (paid).
 - ✅ **AI Image Search (Gemini)** — `POST /api/ai/image-search`. User uploads image → Gemini 2.5 Flash extracts Arabic search keywords → routes to `/search?q=...`.
 - ✅ **AI Chat Auto-Translation (Gemini)** — `POST /api/ai/translate` with caching. Translate button on each incoming message renders translation under original.
