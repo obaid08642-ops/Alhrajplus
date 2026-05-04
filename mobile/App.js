@@ -1,4 +1,5 @@
 import "react-native-gesture-handler";
+import { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -11,8 +12,11 @@ import ListingDetailScreen from "./src/screens/ListingDetailScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import PostScreen from "./src/screens/PostScreen";
 import ChatScreen from "./src/screens/ChatScreen";
+import MapScreen from "./src/screens/MapScreen";
+import ReelsScreen from "./src/screens/ReelsScreen";
 import { FavoritesScreen, MyListingsScreen, DealsScreen } from "./src/screens/OtherScreens";
 import { theme } from "./src/theme";
+import { registerForNotifications } from "./src/notifications";
 
 try {
     if (!I18nManager.isRTL) {
@@ -45,8 +49,10 @@ function TabsNavigator() {
                 options={{ title: "الرئيسية", tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} /> }} />
             <Tab.Screen name="DealsTab" component={DealsScreen}
                 options={{ title: "صفقات", tabBarIcon: ({ focused }) => <TabIcon icon="🔥" focused={focused} /> }} />
-            <Tab.Screen name="PostTab" component={PostScreen}
-                options={{ title: "نشر", tabBarIcon: ({ focused }) => <TabIcon icon="➕" focused={focused} /> }} />
+            <Tab.Screen name="ReelsTab" component={ReelsScreen}
+                options={{ title: "قصص", tabBarIcon: ({ focused }) => <TabIcon icon="🎬" focused={focused} /> }} />
+            <Tab.Screen name="MapTab" component={MapScreen}
+                options={{ title: "خريطة", tabBarIcon: ({ focused }) => <TabIcon icon="🗺️" focused={focused} /> }} />
             <Tab.Screen name="ChatTab" component={ChatScreen}
                 options={{ title: "رسائل", tabBarIcon: ({ focused }) => <TabIcon icon="💬" focused={focused} /> }} />
             <Tab.Screen name="ProfileTab" component={ProfileScreen}
@@ -57,6 +63,10 @@ function TabsNavigator() {
 
 function Navigation() {
     const { user, loading } = useAuth();
+
+    useEffect(() => {
+        if (user) registerForNotifications();
+    }, [user]);
 
     if (loading) {
         return (

@@ -1,11 +1,31 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from "react-native";
 import { useAuth } from "../AuthContext";
 import { theme } from "../theme";
 import { formatApiError } from "../api";
+import { signInWithGoogleEmergent } from "../googleAuth";
+
+function GoogleBtn({ onSuccess }) {
+    const [busy, setBusy] = useState(false);
+    const run = async () => {
+        setBusy(true);
+        try {
+            const user = await signInWithGoogleEmergent();
+            onSuccess?.(user);
+        } catch (e) {
+            Alert.alert("خطأ", e.message || "فشل تسجيل الدخول بـ Google");
+        } finally { setBusy(false); }
+    };
+    return (
+        <TouchableOpacity onPress={run} disabled={busy} style={[styles.googleBtn, busy && styles.btnDisabled]} testID="mobile-google-btn">
+            <Text style={styles.googleIcon}>G</Text>
+            <Text style={styles.googleText}>{busy ? "..." : "متابعة بحساب Google"}</Text>
+        </TouchableOpacity>
+    );
+}
 
 export function LoginScreen({ navigation }) {
-    const { login } = useAuth();
+    const { login, refresh } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [busy, setBusy] = useState(false);
@@ -56,6 +76,9 @@ export function LoginScreen({ navigation }) {
                         <Text style={styles.btnText}>{busy ? "..." : "دخول"}</Text>
                     </TouchableOpacity>
 
+                    <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>أو</Text><View style={styles.line} /></View>
+                    <GoogleBtn onSuccess={() => refresh()} />
+
                     <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>ليس لديك حساب؟ <Text style={styles.linkStrong}>إنشاء حساب</Text></Text>
                     </TouchableOpacity>
@@ -66,7 +89,7 @@ export function LoginScreen({ navigation }) {
 }
 
 export function RegisterScreen({ navigation }) {
-    const { register } = useAuth();
+    const { register, refresh } = useAuth();
     const [form, setForm] = useState({ name: "", email: "", password: "", phone: "", country_code: "SA" });
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
@@ -100,6 +123,9 @@ export function RegisterScreen({ navigation }) {
                     <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]}>
                         <Text style={styles.btnText}>{busy ? "..." : "إنشاء حساب"}</Text>
                     </TouchableOpacity>
+
+                    <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>أو</Text><View style={styles.line} /></View>
+                    <GoogleBtn onSuccess={() => refresh()} />
 
                     <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>لديك حساب؟ <Text style={styles.linkStrong}>تسجيل الدخول</Text></Text>
@@ -144,4 +170,20 @@ const styles = StyleSheet.create({
     linkWrap: { marginTop: 14, alignItems: "center" },
     linkText: { color: theme.colors.textMuted, fontSize: 13 },
     linkStrong: { color: theme.colors.primary, fontWeight: "700" },
+    divider: { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 12 },
+    line: { flex: 1, height: 1, backgroundColor: theme.colors.border },
+    dividerText: { color: theme.colors.textMuted, fontSize: 11 },
+    googleBtn: {
+        flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+        backgroundColor: "#fff",
+        borderWidth: 1, borderColor: theme.colors.border,
+        paddingVertical: 12, borderRadius: theme.radius.md,
+    },
+    googleIcon: {
+        width: 24, height: 24, borderRadius: 12,
+        backgroundColor: "#4285F4", color: "#fff",
+        textAlign: "center", lineHeight: 24,
+        fontWeight: "900", fontSize: 14,
+    },
+    googleText: { color: "#222", fontWeight: "800", fontSize: 14 },
 });

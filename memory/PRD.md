@@ -18,7 +18,15 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 5 - Feb 2026 — Deals + Mobile Expansion)
+## ✅ Implemented (Session 6 - Feb 2026 — Phase 3 Part 3 COMPLETE)
+- ✅ **Mobile MapScreen** — Leaflet map inside WebView with hologram-style price pins. Works in Expo Go without needing native rebuild. Tapping a pin navigates to ListingDetail.
+- ✅ **Mobile ReelsScreen** — TikTok-style vertical paginated feed of listings with full-screen image, price overlay, and CTA to open listing.
+- ✅ **Mobile Google Login (Emergent)** — `googleAuth.js` opens auth.emergentagent.com in `WebBrowser.openAuthSessionAsync`, extracts session_id from the deep-link callback, exchanges with `/api/auth/google`, persists JWT in AsyncStorage. Button added to both LoginScreen and RegisterScreen.
+- ✅ **Mobile Push Notifications Foundation** — `notifications.js`: requests permission on login, configures Android channel, supports immediate local notifications. Full remote push requires `eas build` + FCM setup.
+- ✅ **Bottom Tabs (6 tabs)** — Home / Deals / Reels / Map / Chat / Profile. Post flow is accessible via HomeScreen FAB + My Listings screen.
+- ✅ Bundle verified — `npx expo export` runs clean (9MB output, 0 errors).
+
+
 - ✅ **Top Deals of the Day** — `GET /api/deals/today` aggregates listings priced below 80% of their category+subcategory median. Returns market_median, savings amount, and discount_pct. `/deals` page in web with hero + discount badges + crossed-out median price. Quick-action button added to HomePage (5 cols).
 - ✅ **Mobile App Expansion (Phase 3 Part 2)**:
   - `PostScreen.js` — Full create/edit flow with camera (expo-image-picker), gallery picker, multi-image upload to Cloudinary, geolocation (expo-location).
