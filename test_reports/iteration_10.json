@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 10 — FRONTEND-ONLY follow-up to iteration 9 translation gap. Tested language-switch coverage on Home (/) and /login pages with localStorage.hp_lang='en'. RESULT: 100% of the 11 target Arabic strings flagged in iter-9 are now correctly translated. Hero block: 'Sell, Buy, Rent, Hire' ✅, 'AI-powered' tag ✅, 'The largest digital marketplace for the Arabian Gulf...' subtitle ✅, 'Map near you' ✅, 'Post for Free' CTA ✅. QuickActions row: Map / Book Flight / Video Stories / Auctions / Today's Deals all translated ✅. Toggle chip: initial 'View All' → after click becomes 'Show Less' ✅ (Fragment+key works). Login page: 'Continue with Google account' ✅, 'Continue with X' ✅, Snapchat label remains 'Snapchat' as expected. Search dropdown header 'Most searched' renders in EN ✅ (the other two labels 'Your recent searches' / 'Clear all' are gated behind anonymous-vs-authed user history; the Arabic versions are confirmed absent — no residual Arabic in dropdown chrome). React 'unique key' warning on NearbySection is GONE ✅ (verified across full page scroll — 0 warnings captured). Backend regression intentionally skipped per main-agent instruction (iter-9 backend was 16/16). Residual Arabic glyphs remaining on Home page (~127 fragments) are exclusively listing-card data (e.g., 'مرسيدس', 'الرياض', city names, listing titles) and one embedded-Arabic listing image — these are user-generated content, NOT UI chrome, so they correctly stay in source language. The translation root-cause is RESOLVED.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login page (EN mode)", "issues": ["Pre-existing RTL bidi leftover: 'Forgot password?' renders as '?Forgot password' (question mark moved to leading position). Logo line shows 'Plus Haraj' instead of 'Haraj Plus' (word order swapped). Email/Password placeholders are right-aligned. Likely a global dir='rtl' or unicode-bidi rule on .auth-card that should toggle with lang!=='ar'. Reported in iter-9 — still present."]},
+      {"screen": "Home page (EN mode)", "issues": ["'Categories' and 'Near You' section headings render right-aligned even in EN mode (visible at right edge of the row). Same RTL leftover pattern — likely text-align inherited from <html dir='rtl'> not flipping when hp_lang='en'."]},
+      {"screen": "TopBar search dropdown", "issues": ["Trending entries show '🔥 3' followed immediately by query text on next line ('🔥 3' / 'تويوتا كامري') — count and emoji visually merge with the term row above on smaller widths. Add gap or wrap count in a separate styled <span>. Pre-existing from iter-9, low priority."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_10.json"
+  ],
+  "action_items": [
+    "OPTIONAL design polish (NOT blocking): Fix the RTL-leftover on /login — wrap '?Forgot password' link and form labels in a container that toggles dir based on lang, and swap 'Plus Haraj' → 'Haraj Plus' in EN mode (likely flex-direction:row-reverse or order CSS that needs to invert). Also flip text-align on Home section-headings when lang!=='ar'.",
+    "OPTIONAL: Catch /api/auth/me 401 silently for anonymous users to quiet the 5x console errors on every Home page load (pre-existing, cosmetic).",
+    "Translation goal of this iteration is COMPLETE — no further translation work needed."
+  ],
+  "critical_code_review_comments": [
+    "Translation pipeline now verified working end-to-end: tr() wrapping covers Hero, QuickActions array labels, toggle chip, OAuth buttons, and search-dropdown header. The Fragment+key fix in NearbySection eliminated the React unique-key warning.",
+    "Remaining design debt is purely RTL-vs-LTR layout (text-align, flex-order) — NOT translation. The strings are correct; only their alignment/order needs flipping when lang switches. Consider one global useEffect that sets document.documentElement.dir = lang==='ar'?'rtl':'ltr' instead of relying on per-component dir overrides.",
+    "Search-trending DB still contains TEST_inc_*/TEST_anon_*/TEST_hist*/TEST_del*/TEST_clr_* artifacts from iter-9 fixture runs — surfaces in the dropdown (visible to real users). Recommend: db.search_terms.delete_many({q_lower: /^test_/i}) before next deploy.",
+    "Hero subtitle in EN ('The largest digital marketplace for the Arabian Gulf — everything in one place') is good, but the user's iter-9 expected mapping was 'Powered by AI' for 'مدعوم بالذكاء الاصطناعي'; the team chose 'AI-powered' (shorter tag form). Acceptable but worth confirming with product owner.",
+    "Toggle chip text 'View All' / 'Show Less' is good UX but iter-9 spec wanted 'Show all' / 'Show less' — minor copy-tone mismatch, not a bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped (per main-agent — was 16/16 in iter-9)", "frontend": "100% on the 11-string translation checklist + Fragment-key fix verified. Pre-existing RTL design polish remains."},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 (per iter-9, not exercised in this run since translation tests are anonymous).",
+  "seed_data_creation": "None this iteration. Pre-existing TEST_* search-trending artifacts from iter-9 still in DB and visible in dropdown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Translation root-cause from iters 1–9 is RESOLVED. Quick smoke: localStorage.setItem('hp_lang','en') + sessionStorage.setItem('hp_splash_shown','1') + reload. Confirm: 'Sell, Buy, Rent, Hire' in hero, 'Map / Book Flight / Video Stories / Auctions / Today's Deals' in icon row, 'View All' chip toggling to 'Show Less', 'Continue with Google/X' on /login, 'Most searched' in search dropdown. Remaining work is RTL/LTR layout polish on /login (forgot-password '?', logo word order, placeholder alignment) and Home section-heading alignment — these are CSS-level, not string-level. Cleanup TEST_* search-trending entries before prod.",
+  "rca_of_the_issue": "Iter-9 RCA was correct: composite Arabic literals with internal punctuation/commas, JSX text inside JS array maps (QuickActions), and hard-coded strings in Auth.js OAuth buttons all bypassed the regex auto-wrap. Iter-10 fix (per main agent's instructions): manual sweep wrapping each remaining Arabic literal with tr() in HomePage.js (Hero + QuickActions array), Auth.js (OAuth button labels), TopBar.js (search-dropdown headers), plus dictionary entries added to auto_translations.json for 'الأكثر بحثاً' / 'آخر بحوثاتك' / 'مسح الكل' / 'خريطة قريبة منك' / 'ابدأ بالبحث لتظهر اقتراحات هنا'. Verification confirms all 11 user-listed strings now translate. The lesson: regex-based JSX wrapping cannot achieve full coverage for composite/array/attribute Arabic strings — manual wrap is the durable fix."
+}
