@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles } from "lucide-react";
+import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles, DollarSign, Search as SearchIcon } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
 
 export default function AdminPage() {
@@ -18,13 +18,15 @@ export default function AdminPage() {
     if (user.role !== "admin") return null;
 
     const tabs = [
-        { key: "stats", label: "الإحصائيات", icon: BarChart3 },
-        { key: "moderation", label: "مراجعة الإعلانات", icon: Shield },
-        { key: "users", label: "المستخدمون", icon: Users },
-        { key: "reports", label: "البلاغات", icon: Flag },
-        { key: "notifications", label: "الإشعارات", icon: Bell },
-        { key: "ads", label: "الإعلانات", icon: ImageIcon },
-        { key: "theme", label: "الهوية البصرية", icon: Palette },
+        { key: "stats", label: tr("الإحصائيات"), icon: BarChart3 },
+        { key: "moderation", label: tr("مراجعة الإعلانات"), icon: Shield },
+        { key: "users", label: tr("المستخدمون"), icon: Users },
+        { key: "reports", label: tr("البلاغات"), icon: Flag },
+        { key: "finance", label: tr("المالية"), icon: DollarSign },
+        { key: "seo", label: tr("SEO"), icon: SearchIcon },
+        { key: "notifications", label: tr("الإشعارات"), icon: Bell },
+        { key: "ads", label: tr("الإعلانات"), icon: ImageIcon },
+        { key: "theme", label: tr("الهوية البصرية"), icon: Palette },
     ];
 
     return (
@@ -46,9 +48,100 @@ export default function AdminPage() {
             {tab === "moderation" && <ModerationPanel />}
             {tab === "users" && <UsersPanel />}
             {tab === "reports" && <ReportsPanel />}
+            {tab === "finance" && <FinancePanel />}
+            {tab === "seo" && <SEOPanel />}
             {tab === "notifications" && <NotificationsPanel />}
             {tab === "ads" && <AdsPanel />}
             {tab === "theme" && <ThemePanel />}
+        </div>
+    );
+}
+
+function FinancePanel() {
+    const [finance, setFinance] = useState(null);
+    useEffect(() => {
+        api.get("/admin/finance/summary").then(({ data }) => setFinance(data)).catch(() => setFinance({}));
+    }, []);
+    return (
+        <div className="space-y-4">
+            <div className="bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-900/20 dark:to-amber-900/20 rounded-2xl p-5 border border-[var(--border)]">
+                <h3 className="font-arabic font-black text-lg text-[var(--text)] mb-3 flex items-center gap-2"><DollarSign className="w-5 h-5 text-emerald-600" /> {tr("ملخص المالية")}</h3>
+                {finance === null ? <div className="text-sm text-[var(--text-muted)] font-arabic-body">{tr("جاري التحميل...")}</div> : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <FinanceCard label={tr("إجمالي العمولات")} value={finance.total_commission || 0} suffix="ر.س" />
+                        <FinanceCard label={tr("معاملات هذا الشهر")} value={finance.this_month_count || 0} />
+                        <FinanceCard label={tr("محافظ المستخدمين")} value={finance.total_wallets || 0} suffix="ر.س" />
+                        <FinanceCard label={tr("سحوبات معلقة")} value={finance.pending_withdrawals || 0} />
+                    </div>
+                )}
+            </div>
+            <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
+                <h4 className="font-arabic font-bold text-base text-[var(--text)] mb-3">{tr("أعلى البائعين")}</h4>
+                <div className="text-sm text-[var(--text-muted)] font-arabic-body">{tr("ستظهر هنا عند تفعيل المعاملات والبائعين الموثقين.")}</div>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-300/40 text-sm font-arabic-body text-amber-900 dark:text-amber-200">
+                {tr("ℹ️ نظام العمولات والمحافظ سيُفعّل بعد ربط بوابة الدفع (Stripe). حالياً جميع المعاملات بين البائع والمشتري مباشرة وبدون رسوم.")}
+            </div>
+        </div>
+    );
+}
+
+function FinanceCard({ label, value, suffix }) {
+    return (
+        <div className="bg-[var(--surface)] rounded-xl p-3 border border-[var(--border)]">
+            <div className="text-xs font-arabic-body text-[var(--text-muted)]">{label}</div>
+            <div className="font-latin font-black text-xl text-[var(--text)] mt-1">{Number(value).toLocaleString()} {suffix && <span className="text-xs text-[var(--text-muted)]">{suffix}</span>}</div>
+        </div>
+    );
+}
+
+function SEOPanel() {
+    const [seo, setSeo] = useState(null);
+    const [busy, setBusy] = useState(false);
+    useEffect(() => {
+        api.get("/admin/seo").then(({ data }) => setSeo(data)).catch(() => setSeo({
+            site_title: "الحراج بلس | بيع و اشتري",
+            site_description: "أكبر سوق رقمي للخليج العربي",
+            meta_keywords: "حراج, بيع, شراء, السعودية, الخليج",
+            og_image: "/logo-haraj.png",
+            sitemap_url: "/sitemap.xml",
+            robots_txt: "User-agent: *\nAllow: /",
+        }));
+    }, []);
+    const save = async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+            await api.post("/admin/seo", seo);
+            alert(tr("✅ تم حفظ إعدادات SEO"));
+        } catch (_) { alert(tr("فشل الحفظ")); } finally { setBusy(false); }
+    };
+    if (!seo) return <div className="p-6 text-center font-arabic">{tr("تحميل...")}</div>;
+    return (
+        <form onSubmit={save} className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] space-y-3">
+            <h3 className="font-arabic font-black text-lg text-[var(--text)] mb-2 flex items-center gap-2"><SearchIcon className="w-5 h-5 text-[var(--primary)]" /> {tr("إعدادات SEO ومحركات البحث")}</h3>
+            <SEOField label={tr("عنوان الموقع (Title)")} value={seo.site_title} onChange={(v) => setSeo({ ...seo, site_title: v })} testid="seo-title" />
+            <SEOField label={tr("الوصف (Meta Description)")} value={seo.site_description} onChange={(v) => setSeo({ ...seo, site_description: v })} testid="seo-description" textarea />
+            <SEOField label={tr("الكلمات المفتاحية")} value={seo.meta_keywords} onChange={(v) => setSeo({ ...seo, meta_keywords: v })} testid="seo-keywords" />
+            <SEOField label={tr("صورة OpenGraph")} value={seo.og_image} onChange={(v) => setSeo({ ...seo, og_image: v })} testid="seo-og" />
+            <SEOField label="robots.txt" value={seo.robots_txt} onChange={(v) => setSeo({ ...seo, robots_txt: v })} testid="seo-robots" textarea />
+            <div className="flex gap-2 pt-2">
+                <button type="submit" disabled={busy} data-testid="seo-save-btn" className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] px-5 py-2 rounded-xl font-arabic font-bold text-sm">{busy ? tr("حفظ...") : tr("حفظ الإعدادات")}</button>
+                <a href="/sitemap.xml" target="_blank" rel="noreferrer" className="bg-[var(--surface-elevated)] text-[var(--text)] px-4 py-2 rounded-xl font-arabic font-bold text-sm border border-[var(--border)]">{tr("عرض sitemap.xml")}</a>
+            </div>
+        </form>
+    );
+}
+
+function SEOField({ label, value, onChange, testid, textarea }) {
+    return (
+        <div>
+            <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1">{label}</label>
+            {textarea ? (
+                <textarea data-testid={testid} value={value || ""} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl p-2.5 text-sm font-mono" />
+            ) : (
+                <input data-testid={testid} value={value || ""} onChange={(e) => onChange(e.target.value)} className="w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl p-2.5 text-sm font-arabic-body" />
+            )}
         </div>
     );
 }

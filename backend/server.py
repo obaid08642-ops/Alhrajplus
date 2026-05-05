@@ -1452,6 +1452,109 @@ async def ai_image_search(body: AIImageSearchIn):
         raise HTTPException(500, "تعذر تحليل الصورة")
 
 
+# ============================================================
+# Sell with AI — Auto-fill listing from image
+# ============================================================
+class AIListingFillIn(BaseModel):
+    image_base64: str
+
+
+@api.post("/ai/listing-autofill")
+async def ai_listing_autofill(body: AIListingFillIn):
+    """
+    Analyze a product image and return suggested {title, description, category_key, suggested_price_range, condition}.
+    Uses Gemini Vision via Emergent LLM Key.
+    """
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "خدمة الذكاء الاصطناعي غير مفعلة")
+    raw = body.image_base64
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    if len(raw) < 100:
+        raise HTTPException(400, "صورة غير صالحة")
+
+    # Available categories
+    cat_keys = [c["key"] for c in CATEGORIES]
+
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    except Exception as e:
+        logger.error(f"emergentintegrations import failed: {e}")
+        raise HTTPException(500, "خدمة الذكاء الاصطناعي غير متوفرة")
+
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"sell-ai-{uuid.uuid4().hex[:8]}",
+        system_message=(
+            "أنت مساعد ذكي لإنشاء إعلانات بيع في تطبيق الحراج بلس. "
+            "مهمتك: تحليل صورة المنتج وإرجاع JSON صحيح فقط بهذا الشكل بالضبط:\n"
+            '{"title":"...","description":"...","category_key":"...","condition":"new|used|like_new","suggested_price_min":N,"suggested_price_max":N,"currency":"SAR"}\n'
+            f"category_key يجب أن يكون من هذه القائمة فقط: {','.join(cat_keys)}.\n"
+            "العنوان: 4-9 كلمات بالعربية، يصف المنتج بدقة (الماركة + الموديل + سنة/مواصفة بارزة).\n"
+            "الوصف: 2-3 جمل عربية مختصرة وجذابة (اللون + الحالة + ميزات بارزة).\n"
+            "السعر التقديري: بالريال السعودي بناءً على متوسط السوق الخليجي (الحد الأدنى والأقصى).\n"
+            "أرجع فقط JSON صحيح بدون أي شرح أو ```."
+        ),
+    ).with_model("gemini", "gemini-2.5-flash")
+
+    img = ImageContent(image_base64=raw)
+    msg = UserMessage(
+        text="حلل المنتج في هذه الصورة وأرجع JSON بتفاصيل الإعلان:",
+        file_contents=[img],
+    )
+    try:
+        text = await chat.send_message(msg)
+    except Exception as e:
+        logger.error(f"[AI listing-autofill] LLM error: {e}")
+        raise HTTPException(500, "تعذر تحليل الصورة")
+
+    # Parse JSON from response (strip code fences if present)
+    cleaned = (text or "").strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("```", 2)[1]
+        if cleaned.startswith("json"):
+            cleaned = cleaned[4:]
+        cleaned = cleaned.strip()
+    # Extract first JSON object
+    import json as _json
+    import re as _re
+    m = _re.search(r"\{.*\}", cleaned, _re.DOTALL)
+    if not m:
+        raise HTTPException(500, "تعذر فهم استجابة الذكاء الاصطناعي")
+    try:
+        data = _json.loads(m.group(0))
+    except Exception:
+        raise HTTPException(500, "تنسيق غير صالح من الذكاء الاصطناعي")
+
+    # Validate / sanitize
+    valid_categories = set(cat_keys)
+    cat = data.get("category_key") or "other"
+    if cat not in valid_categories:
+        cat = "other"
+    title = (data.get("title") or "")[:120]
+    desc = (data.get("description") or "")[:1000]
+    cond = data.get("condition") or "used"
+    if cond not in {"new", "used", "like_new"}:
+        cond = "used"
+    try:
+        pmin = float(data.get("suggested_price_min") or 0)
+        pmax = float(data.get("suggested_price_max") or pmin)
+    except Exception:
+        pmin, pmax = 0, 0
+    currency = data.get("currency") or "SAR"
+
+    return {
+        "title": title,
+        "description": desc,
+        "category_key": cat,
+        "condition": cond,
+        "suggested_price_min": pmin,
+        "suggested_price_max": pmax,
+        "currency": currency,
+    }
+
+
+
 @api.post("/ai/translate")
 async def ai_translate(body: AITranslateIn):
     if not EMERGENT_LLM_KEY:
@@ -1756,6 +1859,53 @@ class BroadcastIn(BaseModel):
     body: str = Field(min_length=2, max_length=500)
     target: str = Field(default="all", pattern="^(all|verified|unverified|country)$")
     country_code: Optional[str] = None
+
+# ============================================================
+# Admin Finance + SEO
+# ============================================================
+@admin_router.get("/finance/summary")
+async def admin_finance_summary():
+    """Returns finance overview. Currently zeros (no payment processor yet)."""
+    total_listings = await db.listings.count_documents({})
+    paid_listings = await db.listings.count_documents({"paid": True})
+    return {
+        "total_commission": 0,
+        "this_month_count": paid_listings,
+        "total_wallets": 0,
+        "pending_withdrawals": 0,
+        "total_listings": total_listings,
+        "currency": "SAR",
+    }
+
+
+@admin_router.get("/seo")
+async def admin_seo_get():
+    rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
+    if rec and rec.get("value"):
+        return rec["value"]
+    return {
+        "site_title": "الحراج بلس | بيع و اشتري | جديد أو مستعمل",
+        "site_description": "أكبر سوق رقمي للخليج العربي - بيع، اشترِ، استأجر، وظّف",
+        "meta_keywords": "حراج, بيع, شراء, السعودية, الخليج, إعلانات",
+        "og_image": "/logo-haraj.png",
+        "robots_txt": "User-agent: *\nAllow: /\nSitemap: https://alhraj.online/sitemap.xml",
+    }
+
+
+class SEOIn(BaseModel):
+    site_title: Optional[str] = None
+    site_description: Optional[str] = None
+    meta_keywords: Optional[str] = None
+    og_image: Optional[str] = None
+    robots_txt: Optional[str] = None
+
+
+@admin_router.post("/seo")
+async def admin_seo_save(body: SEOIn):
+    payload = {k: v for k, v in body.dict().items() if v is not None}
+    await db.settings.update_one({"_key": "seo"}, {"$set": {"value": payload}}, upsert=True)
+    return {"ok": True}
+
 
 @admin_router.post("/notifications/broadcast")
 async def broadcast_notification(body: BroadcastIn):

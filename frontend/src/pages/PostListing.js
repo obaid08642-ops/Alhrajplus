@@ -150,6 +150,41 @@ export default function PostListing() {
         } catch (_) { alert(tr("تعذر اقتراح السعر")); }
     };
 
+    // Sell-with-AI: upload image and auto-fill listing fields
+    const [aiBusy, setAiBusy] = useState(false);
+    const sellWithAI = async (file) => {
+        if (!file) return;
+        if (file.size > 8 * 1024 * 1024) { alert(tr("حجم الصورة كبير جداً (الحد الأقصى 8MB)")); return; }
+        setAiBusy(true); setErr("");
+        try {
+            // Upload image to cloudinary first
+            const imageUrl = await uploadImage(file);
+            // Convert to base64 for AI
+            const reader = new FileReader();
+            const dataUrl = await new Promise((resolve, reject) => {
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const { data } = await api.post("/ai/listing-autofill", { image_base64: dataUrl });
+            const midPrice = data.suggested_price_min && data.suggested_price_max
+                ? Math.round((data.suggested_price_min + data.suggested_price_max) / 2)
+                : "";
+            setForm((f) => ({
+                ...f,
+                category: data.category_key || f.category,
+                title: data.title || f.title,
+                description: data.description || f.description,
+                price: midPrice ? String(midPrice) : f.price,
+                images: imageUrl ? [imageUrl, ...f.images] : f.images,
+            }));
+            setStep(2);
+            alert(tr("✨ تم تعبئة الإعلان بالذكاء الاصطناعي! راجع التفاصيل وعدّل ما تشاء."));
+        } catch (e) {
+            setErr(formatApiError(e.response?.data?.detail) || tr("فشل تحليل الصورة بالذكاء الاصطناعي"));
+        } finally { setAiBusy(false); }
+    };
+
     const canNext = () => {
         if (step === 1) return !!form.category;
         if (step === 2) return form.title && form.description && form.city;
@@ -183,6 +218,25 @@ export default function PostListing() {
             {/* Step 1: Category */}
             {step === 1 && (
                 <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)]">
+                    {/* Sell with AI - hero CTA */}
+                    <label data-testid="sell-with-ai-btn" className={`block relative overflow-hidden rounded-2xl border-2 border-[#4FB6E6] bg-gradient-to-br from-[#4FB6E6]/15 to-[#D4AF37]/10 p-4 mb-5 cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all ${aiBusy ? "pointer-events-none opacity-70" : ""}`}>
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => sellWithAI(e.target.files?.[0])} />
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4FB6E6] to-[#2196D9] flex items-center justify-center shrink-0 shadow-lg">
+                                {aiBusy ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Sparkle className="w-6 h-6 text-white" />}
+                            </div>
+                            <div className="flex-1">
+                                <div className="font-arabic font-black text-base text-[var(--text)] flex items-center gap-1.5">
+                                    {tr("بِع بالذكاء الاصطناعي")} <span className="bg-[#D4AF37] text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">AI</span>
+                                </div>
+                                <div className="font-arabic-body text-xs text-[var(--text-muted)] mt-0.5">
+                                    {aiBusy ? tr("جارٍ تحليل الصورة...") : tr("ارفع صورة المنتج وسنُعبّئ العنوان والوصف والسعر تلقائياً")}
+                                </div>
+                            </div>
+                            <CameraIcon className="w-6 h-6 text-[#4FB6E6] shrink-0" />
+                        </div>
+                    </label>
+
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-[var(--accent)]" /> {t("choose_category")}</h2>
 
                     {/* Quick Job/Service shortcuts */}

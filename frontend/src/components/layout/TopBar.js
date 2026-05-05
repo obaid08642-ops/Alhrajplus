@@ -114,7 +114,7 @@ export default function TopBar() {
     };
 
     return (
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-gradient-to-b from-[var(--primary)]/95 to-[var(--primary)]/80 dark:from-[#0F1B3A]/95 dark:to-[#152244]/85 border-b border-[var(--primary-hover)]/40 dark:border-white/10 shadow-md">
+        <header className="sticky top-0 z-40 backdrop-blur-xl bg-gradient-to-b from-[#4FB6E6] to-[#3AA9DD] dark:from-[#0F1B3A] dark:to-[#152244] border-b border-[#2196D9]/40 dark:border-white/10 shadow-md">
             <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center gap-2 sm:gap-3" ref={ref}>
                 <Link to="/" className="flex items-baseline gap-1 sm:gap-1.5 select-none shrink-0" data-testid="logo-link">
                     <img src="/logo-haraj.png" alt="" className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow-md" />
