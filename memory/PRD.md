@@ -9,7 +9,7 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 - **Database**: MongoDB (`haraj_plus_db`)
 - **Storage**: Cloudinary (signed uploads)
 - **Maps**: Leaflet + OpenStreetMap (no API key)
-- **i18n**: Custom context (5 languages)
+- **i18n**: Custom context + auto-generated dictionary (553 strings × 6 languages)
 
 ## 👥 User Personas
 1. **Buyer**: Browses, searches, saves favorites, chats sellers, calls/WhatsApps
@@ -18,22 +18,45 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 8 - Feb 2026 — X Login + ImageViewer Rewrite + Snapchat Icon)
+## ✅ Session 10 — Feb 2026 — Translation ROOT-CAUSE FIX + Search Suggestions + Baby-Blue TopBar
+
+### 🎯 The "8-times-asked" Translation Fix (RESOLVED)
+- ✅ **Auto-extracted 553 unique Arabic strings** from frontend JSX/JS using `/app/scripts/extract_arabic.py`
+- ✅ **Batch-translated** to en/ur/hi/bn/fr via Emergent LLM (Gemini 2.5 Flash) → `/app/frontend/src/auto_translations.json`
+- ✅ **Module-level `tr(text)`** helper in `I18nContext.js` reads `_currentLang` (synced with React state) and looks up translations. Importable from any component WITHOUT needing `useI18n()` hook.
+- ✅ **Bulk-wrapped** every JSX text node + JSX attribute (placeholder/title/alt/aria-label) + JS function call (alert/toast/confirm/setError) containing Arabic with `tr("...")`.
+- ✅ **Manual sweep** for missed cases: composite strings with internal punctuation, JS-array map labels (QuickActions), Auth.js OAuth button labels.
+- ✅ Tested: all 11 user-listed broken strings (iter-9 finding) now correctly translate (iter-10).
+- 📁 Pipeline scripts: `extract_arabic.py`, `translate_strings.py`, `wrap_arabic_with_tr.py`, `ensure_tr_import.py`, `wrap_js_calls.py` (all in `/app/scripts/`).
+
+### 🎨 Top Bar Redesign — Baby Blue Identity
+- ✅ Header background changed from white/grey to **`var(--primary)` baby-blue gradient** (`#4FB6E6`)
+- ✅ Login button now uses **dark navy** (`var(--secondary)`) in light mode and **gold** (`var(--accent)`) in dark mode for high contrast against the blue header
+- ✅ User avatar circle: white background with primary-hover text
+- ✅ Globe/theme buttons: glassmorphic white/15 backdrop blur
+
+### 🔍 Search Suggestions (Trending + History)
+- ✅ Backend (`/app/backend/server.py` lines ~1980-2070):
+  - `POST /api/search/log` {query} — logs and increments global counter, saves to user history if authed
+  - `GET /api/search/trending?limit=N` — returns top N most-searched terms with counts
+  - `GET /api/search/history?limit=N` — authed: returns last N user searches; anonymous: empty []
+  - `DELETE /api/search/history` body {query} or {all:true} — delete one or clear all
+- ✅ MongoDB indexes: `search_terms.q_lower (unique)`, `search_terms.count`, `search_history.(user_id, q_lower) (unique)`, `search_history.(user_id, ts)`
+- ✅ Frontend (`TopBar.js`): on focus → loads trending + history → dropdown shows both with delete-X per item and "Clear all" button.
+- ✅ Tested: 16/16 backend pytest green (iter-9).
+
+### 🐛 Bug fixes in same session
+- ✅ React "unique key" warning on `NearbySection` HomePage — wrapped `<>...</>` shorthand fragments with `<Fragment key={l.id}>...</Fragment>`.
+
+## ✅ Session 8 (prior) — X Login + ImageViewer Rewrite + Snapchat Icon
 - ✅ **X (Twitter) OAuth 2.0 PKCE Login** — Real implementation. `GET /auth/x/start` issues authorization URL with state + S256 code_challenge. `POST /auth/x/callback` exchanges code for token, fetches user profile, creates/links account. Stores `x_id` and `x_username` on user.
 - ✅ **Snapchat icon back** — With "قيد المراجعة" badge. Shows informative dialog explaining Snap Kit Review process. Backend creds in env, ready to activate post-approval.
-- ✅ **ImageViewer total rewrite**:
-  - Bigger red close button (14×14, white border)
-  - Removed auto-zoom on click
-  - **Touch swipe between images** (50px threshold, ignores when zoomed)
-  - Prev/Next nav buttons with chevrons
-  - Counter "1 / N" pill
-  - Zoom controls bar at bottom (in/out + percent)
-  - Thumbnail strip at bottom — tap any thumb to jump
-  - Mouse wheel zoom + drag pan when zoomed
-  - Keyboard arrows + Esc
+- ✅ **ImageViewer total rewrite** — bigger red close, touch swipe, zoom, thumbnails.
 
-### 🧪 Testing (Session 8)
-- 9/9 backend tests pass + ImageViewer + Auth regression green.
+### 🧪 Testing (Session 8-10)
+- iter-8: 9/9 backend tests pass + ImageViewer + Auth regression green.
+- iter-9: 16/16 backend pytest green (search APIs) + frontend regression
+- iter-10: Translation 100% coverage verified on Home/Login pages.
 
 
 
