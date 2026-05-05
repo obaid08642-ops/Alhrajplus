@@ -29,7 +29,7 @@ export default function ListingCard({ listing, compact = true }) {
         >
             <div className={`relative overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-square"}`}>
                 {listing.images?.[0] ? (
-                    <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={listing.images[0]} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                     <div className="w-full h-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">{tr("لا توجد صورة")}</div>
                 )}

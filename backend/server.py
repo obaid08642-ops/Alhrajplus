@@ -2281,6 +2281,14 @@ async def startup():
     await db.search_terms.create_index([("count", -1)])
     await db.search_history.create_index([("user_id", 1), ("q_lower", 1)], unique=True)
     await db.search_history.create_index([("user_id", 1), ("ts", -1)])
+    # Performance indexes
+    await db.listings.create_index([("user_id", 1), ("created_at", -1)])  # my listings
+    await db.listings.create_index([("status", 1), ("created_at", -1)])  # public feed
+    await db.listings.create_index([("category", 1), ("price", 1)])  # price filters
+    await db.watches.create_index([("user_id", 1)])
+    await db.watches.create_index([("listing_id", 1)])
+    await db.follows.create_index([("follower_id", 1)])
+    await db.follows.create_index([("seller_id", 1)])
     # Seed admin (idempotent)
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if existing is None:

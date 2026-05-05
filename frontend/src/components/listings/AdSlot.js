@@ -16,7 +16,7 @@ export default function AdSlot({ placement, className = "" }) {
 
     const inner = (
         <div className="relative w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] group">
-            <img src={ad.image_url} alt={ad.title} className="w-full h-full object-cover" />
+            <img src={ad.image_url} alt={ad.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
             <span className="absolute top-2 start-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full font-arabic">{t("ad_label")}</span>
         </div>
     );

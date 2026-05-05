@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from "react-native";
 import { useAuth } from "../AuthContext";
 import { theme } from "../theme";
 import { formatApiError } from "../api";
 import { signInWithGoogleEmergent } from "../googleAuth";
+import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
 
 function GoogleBtn({ onSuccess }) {
     const [busy, setBusy] = useState(false);
@@ -30,13 +31,67 @@ export function LoginScreen({ navigation }) {
     const [password, setPassword] = useState("");
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
+    const [bioAvailable, setBioAvailable] = useState(false);
+    const [bioEnabled, setBioEnabled] = useState(false);
+    const [bioLabel, setBioLabel] = useState("البصمة");
+    const [askEnable, setAskEnable] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            const info = await isBiometricAvailable();
+            setBioAvailable(info.available);
+            if (info.types) {
+                // 1=Fingerprint, 2=Facial, 3=Iris
+                if (info.types.includes(2)) setBioLabel("FaceID");
+                else if (info.types.includes(1)) setBioLabel("بصمة الإصبع");
+            }
+            const enabled = await isBiometricEnabled();
+            setBioEnabled(enabled);
+            if (enabled && info.available) {
+                // Auto-prompt on mount
+                const creds = await tryBiometricLogin();
+                if (creds?.email && creds?.password) {
+                    setBusy(true);
+                    try { await login(creds.email, creds.password); } catch (_) {} finally { setBusy(false); }
+                }
+            }
+        })();
+    }, []);
 
     const submit = async () => {
         setErr(""); setBusy(true);
         try {
             await login(email, password);
+            // After successful password login, offer to enable biometric
+            const enabled = await isBiometricEnabled();
+            if (!enabled && bioAvailable) {
+                setAskEnable(true);
+            }
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || "فشل تسجيل الدخول");
+        } finally { setBusy(false); }
+    };
+
+    const doEnableBio = async () => {
+        const ok = await enableBiometric(email, password);
+        if (ok) {
+            setBioEnabled(true);
+            Alert.alert("✅ تم", `تم تفعيل الدخول بـ${bioLabel}. استخدمه في المرة القادمة.`);
+        }
+        setAskEnable(false);
+    };
+
+    const doBiometricLogin = async () => {
+        setBusy(true);
+        try {
+            const creds = await tryBiometricLogin();
+            if (creds?.email && creds?.password) {
+                await login(creds.email, creds.password);
+            } else {
+                setErr("فشل الدخول بالبصمة. استخدم كلمة المرور.");
+            }
+        } catch (e) {
+            setErr(formatApiError(e.response?.data?.detail) || "فشل الدخول");
         } finally { setBusy(false); }
     };
 
@@ -75,6 +130,27 @@ export function LoginScreen({ navigation }) {
                     <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]} testID="mobile-login-submit">
                         <Text style={styles.btnText}>{busy ? "..." : "دخول"}</Text>
                     </TouchableOpacity>
+
+                    {bioEnabled && bioAvailable && (
+                        <TouchableOpacity onPress={doBiometricLogin} disabled={busy} style={[styles.bioBtn]} testID="mobile-biometric-btn">
+                            <Text style={styles.bioIcon}>🔐</Text>
+                            <Text style={styles.bioText}>الدخول بـ{bioLabel}</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {askEnable && (
+                        <View style={styles.enableBioBox}>
+                            <Text style={styles.enableBioText}>تفعيل الدخول بـ{bioLabel} في المرات القادمة؟</Text>
+                            <View style={styles.enableBioRow}>
+                                <TouchableOpacity onPress={doEnableBio} style={styles.enableBioYes} testID="mobile-enable-bio-yes">
+                                    <Text style={styles.enableBioYesText}>تفعيل</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => setAskEnable(false)} style={styles.enableBioNo}>
+                                    <Text style={styles.enableBioNoText}>ليس الآن</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
 
                     <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>أو</Text><View style={styles.line} /></View>
                     <GoogleBtn onSuccess={() => refresh()} />
@@ -167,6 +243,16 @@ const styles = StyleSheet.create({
     btn: { backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: theme.radius.md, alignItems: "center", marginTop: 6 },
     btnDisabled: { opacity: 0.6 },
     btnText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 15 },
+    bioBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: theme.colors.surfaceElevated, borderWidth: 2, borderColor: theme.colors.primary, borderRadius: theme.radius.md, paddingVertical: 12, marginTop: 8 },
+    bioIcon: { fontSize: 18 },
+    bioText: { color: theme.colors.primary, fontWeight: "800", fontSize: 14 },
+    enableBioBox: { backgroundColor: "#E8F2FA", borderRadius: theme.radius.md, padding: 12, marginTop: 10, borderWidth: 1, borderColor: theme.colors.primary + "40" },
+    enableBioText: { color: theme.colors.text, fontSize: 13, textAlign: "center", marginBottom: 10, fontWeight: "700" },
+    enableBioRow: { flexDirection: "row", gap: 8 },
+    enableBioYes: { flex: 1, backgroundColor: theme.colors.primary, paddingVertical: 10, borderRadius: theme.radius.md, alignItems: "center" },
+    enableBioYesText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 13 },
+    enableBioNo: { flex: 1, backgroundColor: "transparent", paddingVertical: 10, borderRadius: theme.radius.md, alignItems: "center", borderWidth: 1, borderColor: theme.colors.border },
+    enableBioNoText: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13 },
     linkWrap: { marginTop: 14, alignItems: "center" },
     linkText: { color: theme.colors.textMuted, fontSize: 13 },
     linkStrong: { color: theme.colors.primary, fontWeight: "700" },
