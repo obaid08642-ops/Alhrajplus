@@ -18,7 +18,29 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Session 11 — Feb 2026 — TopBar Final Fix + BottomNav Glass-Pill + Sell-with-AI + Admin Finance/SEO
+## ✅ Session 12 — Feb 2026 — BottomNav FAB + ImageViewer Zoom + Follow Sellers + Price Drop Push
+
+### 🟦 BottomNav v2 — Hologram FAB
+- ❌ Removed: search button + bell button (per user preference)
+- ✅ Added: **Floating "+" Add-Listing FAB** with hologram effect (animate-ping pulse rings + conic-gradient shimmer + baby-blue gradient core, links to /post)
+- ✅ Replaced bell with **Stories/Reels button** (Film icon → /reels)
+- ✅ 4 side items + 1 center FAB layout: الرئيسية / ستوري / [+ FAB] / محادثة / المزيد
+- ✅ Bug fix (caught by testing): renamed `key` prop → `navKey` so React doesn't strip it before our component receives it
+
+### 🔍 ImageViewer — Pinch + Double-Tap Zoom
+- ✅ Re-verified zoom in/out buttons work (1× → 4×)
+- ✅ Added **two-finger pinch-zoom** (touchstart with 2 fingers measures initial distance, touchmove rescales)
+- ✅ Added **double-tap zoom** (taps within 300ms toggle zoom 1 ↔ 2.5)
+- ✅ Existing single-finger swipe + drag-pan still works
+
+### 👥 Follow Sellers + 💸 Price Drop Push (P3 → DONE)
+- ✅ ListingDetail.js — Follow button next to seller info (mobile + desktop) with toggle
+- ✅ ListingDetail.js — "نبّهني عند تخفيض السعر" Watch button → POST/DELETE /api/watches
+- ✅ Backend update_listing now compares old vs new price; if drop ≥ 1%, creates db.notifications (type='price_drop') for ALL watchers (excluding listing owner) AND sends Expo push notification to anyone with registered push tokens.
+
+### 🧪 Iter-12 Testing — 100% green
+- Backend: 8/8 pytest pass (watches CRUD, follow toggle, self-block, price-drop notification)
+- Frontend: All 5 nav testids + FAB position + follow/watch toggles + zoom buttons verified
 
 ### 🎨 TopBar — Real Baby Blue (Bug Fix)
 - ❌ Previous attempt used `var(--primary)/95` alpha gradient → didn't render baby-blue, looked white/grey
