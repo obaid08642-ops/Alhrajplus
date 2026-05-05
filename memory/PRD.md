@@ -18,7 +18,46 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Session 10 — Feb 2026 — Translation ROOT-CAUSE FIX + Search Suggestions + Baby-Blue TopBar
+## ✅ Session 11 — Feb 2026 — TopBar Final Fix + BottomNav Glass-Pill + Sell-with-AI + Admin Finance/SEO
+
+### 🎨 TopBar — Real Baby Blue (Bug Fix)
+- ❌ Previous attempt used `var(--primary)/95` alpha gradient → didn't render baby-blue, looked white/grey
+- ✅ Changed to **explicit hex gradient** `bg-gradient-to-b from-[#4FB6E6] to-[#3AA9DD]` (light) + dark navy in dark mode
+- ✅ Verified visually by testing agent on both mobile + desktop
+
+### 🟦 Bottom Nav — Floating Glass Pill (matching Haraj original)
+- ✅ Completely rewritten as floating glassmorphic capsule at `bottom-3` (not full-width fixed-bar)
+- ✅ 5 items in RTL order: الرئيسية(Home) → الإشعارات(Bell) → ابحث(Search) → محادثة(Chat) → المزيد(Menu)
+- ✅ Active item: filled `bg-[#4FB6E6]/20` rounded background, icon scale-110, deeper blue color
+- ✅ Inactive items: pale baby-blue (`#88B8DC`) icons; on hover bg-white/40
+- ✅ Red badge ring-2 on chat icon when unread > 0; badge on bell when notifications > 0
+- ✅ Removed the prominent "+" Post button to match user's reference design (post still accessible via /post URL or other CTAs)
+
+### ✨ Sell with AI — Auto-fill listing from product image
+- **Backend** `POST /api/ai/listing-autofill` (Gemini 2.5 Flash via Emergent LLM):
+  - Input: `{image_base64}` (data URL or raw)
+  - Output: `{title, description, category_key, condition, suggested_price_min, suggested_price_max, currency}`
+  - Validates category_key against existing CATEGORIES list, sanitizes title/description length
+- **Frontend** PostListing.js:
+  - Hero CTA card at top of Step 1 with camera icon + "AI" badge
+  - Click → opens file picker (or camera on mobile via `capture="environment"`)
+  - Uploads image to Cloudinary + sends base64 to AI in parallel
+  - Auto-fills form: category, title, description, price (mid-range), pre-pends image to images[]
+  - Auto-jumps to Step 2 with success toast
+
+### 📊 Admin Panel — Finance + SEO tabs added (now 9 tabs)
+- **Finance** (`/admin/finance/summary`):
+  - Total commissions, this-month transactions, user wallets, pending withdrawals
+  - Currently zeros (no payment processor wired yet) — placeholder amber notice explains
+- **SEO** (`/admin/seo` GET+POST):
+  - Edit site_title, meta_description, keywords, og_image, robots.txt
+  - Defaults merged with saved values (no field-wipe on partial updates)
+  - Save button persists to MongoDB settings collection
+
+### 🧪 Iter-11 Testing — 100% green
+- Backend: 9/9 pytest pass for new endpoints + admin auth
+- Frontend: All 4 visual + interaction checks passed
+- Active item background, badges, glass-pill design all verified by testing agent
 
 ### 🎯 The "8-times-asked" Translation Fix (RESOLVED)
 - ✅ **Auto-extracted 553 unique Arabic strings** from frontend JSX/JS using `/app/scripts/extract_arabic.py`

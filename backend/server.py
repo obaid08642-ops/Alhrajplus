@@ -1880,16 +1880,17 @@ async def admin_finance_summary():
 
 @admin_router.get("/seo")
 async def admin_seo_get():
-    rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
-    if rec and rec.get("value"):
-        return rec["value"]
-    return {
+    defaults = {
         "site_title": "الحراج بلس | بيع و اشتري | جديد أو مستعمل",
         "site_description": "أكبر سوق رقمي للخليج العربي - بيع، اشترِ، استأجر، وظّف",
         "meta_keywords": "حراج, بيع, شراء, السعودية, الخليج, إعلانات",
         "og_image": "/logo-haraj.png",
         "robots_txt": "User-agent: *\nAllow: /\nSitemap: https://alhraj.online/sitemap.xml",
     }
+    rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
+    if rec and rec.get("value"):
+        return {**defaults, **rec["value"]}
+    return defaults
 
 
 class SEOIn(BaseModel):
