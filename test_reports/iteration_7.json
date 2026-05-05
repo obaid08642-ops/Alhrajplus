@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 7 — X (Twitter) OAuth 2.0 PKCE + ImageViewer rewrite + Snapchat pending badge. Backend: 9/9 pytest green. /api/auth/x/start returns a valid https://twitter.com/i/oauth2/authorize URL with state, code_challenge (S256) and proper redirect_uri. /api/auth/x/callback correctly 400s on unknown state and 422s on missing fields. Auth regression (register, login, admin login, forgot-password) all pass. Frontend: /login renders Google + X (real) + Snapchat(قيد المراجعة badge) buttons with data-testids. Clicking X triggers GET /api/auth/x/start which returns the real twitter URL. Snapchat click shows the 'قيد المراجعة' pending-review alert. ImageViewer on /listing/{id}: 56x56 red close button, prev/next, zoom in/out, 8 thumbnails with ring-highlight, clicking image no longer auto-zooms, thumb click navigates, close button exits viewer. Touch handlers (onTouchStart/onTouchEnd) wired in React. /auth/x/callback route registered — page renders (not 404).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Auth.js SocialLoginButtons", "issues": ["Minor: uses native window.alert() for Snapchat pending-review notice — consider upgrading to an in-app toast/modal for consistency with the rest of the app's RTL/themed UI."]},
+      {"screen": "Auth.js SocialLoginButtons (error path)", "issues": ["X start error handler uses alert('تعذر بدء تسجيل الدخول بـ X — تأكد من إعدادات Developer Portal'). Should use the same error-toast pattern as the rest of the app."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7_x_oauth.py",
+    "/app/test_reports/pytest/iteration_7_results.xml"
+  ],
+  "action_items": [
+    "Cosmetic: Replace alert()s in SocialLoginButtons with the app's toast system (Sonner already used elsewhere).",
+    "When Snap Kit Review approves Snapchat login, remove the 'قيد المراجعة' badge and the snapPending handler — replace with a real startSnap() call to /auth/snap/start.",
+    "Consider adding an explicit test that opens twitter.com in an iframe — not feasible automatically since Twitter blocks iframe embedding. Manual verification only.",
+    "Consider storing X's redirect_uri origin in backend .env (FRONTEND_URL) instead of deriving from request.base_url when FRONTEND_URL is empty, to avoid mismatch with Twitter Dev Portal's registered callback."
+  ],
+  "critical_code_review_comments": [
+    "Good: /auth/x/start uses secrets.token_urlsafe for state + 96-char code_verifier with SHA-256 challenge — correct PKCE per RFC 7636.",
+    "Good: /auth/x/callback rotates state (delete_one after lookup) — prevents replay.",
+    "Good: state records carry expires_at (10 min TTL) and the handler checks expiration with tz-aware datetime normalization.",
+    "Minor: /auth/x/callback uses Basic auth for token exchange while also including client_id in the body; Twitter accepts either but this is technically redundant (harmless).",
+    "Minor: `placeholder_email = f\"x_{x_id}@x.local\"` will prevent future email-based communications to these users; consider prompting user to set a real email after first X login.",
+    "Minor: server.py now 1892 lines — still past 700-line guideline. Recommend modularizing X/Google/auth into /backend/routes/auth.py.",
+    "No MongoDB _id leaks in callback response (user.pop('_id', None) is done). Good.",
+    "ImageViewer.js: touch swipe uses simple delta-X threshold with RTL direction handling; thumbnails use active-ring indicator; zoom clamped 1-4x — clean implementation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7_x_oauth.py (new — 9 tests)",
+    "/app/test_reports/pytest/iteration_7_results.xml (generated)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% smoke (login social buttons, /auth/x/callback route, ImageViewer all verified)"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026. X_CLIENT_ID + X_CLIENT_SECRET loaded in backend/.env. Real callback is https://platform-inspect.preview.emergentagent.com/auth/x/callback — must be configured in X Dev Portal before end-user can complete OAuth.",
+  "seed_data_creation": "Registers one TEST_iter7_<uuid>@example.com user per run with random 9-digit SA phone. No cleanup needed (non-colliding).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "X OAuth 2.0 PKCE backend flow is fully wired. End-to-end Twitter consent cannot be automated (Twitter blocks headless + iframe). Verify manually: click X button on /login → redirects to twitter.com/i/oauth2/authorize → after user authorizes, returns to /auth/x/callback?code=...&state=... → XAuthCallback.js POSTs to /api/auth/x/callback → session cookies set. Backend pytest file: /app/backend/tests/test_iteration7_x_oauth.py — includes a regression suite covering register, login, forgot-password, admin-login. Keep this file for future iterations.",
+  "rca_of_the_issue": "N/A — no new bugs introduced. Session 8 changes (X OAuth start/callback, Snapchat pending badge, ImageViewer rewrite) all verified working."
+}

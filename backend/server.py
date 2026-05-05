@@ -64,6 +64,10 @@ EMERGENT_AUTH_URL = os.environ.get(
 
 # Emergent LLM Key (for AI features)
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
+X_CLIENT_ID = os.environ.get("X_CLIENT_ID", "").strip()
+X_CLIENT_SECRET = os.environ.get("X_CLIENT_SECRET", "").strip()
+SNAPCHAT_CLIENT_ID = os.environ.get("SNAPCHAT_CLIENT_ID", "").strip()
+SNAPCHAT_CLIENT_SECRET = os.environ.get("SNAPCHAT_CLIENT_SECRET", "").strip()
 
 # DB
 client = AsyncIOMotorClient(MONGO_URL)
@@ -473,6 +477,127 @@ async def reset_password(body: ResetIn):
     await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
     await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
     return {"success": True}
+
+
+# ============================================================
+# X (Twitter) OAuth 2.0 — PKCE
+# ============================================================
+import base64 as _b64
+import hashlib as _hashlib
+
+def _b64url(b: bytes) -> str:
+    return _b64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
+
+@api.get("/auth/x/start")
+async def x_oauth_start(request: Request):
+    if not X_CLIENT_ID:
+        raise HTTPException(503, "X login غير مفعّل")
+    state = secrets.token_urlsafe(16)
+    code_verifier = secrets.token_urlsafe(64)[:96]
+    code_challenge = _b64url(_hashlib.sha256(code_verifier.encode()).digest())
+    await db.x_oauth_states.insert_one({
+        "state": state, "code_verifier": code_verifier,
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+        "created_at": datetime.now(timezone.utc),
+    })
+    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    redirect_uri = f"{origin}/auth/x/callback"
+    auth_url = (
+        "https://twitter.com/i/oauth2/authorize"
+        f"?response_type=code&client_id={X_CLIENT_ID}"
+        f"&redirect_uri={redirect_uri}&scope=tweet.read%20users.read"
+        f"&state={state}&code_challenge={code_challenge}&code_challenge_method=S256"
+    )
+    return {"auth_url": auth_url}
+
+class XCallbackIn(BaseModel):
+    code: str
+    state: str
+
+@api.post("/auth/x/callback")
+async def x_oauth_callback(body: XCallbackIn, request: Request, response: Response):
+    if not X_CLIENT_ID or not X_CLIENT_SECRET:
+        raise HTTPException(503, "X login غير مفعّل")
+    rec = await db.x_oauth_states.find_one({"state": body.state})
+    if not rec:
+        raise HTTPException(400, "state غير صالح")
+    expires_at = rec.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if not expires_at or expires_at < datetime.now(timezone.utc):
+        raise HTTPException(400, "انتهت صلاحية الجلسة")
+    await db.x_oauth_states.delete_one({"state": body.state})
+
+    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    redirect_uri = f"{origin}/auth/x/callback"
+
+    basic = _b64.b64encode(f"{X_CLIENT_ID}:{X_CLIENT_SECRET}".encode()).decode()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as cx:
+            tok = await cx.post(
+                "https://api.twitter.com/2/oauth2/token",
+                headers={"Authorization": f"Basic {basic}", "Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "code": body.code,
+                    "grant_type": "authorization_code",
+                    "client_id": X_CLIENT_ID,
+                    "redirect_uri": redirect_uri,
+                    "code_verifier": rec["code_verifier"],
+                },
+            )
+            if tok.status_code != 200:
+                logger.error(f"[X token] {tok.status_code} {tok.text[:200]}")
+                raise HTTPException(401, "فشل التحقق من X")
+            token_data = tok.json()
+            access_x = token_data.get("access_token")
+            me = await cx.get(
+                "https://api.twitter.com/2/users/me?user.fields=name,username,profile_image_url",
+                headers={"Authorization": f"Bearer {access_x}"},
+            )
+            if me.status_code != 200:
+                raise HTTPException(401, "فشل قراءة الحساب من X")
+            x_user = me.json().get("data", {})
+    except httpx.HTTPError as e:
+        logger.error(f"[X HTTP] {e}")
+        raise HTTPException(502, "تعذر الاتصال بـ X")
+
+    x_id = x_user.get("id")
+    x_username = x_user.get("username") or "x_user"
+    x_name = x_user.get("name") or x_username
+    x_avatar = x_user.get("profile_image_url")
+    if not x_id:
+        raise HTTPException(400, "لا يوجد معرف من X")
+
+    # X does not return email by default; use x_id@x.local as placeholder
+    placeholder_email = f"x_{x_id}@x.local"
+    user = await db.users.find_one({"$or": [{"x_id": x_id}, {"email": placeholder_email}]})
+    if not user:
+        uid = str(uuid.uuid4())
+        user = {
+            "id": uid, "name": x_name, "email": placeholder_email,
+            "phone": "", "country_code": "SA", "phone_full": "", "city": None,
+            "password_hash": hash_password(secrets.token_urlsafe(24)),
+            "role": "user", "verified": False, "trust_score": 60,
+            "avatar_url": x_avatar, "bio": "", "language": "ar",
+            "banned": False, "x_id": x_id, "x_username": x_username,
+            "referral_code": gen_referral_code(x_name), "referred_by": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    else:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"x_id": x_id, "x_username": x_username, "avatar_url": user.get("avatar_url") or x_avatar}})
+
+    if user.get("banned"):
+        raise HTTPException(403, "تم حظر حسابك")
+
+    access = create_access_token(user["id"], user["email"], user.get("role", "user"))
+    refresh = create_refresh_token(user["id"])
+    set_auth_cookies(response, access, refresh)
+    user.pop("password_hash", None)
+    user.pop("_id", None)
+    return {"user": user, "access_token": access}
 
 
 # ============================================================
@@ -1716,6 +1841,7 @@ async def startup():
     await db.location_shares.create_index("expires_at", expireAfterSeconds=0)
     await db.translation_cache.create_index("key", unique=True)
     await db.notifications.create_index([("user_id", 1), ("ts", -1)])
+    await db.x_oauth_states.create_index("expires_at", expireAfterSeconds=0)
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
     await db.reports.create_index("status")
     # Seed admin (idempotent)
