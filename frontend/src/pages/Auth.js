@@ -123,6 +123,7 @@ export function RegisterPage() {
     const [form, setForm] = useState({
         name: "", email: "", password: "", phone: "", country_code: "SA", city: "", referral_code: refFromUrl,
     });
+    const [confirmPw, setConfirmPw] = useState("");
     const [countries, setCountries] = useState([]);
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
@@ -147,7 +148,12 @@ export function RegisterPage() {
 
     const submit = async (e) => {
         e.preventDefault();
-        setErr(""); setBusy(true);
+        setErr("");
+        if (form.password.length < 8) { setErr("كلمة المرور يجب أن تكون 8 أحرف على الأقل"); return; }
+        if (form.password !== confirmPw) { setErr("كلمتا المرور غير متطابقتين"); return; }
+        const s = passwordStrength(form.password);
+        if (s.label === "ضعيفة جداً") { setErr("كلمة المرور ضعيفة جداً. استخدم أحرف كبيرة وصغيرة وأرقام."); return; }
+        setBusy(true);
         try {
             await register(form);
             nav("/");
@@ -172,7 +178,8 @@ export function RegisterPage() {
                 <form onSubmit={submit} className="space-y-3">
                     <Field icon={User} placeholder={t("name")} value={form.name} onChange={(v) => setForm({ ...form, name: v })} testid="reg-name" />
                     <Field icon={Mail} type="email" placeholder={t("email")} value={form.email} onChange={(v) => setForm({ ...form, email: v })} testid="reg-email" />
-                    <Field icon={Lock} type="password" placeholder={`${t("password")} (8 أحرف على الأقل)`} value={form.password} onChange={(v) => setForm({ ...form, password: v })} testid="reg-password" minLength={8} />
+                    <PasswordFieldWithStrength value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder={`${t("password")} (8 أحرف على الأقل)`} testid="reg-password" />
+                    <PasswordFieldWithStrength value={confirmPw} onChange={setConfirmPw} placeholder="تأكيد كلمة المرور" testid="reg-confirm-password" />
 
                     <div className="flex items-center bg-[var(--surface-elevated)] rounded-xl border border-[var(--border)] focus-within:border-[var(--primary)] px-3">
                         <Globe className="w-4 h-4 text-[var(--text-muted)]" />
@@ -271,37 +278,90 @@ export function ForgotPasswordPage() {
     );
 }
 
+function passwordStrength(pw) {
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (pw.length >= 12) score++;
+    if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+    if (/\d/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    const levels = [
+        { label: "ضعيفة جداً", color: "bg-red-500", width: "w-1/5" },
+        { label: "ضعيفة", color: "bg-orange-500", width: "w-2/5" },
+        { label: "متوسطة", color: "bg-yellow-500", width: "w-3/5" },
+        { label: "قوية", color: "bg-emerald-500", width: "w-4/5" },
+        { label: "قوية جداً", color: "bg-emerald-600", width: "w-full" },
+    ];
+    return levels[Math.max(0, Math.min(score - 1, 4))];
+}
+
+function PasswordFieldWithStrength({ value, onChange, placeholder, testid }) {
+    const [show, setShow] = useState(false);
+    const s = value ? passwordStrength(value) : null;
+    return (
+        <div>
+            <div className="flex items-center bg-[var(--surface-elevated)] rounded-xl border border-[var(--border)] focus-within:border-[var(--primary)] px-3">
+                <Lock className="w-4 h-4 text-[var(--text-muted)]" />
+                <input data-testid={testid} type={show ? "text" : "password"} required minLength={8} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+                    className="flex-1 bg-transparent outline-none px-3 py-3 text-sm text-[var(--text)] font-arabic-body" />
+                <button type="button" onClick={() => setShow(!show)} className="text-[var(--text-muted)]">
+                    {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+            </div>
+            {s && (
+                <div className="mt-1.5 flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-[var(--surface-elevated)] rounded-full overflow-hidden">
+                        <div className={`${s.color} ${s.width} h-full transition-all`}></div>
+                    </div>
+                    <span className="text-[10px] font-arabic-body text-[var(--text-muted)]">{s.label}</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function ResetPasswordPage() {
     const { t } = useI18n();
     const nav = useNavigate();
     const [params] = useSearchParams();
     const token = params.get("token");
     const [password, setPassword] = useState("");
+    const [confirmPw, setConfirmPw] = useState("");
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
     const [success, setSuccess] = useState(false);
     const submit = async (e) => {
         e.preventDefault();
-        setErr(""); setBusy(true);
+        setErr("");
+        if (password.length < 8) { setErr("كلمة المرور يجب أن تكون 8 أحرف على الأقل"); return; }
+        if (password !== confirmPw) { setErr("كلمتا المرور غير متطابقتين"); return; }
+        const s = passwordStrength(password);
+        if (s.label === "ضعيفة جداً" || s.label === "ضعيفة") {
+            setErr("كلمة المرور ضعيفة. استخدم أحرف كبيرة وصغيرة وأرقام ورموز.");
+            return;
+        }
+        setBusy(true);
         try {
             await api.post("/auth/reset-password", { token, new_password: password });
             setSuccess(true);
             setTimeout(() => nav("/login"), 2000);
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || e.message);
+            setErr(formatApiError(e.response?.data?.detail) || e.message || "حدث خطأ، حاول لاحقاً");
         } finally { setBusy(false); }
     };
     return (
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-10">
             <div className="w-full max-w-md bg-[var(--surface)] rounded-3xl border border-[var(--border)] p-6 sm:p-8 shadow-2xl">
-                <h1 className="font-arabic font-black text-2xl text-center text-[var(--text)] mb-6">{t("reset_password")}</h1>
+                <h1 className="font-arabic font-black text-2xl text-center text-[var(--text)] mb-2">{t("reset_password")}</h1>
+                <p className="text-sm text-center text-[var(--text-muted)] mb-6 font-arabic-body">اختر كلمة مرور قوية وآمنة</p>
                 {success ? (
-                    <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-4 text-sm font-arabic-body text-center">✅ تم تغيير كلمة المرور. سيتم تحويلك...</div>
+                    <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-4 text-sm font-arabic-body text-center">✅ تم تغيير كلمة المرور بنجاح! جاري تحويلك...</div>
                 ) : (
                     <form onSubmit={submit} className="space-y-3">
-                        {err && <div className="bg-red-50 text-red-600 text-sm rounded-xl p-3 font-arabic-body">{err}</div>}
-                        <Field icon={Lock} type="password" placeholder={t("new_password")} value={password} onChange={setPassword} testid="reset-password" minLength={8} />
-                        <button data-testid="reset-submit" disabled={busy || !token} className="w-full bg-[var(--primary)] text-[var(--primary-fg)] py-3 rounded-xl font-bold text-sm font-arabic disabled:opacity-50">{busy ? t("loading") : t("save")}</button>
+                        {err && <div className="bg-red-50 dark:bg-red-900/20 text-red-600 text-sm rounded-xl p-3 font-arabic-body">{err}</div>}
+                        <PasswordFieldWithStrength value={password} onChange={setPassword} placeholder="كلمة المرور الجديدة" testid="reset-password" />
+                        <PasswordFieldWithStrength value={confirmPw} onChange={setConfirmPw} placeholder="تأكيد كلمة المرور" testid="reset-confirm-password" />
+                        <button data-testid="reset-submit" disabled={busy || !token} className="w-full bg-[var(--primary)] text-[var(--primary-fg)] py-3 rounded-xl font-bold text-sm font-arabic disabled:opacity-50">{busy ? t("loading") : "حفظ كلمة المرور الجديدة"}</button>
                     </form>
                 )}
             </div>

@@ -278,7 +278,7 @@ async def get_theme():
 # Auth endpoints
 # ============================================================
 @api.post("/auth/register")
-async def register(body: RegisterIn, response: Response):
+async def register(body: RegisterIn, request: Request, response: Response):
     valid_codes = {c["code"] for c in COUNTRIES}
     if body.country_code not in valid_codes:
         raise HTTPException(400, "Invalid country code")
@@ -308,6 +308,7 @@ async def register(body: RegisterIn, response: Response):
         "password_hash": hash_password(body.password),
         "role": "user",
         "verified": False,
+        "email_verified": False,
         "trust_score": 50,
         "avatar_url": None,
         "bio": "",
@@ -318,6 +319,20 @@ async def register(body: RegisterIn, response: Response):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(user)
+
+    # Send verification email (non-blocking failure)
+    try:
+        verify_token = secrets.token_urlsafe(32)
+        await db.email_verify_tokens.insert_one({
+            "token": verify_token, "user_id": uid,
+            "expires_at": datetime.now(timezone.utc) + timedelta(hours=24),
+            "created_at": datetime.now(timezone.utc),
+        })
+        origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+        await send_verification_email(email, f"{origin}/verify-email?token={verify_token}", user["name"])
+    except Exception as e:
+        logger.error(f"[Register verify-email] {e}")
+
     user.pop("password_hash", None)
     user.pop("_id", None)
     access = create_access_token(uid, email, "user")
@@ -448,7 +463,12 @@ async def reset_password(body: ResetIn):
     rec = await db.password_reset_tokens.find_one({"token": body.token, "used": False})
     if not rec:
         raise HTTPException(400, "رابط غير صالح أو مستخدم")
-    if rec["expires_at"] < datetime.now(timezone.utc):
+    expires_at = rec.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if not expires_at or expires_at < datetime.now(timezone.utc):
         raise HTTPException(400, "انتهت صلاحية الرابط")
     await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
     await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
@@ -1447,15 +1467,237 @@ async def admin_update_ad(aid: str, body: AdIn):
 
 
 # ============================================================
-# Mount routers
+# Admin: Notifications (broadcast + AI suggestions)
+# ============================================================
+class BroadcastIn(BaseModel):
+    title: str = Field(min_length=2, max_length=100)
+    body: str = Field(min_length=2, max_length=500)
+    target: str = Field(default="all", pattern="^(all|verified|unverified|country)$")
+    country_code: Optional[str] = None
+
+@admin_router.post("/notifications/broadcast")
+async def broadcast_notification(body: BroadcastIn):
+    q: dict = {"banned": {"$ne": True}}
+    if body.target == "verified":
+        q["verified"] = True
+    elif body.target == "unverified":
+        q["verified"] = {"$ne": True}
+    elif body.target == "country" and body.country_code:
+        q["country_code"] = body.country_code
+    user_ids = [u["id"] async for u in db.users.find(q, {"_id": 0, "id": 1})]
+    docs = [
+        {"id": str(uuid.uuid4()), "user_id": uid, "title": body.title, "body": body.body,
+         "type": "admin_broadcast", "read": False, "ts": datetime.now(timezone.utc).isoformat()}
+        for uid in user_ids
+    ]
+    if docs:
+        await db.notifications.insert_many(docs)
+    return {"sent": len(docs), "target": body.target}
+
+@admin_router.get("/notifications/ai-suggest")
+async def ai_suggest_notifications():
+    """Use Gemini to suggest 3 engaging push notifications based on app activity."""
+    if not EMERGENT_LLM_KEY:
+        return {"suggestions": []}
+    # Compute simple stats
+    total_users = await db.users.count_documents({})
+    new_listings_24h = await db.listings.count_documents({
+        "created_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
+    })
+    active_auctions = await db.listings.count_documents({"category": "auctions", "status": "active"})
+
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = LlmChat(            api_key=EMERGENT_LLM_KEY,
+            session_id=f"notif-{uuid.uuid4().hex[:8]}",
+            system_message=(
+                "أنت مدير تسويق لتطبيق إعلانات مبوبة عربي اسمه 'الحراج بلس'. "
+                "اقترح 3 إشعارات Push قصيرة وجذابة (عنوان + نص قصير، 60 حرف للعنوان و120 للنص) "
+                "بناءً على الإحصائيات. الإشعارات يجب أن تكون عربية وتحفّز فتح التطبيق. "
+                "أرجع JSON فقط بشكل: [{\"title\":\"...\",\"body\":\"...\"},...]"
+            ),
+        ).with_model("gemini", "gemini-2.5-flash")
+        prompt = f"إحصائيات اليوم: {total_users} مستخدم، {new_listings_24h} إعلان جديد آخر 24 ساعة، {active_auctions} مزاد نشط. اقترح 3 إشعارات."
+        text = await chat.send_message(UserMessage(text=prompt))
+        import re
+        import json as _json
+        m = re.search(r"\[.*\]", text or "", re.DOTALL)
+        if m:
+            arr = _json.loads(m.group(0))
+            return {"suggestions": arr[:3]}
+    except Exception as e:
+        logger.error(f"[AI notif suggest] {e}")
+    return {"suggestions": []}
+
+
+# ============================================================
+# User Notifications API
+# ============================================================
+@api.get("/notifications")
+async def my_notifications(user: dict = Depends(get_current_user), limit: int = 50):
+    items = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
+    return items
+
+@api.post("/notifications/{nid}/read")
+async def mark_notif_read(nid: str, user: dict = Depends(get_current_user)):
+    await db.notifications.update_one({"id": nid, "user_id": user["id"]}, {"$set": {"read": True}})
+    return {"success": True}
+
+@api.post("/notifications/read-all")
+async def mark_all_read(user: dict = Depends(get_current_user)):
+    await db.notifications.update_many({"user_id": user["id"], "read": False}, {"$set": {"read": True}})
+    return {"success": True}
+
+
+# ============================================================
+# Email verification (on registration)
+# ============================================================
+async def send_verification_email(to_email: str, verify_url: str, name: str = "") -> bool:
+    if not RESEND_API_KEY:
+        return False
+    html = f"""
+    <div style="font-family:Arial,Tahoma,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#fff;color:#0F1A35;direction:rtl">
+      <div style="text-align:center;padding:20px 0;border-bottom:2px solid #4FB6E6">
+        <h1 style="color:#0F1A35;font-size:28px;margin:0">الحراج <span style="color:#4FB6E6">بلس</span></h1>
+      </div>
+      <h2 style="color:#0F1A35;font-size:20px">مرحباً {name or 'عزيزي'} 👋</h2>
+      <p style="color:#475569;font-size:14px;line-height:1.7">
+        شكراً لتسجيلك في الحراج بلس! اضغط على الزر أدناه لتأكيد بريدك الإلكتروني وتفعيل حسابك.
+      </p>
+      <div style="text-align:center;padding:24px 0">
+        <a href="{verify_url}" style="background:#4FB6E6;color:#fff;text-decoration:none;padding:14px 32px;border-radius:999px;font-weight:bold;font-size:14px;display:inline-block">تأكيد البريد الإلكتروني</a>
+      </div>
+      <p style="color:#94A3B8;font-size:12px;line-height:1.7">
+        أو انسخ الرابط: <span style="color:#4FB6E6;word-break:break-all">{verify_url}</span><br>
+        إذا لم تسجل في الحراج بلس، تجاهل هذا البريد.
+      </p>
+      <hr style="border:none;border-top:1px solid #E2E8F0;margin:24px 0">
+      <p style="color:#94A3B8;font-size:11px;text-align:center">© 2026 الحراج بلس - alhraj.online</p>
+    </div>
+    """
+    params = {"from": SENDER_EMAIL, "to": [to_email], "subject": "أهلاً بك في الحراج بلس - تأكيد البريد", "html": html}
+    try:
+        await asyncio.to_thread(resend.Emails.send, params)
+        return True
+    except Exception as e:
+        logger.error(f"[Resend verify] {e}")
+        return False
+
+
+@api.get("/auth/verify-email")
+async def verify_email(token: str, request: Request):
+    rec = await db.email_verify_tokens.find_one({"token": token})
+    if not rec:
+        raise HTTPException(400, "رابط غير صالح")
+    expires_at = rec.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if not expires_at or expires_at < datetime.now(timezone.utc):
+        raise HTTPException(400, "انتهت صلاحية الرابط")
+    await db.users.update_one({"id": rec["user_id"]}, {"$set": {"email_verified": True}})
+    await db.email_verify_tokens.delete_one({"token": token})
+    return {"success": True, "message": "تم تأكيد البريد بنجاح"}
+
+
+@api.post("/auth/resend-verification")
+async def resend_verification(request: Request, user: dict = Depends(get_current_user)):
+    if user.get("email_verified"):
+        return {"already_verified": True}
+    token = secrets.token_urlsafe(32)
+    await db.email_verify_tokens.insert_one({
+        "token": token, "user_id": user["id"],
+        "expires_at": datetime.now(timezone.utc) + timedelta(hours=24),
+        "created_at": datetime.now(timezone.utc),
+    })
+    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    verify_url = f"{origin}/verify-email?token={token}"
+    sent = await send_verification_email(user["email"], verify_url, user.get("name", ""))
+    return {"sent": sent}
+
+
+# ============================================================
+# Watch Listings (Price Alerts)
+# ============================================================
+class WatchIn(BaseModel):
+    listing_id: str
+    target_price: Optional[float] = None  # alert when price drops at or below
+
+@api.post("/watches")
+async def add_watch(body: WatchIn, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one({"id": body.listing_id}, {"_id": 0, "id": 1, "price": 1, "user_id": 1})
+    if not listing:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if listing["user_id"] == user["id"]:
+        raise HTTPException(400, "لا يمكنك متابعة إعلانك")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "listing_id": body.listing_id,
+        "target_price": body.target_price,
+        "last_price": listing.get("price"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "active": True,
+    }
+    # upsert
+    await db.watches.update_one(
+        {"user_id": user["id"], "listing_id": body.listing_id},
+        {"$set": doc},
+        upsert=True,
+    )
+    return {"success": True}
+
+@api.delete("/watches/{listing_id}")
+async def remove_watch(listing_id: str, user: dict = Depends(get_current_user)):
+    await db.watches.delete_one({"user_id": user["id"], "listing_id": listing_id})
+    return {"success": True}
+
+@api.get("/watches")
+async def my_watches(user: dict = Depends(get_current_user)):
+    watches = await db.watches.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
+    # Enrich with current listing data
+    for w in watches:
+        listing = await db.listings.find_one({"id": w["listing_id"]}, {"_id": 0, "title": 1, "price": 1, "currency": 1, "images": 1, "city": 1, "status": 1})
+        w["listing"] = listing
+    return watches
+
+
+# ============================================================
+# Follow Sellers
+# ============================================================
+@api.post("/sellers/{seller_id}/follow")
+async def follow_seller(seller_id: str, user: dict = Depends(get_current_user)):
+    if seller_id == user["id"]:
+        raise HTTPException(400, "لا يمكنك متابعة نفسك")
+    seller = await db.users.find_one({"id": seller_id}, {"_id": 0, "id": 1})
+    if not seller:
+        raise HTTPException(404, "البائع غير موجود")
+    existing = await db.follows.find_one({"follower_id": user["id"], "seller_id": seller_id})
+    if existing:
+        await db.follows.delete_one({"follower_id": user["id"], "seller_id": seller_id})
+        return {"following": False}
+    await db.follows.insert_one({
+        "id": str(uuid.uuid4()),
+        "follower_id": user["id"],
+        "seller_id": seller_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"following": True}
+
+@api.get("/sellers/{seller_id}/follow-status")
+async def follow_status(seller_id: str, user: dict = Depends(get_current_user)):
+    f = await db.follows.find_one({"follower_id": user["id"], "seller_id": seller_id})
+    return {"following": bool(f)}
+
+
+# ============================================================
+# Mount routers (MUST be after ALL endpoint definitions)
 # ============================================================
 api.include_router(admin_router)
 app.include_router(api)
 
 
-# ============================================================
-# Startup: indexes + seed admin
-# ============================================================
 @app.on_event("startup")
 async def startup():
     # Indexes
@@ -1473,6 +1715,7 @@ async def startup():
     await db.bids.create_index("ts")
     await db.location_shares.create_index("expires_at", expireAfterSeconds=0)
     await db.translation_cache.create_index("key", unique=True)
+    await db.notifications.create_index([("user_id", 1), ("ts", -1)])
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
     await db.reports.create_index("status")
     # Seed admin (idempotent)

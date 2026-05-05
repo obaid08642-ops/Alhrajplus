@@ -1,12 +1,16 @@
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ReelsPage() {
+    const nav = useNavigate();
+    const { user } = useAuth();
     const [reels, setReels] = useState([]);
     const [active, setActive] = useState(0);
     const [muted, setMuted] = useState(true);
+    const [favs, setFavs] = useState({}); // {listingId: bool}
     const refs = useRef([]);
 
     useEffect(() => {
@@ -27,6 +31,31 @@ export default function ReelsPage() {
     const onScroll = (e) => {
         const idx = Math.round(e.target.scrollTop / e.target.clientHeight);
         if (idx !== active) setActive(idx);
+    };
+
+    const toggleFav = async (l) => {
+        if (!user) return nav("/login");
+        try {
+            const { data } = await api.post(`/favorites/${l.id}`);
+            setFavs((f) => ({ ...f, [l.id]: data.favorited }));
+        } catch (_) {}
+    };
+
+    const messageSeller = (l) => {
+        if (!user) return nav("/login");
+        nav(`/chat?to=${l.user_id}&listing=${l.id}`);
+    };
+
+    const shareReel = async (l) => {
+        const url = `${window.location.origin}/listing/${l.id}`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: l.title, text: `${l.title} - الحراج بلس`, url });
+            } else {
+                await navigator.clipboard.writeText(url);
+                alert("✅ تم نسخ رابط الإعلان");
+            }
+        } catch (_) {}
     };
 
     if (reels.length === 0) return (
@@ -56,9 +85,9 @@ export default function ReelsPage() {
                         </div>
                         {/* Right action bar */}
                         <div className="absolute end-3 bottom-32 flex flex-col gap-4 text-white">
-                            <button className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Heart className="w-5 h-5" /></div><span className="text-[10px]">{l.favorites || 0}</span></button>
-                            <button className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><MessageCircle className="w-5 h-5" /></div><span className="text-[10px]">رسالة</span></button>
-                            <button className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Share2 className="w-5 h-5" /></div><span className="text-[10px]">شارك</span></button>
+                            <button data-testid={`reel-fav-${l.id}`} onClick={() => toggleFav(l)} className="flex flex-col items-center gap-1"><div className={`w-11 h-11 rounded-full backdrop-blur flex items-center justify-center ${favs[l.id] ? "bg-red-500" : "bg-white/15"}`}><Heart className={`w-5 h-5 ${favs[l.id] ? "fill-white" : ""}`} /></div><span className="text-[10px]">مفضلة</span></button>
+                            <button data-testid={`reel-msg-${l.id}`} onClick={() => messageSeller(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><MessageCircle className="w-5 h-5" /></div><span className="text-[10px]">رسالة</span></button>
+                            <button data-testid={`reel-share-${l.id}`} onClick={() => shareReel(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Share2 className="w-5 h-5" /></div><span className="text-[10px]">شارك</span></button>
                             <button onClick={() => setMuted(!muted)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center">{muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</div></button>
                         </div>
                     </div>

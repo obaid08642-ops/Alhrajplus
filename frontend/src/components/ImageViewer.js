@@ -36,7 +36,7 @@ export default function ImageViewer({ images = [], initialIndex = 0, onClose }) 
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" data-testid="image-viewer-overlay">
-            <button data-testid="iv-close" onClick={onClose} className="absolute top-4 end-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur text-white flex items-center justify-center"><X className="w-5 h-5" /></button>
+            <button data-testid="iv-close" onClick={onClose} aria-label="إغلاق" className="absolute top-4 end-4 w-14 h-14 rounded-full bg-red-500/90 hover:bg-red-500 shadow-lg text-white flex items-center justify-center z-[110] border-2 border-white/30"><X className="w-7 h-7" /></button>
             <div className="absolute top-4 start-4 bg-white/10 backdrop-blur text-white rounded-full px-3 py-1.5 text-xs font-arabic-body">
                 {idx + 1} / {images.length}
             </div>
@@ -56,8 +56,7 @@ export default function ImageViewer({ images = [], initialIndex = 0, onClose }) 
                     src={images[idx]}
                     alt=""
                     className="max-w-full max-h-full object-contain transition-transform select-none"
-                    style={{ transform: `scale(${zoom}) translate(${offset.x / zoom}px, ${offset.y / zoom}px)`, cursor: zoom > 1 ? "grab" : "zoom-in" }}
-                    onClick={() => zoom === 1 && setZoom(2)}
+                    style={{ transform: `scale(${zoom}) translate(${offset.x / zoom}px, ${offset.y / zoom}px)`, cursor: zoom > 1 ? "grab" : "default" }}
                     draggable={false}
                 />
             </div>

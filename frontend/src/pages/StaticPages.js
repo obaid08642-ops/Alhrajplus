@@ -150,8 +150,10 @@ export function ContactPage() {
     return (
         <StaticPage title="تواصل معنا">
             <p className="font-bold">للأعمال والإعلان وطلبات الشراكة:</p>
-            <p>📧 contact@harajplus.com</p>
-            <p>💬 يمكنك أيضاً مراسلتنا مباشرة من النموذج أدناه:</p>
+            <p>📧 contact@alhraj.online</p>
+            <p>📧 support@alhraj.online</p>
+            <p>🌐 الموقع: alhraj.online</p>
+            <p>💬 آلية التواصل: عند إرسال هذا النموذج تصلنا رسالتك على لوحة الإدارة وسيتم الرد على بريدك الإلكتروني خلال 24-48 ساعة. تأكد من إدخال بريد إلكتروني صحيح.</p>
             {ok ? (
                 <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-3 font-bold">✅ تم استلام رسالتك. سنرد عليك قريباً.</div>
             ) : (

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2 } from "lucide-react";
+import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles } from "lucide-react";
 
 export default function AdminPage() {
     const { user, loading } = useAuth();
@@ -21,6 +21,7 @@ export default function AdminPage() {
         { key: "moderation", label: "مراجعة الإعلانات", icon: Shield },
         { key: "users", label: "المستخدمون", icon: Users },
         { key: "reports", label: "البلاغات", icon: Flag },
+        { key: "notifications", label: "الإشعارات", icon: Bell },
         { key: "ads", label: "الإعلانات", icon: ImageIcon },
         { key: "theme", label: "الهوية البصرية", icon: Palette },
     ];
@@ -44,6 +45,7 @@ export default function AdminPage() {
             {tab === "moderation" && <ModerationPanel />}
             {tab === "users" && <UsersPanel />}
             {tab === "reports" && <ReportsPanel />}
+            {tab === "notifications" && <NotificationsPanel />}
             {tab === "ads" && <AdsPanel />}
             {tab === "theme" && <ThemePanel />}
         </div>
@@ -145,21 +147,147 @@ function UsersPanel() {
 
 function ReportsPanel() {
     const [reports, setReports] = useState([]);
+    const [expanded, setExpanded] = useState(null);
     const reload = () => api.get("/admin/reports").then(({ data }) => setReports(data));
     useEffect(() => { reload(); }, []);
     return (
         <div className="space-y-2">
             {reports.length === 0 && <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)] text-[var(--text-muted)] font-arabic-body">لا توجد بلاغات</div>}
-            {reports.map((r) => (
-                <div key={r.id} className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] flex items-center gap-3">
-                    <div className="flex-1">
-                        <div className="font-arabic font-bold text-sm text-[var(--text)]">{r.target_type} #{r.target_id.slice(0, 8)}</div>
-                        <div className="text-xs text-[var(--text-muted)] font-arabic-body">{r.reason}</div>
+            {reports.map((r) => {
+                const isOpen = expanded === r.id;
+                return (
+                    <div key={r.id} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                        <div className="p-4 flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-[10px] font-arabic font-bold px-2 py-0.5 rounded-full ${r.target_type === "listing" ? "bg-[var(--primary)]/15 text-[var(--primary)]" : "bg-[var(--accent)]/15 text-[var(--accent)]"}`}>
+                                        {r.target_type === "listing" ? "إعلان" : r.target_type === "user" ? "مستخدم" : r.target_type}
+                                    </span>
+                                    <span className="font-arabic font-bold text-sm text-[var(--text)]">#{r.target_id?.slice(0, 8)}</span>
+                                    <span className="text-[10px] text-[var(--text-muted)] font-arabic-body">{r.created_at ? new Date(r.created_at).toLocaleString("ar") : ""}</span>
+                                </div>
+                                <div className="text-xs text-[var(--text)] font-arabic-body mt-1 line-clamp-1">السبب: {r.reason || "—"}</div>
+                            </div>
+                            <span className={`text-xs font-bold ${r.status === "open" ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>{r.status === "open" ? "مفتوح" : "مغلق"}</span>
+                            <button onClick={() => setExpanded(isOpen ? null : r.id)} className="bg-[var(--surface-elevated)] text-[var(--text)] px-3 py-1.5 rounded-full text-xs font-bold">{isOpen ? "إخفاء" : "تفاصيل"}</button>
+                            {r.status === "open" && <button onClick={async () => { await api.post(`/admin/reports/${r.id}/close`); reload(); }} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold">إغلاق</button>}
+                        </div>
+                        {isOpen && (
+                            <div className="px-4 pb-4 pt-0 border-t border-[var(--border)] space-y-2 text-xs font-arabic-body bg-[var(--surface-elevated)]">
+                                <div><b>السبب الكامل:</b> {r.reason || "—"}</div>
+                                {r.message && <div><b>تفاصيل من المُبلِّغ:</b> {r.message}</div>}
+                                <div><b>المُبلِّغ ID:</b> {r.reporter_id?.slice(0, 12)}…</div>
+                                <div><b>الهدف ID:</b> {r.target_id}</div>
+                                {r.target_type === "listing" && (
+                                    <Link to={`/listing/${r.target_id}`} target="_blank" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold mt-1">
+                                        🔗 فتح الإعلان
+                                    </Link>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    <span className={`text-xs font-bold ${r.status === "open" ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>{r.status === "open" ? "مفتوح" : "مغلق"}</span>
-                    {r.status === "open" && <button onClick={async () => { await api.post(`/admin/reports/${r.id}/close`); reload(); }} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold">إغلاق</button>}
+                );
+            })}
+        </div>
+    );
+}
+
+function NotificationsPanel() {
+    const [form, setForm] = useState({ title: "", body: "", target: "all", country_code: "" });
+    const [busy, setBusy] = useState(false);
+    const [result, setResult] = useState(null);
+    const [suggesting, setSuggesting] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+
+    const send = async () => {
+        if (!form.title || !form.body) { alert("املأ العنوان والنص"); return; }
+        if (!window.confirm(`سيتم إرسال هذا الإشعار للمستخدمين (${form.target}). متابعة؟`)) return;
+        setBusy(true);
+        try {
+            const { data } = await api.post("/admin/notifications/broadcast", form);
+            setResult(data);
+            setForm({ title: "", body: "", target: "all", country_code: "" });
+        } catch (e) {
+            alert(e.response?.data?.detail || "تعذر الإرسال");
+        } finally { setBusy(false); }
+    };
+
+    const suggest = async () => {
+        setSuggesting(true);
+        try {
+            const { data } = await api.get("/admin/notifications/ai-suggest");
+            setSuggestions(data.suggestions || []);
+            if (!data.suggestions?.length) alert("لم يتم توليد اقتراحات");
+        } catch (_) {
+            alert("تعذر توليد الاقتراحات");
+        } finally { setSuggesting(false); }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <div className="flex items-center gap-2 mb-3">
+                    <Bell className="w-5 h-5 text-[var(--primary)]" />
+                    <h3 className="font-arabic font-black text-base text-[var(--text)]">إرسال إشعار جماعي</h3>
                 </div>
-            ))}
+                {result && (
+                    <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-3 text-sm font-arabic-body mb-3">
+                        ✅ تم إرسال الإشعار إلى {result.sent} مستخدم ({result.target})
+                    </div>
+                )}
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">العنوان</label>
+                        <input data-testid="notif-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={100} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="🔥 عرض اليوم!" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">النص</label>
+                        <textarea data-testid="notif-body" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} maxLength={500} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="اكتشف صفقات حصرية على الإعلانات الجديدة!" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">الجمهور المستهدف</label>
+                            <select data-testid="notif-target" value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]">
+                                <option value="all">جميع المستخدمين</option>
+                                <option value="verified">الموثقون فقط</option>
+                                <option value="unverified">غير الموثقين</option>
+                                <option value="country">حسب الدولة</option>
+                            </select>
+                        </div>
+                        {form.target === "country" && (
+                            <div>
+                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">رمز الدولة</label>
+                                <input value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value.toUpperCase() })} maxLength={2} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="SA / AE / KW..." />
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <button data-testid="notif-send" onClick={send} disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center gap-2 disabled:opacity-50">
+                            <Bell className="w-4 h-4" /> {busy ? "جاري الإرسال..." : "إرسال للجميع"}
+                        </button>
+                        <button data-testid="notif-ai-suggest" onClick={suggest} disabled={suggesting} className="bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] text-white px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center gap-2 disabled:opacity-50">
+                            <Sparkles className="w-4 h-4" /> {suggesting ? "AI يفكر..." : "اقتراحات AI"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {suggestions.length > 0 && (
+                <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10 rounded-2xl p-4 border border-[var(--primary)]/30">
+                    <h3 className="font-arabic font-black text-base text-[var(--text)] mb-2 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[var(--primary)]" /> اقتراحات الذكاء الاصطناعي
+                    </h3>
+                    <div className="space-y-2">
+                        {suggestions.map((s, i) => (
+                            <div key={i} className="bg-[var(--surface)] rounded-xl p-3 border border-[var(--border)]">
+                                <div className="font-arabic font-bold text-sm text-[var(--text)] mb-1">{s.title}</div>
+                                <div className="text-xs text-[var(--text-muted)] font-arabic-body mb-2">{s.body}</div>
+                                <button onClick={() => setForm({ ...form, title: s.title, body: s.body })} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1 rounded-full text-xs font-bold font-arabic">استخدم هذا</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

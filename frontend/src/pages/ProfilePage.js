@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
 
 export default function ProfilePage() {
@@ -93,6 +93,39 @@ export default function ProfilePage() {
             {/* Premium locked notice */}
             <div className="bg-[var(--surface)] rounded-2xl p-3 border border-dashed border-[var(--border)] mb-4 text-center text-xs text-[var(--text-muted)] font-arabic-body">
                 {t("premium_locked")}
+            </div>
+
+            {/* Quick menu — Settings / About / Terms / Contact / Logout */}
+            <div className="bg-[var(--surface)] rounded-3xl border border-[var(--border)] mb-6 overflow-hidden">
+                <Link to="/settings" data-testid="menu-settings" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
+                    <Settings className="w-5 h-5 text-[var(--primary)]" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">الإعدادات</span>
+                    <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                </Link>
+                <Link to="/about" data-testid="menu-about" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
+                    <Info className="w-5 h-5 text-[var(--primary)]" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">عن التطبيق</span>
+                    <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                </Link>
+                <Link to="/terms" data-testid="menu-terms" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
+                    <FileText className="w-5 h-5 text-[var(--primary)]" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">الشروط والأحكام</span>
+                    <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                </Link>
+                <Link to="/privacy" data-testid="menu-privacy" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
+                    <Shield className="w-5 h-5 text-[var(--primary)]" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">سياسة الخصوصية</span>
+                    <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                </Link>
+                <Link to="/contact" data-testid="menu-contact" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
+                    <Mail className="w-5 h-5 text-[var(--primary)]" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">تواصل معنا / الإعلان</span>
+                    <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                </Link>
+                <button data-testid="menu-logout" onClick={async () => { await logout(); nav("/"); }} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-600">
+                    <LogOut className="w-5 h-5" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-start">تسجيل الخروج</span>
+                </button>
             </div>
 
             <div className="flex gap-2 mb-4">

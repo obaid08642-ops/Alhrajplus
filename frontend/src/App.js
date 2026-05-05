@@ -21,6 +21,7 @@ import ReelsPage from "@/pages/ReelsPage";
 import AuctionsPage from "@/pages/AuctionsPage";
 import FlightsPage from "@/pages/FlightsPage";
 import DealsPage from "@/pages/DealsPage";
+import VerifyEmailPage from "@/pages/VerifyEmailPage";
 import { SettingsPage, TermsPage, PrivacyPage, AboutPage, ContactPage } from "@/pages/StaticPages";
 
 function Layout({ children, hideNav = false }) {
@@ -44,6 +45,7 @@ function AppRouter() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/" element={<Layout><HomePage /></Layout>} />
             <Route path="/category/:categoryKey" element={<Layout><CategoryPage /></Layout>} />
             <Route path="/listing/:id" element={<Layout><ListingDetail /></Layout>} />

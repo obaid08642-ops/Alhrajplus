@@ -180,7 +180,18 @@ export default function ListingDetail() {
                     <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
                         <div className="flex items-start justify-between gap-3 mb-3">
                             <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)] flex-1">{listing.title}</h1>
-                            <button data-testid="share-btn" className="w-10 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)]"><Share2 className="w-4 h-4" /></button>
+                            <button data-testid="share-btn" onClick={async () => {
+                                const url = window.location.href;
+                                const shareData = { title: listing.title, text: `${listing.title} - الحراج بلس`, url };
+                                try {
+                                    if (navigator.share) {
+                                        await navigator.share(shareData);
+                                    } else {
+                                        await navigator.clipboard.writeText(url);
+                                        alert("✅ تم نسخ رابط الإعلان");
+                                    }
+                                } catch (_) {}
+                            }} className="w-10 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)]" title="مشاركة"><Share2 className="w-4 h-4" /></button>
                         </div>
                         <div className="flex items-baseline gap-2 mb-4 flex-wrap">
                             {listing.price ? (
@@ -308,8 +319,8 @@ export default function ListingDetail() {
                     )}
                 </div>
 
-                {/* Right/Sidebar - Seller */}
-                <div className="lg:col-span-1 space-y-4">
+                {/* Right/Sidebar - Seller (Desktop only) */}
+                <div className="hidden lg:block lg:col-span-1 space-y-4">
                     <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)] sticky top-24">
                         <h3 className="font-arabic font-bold text-base text-[var(--text)] mb-4">{t("seller_info")}</h3>
                         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[var(--border)]">

@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
-import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon, Languages, Radio, StopCircle } from "lucide-react";
+import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon, Languages } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
+import ImageViewer from "@/components/ImageViewer";
 
 export default function ChatPage() {
     const { user, loading: au } = useAuth();
@@ -18,8 +19,7 @@ export default function ChatPage() {
     const [input, setInput] = useState("");
     const [translations, setTranslations] = useState({}); // {msgId: translatedText}
     const [translating, setTranslating] = useState(null); // msgId being translated
-    const [liveShareId, setLiveShareId] = useState(null);
-    const liveWatchRef = useRef(null);
+    const [imgPreview, setImgPreview] = useState(null);
     const endRef = useRef();
 
     useEffect(() => {
@@ -55,58 +55,25 @@ export default function ChatPage() {
 
     const sendLocation = () => {
         if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+        // Prompt: confirm deal status — location should only be shared when deal is finalized
+        const confirmed = window.confirm(
+            "📍 مشاركة الموقع\n\n" +
+            "يفضّل مشاركة موقعك فقط بعد الاتفاق على الصفقة لحماية خصوصيتك.\n\n" +
+            "هل تم الاتفاق على الصفقة وتريد مشاركة موقعك مع البائع/المشتري؟\n\n" +
+            "اضغط OK للمتابعة، أو Cancel للإلغاء."
+        );
+        if (!confirmed) return;
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                send({ text: `📍 موقعي الحالي`, location: loc });
+                send({ text: `📍 موقعي - تمت الصفقة`, location: loc });
             },
             () => alert("تعذر الوصول للموقع")
         );
     };
 
-    const startLiveShare = async () => {
-        if (!activeOther) return;
-        if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
-        const minutes = parseInt(prompt("لكم دقيقة تشارك موقعك الحي؟ (1-60)", "15") || "0", 10);
-        if (!minutes || minutes < 1 || minutes > 60) return;
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                try {
-                    const { data } = await api.post("/chat/location-share", {
-                        receiver_id: activeOther.id,
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                        duration_minutes: minutes,
-                    });
-                    setLiveShareId(data.id);
-                    // Watch position and refresh chat to pick up the share message
-                    const wid = navigator.geolocation.watchPosition((p) => {
-                        // For now we just keep the share record as-is; future enhancement: PATCH endpoint
-                    }, () => {}, { enableHighAccuracy: true });
-                    liveWatchRef.current = wid;
-                    // auto-stop after duration
-                    setTimeout(() => stopLiveShare(data.id), minutes * 60 * 1000);
-                    // refetch conversation
-                    const r = await api.get(`/chat/messages/${[user.id, activeOther.id].sort().join("_")}`);
-                    setMessages(r.data);
-                } catch (e) {
-                    alert(e.response?.data?.detail || "تعذر بدء المشاركة");
-                }
-            },
-            () => alert("تعذر الوصول للموقع")
-        );
-    };
-
-    const stopLiveShare = async (id) => {
-        try {
-            if (id) await api.post(`/chat/location-share/${id}/stop`);
-        } catch (_) {}
-        if (liveWatchRef.current != null) {
-            navigator.geolocation.clearWatch(liveWatchRef.current);
-            liveWatchRef.current = null;
-        }
-        setLiveShareId(null);
-    };
+    const startLiveShare = () => {}; // removed: live location share
+    const stopLiveShare = () => {}; // removed
 
     const translateMsg = async (m) => {
         if (translations[m.id] || !m.text) return;
@@ -193,7 +160,7 @@ export default function ChatPage() {
     );
 
     return (
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24 h-[calc(100vh-130px)]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24 h-[calc(100dvh-150px)]">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
                 {/* Conversations list */}
                 <div className={`bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-y-auto ${activeConvoId ? "hidden md:block" : ""}`}>
@@ -241,7 +208,7 @@ export default function ChatPage() {
                                     return (
                                         <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`} data-testid={`msg-${m.id}`}>
                                             <div className={`max-w-[75%] rounded-2xl ${m.image || m.voice ? "p-1" : "px-3 py-2"} text-sm font-arabic-body ${mine ? "bg-[var(--primary)] text-[var(--primary-fg)] rounded-br-md" : "bg-[var(--surface-elevated)] text-[var(--text)] rounded-bl-md border border-[var(--border)]"}`}>
-                                                {m.image && <img src={m.image} alt="" className="rounded-xl max-w-full max-h-64 object-cover" />}
+                                                {m.image && <img src={m.image} alt="" onClick={() => setImgPreview(m.image)} className="rounded-xl max-w-full max-h-64 object-cover cursor-zoom-in" />}
                                                 {m.voice && <audio controls src={m.voice} className="max-w-full" />}
                                                 {m.location && !liveShare && (
                                                     <a href={`https://www.google.com/maps/search/?api=1&query=${m.location.lat},${m.location.lng}`} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 ${m.image || m.voice ? "p-2" : ""}`}>
@@ -282,12 +249,7 @@ export default function ChatPage() {
                                     <ImageIcon className="w-4 h-4" />
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && uploadAndSend(e.target.files[0], "image")} />
                                 </label>
-                                <button data-testid="chat-location-btn" onClick={sendLocation} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="موقع"><MapPin className="w-4 h-4" /></button>
-                                {liveShareId ? (
-                                    <button data-testid="live-share-stop" onClick={() => stopLiveShare(liveShareId)} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0 animate-pulse" title="إيقاف الموقع الحي"><StopCircle className="w-4 h-4" /></button>
-                                ) : (
-                                    <button data-testid="live-share-start" onClick={startLiveShare} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-red-500/15 hover:text-red-500 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="موقع حي"><Radio className="w-4 h-4" /></button>
-                                )}
+                                <button data-testid="chat-location-btn" onClick={sendLocation} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="مشاركة الموقع (بعد إتمام الصفقة)"><MapPin className="w-4 h-4" /></button>
                                 {recording ? (
                                     <button data-testid="chat-stop-rec" onClick={stopRecord} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse shrink-0"><Square className="w-3 h-3 fill-current" /></button>
                                 ) : (
@@ -302,6 +264,7 @@ export default function ChatPage() {
                     )}
                 </div>
             </div>
+            {imgPreview && <ImageViewer images={[imgPreview]} initialIndex={0} onClose={() => setImgPreview(null)} />}
         </div>
     );
 }

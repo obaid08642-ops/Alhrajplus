@@ -236,6 +236,61 @@ export default function PostListing() {
             {step === 2 && (
                 <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)] space-y-4">
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)]">{t("listing_details")}</h2>
+
+                    {/* Job/Service post-type selector at TOP */}
+                    {(form.category === "jobs" || form.category === "services") && (
+                        <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10 border-2 border-[var(--primary)]/30 rounded-2xl p-3">
+                            <label className="block text-sm font-arabic font-black text-[var(--text)] mb-2 text-center">
+                                {form.category === "jobs" ? "💼 ما نوع الإعلان؟" : "🔧 ما نوع الإعلان؟"}
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {form.category === "jobs" ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            data-testid="post-type-job-offer"
+                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "عرض وظيفة" }, subcategory: "job_offer" })}
+                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "عرض وظيفة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                        >
+                                            🟢 عرض وظيفة
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أنا أوظّف شخص</div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            data-testid="post-type-job-seeker"
+                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "باحث عن عمل" }, subcategory: "job_seeker" })}
+                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "باحث عن عمل" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                        >
+                                            🔵 باحث عن عمل
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أنا أبحث عن وظيفة</div>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            type="button"
+                                            data-testid="post-type-service-offer"
+                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "تقديم خدمة" } })}
+                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "تقديم خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                        >
+                                            🟢 تقديم خدمة
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أنا مقدّم خدمة</div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            data-testid="post-type-service-request"
+                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "طلب خدمة" } })}
+                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "طلب خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                        >
+                                            🔵 طلب خدمة
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أحتاج هذه الخدمة</div>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("title")} *</label>
                         <input data-testid="post-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={120} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder="عنوان واضح وموجز" />
@@ -262,8 +317,8 @@ export default function PostListing() {
                         </div>
                     )}
 
-                    {/* Custom fields for category */}
-                    {cat?.fields?.map((f) => (
+                    {/* Custom fields for category — skip post_type since it's at the top for jobs/services */}
+                    {cat?.fields?.filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                                 {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}
@@ -283,11 +338,47 @@ export default function PostListing() {
 
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">المدينة *</label>
-                        <select data-testid="post-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
+                        <select data-testid="post-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value, district: "" })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
                             <option value="">اختر المدينة</option>
                             {country?.cities.map((c) => <option key={c.name_ar} value={c.name_ar}>{c.name_ar}</option>)}
                         </select>
                     </div>
+
+                    {/* District selector — appears after city */}
+                    {form.city && (() => {
+                        const cityObj = country?.cities?.find((c) => c.name_ar === form.city);
+                        const districts = cityObj?.districts || [];
+                        return (
+                            <div>
+                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">الحي / المنطقة</label>
+                                <select
+                                    data-testid="post-district"
+                                    value={form.district === "__other__" ? "__other__" : (districts.includes(form.district) ? form.district : (form.district ? "__other__" : ""))}
+                                    onChange={(e) => {
+                                        if (e.target.value === "__other__") {
+                                            setForm({ ...form, district: "__other__" });
+                                        } else {
+                                            setForm({ ...form, district: e.target.value });
+                                        }
+                                    }}
+                                    className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body"
+                                >
+                                    <option value="">اختر الحي (اختياري)</option>
+                                    {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+                                    <option value="__other__">⚙️ أخرى (اكتبه بنفسك)</option>
+                                </select>
+                                {form.district === "__other__" && (
+                                    <input
+                                        data-testid="post-district-custom"
+                                        autoFocus
+                                        placeholder="اكتب اسم الحي"
+                                        onChange={(e) => setForm({ ...form, district: e.target.value })}
+                                        className="mt-2 w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--primary)] text-[var(--text)] outline-none font-arabic-body"
+                                    />
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
             )}
 
