@@ -18,7 +18,37 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 6 - Feb 2026 — Phase 3 Part 3 COMPLETE)
+## ✅ Implemented (Session 7 - Feb 2026 — Massive Bug Fixes + UX Overhaul)
+
+### 🐛 Critical Bugs Fixed
+- ✅ **Reset password 500 error** — Was timezone comparison bug (naive vs aware datetime). Fixed normalization.
+- ✅ **Resend email domain** — `SENDER_EMAIL` updated to `noreply@alhraj.online` (user verified domain). Real emails now send to ALL users.
+- ✅ **Router include order bug** (caught by testing agent) — `app.include_router(api)` was being called BEFORE the new endpoints were defined. Moved to end of server.py. All new endpoints now register correctly.
+- ✅ **ImageViewer auto-zoom + missing close** — Removed click-to-zoom, made close button large red 14×14 with white border.
+- ✅ **Duplicate seller info on mobile** — Sidebar wrapped with `hidden lg:block`. Now shows once on mobile.
+
+### 🆕 New Features
+- ✅ **Email verification on registration** — Sends Arabic HTML verification email via Resend on signup. New `/verify-email?token=` page.
+- ✅ **Password strength meter + Confirm password** — Both Register and ResetPassword now require confirmation + show 5-level strength bar (ضعيفة جداً → قوية جداً).
+- ✅ **PostListing — Job/Service post-type buttons at TOP** — Big colored buttons (عرض/طلب) before all other fields.
+- ✅ **District selector** — After city, dropdown shows districts; "أخرى" option reveals custom text input.
+- ✅ **Removed Live Location Share** — Replaced with confirm dialog "هل تمت الصفقة؟" before sharing normal location.
+- ✅ **Chat image preview viewer** — Tap any chat image to open full-screen ImageViewer.
+- ✅ **Reels functional buttons** — Favorite (toggles), Message seller, Share (Web Share + clipboard).
+- ✅ **Listing Share button** — Web Share API + clipboard fallback with success toast.
+- ✅ **Profile menu** — Settings, About, Terms, Privacy, Contact, Logout.
+- ✅ **Contact email** — Updated to `contact@alhraj.online` and `support@alhraj.online`.
+- ✅ **Flights search overhaul** — 100+ global airports (Arabic + English + IATA), search/autocomplete, 4 providers (Skyscanner/Wego/Kayak/Google Flights).
+- ✅ **Admin Reports detailed panel** — Expandable details: full reason, message, reporter ID, target ID, "Open Listing" button.
+- ✅ **Admin Notifications panel** — Broadcast to all/verified/unverified/by-country with AI suggestions (Gemini generates 3 engaging Arabic notifications based on app stats).
+- ✅ **Watch listings (price alerts)** — `POST/GET/DELETE /api/watches`. Cannot watch own listing.
+- ✅ **Follow sellers** — `POST /api/sellers/{id}/follow` toggle, `GET /follow-status`.
+- ✅ **User Notifications API** — `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`.
+
+### 🧪 Testing (Session 7)
+- 19/19 backend tests pass + frontend smoke verified. Testing agent caught and fixed the router-include order bug.
+
+
 - ✅ **Mobile MapScreen** — Leaflet map inside WebView with hologram-style price pins. Works in Expo Go without needing native rebuild. Tapping a pin navigates to ListingDetail.
 - ✅ **Mobile ReelsScreen** — TikTok-style vertical paginated feed of listings with full-screen image, price overlay, and CTA to open listing.
 - ✅ **Mobile Google Login (Emergent)** — `googleAuth.js` opens auth.emergentagent.com in `WebBrowser.openAuthSessionAsync`, extracts session_id from the deep-link callback, exchanges with `/api/auth/google`, persists JWT in AsyncStorage. Button added to both LoginScreen and RegisterScreen.
