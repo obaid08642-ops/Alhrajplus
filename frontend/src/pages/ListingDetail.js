@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw, Edit3, RefreshCw, CheckCircle2, Trash2 } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw, Edit3, RefreshCw, CheckCircle2, Trash2, Bell } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -45,6 +45,8 @@ export default function ListingDetail() {
     const [show360, setShow360] = useState(false);
     const [showPhone, setShowPhone] = useState(false);
     const [categories, setCategories] = useState([]);
+    const [following, setFollowing] = useState(false);
+    const [watching, setWatching] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -57,10 +59,35 @@ export default function ListingDetail() {
                 setListing(l.data);
                 setSimilar(s.data);
                 setCategories(c.data);
+                if (user && l.data.user_id !== user.id) {
+                    api.get(`/sellers/${l.data.user_id}/follow-status`).then(({ data }) => setFollowing(!!data.following)).catch(() => {});
+                    api.get(`/watches`).then(({ data }) => setWatching((data || []).some((w) => w.listing_id === l.data.id))).catch(() => {});
+                }
             } catch (_) { nav("/"); }
         };
         load();
-    }, [id, nav]);
+    }, [id, nav, user]);
+
+    const toggleFollow = async () => {
+        if (!user) return nav("/login");
+        try {
+            const { data } = await api.post(`/sellers/${listing.user_id}/follow`);
+            setFollowing(!!data.following);
+        } catch (_) { alert(tr("تعذر تنفيذ الإجراء")); }
+    };
+    const toggleWatch = async () => {
+        if (!user) return nav("/login");
+        try {
+            if (watching) {
+                await api.delete(`/watches/${listing.id}`);
+                setWatching(false);
+            } else {
+                await api.post(`/watches`, { listing_id: listing.id, target_price: listing.price });
+                setWatching(true);
+                alert(tr("✅ تم تفعيل تنبيه الأسعار. ستتلقى إشعاراً عند تخفيض السعر."));
+            }
+        } catch (_) { alert(tr("تعذر تنفيذ الإجراء")); }
+    };
 
     if (!listing) return <div className="p-10 text-center font-arabic">{t("loading")}</div>;
 
@@ -288,7 +315,17 @@ export default function ListingDetail() {
                                     {t("joined")} {listing.seller?.created_at ? new Date(listing.seller.created_at).toLocaleDateString("ar") : ""}
                                 </div>
                             </div>
+                            {!isOwner && user && (
+                                <button data-testid="follow-seller-btn-mobile" onClick={toggleFollow} className={`shrink-0 text-[10px] font-arabic font-bold px-3 py-1.5 rounded-full transition-all ${following ? "bg-[var(--surface-elevated)] text-[var(--text)] border border-[var(--border)]" : "bg-[var(--primary)] text-[var(--primary-fg)] hover:bg-[var(--primary-hover)]"}`}>
+                                    {following ? tr("متابَع ✓") : tr("+ متابعة")}
+                                </button>
+                            )}
                         </div>
+                        {!isOwner && user && (
+                            <button data-testid="watch-price-btn-mobile" onClick={toggleWatch} className={`w-full mb-2.5 rounded-xl py-2.5 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic transition-all ${watching ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border border-amber-300/50" : "bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 text-[var(--text)]"}`}>
+                                <Bell className="w-3.5 h-3.5" /> {watching ? tr("✓ تنبيه السعر مفعّل") : tr("نبّهني عند تخفيض السعر")}
+                            </button>
+                        )}
                         <div className="space-y-2.5">
                             {listing.show_phone !== false && listing.seller?.phone_full && (
                                 <>
@@ -336,7 +373,18 @@ export default function ListingDetail() {
                                     {t("joined")} {listing.seller?.created_at ? new Date(listing.seller.created_at).toLocaleDateString("ar") : ""}
                                 </div>
                             </div>
+                            {!isOwner && user && (
+                                <button data-testid="follow-seller-btn-desktop" onClick={toggleFollow} className={`shrink-0 text-[10px] font-arabic font-bold px-3 py-1.5 rounded-full transition-all ${following ? "bg-[var(--surface-elevated)] text-[var(--text)] border border-[var(--border)]" : "bg-[var(--primary)] text-[var(--primary-fg)] hover:bg-[var(--primary-hover)]"}`}>
+                                    {following ? tr("متابَع ✓") : tr("+ متابعة")}
+                                </button>
+                            )}
                         </div>
+
+                        {!isOwner && user && (
+                            <button data-testid="watch-price-btn-desktop" onClick={toggleWatch} className={`w-full mb-2.5 rounded-xl py-2.5 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic transition-all ${watching ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border border-amber-300/50" : "bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 text-[var(--text)]"}`}>
+                                <Bell className="w-3.5 h-3.5" /> {watching ? tr("✓ تنبيه السعر مفعّل") : tr("نبّهني عند تخفيض السعر")}
+                            </button>
+                        )}
 
                         {/* Contact actions */}
                         <div className="space-y-2.5">

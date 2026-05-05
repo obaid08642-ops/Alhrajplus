@@ -8,6 +8,8 @@ export default function ImageViewer({ images = [], initialIndex = 0, onClose }) 
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const dragRef = useRef({ active: false, sx: 0, sy: 0, ox: 0, oy: 0 });
     const swipeRef = useRef({ sx: 0, sy: 0, time: 0, started: false });
+    const pinchRef = useRef({ dist: 0, startZoom: 1 });
+    const lastTapRef = useRef(0);
 
     const next = () => setIdx((i) => (i + 1) % images.length);
     const prev = () => setIdx((i) => (i - 1 + images.length) % images.length);
@@ -47,17 +49,43 @@ export default function ImageViewer({ images = [], initialIndex = 0, onClose }) 
     };
     const onMouseUp = () => { dragRef.current.active = false; };
 
-    // ----- Touch swipe to navigate (when not zoomed) -----
+    // ----- Touch swipe + pinch + double-tap zoom -----
     const onTouchStart = (e) => {
+        // Pinch zoom: 2 fingers
+        if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            pinchRef.current = { dist: Math.hypot(dx, dy), startZoom: zoom };
+            swipeRef.current.started = false;
+            return;
+        }
         const t = e.touches[0];
+        // Double-tap detection
+        const now = Date.now();
+        if (lastTapRef.current && now - lastTapRef.current < 300) {
+            setZoom((z) => (z > 1 ? 1 : 2.5));
+            setOffset({ x: 0, y: 0 });
+            lastTapRef.current = 0;
+            swipeRef.current.started = false;
+            return;
+        }
+        lastTapRef.current = now;
         if (zoom > 1) {
-            // pan when zoomed
             dragRef.current = { active: true, sx: t.clientX, sy: t.clientY, ox: offset.x, oy: offset.y };
             return;
         }
         swipeRef.current = { sx: t.clientX, sy: t.clientY, time: Date.now(), started: true };
     };
     const onTouchMove = (e) => {
+        // Pinch-zoom move
+        if (e.touches.length === 2 && pinchRef.current.dist) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const newDist = Math.hypot(dx, dy);
+            const scale = newDist / pinchRef.current.dist;
+            setZoom(() => Math.min(Math.max(pinchRef.current.startZoom * scale, 1), 5));
+            return;
+        }
         const t = e.touches[0];
         if (zoom > 1 && dragRef.current.active) {
             setOffset({ x: dragRef.current.ox + (t.clientX - dragRef.current.sx), y: dragRef.current.oy + (t.clientY - dragRef.current.sy) });
@@ -65,6 +93,7 @@ export default function ImageViewer({ images = [], initialIndex = 0, onClose }) 
     };
     const onTouchEnd = (e) => {
         dragRef.current.active = false;
+        pinchRef.current = { dist: 0, startZoom: 1 };
         if (zoom > 1) return;
         if (!swipeRef.current.started) return;
         const t = e.changedTouches[0];

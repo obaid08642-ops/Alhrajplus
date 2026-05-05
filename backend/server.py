@@ -1630,7 +1630,41 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         text_check = f"{update_data.get('title', item['title'])} {update_data.get('description', item['description'])}"
         update_data["moderation"] = "pending" if any_banned_word(text_check) else "approved"
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    old_price = item.get("price") or 0
+    new_price = update_data.get("price", old_price)
     await db.listings.update_one({"id": listing_id}, {"$set": update_data})
+    # Price drop alert: notify watchers when price decreases by ≥1%
+    try:
+        if "price" in update_data and new_price and old_price and new_price < old_price * 0.99:
+            watchers = await db.watches.find({"listing_id": listing_id}, {"_id": 0, "user_id": 1}).to_list(length=10000)
+            now_iso = datetime.now(timezone.utc).isoformat()
+            pct = round((1 - (new_price / old_price)) * 100)
+            title = item.get("title", "إعلان")
+            for w in watchers:
+                if w["user_id"] == item["user_id"]:
+                    continue
+                await db.notifications.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "user_id": w["user_id"],
+                    "type": "price_drop",
+                    "title": f"💸 تخفيض في السعر -{pct}%",
+                    "body": f"تم تخفيض سعر «{title}» إلى {new_price:,.0f}",
+                    "data": {"listing_id": listing_id, "old_price": old_price, "new_price": new_price},
+                    "read": False,
+                    "created_at": now_iso,
+                })
+            # Push to expo if any
+            try:
+                watcher_ids = [w["user_id"] for w in watchers if w["user_id"] != item["user_id"]]
+                if watcher_ids:
+                    push_tokens = await db.push_tokens.find({"user_id": {"$in": watcher_ids}}, {"_id": 0, "expo_token": 1}).to_list(length=10000)
+                    tokens = [p["expo_token"] for p in push_tokens if p.get("expo_token")]
+                    if tokens:
+                        asyncio.create_task(expo_send_push(tokens, f"تخفيض سعر -{pct}%", f"«{title}» الآن بـ {new_price:,.0f}", {"type": "price_drop", "listing_id": listing_id}))
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(f"price-drop notify failed: {e}")
     new_item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
     return new_item
 

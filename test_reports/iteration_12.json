@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 12 — tested (1) BottomNav redesign with floating '+' Add-Listing FAB + 4 side items (Home/Reels/Chat/More), (2) ImageViewer zoom-in/zoom-out (re-enabled), (3) Follow Sellers UI + Watch Price UI on ListingDetail, (4) backend price-drop notification trigger. Backend: 8/8 pytest green covering watches CRUD, follow toggle, follow-self block, watch-own-listing block, and price-drop notification creation+exclusion of owner. Frontend: After fixing one React-key bug in BottomNav (see updated_files), all 5 testids resolve correctly (nav-home/nav-reels/nav-messages/nav-more/nav-post-fab); FAB is correctly positioned ABOVE the bottom-pill (FAB y=756, pill top=763.5, both centered at x=195) with hologram pulse rings (animate-ping + animate-pulse) and Plus icon; FAB → /post (redirects to /login when unauth, expected). On /listing/:id (note: route is singular, NOT /listings/:id) follow-seller-btn-desktop and watch-price-btn-desktop toggle correctly: '+ متابعة' ↔ 'متابَع ✓', 'نبّهني عند تخفيض السعر' ↔ '✓ تنبيه السعر مفعّل'. ImageViewer opens on main-image click; iv-zoom-in clamps at 400%, iv-zoom-out steps back (350% after one click) — verified end-to-end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BottomNav.js / SideItem", "issue": "BottomNav passed `key=\"home\"` / `key=\"reels\"` etc. as a prop to <SideItem>; React filters out `key` (it's a reserved prop), so the destructure `{ key: k }` was always undefined, producing data-testid=\"nav-undefined\" for ALL side items. Fixed in this iteration by renaming the prop to `navKey`. After fix all 4 side testids resolve.", "selector": "[data-testid=\"nav-home\"]/nav-reels/nav-messages/nav-more", "priority": "HIGH (blocked QA)"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BottomNav FAB (mobile)", "issues": ["FAB is centered at x=195 on a 390-wide viewport (correct), bottom-8px (above pill at bottom-3). 'Made with Emergent' badge at bottom-right still overlaps the pill's right edge slightly on tiny viewports — known preview-host overlay only, no app fix needed."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter12_features.py",
+    "/app/test_reports/pytest/iter12_results.xml"
+  ],
+  "action_items": [
+    "VERIFIED FIX (already applied by testing agent): Renamed `key` prop to `navKey` in /app/frontend/src/components/layout/BottomNav.js so SideItem testids actually render. Main agent should keep this fix.",
+    "(Note for main agent) Listing-detail route is `/listing/:id` (singular) in App.js but the review request listed `/listings/{id}`. UI links use the correct singular form — no action needed, just a docs sync."
+  ],
+  "critical_code_review_comments": [
+    "BottomNav.js: previously used `key` as both a React reserved prop AND a destructured value — React strips `key` so child never received it. Standard footgun; fix is to use any other name (navKey).",
+    "BottomNav FAB markup is solid — uses absolute pulse rings (.animate-ping + .animate-pulse), conic-gradient rotating border via inline style, baby-blue gradient (#4FB6E6 → #3AA9DD), correct fixed bottom-8 left-1/2 -translate-x-1/2 z-[51] which sits above the pill at bottom-3 z-50. Visually a clean floating hologram.",
+    "ImageViewer.js: pinch + double-tap + drag logic is well-isolated via refs. setZoom uses functional updater for pinch path. Clamp [1,5] for pinch and [1,4] for buttons — minor inconsistency but acceptable.",
+    "Backend update_listing price-drop trigger correctly excludes the listing owner from notifications, computes pct as round((1 - new/old) * 100), stores typed payload, and dispatches expo push asynchronously with try/except wrapped — robust.",
+    "POST /watches uses upsert keyed on (user_id, listing_id) — idempotent, good. DELETE /watches/{listing_id} returns success even if doc didn't exist — also fine.",
+    "Follow toggle endpoint POST /sellers/{id}/follow is idempotent toggle (insert if absent, delete if present) and rejects self-follow with 400."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/layout/BottomNav.js (renamed prop `key` → `navKey` on SideItem to fix lost testids)",
+    "/app/backend/tests/test_iter12_features.py (new pytest file)"
+  ],
+  "success_rate": {"backend": "100% (8/8 pytest green)", "frontend": "100% on all requested flows after the BottomNav key→navKey fix"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 — confirmed working. Watcher user is registered fresh per test run with email TEST_iter12_watcher_<hex>@example.com and SA phone format (9 digits starting with '5', no +966 prefix per backend PHONE_RULES).",
+  "seed_data_creation": "test_iter12_features.py creates one TEST_iter12_watcher_* user, one TEST_iter12_listing_* listing (owned by admin), and registers/unregisters watch+follow records. The listing is auto-deleted in fixture teardown. Generated price_drop notifications remain in db.notifications for the watcher user (low-volume test data). One non-admin watcher user remains in db.users per run — main agent may periodically clean with db.users.delete_many({email: /^TEST_iter12_/}).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with: `REACT_APP_BACKEND_URL=https://platform-inspect.preview.emergentagent.com pytest /app/backend/tests/test_iter12_features.py -v`. Note: REACT_APP_BACKEND_URL is in /app/frontend/.env, you may need to export it before pytest. Listing detail UI route is /listing/:id (singular). BottomNav SideItem prop is now `navKey` (not `key`). Login uses [data-testid=\"login-submit\"] OR Enter key. ImageViewer testids: image-viewer-overlay, iv-close, iv-zoom-in, iv-zoom-out, iv-prev, iv-next, iv-thumb-{i}. ListingDetail testids: follow-seller-btn-{mobile|desktop}, watch-price-btn-{mobile|desktop}.",
+  "rca_of_the_issue": "BottomNav data-testid bug RCA: The `SideItem` component was rendered with attribute `key=\"home\"` etc. In React, `key` is a reserved special prop used by the reconciler and is NEVER forwarded to the function/class component as a regular prop — so destructuring `{ key: k }` always yields `undefined`. Symptom: React DevTools shows the SideItem component but its rendered Link gets `data-testid=\"nav-undefined\"` for all 4 side items, breaking automated tests. Reproduction: load any page → query `[data-testid=\"nav-home\"]` → null. Mitigation applied: rename the prop to `navKey` (or any non-reserved name like `id`, `slug`). Verified post-fix: all 4 testids resolve (`/`, `/reels`, `/chat`, `/profile`)."
+}

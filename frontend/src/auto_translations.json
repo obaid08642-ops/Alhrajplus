@@ -3869,5 +3869,256 @@
     "hi": "सभी साफ करें",
     "bn": "সব পরিষ্কার করুন",
     "fr": "Effacer tout"
+  },
+  "ℹ️ نظام العمولات والمحافظ سيُفعّل بعد ربط بوابة الدفع (Stripe). حالياً جميع المعاملات بين البائع والمشتري مباشرة وبدون رسوم.": {
+    "en": "ℹ️ The commissions and wallets system will be activated after connecting the payment gateway (Stripe). Currently, all transactions between seller and buyer are direct and without fees.",
+    "ur": "ℹ️ کمیشن اور وائلٹ سسٹم ادائیگی کے گیٹ وے (Stripe) کے منسلک ہونے کے بعد فعال ہو جائے گا۔ فی الحال، بیچنے والے اور خریدار کے درمیان تمام لین دین براہ راست اور بغیر کسی فیس کے ہیں۔",
+    "hi": "ℹ️ कमीशन और वॉलेट सिस्टम पेमेंट गेटवे (Stripe) को जोड़ने के बाद सक्रिय हो जाएगा। वर्तमान में विक्रेता और खरीदार के बीच सभी लेनदेन सीधे और बिना शुल्क के होते हैं।",
+    "bn": "ℹ️ কমিশন এবং ওয়ালেট সিস্টেম পেমেন্ট গেটওয়ে (Stripe) সংযোগ করার পর সক্রিয় হবে। বর্তমানে বিক্রেতা এবং ক্রেতার মধ্যে সমস্ত লেনদেন সরাসরি এবং কোনো ফি ছাড়া।",
+    "fr": "ℹ️ Le système de commissions et de portefeuilles sera activé après la connexion de la passerelle de paiement (Stripe). Actuellement, toutes les transactions entre vendeur et acheteur sont directes et sans frais."
+  },
+  "✨ تم تعبئة الإعلان بالذكاء الاصطناعي! راجع التفاصيل وعدّل ما تشاء.": {
+    "en": "✨ The ad has been filled using AI! Review the details and modify as you wish.",
+    "ur": "✨ اشتہار مصنوعی ذہانت کے ذریعے پُر کر دیا گیا ہے! تفصیلات کا جائزہ لیں اور اپنی مرضی کے مطابق ترمیم کریں۔",
+    "hi": "✨ विज्ञापन AI द्वारा भरा गया है! विवरणों की समीक्षा करें और अपनी इच्छानुसार बदलाव करें।",
+    "bn": "✨ বিজ্ঞাপনটি কৃত্রিম বুদ্ধিমত্তা দ্বারা পূরণ করা হয়েছে! বিস্তারিত পর্যালোচনা করুন এবং আপনার ইচ্ছামতো পরিবর্তন করুন।",
+    "fr": "✨ L'annonce a été remplie par l'intelligence artificielle ! Révisez les détails et modifiez ce que vous voulez."
+  },
+  "✅ تم تفعيل تنبيه الأسعار. ستتلقى إشعاراً عند تخفيض السعر.": {
+    "en": "✅ Price alert activated. You will receive a notification when the price is reduced.",
+    "ur": "✅ قیمت کا انتباہ فعال کر دیا گیا ہے۔ قیمت کم ہونے پر آپ کو اطلاع موصول ہوگی۔",
+    "hi": "✅ मूल्य अलर्ट सक्रिय हो गया है। आपको कीमत कम होने पर सूचना मिलेगी।",
+    "bn": "✅ মূল্য সতর্কতা সক্রিয় করা হয়েছে। মূল্য হ্রাস পেলে আপনি একটি বিজ্ঞপ্তি পাবেন।",
+    "fr": "✅ L'alerte de prix a été activée. Vous recevrez une notification lorsque le prix sera réduit."
+  },
+  "ارفع صورة المنتج وسنُعبّئ العنوان والوصف والسعر تلقائياً": {
+    "en": "Upload product image and we will automatically fill the title, description, and price.",
+    "ur": "پروڈکٹ کی تصویر اپ لوڈ کریں اور ہم عنوان، تفصیل اور قیمت خود بخود پُر کر دیں گے۔",
+    "hi": "उत्पाद की छवि अपलोड करें और हम शीर्षक, विवरण और कीमत स्वचालित रूप से भर देंगे।",
+    "bn": "পণ্যের ছবি আপলোড করুন এবং আমরা স্বয়ংক্রিয়ভাবে শিরোনাম, বিবরণ এবং মূল্য পূরণ করব।",
+    "fr": "Téléchargez l'image du produit et nous remplirons automatiquement le titre, la description et le prix."
+  },
+  "ستظهر هنا عند تفعيل المعاملات والبائعين الموثقين.": {
+    "en": "Will appear here when transactions and verified sellers are activated.",
+    "ur": "یہاں ظاہر ہوں گے جب لین دین اور تصدیق شدہ بیچنے والے فعال ہو جائیں گے۔",
+    "hi": "यह यहाँ तब दिखाई देगा जब लेनदेन और सत्यापित विक्रेता सक्रिय हो जाएँगे।",
+    "bn": "লেনদেন এবং যাচাইকৃত বিক্রেতারা সক্রিয় হলে এখানে প্রদর্শিত হবে।",
+    "fr": "S'affichera ici lorsque les transactions et les vendeurs vérifiés seront activés."
+  },
+  "فشل تحليل الصورة بالذكاء الاصطناعي": {
+    "en": "AI image analysis failed.",
+    "ur": "مصنوعی ذہانت کے ذریعے تصویر کا تجزیہ ناکام ہو گیا۔",
+    "hi": "AI द्वारा छवि विश्लेषण विफल रहा।",
+    "bn": "কৃত্রিম বুদ্ধিমত্তা দ্বারা ছবি বিশ্লেষণ ব্যর্থ হয়েছে।",
+    "fr": "Échec de l'analyse d'image par l'intelligence artificielle."
+  },
+  "حراج, بيع, شراء, السعودية, الخليج": {
+    "en": "Haraj, sell, buy, Saudi Arabia, Gulf",
+    "ur": "حراج, فروخت, خرید, سعودی عرب, خلیج",
+    "hi": "हरज, बेचना, खरीदना, सऊदी अरब, खाड़ी",
+    "bn": "হারাগ, বিক্রি, কেনা, সৌদি আরব, উপসাগর",
+    "fr": "Haraj, vente, achat, Arabie Saoudite, Golfe"
+  },
+  "أكبر سوق رقمي للخليج العربي": {
+    "en": "The largest digital marketplace for the Arabian Gulf",
+    "ur": "خلیج عرب کی سب سے بڑی ڈیجیٹل مارکیٹ",
+    "hi": "अरब खाड़ी का सबसे बड़ा डिजिटल बाज़ार",
+    "bn": "আরব উপসাগরের জন্য বৃহত্তম ডিজিটাল বাজার",
+    "fr": "Le plus grand marché numérique du Golfe Arabique."
+  },
+  "إعدادات SEO ومحركات البحث": {
+    "en": "SEO and Search Engine Settings",
+    "ur": "SEO کی ترتیبات اور سرچ انجن",
+    "hi": "SEO और सर्च इंजन सेटिंग्स",
+    "bn": "SEO এবং সার্চ ইঞ্জিন সেটিংস",
+    "fr": "Paramètres SEO et moteurs de recherche."
+  },
+  "الحراج بلس | بيع و اشتري": {
+    "en": "Haraj Plus | Buy & Sell",
+    "ur": "الحراج پلس | بیچیں اور خریدیں۔",
+    "hi": "हरज प्लस | बेचें और खरीदें",
+    "bn": "আল-হারাগ প্লাস | বিক্রি করুন ও কিনুন",
+    "fr": "Haraj Plus | Vendez et achetez"
+  },
+  "الوصف (Meta Description)": {
+    "en": "Description (Meta Description)",
+    "ur": "تفصیل (میٹا تفصیل)",
+    "hi": "विवरण (मेटा विवरण)",
+    "bn": "বর্ণনা (মেটা বিবরণ)",
+    "fr": "Description (Meta Description)"
+  },
+  "نبّهني عند تخفيض السعر": {
+    "en": "Notify me when the price is reduced",
+    "ur": "مجھے مطلع کریں جب قیمت کم ہو جائے۔",
+    "hi": "कीमत कम होने पर मुझे सूचित करें",
+    "bn": "মূল্য হ্রাস পেলে আমাকে সতর্ক করুন",
+    "fr": "Prévenez-moi en cas de réduction du prix."
+  },
+  "بِع بالذكاء الاصطناعي": {
+    "en": "Sell with AI",
+    "ur": "مصنوعی ذہانت کے ساتھ بیچیں۔",
+    "hi": "AI के साथ बेचें",
+    "bn": "কৃত্রিম বুদ্ধিমত্তা দিয়ে বিক্রি করুন",
+    "fr": "Vendez avec l'intelligence artificielle."
+  },
+  "📍 مشاركة الموقع\\\\n\\\\n": {
+    "en": "📍 Share Location\\\\n\\\\n",
+    "ur": "📍 مقام کا اشتراک\\\\n\\\\n",
+    "hi": "📍 स्थान साझा करें\\\\n\\\\n",
+    "bn": "📍 অবস্থান শেয়ার করুন\\n\\n"
+  },
+  "جارٍ تحليل الصورة...": {
+    "en": "Analyzing image...",
+    "ur": "تصویر کا تجزیہ ہو رہا ہے...",
+    "hi": "छवि का विश्लेषण हो रहा है...",
+    "bn": "ছবি বিশ্লেষণ করা হচ্ছে...",
+    "fr": "Analyse de l'image en cours..."
+  },
+  "عنوان الموقع (Title)": {
+    "en": "Site Title (Title)",
+    "ur": "سائٹ کا عنوان (عنوان)",
+    "hi": "साइट शीर्षक (शीर्षक)",
+    "bn": "সাইটের শিরোনাম (শিরোনাম)",
+    "fr": "Titre du site (Title)"
+  },
+  "✅ تم حفظ إعدادات SEO": {
+    "en": "✅ SEO settings saved",
+    "ur": "✅ SEO کی ترتیبات محفوظ ہو گئی ہیں۔",
+    "hi": "✅ SEO सेटिंग्स सहेज ली गई हैं",
+    "bn": "✅ SEO সেটিংস সংরক্ষণ করা হয়েছে",
+    "fr": "✅ Paramètres SEO enregistrés."
+  },
+  "✓ تنبيه السعر مفعّل": {
+    "en": "✓ Price alert active",
+    "ur": "✓ قیمت کا انتباہ فعال ہے۔",
+    "hi": "✓ मूल्य अलर्ट सक्रिय है",
+    "bn": "✓ মূল্য সতর্কতা সক্রিয়",
+    "fr": "✓ Alerte de prix activée."
+  },
+  "تعذر تنفيذ الإجراء": {
+    "en": "Could not complete action",
+    "ur": "کارروائی مکمل نہیں ہو سکی۔",
+    "hi": "कार्य निष्पादित नहीं किया जा सका",
+    "bn": "ক্রিয়াটি সম্পাদন করা যায়নি",
+    "fr": "Impossible d'effectuer l'action."
+  },
+  "الكلمات المفتاحية": {
+    "en": "Keywords",
+    "ur": "کلیدی الفاظ",
+    "hi": "कीवर्ड",
+    "bn": "কীওয়ার্ড",
+    "fr": "Mots-clés"
+  },
+  "معاملات هذا الشهر": {
+    "en": "This month's transactions",
+    "ur": "اس مہینے کے لین دین",
+    "hi": "इस महीने के लेनदेन",
+    "bn": "এই মাসের লেনদেন",
+    "fr": "Transactions de ce mois."
+  },
+  "محافظ المستخدمين": {
+    "en": "User Wallets",
+    "ur": "صارفین کے وائلٹس",
+    "hi": "उपयोगकर्ता वॉलेट",
+    "bn": "ব্যবহারকারীর ওয়ালেট",
+    "fr": "Portefeuilles des utilisateurs."
+  },
+  "إجمالي العمولات": {
+    "en": "Total Commissions",
+    "ur": "کل کمیشن",
+    "hi": "कुल कमीशन",
+    "bn": "মোট কমিশন",
+    "fr": "Total des commissions."
+  },
+  "عرض sitemap.xml": {
+    "en": "View sitemap.xml",
+    "ur": "sitemap.xml دیکھیں",
+    "hi": "sitemap.xml देखें",
+    "bn": "sitemap.xml দেখুন",
+    "fr": "Afficher sitemap.xml"
+  },
+  "صورة OpenGraph": {
+    "en": "OpenGraph Image",
+    "ur": "اوپن گراف تصویر",
+    "hi": "ओपनग्राफ छवि",
+    "bn": "ওপেনগ্রাফ ছবি",
+    "fr": "Image OpenGraph"
+  },
+  "أعلى البائعين": {
+    "en": "Top Sellers",
+    "ur": "اعلیٰ بیچنے والے",
+    "hi": "शीर्ष विक्रेता",
+    "bn": "শীর্ষ বিক্রেতা",
+    "fr": "Meilleurs vendeurs"
+  },
+  "حفظ الإعدادات": {
+    "en": "Save Settings",
+    "ur": "ترتیبات محفوظ کریں",
+    "hi": "सेटिंग्स सहेजें",
+    "bn": "সেটিংস সংরক্ষণ করুন",
+    "fr": "Enregistrer les paramètres"
+  },
+  "سحوبات معلقة": {
+    "en": "Pending Withdrawals",
+    "ur": "زیر التواء نکاسی",
+    "hi": "लंबित निकासी",
+    "bn": "অপেক্ষমান উত্তোলন",
+    "fr": "Retraits en attente"
+  },
+  "ملخص المالية": {
+    "en": "Financial Summary",
+    "ur": "مالی خلاصہ",
+    "hi": "वित्तीय सारांश",
+    "bn": "আর্থিক সারাংশ",
+    "fr": "Résumé financier"
+  },
+  "نشر إعلان": {
+    "en": "Post Ad",
+    "ur": "اشتہار شائع کریں",
+    "hi": "विज्ञापन पोस्ट करें",
+    "bn": "বিজ্ঞাপন পোস্ট করুন",
+    "fr": "Publier une annonce"
+  },
+  "+ متابعة": {
+    "en": "+ Follow",
+    "ur": "+ فالو کریں",
+    "hi": "+ फ़ॉलो करें",
+    "bn": "+ অনুসরণ করুন",
+    "fr": "+ Suivre"
+  },
+  "متابَع ✓": {
+    "en": "Following ✓",
+    "ur": "فالو شدہ ✓",
+    "hi": "फ़ॉलो किया गया ✓",
+    "bn": "অনুসৃত ✓",
+    "fr": "Suivi ✓"
+  },
+  "المالية": {
+    "en": "Finance",
+    "ur": "مالیات",
+    "hi": "वित्तीय",
+    "bn": "আর্থিক",
+    "fr": "Finances"
+  },
+  "المزيد": {
+    "en": "More",
+    "ur": "مزید",
+    "hi": "अधिक",
+    "bn": "আরও",
+    "fr": "Plus"
+  },
+  "حفظ...": {
+    "en": "Save...",
+    "ur": "محفوظ کریں...",
+    "hi": "सहेजें...",
+    "bn": "সংরক্ষণ করুন...",
+    "fr": "Enregistrer..."
+  },
+  "ستوري": {
+    "en": "Story",
+    "ur": "سٹوری",
+    "hi": "स्टोरी",
+    "bn": "স্টোরি",
+    "fr": "Story"
   }
 }
