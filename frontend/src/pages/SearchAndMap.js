@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import ListingCard from "@/components/listings/ListingCard";
 import { Search as SearchIcon, Mic } from "lucide-react";
 
@@ -52,7 +52,7 @@ function buildMyLocationIcon() {
 export function SearchPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
-    const { t } = useI18n();
+    const { t, tr } = useI18n();
     const [q, setQ] = useState(searchParams.get("q") || "");
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ export function SearchPage() {
     const startVoice = () => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
-            alert("المتصفح لا يدعم البحث الصوتي");
+            alert(tr("المتصفح لا يدعم البحث الصوتي"));
             return;
         }
         const r = new SR();
@@ -133,17 +133,17 @@ export function MapPage() {
     }, [user]);
 
     const locate = () => {
-        if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+        if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }
         navigator.geolocation.getCurrentPosition(
             (pos) => setMyPos([pos.coords.latitude, pos.coords.longitude]),
-            () => alert("تعذر الوصول للموقع")
+            () => alert(tr("تعذر الوصول للموقع"))
         );
     };
 
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24">
             <div className="flex items-center justify-between mb-3">
-                <h1 className="font-arabic font-black text-xl sm:text-2xl text-[var(--text)]">الإعلانات على الخريطة</h1>
+                <h1 className="font-arabic font-black text-xl sm:text-2xl text-[var(--text)]">{tr("الإعلانات على الخريطة")}</h1>
                 <button data-testid="map-locate-btn" onClick={locate} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-4 py-2 font-bold text-xs flex items-center gap-1.5 font-arabic">
                     📍 موقعي الحالي
                 </button>
@@ -151,14 +151,14 @@ export function MapPage() {
             <div className="h-[70vh] rounded-3xl overflow-hidden border border-[var(--border)]">
                 <MapContainer center={myPos || (items[0] ? [items[0].lat, items[0].lng] : center)} zoom={myPos ? 13 : (items.length ? 10 : 6)} className="w-full h-full" key={myPos ? myPos.join(",") : "default"}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-                    {myPos && <Marker position={myPos} icon={buildMyLocationIcon()}><Popup>موقعك الحالي</Popup></Marker>}
+                    {myPos && <Marker position={myPos} icon={buildMyLocationIcon()}><Popup>{tr("موقعك الحالي")}</Popup></Marker>}
                     {items.map((it) => (
                         <Marker key={it.id} position={[it.lat, it.lng]} icon={buildHologramIcon({ price: it.price, currency: it.currency })}>
                             <Popup>
                                 <div className="font-arabic">
                                     <div className="font-bold text-sm">{it.title}</div>
                                     {it.price && <div className="text-[var(--primary)] font-bold">{Number(it.price).toLocaleString()} {it.currency}</div>}
-                                    <Link to={`/listing/${it.id}`} className="text-xs text-[var(--primary)] underline">عرض الإعلان</Link>
+                                    <Link to={`/listing/${it.id}`} className="text-xs text-[var(--primary)] underline">{tr("عرض الإعلان")}</Link>
                                 </div>
                             </Popup>
                         </Marker>

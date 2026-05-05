@@ -3,6 +3,7 @@ import { Heart, MapPin, TrendingUp, Star, Sparkles, Crown } from "lucide-react";
 import { useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { tr } from "@/contexts/I18nContext";
 
 export default function ListingCard({ listing, compact = true }) {
     const { user } = useAuth();
@@ -30,7 +31,7 @@ export default function ListingCard({ listing, compact = true }) {
                 {listing.images?.[0] ? (
                     <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
-                    <div className="w-full h-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">لا توجد صورة</div>
+                    <div className="w-full h-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">{tr("لا توجد صورة")}</div>
                 )}
                 <button onClick={toggleFav} data-testid={`fav-btn-${listing.id}`} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/85 hover:bg-white flex items-center justify-center shadow-md backdrop-blur">
                     <Heart className={`w-3.5 h-3.5 ${fav ? "fill-red-500 text-red-500" : "text-[var(--secondary)]"}`} />
@@ -56,7 +57,7 @@ export default function ListingCard({ listing, compact = true }) {
                                 <span className="text-[10px] text-[var(--text-muted)] font-arabic-body">{listing.currency || "ر.س"}</span>
                             </>
                         ) : (
-                            <span className="text-xs text-[var(--text-muted)] font-arabic">على السوم</span>
+                            <span className="text-xs text-[var(--text-muted)] font-arabic">{tr("على السوم")}</span>
                         )}
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] font-arabic-body">

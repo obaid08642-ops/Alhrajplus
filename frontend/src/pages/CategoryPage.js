@@ -4,14 +4,14 @@ import api from "@/lib/api";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import { Filter, ChevronLeft } from "lucide-react";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function CategoryPage() {
     const { categoryKey } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
-    const { t, pickName } = useI18n();
+    const { t, pickName, tr } = useI18n();
     const [category, setCategory] = useState(null);
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -76,7 +76,7 @@ export default function CategoryPage() {
 
             {/* Subcategories chips */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-2">
-                <button data-testid="sub-all" onClick={() => updateFilter("subcategory", "")} className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-arabic font-bold border ${!filters.subcategory ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>الكل</button>
+                <button data-testid="sub-all" onClick={() => updateFilter("subcategory", "")} className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-arabic font-bold border ${!filters.subcategory ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>{tr("الكل")}</button>
                 {category.subcategories?.map((s) => (
                     <button key={s.key} data-testid={`sub-${s.key}`} onClick={() => updateFilter("subcategory", s.key)} className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-arabic font-bold border ${filters.subcategory === s.key ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>
                         {pickName(s)}
@@ -86,14 +86,14 @@ export default function CategoryPage() {
 
             {showFilters && (
                 <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 font-arabic-body">
-                    <input data-testid="filter-min-price" type="number" placeholder="السعر من" value={filters.min_price} onChange={(e) => updateFilter("min_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
-                    <input data-testid="filter-max-price" type="number" placeholder="السعر إلى" value={filters.max_price} onChange={(e) => updateFilter("max_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
-                    <input data-testid="filter-city" type="text" placeholder="المدينة" value={filters.city} onChange={(e) => updateFilter("city", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+                    <input data-testid="filter-min-price" type="number" placeholder={tr("السعر من")} value={filters.min_price} onChange={(e) => updateFilter("min_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+                    <input data-testid="filter-max-price" type="number" placeholder={tr("السعر إلى")} value={filters.max_price} onChange={(e) => updateFilter("max_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+                    <input data-testid="filter-city" type="text" placeholder={tr("المدينة")} value={filters.city} onChange={(e) => updateFilter("city", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
                     <select data-testid="filter-sort" value={filters.sort} onChange={(e) => updateFilter("sort", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none">
-                        <option value="newest">الأحدث</option>
-                        <option value="price_asc">السعر: من الأقل</option>
-                        <option value="price_desc">السعر: من الأعلى</option>
-                        <option value="popular">الأكثر مشاهدة</option>
+                        <option value="newest">{tr("الأحدث")}</option>
+                        <option value="price_asc">{tr("السعر: من الأقل")}</option>
+                        <option value="price_desc">{tr("السعر: من الأعلى")}</option>
+                        <option value="popular">{tr("الأكثر مشاهدة")}</option>
                     </select>
                 </div>
             )}
@@ -104,7 +104,7 @@ export default function CategoryPage() {
                 </div>
             ) : listings.length === 0 ? (
                 <div className="bg-[var(--surface)] rounded-2xl p-10 text-center border border-[var(--border)]">
-                    <p className="text-[var(--text-muted)] font-arabic-body">لا توجد إعلانات في هذه الفئة بعد</p>
+                    <p className="text-[var(--text-muted)] font-arabic-body">{tr("لا توجد إعلانات في هذه الفئة بعد")}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { tr } from "@/contexts/I18nContext";
 
 export default function ReelsPage() {
     const nav = useNavigate();
@@ -53,7 +54,7 @@ export default function ReelsPage() {
                 await navigator.share({ title: l.title, text: `${l.title} - الحراج بلس`, url });
             } else {
                 await navigator.clipboard.writeText(url);
-                alert("✅ تم نسخ رابط الإعلان");
+                alert(tr("✅ تم نسخ رابط الإعلان"));
             }
         } catch (_) {}
     };
@@ -62,9 +63,9 @@ export default function ReelsPage() {
         <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center max-w-md px-4">
                 <div className="text-6xl mb-3">🎬</div>
-                <h2 className="font-arabic font-black text-2xl text-[var(--text)] mb-2">القصص قريباً</h2>
-                <p className="text-sm text-[var(--text-muted)] font-arabic-body mb-4">لا توجد فيديوهات بعد. كن أول من يرفع فيديو لمنتجاته!</p>
-                <Link to="/post" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-arabic font-bold text-sm">أنشر إعلان بفيديو</Link>
+                <h2 className="font-arabic font-black text-2xl text-[var(--text)] mb-2">{tr("القصص قريباً")}</h2>
+                <p className="text-sm text-[var(--text-muted)] font-arabic-body mb-4">{tr("لا توجد فيديوهات بعد. كن أول من يرفع فيديو لمنتجاته!")}</p>
+                <Link to="/post" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-arabic font-bold text-sm">{tr("أنشر إعلان بفيديو")}</Link>
             </div>
         </div>
     );
@@ -85,9 +86,9 @@ export default function ReelsPage() {
                         </div>
                         {/* Right action bar */}
                         <div className="absolute end-3 bottom-32 flex flex-col gap-4 text-white">
-                            <button data-testid={`reel-fav-${l.id}`} onClick={() => toggleFav(l)} className="flex flex-col items-center gap-1"><div className={`w-11 h-11 rounded-full backdrop-blur flex items-center justify-center ${favs[l.id] ? "bg-red-500" : "bg-white/15"}`}><Heart className={`w-5 h-5 ${favs[l.id] ? "fill-white" : ""}`} /></div><span className="text-[10px]">مفضلة</span></button>
-                            <button data-testid={`reel-msg-${l.id}`} onClick={() => messageSeller(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><MessageCircle className="w-5 h-5" /></div><span className="text-[10px]">رسالة</span></button>
-                            <button data-testid={`reel-share-${l.id}`} onClick={() => shareReel(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Share2 className="w-5 h-5" /></div><span className="text-[10px]">شارك</span></button>
+                            <button data-testid={`reel-fav-${l.id}`} onClick={() => toggleFav(l)} className="flex flex-col items-center gap-1"><div className={`w-11 h-11 rounded-full backdrop-blur flex items-center justify-center ${favs[l.id] ? "bg-red-500" : "bg-white/15"}`}><Heart className={`w-5 h-5 ${favs[l.id] ? "fill-white" : ""}`} /></div><span className="text-[10px]">{tr("مفضلة")}</span></button>
+                            <button data-testid={`reel-msg-${l.id}`} onClick={() => messageSeller(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><MessageCircle className="w-5 h-5" /></div><span className="text-[10px]">{tr("رسالة")}</span></button>
+                            <button data-testid={`reel-share-${l.id}`} onClick={() => shareReel(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Share2 className="w-5 h-5" /></div><span className="text-[10px]">{tr("شارك")}</span></button>
                             <button onClick={() => setMuted(!muted)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center">{muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</div></button>
                         </div>
                     </div>

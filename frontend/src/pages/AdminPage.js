@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles } from "lucide-react";
+import { tr } from "@/contexts/I18nContext";
 
 export default function AdminPage() {
     const { user, loading } = useAuth();
@@ -13,7 +14,7 @@ export default function AdminPage() {
         if (!loading && (!user || user.role !== "admin")) nav("/");
     }, [user, loading, nav]);
 
-    if (loading || !user) return <div className="p-10 text-center font-arabic">جاري التحميل...</div>;
+    if (loading || !user) return <div className="p-10 text-center font-arabic">{tr("جاري التحميل...")}</div>;
     if (user.role !== "admin") return null;
 
     const tabs = [
@@ -31,7 +32,7 @@ export default function AdminPage() {
             <h1 className="font-arabic font-black text-2xl sm:text-3xl text-[var(--text)] mb-1 flex items-center gap-2">
                 <Shield className="w-6 h-6 text-[var(--accent)]" /> لوحة الإدارة
             </h1>
-            <p className="text-sm text-[var(--text-muted)] font-arabic-body mb-5">إدارة كاملة لمنصة الحراج بلس</p>
+            <p className="text-sm text-[var(--text-muted)] font-arabic-body mb-5">{tr("إدارة كاملة لمنصة الحراج بلس")}</p>
 
             <div className="flex gap-2 overflow-x-auto no-scrollbar mb-5 pb-2">
                 {tabs.map((tb) => (
@@ -55,7 +56,7 @@ export default function AdminPage() {
 function StatsPanel() {
     const [stats, setStats] = useState(null);
     useEffect(() => { api.get("/admin/stats").then(({ data }) => setStats(data)); }, []);
-    if (!stats) return <div className="p-6 text-center font-arabic">تحميل...</div>;
+    if (!stats) return <div className="p-6 text-center font-arabic">{tr("تحميل...")}</div>;
     const items = [
         { label: "إجمالي المستخدمين", value: stats.users },
         { label: "مستخدمون جدد (24س)", value: stats.new_users_24h },
@@ -84,7 +85,7 @@ function ModerationPanel() {
     useEffect(() => { reload(); }, []);
     const approve = async (id) => { await api.post(`/admin/listings/${id}/approve`); reload(); };
     const reject = async (id) => { await api.post(`/admin/listings/${id}/reject`); reload(); };
-    if (items.length === 0) return <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)] text-[var(--text-muted)] font-arabic-body">لا توجد إعلانات بانتظار المراجعة ✅</div>;
+    if (items.length === 0) return <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)] text-[var(--text-muted)] font-arabic-body">{tr("لا توجد إعلانات بانتظار المراجعة ✅")}</div>;
     return (
         <div className="space-y-3">
             {items.map((l) => (
@@ -95,8 +96,8 @@ function ModerationPanel() {
                         <p className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-2">{l.description}</p>
                     </div>
                     <div className="flex gap-2">
-                        <button data-testid={`approve-${l.id}`} onClick={() => approve(l.id)} className="bg-[var(--success)] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1"><Check className="w-3 h-3" /> موافقة</button>
-                        <button data-testid={`reject-${l.id}`} onClick={() => reject(l.id)} className="bg-[var(--danger)] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1"><X className="w-3 h-3" /> رفض</button>
+                        <button data-testid={`approve-${l.id}`} onClick={() => approve(l.id)} className="bg-[var(--success)] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1"><Check className="w-3 h-3" />{tr(" موافقة")}</button>
+                        <button data-testid={`reject-${l.id}`} onClick={() => reject(l.id)} className="bg-[var(--danger)] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1"><X className="w-3 h-3" />{tr(" رفض")}</button>
                     </div>
                 </div>
             ))}
@@ -113,11 +114,11 @@ function UsersPanel() {
             <table className="w-full text-sm font-arabic-body">
                 <thead className="bg-[var(--surface-elevated)]">
                     <tr>
-                        <th className="text-start p-3 font-arabic">الاسم</th>
-                        <th className="text-start p-3 font-arabic hidden sm:table-cell">البريد</th>
-                        <th className="text-start p-3 font-arabic">الدولة</th>
-                        <th className="text-start p-3 font-arabic">الحالة</th>
-                        <th className="text-start p-3 font-arabic">إجراءات</th>
+                        <th className="text-start p-3 font-arabic">{tr("الاسم")}</th>
+                        <th className="text-start p-3 font-arabic hidden sm:table-cell">{tr("البريد")}</th>
+                        <th className="text-start p-3 font-arabic">{tr("الدولة")}</th>
+                        <th className="text-start p-3 font-arabic">{tr("الحالة")}</th>
+                        <th className="text-start p-3 font-arabic">{tr("إجراءات")}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -127,14 +128,14 @@ function UsersPanel() {
                             <td className="p-3 text-[var(--text-muted)] hidden sm:table-cell text-xs">{u.email}</td>
                             <td className="p-3 text-[var(--text-muted)]">{u.country_code}</td>
                             <td className="p-3">
-                                {u.banned ? <span className="text-red-500 font-bold">محظور</span> : u.verified ? <span className="text-[var(--success)] font-bold">موثّق</span> : <span className="text-[var(--text-muted)]">عادي</span>}
+                                {u.banned ? <span className="text-red-500 font-bold">{tr("محظور")}</span> : u.verified ? <span className="text-[var(--success)] font-bold">{tr("موثّق")}</span> : <span className="text-[var(--text-muted)]">{tr("عادي")}</span>}
                             </td>
                             <td className="p-3 flex gap-1">
-                                {!u.verified && <button onClick={async () => { await api.post(`/admin/users/${u.id}/verify`); reload(); }} className="bg-[var(--primary)]/15 text-[var(--primary)] px-2 py-1 rounded-full text-xs font-bold">توثيق</button>}
+                                {!u.verified && <button onClick={async () => { await api.post(`/admin/users/${u.id}/verify`); reload(); }} className="bg-[var(--primary)]/15 text-[var(--primary)] px-2 py-1 rounded-full text-xs font-bold">{tr("توثيق")}</button>}
                                 {u.banned ? (
-                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/unban`); reload(); }} className="bg-[var(--success)]/15 text-[var(--success)] px-2 py-1 rounded-full text-xs font-bold">إلغاء حظر</button>
+                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/unban`); reload(); }} className="bg-[var(--success)]/15 text-[var(--success)] px-2 py-1 rounded-full text-xs font-bold">{tr("إلغاء حظر")}</button>
                                 ) : (
-                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/ban`); reload(); }} className="bg-red-500/15 text-red-500 px-2 py-1 rounded-full text-xs font-bold">حظر</button>
+                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/ban`); reload(); }} className="bg-red-500/15 text-red-500 px-2 py-1 rounded-full text-xs font-bold">{tr("حظر")}</button>
                                 )}
                             </td>
                         </tr>
@@ -152,7 +153,7 @@ function ReportsPanel() {
     useEffect(() => { reload(); }, []);
     return (
         <div className="space-y-2">
-            {reports.length === 0 && <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)] text-[var(--text-muted)] font-arabic-body">لا توجد بلاغات</div>}
+            {reports.length === 0 && <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)] text-[var(--text-muted)] font-arabic-body">{tr("لا توجد بلاغات")}</div>}
             {reports.map((r) => {
                 const isOpen = expanded === r.id;
                 return (
@@ -170,14 +171,14 @@ function ReportsPanel() {
                             </div>
                             <span className={`text-xs font-bold ${r.status === "open" ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>{r.status === "open" ? "مفتوح" : "مغلق"}</span>
                             <button onClick={() => setExpanded(isOpen ? null : r.id)} className="bg-[var(--surface-elevated)] text-[var(--text)] px-3 py-1.5 rounded-full text-xs font-bold">{isOpen ? "إخفاء" : "تفاصيل"}</button>
-                            {r.status === "open" && <button onClick={async () => { await api.post(`/admin/reports/${r.id}/close`); reload(); }} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold">إغلاق</button>}
+                            {r.status === "open" && <button onClick={async () => { await api.post(`/admin/reports/${r.id}/close`); reload(); }} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold">{tr("إغلاق")}</button>}
                         </div>
                         {isOpen && (
                             <div className="px-4 pb-4 pt-0 border-t border-[var(--border)] space-y-2 text-xs font-arabic-body bg-[var(--surface-elevated)]">
-                                <div><b>السبب الكامل:</b> {r.reason || "—"}</div>
-                                {r.message && <div><b>تفاصيل من المُبلِّغ:</b> {r.message}</div>}
-                                <div><b>المُبلِّغ ID:</b> {r.reporter_id?.slice(0, 12)}…</div>
-                                <div><b>الهدف ID:</b> {r.target_id}</div>
+                                <div><b>{tr("السبب الكامل:")}</b> {r.reason || "—"}</div>
+                                {r.message && <div><b>{tr("تفاصيل من المُبلِّغ:")}</b> {r.message}</div>}
+                                <div><b>{tr("المُبلِّغ ID:")}</b> {r.reporter_id?.slice(0, 12)}…</div>
+                                <div><b>{tr("الهدف ID:")}</b> {r.target_id}</div>
                                 {r.target_type === "listing" && (
                                     <Link to={`/listing/${r.target_id}`} target="_blank" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold mt-1">
                                         🔗 فتح الإعلان
@@ -200,7 +201,7 @@ function NotificationsPanel() {
     const [suggestions, setSuggestions] = useState([]);
 
     const send = async () => {
-        if (!form.title || !form.body) { alert("املأ العنوان والنص"); return; }
+        if (!form.title || !form.body) { alert(tr("املأ العنوان والنص")); return; }
         if (!window.confirm(`سيتم إرسال هذا الإشعار للمستخدمين (${form.target}). متابعة؟`)) return;
         setBusy(true);
         try {
@@ -217,9 +218,9 @@ function NotificationsPanel() {
         try {
             const { data } = await api.get("/admin/notifications/ai-suggest");
             setSuggestions(data.suggestions || []);
-            if (!data.suggestions?.length) alert("لم يتم توليد اقتراحات");
+            if (!data.suggestions?.length) alert(tr("لم يتم توليد اقتراحات"));
         } catch (_) {
-            alert("تعذر توليد الاقتراحات");
+            alert(tr("تعذر توليد الاقتراحات"));
         } finally { setSuggesting(false); }
     };
 
@@ -228,7 +229,7 @@ function NotificationsPanel() {
             <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
                 <div className="flex items-center gap-2 mb-3">
                     <Bell className="w-5 h-5 text-[var(--primary)]" />
-                    <h3 className="font-arabic font-black text-base text-[var(--text)]">إرسال إشعار جماعي</h3>
+                    <h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("إرسال إشعار جماعي")}</h3>
                 </div>
                 {result && (
                     <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-3 text-sm font-arabic-body mb-3">
@@ -237,26 +238,26 @@ function NotificationsPanel() {
                 )}
                 <div className="space-y-3">
                     <div>
-                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">العنوان</label>
-                        <input data-testid="notif-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={100} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="🔥 عرض اليوم!" />
+                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("العنوان")}</label>
+                        <input data-testid="notif-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={100} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder={tr("🔥 عرض اليوم!")} />
                     </div>
                     <div>
-                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">النص</label>
-                        <textarea data-testid="notif-body" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} maxLength={500} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="اكتشف صفقات حصرية على الإعلانات الجديدة!" />
+                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("النص")}</label>
+                        <textarea data-testid="notif-body" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} maxLength={500} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder={tr("اكتشف صفقات حصرية على الإعلانات الجديدة!")} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">الجمهور المستهدف</label>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("الجمهور المستهدف")}</label>
                             <select data-testid="notif-target" value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]">
-                                <option value="all">جميع المستخدمين</option>
-                                <option value="verified">الموثقون فقط</option>
-                                <option value="unverified">غير الموثقين</option>
-                                <option value="country">حسب الدولة</option>
+                                <option value="all">{tr("جميع المستخدمين")}</option>
+                                <option value="verified">{tr("الموثقون فقط")}</option>
+                                <option value="unverified">{tr("غير الموثقين")}</option>
+                                <option value="country">{tr("حسب الدولة")}</option>
                             </select>
                         </div>
                         {form.target === "country" && (
                             <div>
-                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">رمز الدولة</label>
+                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("رمز الدولة")}</label>
                                 <input value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value.toUpperCase() })} maxLength={2} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="SA / AE / KW..." />
                             </div>
                         )}
@@ -282,7 +283,7 @@ function NotificationsPanel() {
                             <div key={i} className="bg-[var(--surface)] rounded-xl p-3 border border-[var(--border)]">
                                 <div className="font-arabic font-bold text-sm text-[var(--text)] mb-1">{s.title}</div>
                                 <div className="text-xs text-[var(--text-muted)] font-arabic-body mb-2">{s.body}</div>
-                                <button onClick={() => setForm({ ...form, title: s.title, body: s.body })} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1 rounded-full text-xs font-bold font-arabic">استخدم هذا</button>
+                                <button onClick={() => setForm({ ...form, title: s.title, body: s.body })} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1 rounded-full text-xs font-bold font-arabic">{tr("استخدم هذا")}</button>
                             </div>
                         ))}
                     </div>
@@ -306,23 +307,23 @@ function AdsPanel() {
         setShowForm(false);
         reload();
     };
-    const remove = async (id) => { if (!window.confirm("حذف الإعلان؟")) return; await api.delete(`/admin/ads/${id}`); reload(); };
+    const remove = async (id) => { if (!window.confirm(tr("حذف الإعلان؟"))) return; await api.delete(`/admin/ads/${id}`); reload(); };
     return (
         <div className="space-y-3">
-            <button data-testid="new-ad-btn" onClick={() => setShowForm(!showForm)} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-full font-arabic font-bold text-sm flex items-center gap-2"><Plus className="w-4 h-4" /> إضافة بنر إعلاني</button>
+            <button data-testid="new-ad-btn" onClick={() => setShowForm(!showForm)} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-full font-arabic font-bold text-sm flex items-center gap-2"><Plus className="w-4 h-4" />{tr(" إضافة بنر إعلاني")}</button>
             {showForm && (
                 <form onSubmit={create} className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-3 font-arabic-body">
-                    <input data-testid="ad-title-input" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="عنوان الإعلان" className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
-                    <input data-testid="ad-image-input" required value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="رابط الصورة (https://...)" className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
-                    <input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="رابط عند الضغط (اختياري)" className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                    <input data-testid="ad-title-input" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("عنوان الإعلان")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                    <input data-testid="ad-image-input" required value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder={tr("رابط الصورة (https://...)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                    <input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder={tr("رابط عند الضغط (اختياري)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
                     <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none">
-                        <option value="home_top">الرئيسية - أعلى</option>
-                        <option value="home_middle">الرئيسية - وسط</option>
-                        <option value="home_bottom">الرئيسية - أسفل</option>
-                        <option value="listing_bottom">صفحة المنتج - أسفل</option>
-                        <option value="sidebar">شريط جانبي</option>
+                        <option value="home_top">{tr("الرئيسية - أعلى")}</option>
+                        <option value="home_middle">{tr("الرئيسية - وسط")}</option>
+                        <option value="home_bottom">{tr("الرئيسية - أسفل")}</option>
+                        <option value="listing_bottom">{tr("صفحة المنتج - أسفل")}</option>
+                        <option value="sidebar">{tr("شريط جانبي")}</option>
                     </select>
-                    <button type="submit" className="bg-[var(--success)] text-white px-4 py-2 rounded-full font-arabic font-bold text-sm">حفظ</button>
+                    <button type="submit" className="bg-[var(--success)] text-white px-4 py-2 rounded-full font-arabic font-bold text-sm">{tr("حفظ")}</button>
                 </form>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -353,22 +354,22 @@ function ThemePanel() {
         setBusy(true); setMsg("");
         try {
             await api.post("/admin/theme", theme);
-            setMsg("تم الحفظ ✅ يرجى تحديث الصفحة لرؤية التغييرات");
-        } catch (_) { setMsg("فشل الحفظ"); } finally { setBusy(false); }
+            setMsg(tr("تم الحفظ ✅ يرجى تحديث الصفحة لرؤية التغييرات"));
+        } catch (_) { setMsg(tr("فشل الحفظ")); } finally { setBusy(false); }
     };
     return (
         <form onSubmit={save} className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)] space-y-4 max-w-2xl font-arabic-body">
-            <h3 className="font-arabic font-bold text-lg text-[var(--text)]">تخصيص الهوية البصرية</h3>
+            <h3 className="font-arabic font-bold text-lg text-[var(--text)]">{tr("تخصيص الهوية البصرية")}</h3>
             {msg && <div className="bg-[var(--primary)]/10 text-[var(--primary)] rounded-xl p-3 text-sm">{msg}</div>}
-            <ColorField label="اللون الأساسي" value={theme.primary_color} onChange={(v) => setTheme({ ...theme, primary_color: v })} />
-            <ColorField label="اللون الثانوي" value={theme.secondary_color} onChange={(v) => setTheme({ ...theme, secondary_color: v })} />
-            <ColorField label="لون التمييز" value={theme.accent_color} onChange={(v) => setTheme({ ...theme, accent_color: v })} />
+            <ColorField label={tr("اللون الأساسي")} value={theme.primary_color} onChange={(v) => setTheme({ ...theme, primary_color: v })} />
+            <ColorField label={tr("اللون الثانوي")} value={theme.secondary_color} onChange={(v) => setTheme({ ...theme, secondary_color: v })} />
+            <ColorField label={tr("لون التمييز")} value={theme.accent_color} onChange={(v) => setTheme({ ...theme, accent_color: v })} />
             <div>
-                <label className="block text-sm font-bold mb-1 text-[var(--text)]">اسم الموقع</label>
+                <label className="block text-sm font-bold mb-1 text-[var(--text)]">{tr("اسم الموقع")}</label>
                 <input value={theme.site_name || ""} onChange={(e) => setTheme({ ...theme, site_name: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
             </div>
             <div>
-                <label className="block text-sm font-bold mb-1 text-[var(--text)]">شعار رئيسي</label>
+                <label className="block text-sm font-bold mb-1 text-[var(--text)]">{tr("شعار رئيسي")}</label>
                 <input value={theme.tagline_ar || ""} onChange={(e) => setTheme({ ...theme, tagline_ar: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
             </div>
             <button data-testid="save-theme-btn" disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 rounded-full font-arabic font-bold text-sm">{busy ? "جاري الحفظ..." : "حفظ"}</button>

@@ -3,12 +3,12 @@ import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon, Languages } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import ImageViewer from "@/components/ImageViewer";
 
 export default function ChatPage() {
     const { user, loading: au } = useAuth();
-    const { t, lang } = useI18n();
+    const { t, lang, tr } = useI18n();
     const [searchParams] = useSearchParams();
     const initialTo = searchParams.get("to");
     const initialListing = searchParams.get("listing");
@@ -54,10 +54,9 @@ export default function ChatPage() {
     }, [activeConvoId]);
 
     const sendLocation = () => {
-        if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+        if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }
         // Prompt: confirm deal status — location should only be shared when deal is finalized
-        const confirmed = window.confirm(
-            "📍 مشاركة الموقع\n\n" +
+        const confirmed = window.confirm(tr("📍 مشاركة الموقع\\n\\n") +
             "يفضّل مشاركة موقعك فقط بعد الاتفاق على الصفقة لحماية خصوصيتك.\n\n" +
             "هل تم الاتفاق على الصفقة وتريد مشاركة موقعك مع البائع/المشتري؟\n\n" +
             "اضغط OK للمتابعة، أو Cancel للإلغاء."
@@ -68,7 +67,7 @@ export default function ChatPage() {
                 const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 send({ text: `📍 موقعي - تمت الصفقة`, location: loc });
             },
-            () => alert("تعذر الوصول للموقع")
+            () => alert(tr("تعذر الوصول للموقع"))
         );
     };
 
@@ -82,7 +81,7 @@ export default function ChatPage() {
             const { data } = await api.post("/ai/translate", { text: m.text, target_lang: lang });
             setTranslations((tr) => ({ ...tr, [m.id]: data.text }));
         } catch (_) {
-            alert("تعذرت الترجمة");
+            alert(tr("تعذرت الترجمة"));
         } finally { setTranslating(null); }
     };
 
@@ -121,7 +120,7 @@ export default function ChatPage() {
                 if (type === "voice") send({ voice: out.secure_url });
                 else send({ image: out.secure_url });
             }
-        } catch (_) { alert("فشل الرفع"); }
+        } catch (_) { alert(tr("فشل الرفع")); }
     };
 
     const [recording, setRecording] = useState(false);
@@ -142,7 +141,7 @@ export default function ChatPage() {
             mr.start();
             setRecorder(mr);
             setRecording(true);
-        } catch (_) { alert("تعذر الوصول للميكروفون"); }
+        } catch (_) { alert(tr("تعذر الوصول للميكروفون")); }
     };
     const stopRecord = () => { recorder?.stop(); setRecording(false); setRecorder(null); };
 
@@ -154,7 +153,7 @@ export default function ChatPage() {
     if (au) return <div className="p-10 text-center font-arabic">{t("loading")}</div>;
     if (!user) return (
         <div className="p-10 text-center font-arabic">
-            <p className="mb-4">يجب تسجيل الدخول لاستخدام الرسائل</p>
+            <p className="mb-4">{tr("يجب تسجيل الدخول لاستخدام الرسائل")}</p>
             <Link to="/login" className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 rounded-full font-bold">{t("login")}</Link>
         </div>
     );
@@ -165,10 +164,10 @@ export default function ChatPage() {
                 {/* Conversations list */}
                 <div className={`bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-y-auto ${activeConvoId ? "hidden md:block" : ""}`}>
                     <div className="p-4 border-b border-[var(--border)]">
-                        <h2 className="font-arabic font-bold text-lg text-[var(--text)]">المحادثات</h2>
+                        <h2 className="font-arabic font-bold text-lg text-[var(--text)]">{tr("المحادثات")}</h2>
                     </div>
                     {convos.length === 0 ? (
-                        <div className="p-8 text-center text-sm text-[var(--text-muted)] font-arabic-body">لا توجد محادثات بعد</div>
+                        <div className="p-8 text-center text-sm text-[var(--text-muted)] font-arabic-body">{tr("لا توجد محادثات بعد")}</div>
                     ) : (
                         convos.map((c) => (
                             <button key={c.id} data-testid={`convo-${c.id}`} onClick={() => openConvo(c)} className={`w-full p-3 flex items-center gap-3 hover:bg-[var(--surface-elevated)] border-b border-[var(--border)] text-start ${activeConvoId === c.id ? "bg-[var(--primary)]/10" : ""}`}>
@@ -189,7 +188,7 @@ export default function ChatPage() {
                         <div className="flex-1 flex items-center justify-center text-center p-8">
                             <div>
                                 <MessageCircle className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-3" />
-                                <p className="text-[var(--text-muted)] font-arabic-body">اختر محادثة لبدء المراسلة</p>
+                                <p className="text-[var(--text-muted)] font-arabic-body">{tr("اختر محادثة لبدء المراسلة")}</p>
                             </div>
                         </div>
                     ) : (
@@ -212,15 +211,15 @@ export default function ChatPage() {
                                                 {m.voice && <audio controls src={m.voice} className="max-w-full" />}
                                                 {m.location && !liveShare && (
                                                     <a href={`https://www.google.com/maps/search/?api=1&query=${m.location.lat},${m.location.lng}`} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 ${m.image || m.voice ? "p-2" : ""}`}>
-                                                        <MapPin className="w-4 h-4" /> <span className="underline">عرض الموقع</span>
+                                                        <MapPin className="w-4 h-4" /> <span className="underline">{tr("عرض الموقع")}</span>
                                                     </a>
                                                 )}
                                                 {liveShare && (
                                                     <a href={`https://www.google.com/maps/search/?api=1&query=${m.location.lat},${m.location.lng}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-red-500/15 rounded-lg border border-red-500/30">
                                                         <Radio className="w-4 h-4 text-red-500 animate-pulse" />
                                                         <div>
-                                                            <div className="font-bold text-red-500">موقع حي مباشر</div>
-                                                            <div className="text-[10px] underline">عرض على الخريطة</div>
+                                                            <div className="font-bold text-red-500">{tr("موقع حي مباشر")}</div>
+                                                            <div className="text-[10px] underline">{tr("عرض على الخريطة")}</div>
                                                         </div>
                                                     </a>
                                                 )}
@@ -245,17 +244,17 @@ export default function ChatPage() {
                                 <div ref={endRef}></div>
                             </div>
                             <div className="p-3 border-t border-[var(--border)] flex items-center gap-1.5">
-                                <label data-testid="chat-image-btn" className="cursor-pointer w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="صورة">
+                                <label data-testid="chat-image-btn" className="cursor-pointer w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title={tr("صورة")}>
                                     <ImageIcon className="w-4 h-4" />
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && uploadAndSend(e.target.files[0], "image")} />
                                 </label>
-                                <button data-testid="chat-location-btn" onClick={sendLocation} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="مشاركة الموقع (بعد إتمام الصفقة)"><MapPin className="w-4 h-4" /></button>
+                                <button data-testid="chat-location-btn" onClick={sendLocation} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title={tr("مشاركة الموقع (بعد إتمام الصفقة)")}><MapPin className="w-4 h-4" /></button>
                                 {recording ? (
                                     <button data-testid="chat-stop-rec" onClick={stopRecord} className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse shrink-0"><Square className="w-3 h-3 fill-current" /></button>
                                 ) : (
-                                    <button data-testid="chat-mic" onClick={startRecord} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title="رسالة صوتية"><Mic className="w-4 h-4" /></button>
+                                    <button data-testid="chat-mic" onClick={startRecord} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title={tr("رسالة صوتية")}><Mic className="w-4 h-4" /></button>
                                 )}
-                                <input data-testid="chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="اكتب رسالتك..." className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-full px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                                <input data-testid="chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder={tr("اكتب رسالتك...")} className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-full px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
                                 <button data-testid="chat-send" onClick={() => send()} className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center hover:bg-[var(--primary-hover)] shrink-0">
                                     <Send className="w-4 h-4" />
                                 </button>

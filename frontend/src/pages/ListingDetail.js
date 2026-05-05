@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useAuth } from "@/contexts/AuthContext";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
@@ -37,7 +37,7 @@ export default function ListingDetail() {
     const { id } = useParams();
     const nav = useNavigate();
     const { user } = useAuth();
-    const { t, pickName, pickLabel } = useI18n();
+    const { t, pickName, pickLabel, tr } = useI18n();
     const [listing, setListing] = useState(null);
     const [similar, setSimilar] = useState([]);
     const [activeImg, setActiveImg] = useState(0);
@@ -75,7 +75,7 @@ export default function ListingDetail() {
     const isOwner = user && user.id === listing.user_id;
 
     const handleRepublish = async () => {
-        if (!confirm("سيتم إعادة نشر الإعلان في أعلى القائمة. متابعة؟")) return;
+        if (!confirm(tr("سيتم إعادة نشر الإعلان في أعلى القائمة. متابعة؟"))) return;
         try {
             const { data } = await api.post(`/listings/${listing.id}/republish`);
             alert(data.message || "تم التجديد");
@@ -87,10 +87,10 @@ export default function ListingDetail() {
     };
 
     const handleMarkSold = async () => {
-        if (!confirm("هل تم بيع المنتج فعلاً؟ سيتم إخفاء الإعلان من القائمة العامة.")) return;
+        if (!confirm(tr("هل تم بيع المنتج فعلاً؟ سيتم إخفاء الإعلان من القائمة العامة."))) return;
         try {
             await api.post(`/listings/${listing.id}/mark-sold`);
-            alert("✅ تم تحديد الإعلان كمباع. شكراً لاستخدامك الحراج بلس!");
+            alert(tr("✅ تم تحديد الإعلان كمباع. شكراً لاستخدامك الحراج بلس!"));
             nav("/profile");
         } catch (e) {
             alert(e.response?.data?.detail || "تعذر التحديث");
@@ -98,7 +98,7 @@ export default function ListingDetail() {
     };
 
     const handleDelete = async () => {
-        const sold = confirm("هل تم بيع المنتج؟ اختر OK = تم البيع، Cancel = حذف فقط");
+        const sold = confirm(tr("هل تم بيع المنتج؟ اختر OK = تم البيع، Cancel = حذف فقط"));
         try {
             if (sold) {
                 await api.post(`/listings/${listing.id}/mark-sold`);
@@ -117,7 +117,7 @@ export default function ListingDetail() {
 
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24">
-            <Link to="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)] mb-4 font-arabic"><ChevronLeft className="w-4 h-4 rotate-180" /> العودة</Link>
+            <Link to="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)] mb-4 font-arabic"><ChevronLeft className="w-4 h-4 rotate-180" />{tr(" العودة")}</Link>
 
             {isOwner && (
                 <div data-testid="owner-actions" className="bg-gradient-to-r from-[var(--primary)]/10 to-[var(--accent)]/10 border border-[var(--primary)]/30 rounded-2xl p-3 mb-4 flex flex-wrap gap-2 items-center">
@@ -148,7 +148,7 @@ export default function ListingDetail() {
                             {listing.images?.length ? (
                                 <img src={listing.images[activeImg]} alt={listing.title} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] font-arabic">لا توجد صور</div>
+                                <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] font-arabic">{tr("لا توجد صور")}</div>
                             )}
                             <div className="absolute top-3 start-3 flex gap-2">
                                 <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{pickName(cat)}</span>
@@ -188,10 +188,10 @@ export default function ListingDetail() {
                                         await navigator.share(shareData);
                                     } else {
                                         await navigator.clipboard.writeText(url);
-                                        alert("✅ تم نسخ رابط الإعلان");
+                                        alert(tr("✅ تم نسخ رابط الإعلان"));
                                     }
                                 } catch (_) {}
-                            }} className="w-10 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)]" title="مشاركة"><Share2 className="w-4 h-4" /></button>
+                            }} className="w-10 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)]" title={tr("مشاركة")}><Share2 className="w-4 h-4" /></button>
                         </div>
                         <div className="flex items-baseline gap-2 mb-4 flex-wrap">
                             {listing.price ? (
@@ -200,7 +200,7 @@ export default function ListingDetail() {
                                     <span className="text-sm text-[var(--text-muted)] font-arabic-body">{listing.currency || "ر.س"}</span>
                                 </>
                             ) : (
-                                <span className="text-xl text-[var(--text-muted)] font-arabic">على السوم</span>
+                                <span className="text-xl text-[var(--text-muted)] font-arabic">{tr("على السوم")}</span>
                             )}
                         </div>
                         {listing.price && <div className="mb-3"><PriceBadge listingId={listing.id} variant="full" /></div>}
@@ -213,14 +213,14 @@ export default function ListingDetail() {
 
                     {/* Description */}
                     <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
-                        <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">الوصف</h2>
+                        <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{tr("الوصف")}</h2>
                         <p className="text-sm sm:text-base text-[var(--text)] font-arabic-body whitespace-pre-wrap leading-relaxed">{listing.description}</p>
                     </div>
 
                     {/* Custom fields */}
                     {listing.custom_fields && Object.keys(listing.custom_fields).length > 0 && (
                         <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
-                            <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">المواصفات</h2>
+                            <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{tr("المواصفات")}</h2>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-arabic-body">
                                 {cat?.fields?.filter((f) => listing.custom_fields[f.key]).map((f) => (
                                     <div key={f.key} className="bg-[var(--surface-elevated)] rounded-xl p-3 border border-[var(--border)]">
@@ -235,7 +235,7 @@ export default function ListingDetail() {
                     {/* Videos */}
                     {listing.videos?.length > 0 && (
                         <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
-                            <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">الفيديو</h2>
+                            <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{tr("الفيديو")}</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {listing.videos.map((v, i) => (
                                     <video key={i} src={v} controls preload="metadata" className="w-full rounded-2xl bg-black aspect-video" />
@@ -260,7 +260,7 @@ export default function ListingDetail() {
                                         <Popup>
                                             <div className="font-arabic">
                                                 <div className="font-bold">{listing.title}</div>
-                                                <a href={`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline text-xs">افتح الاتجاهات</a>
+                                                <a href={`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline text-xs">{tr("افتح الاتجاهات")}</a>
                                             </div>
                                         </Popup>
                                     </Marker>

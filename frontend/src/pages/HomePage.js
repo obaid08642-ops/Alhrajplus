@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "@/lib/api";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import * as Icons from "lucide-react";
 import { Plus, Sparkles, ChevronDown, Briefcase, Wrench } from "lucide-react";
@@ -9,7 +9,7 @@ import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 
 export default function HomePage() {
-    const { t, pickName } = useI18n();
+    const { t, pickName, tr } = useI18n();
     const { user } = useAuth();
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
@@ -79,9 +79,9 @@ function Hero({ t }) {
                             <Sparkles className="w-3 h-3" /> مدعوم بالذكاء الاصطناعي
                         </span>
                         <h1 className="font-arabic font-black text-2xl sm:text-4xl text-white leading-tight tracking-tight mb-2">
-                            بيع، اشترِ، استأجر،<br className="sm:hidden"/> <span className="text-[var(--primary)]">وظّف</span>
+                            بيع، اشترِ، استأجر،<br className="sm:hidden"/> <span className="text-[var(--primary)]">{tr("وظّف")}</span>
                         </h1>
-                        <p className="text-white/70 text-xs sm:text-sm font-arabic-body mb-4 max-w-md">أكبر سوق رقمي للخليج العربي — كل شيء في مكان واحد</p>
+                        <p className="text-white/70 text-xs sm:text-sm font-arabic-body mb-4 max-w-md">{tr("أكبر سوق رقمي للخليج العربي — كل شيء في مكان واحد")}</p>
                         <div className="flex gap-2">
                             <Link to="/post" data-testid="hero-post-btn" className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-full px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 font-arabic">
                                 <Plus className="w-4 h-4" /> أنشر مجاناً
@@ -174,7 +174,7 @@ function NearbySection({ listings, loading, t, layout, setLayout }) {
 }
 
 function AdSlotInline() {
-    const { t } = useI18n();
+    const { t, tr } = useI18n();
     const [ads, setAds] = useState([]);
     useEffect(() => { api.get("/ads", { params: { placement: "home_middle" } }).then(({ data }) => setAds(data || [])).catch(() => {}); }, []);
     if (!ads.length) return null;
@@ -200,7 +200,7 @@ function WideListingCard({ listing }) {
             <div className="w-32 sm:w-48 shrink-0 aspect-square overflow-hidden bg-[var(--surface-elevated)]">
                 {listing.images?.[0] ? (
                     <img src={listing.images[0]} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                ) : <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">لا توجد صورة</div>}
+                ) : <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">{tr("لا توجد صورة")}</div>}
             </div>
             <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between min-w-0">
                 <div>
@@ -211,7 +211,7 @@ function WideListingCard({ listing }) {
                     <div>
                         {listing.price ? (
                             <span className="font-latin font-black text-lg sm:text-xl text-[var(--primary)]">{Number(listing.price).toLocaleString()} <span className="text-xs">{listing.currency}</span></span>
-                        ) : <span className="text-xs text-[var(--text-muted)] font-arabic">على السوم</span>}
+                        ) : <span className="text-xs text-[var(--text-muted)] font-arabic">{tr("على السوم")}</span>}
                     </div>
                     <span className="text-[10px] text-[var(--text-muted)] font-arabic-body truncate">{listing.city}</span>
                 </div>
@@ -227,8 +227,8 @@ function CTASection({ t, user }) {
             <div className="rounded-3xl bg-gradient-to-r from-[var(--secondary)] to-[#1A2952] dark:from-[var(--surface)] dark:to-[var(--surface-elevated)] p-5 sm:p-10 border border-[var(--border)] relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/10 rounded-full blur-3xl"></div>
                 <div className="relative">
-                    <h3 className="font-arabic font-black text-lg sm:text-2xl text-white dark:text-[var(--text)] mb-2">انضم اليوم — مجاناً تماماً</h3>
-                    <p className="text-white/80 dark:text-[var(--text-muted)] font-arabic-body mb-4 text-xs sm:text-sm">سجّل في دقيقة وابدأ البيع والشراء</p>
+                    <h3 className="font-arabic font-black text-lg sm:text-2xl text-white dark:text-[var(--text)] mb-2">{tr("انضم اليوم — مجاناً تماماً")}</h3>
+                    <p className="text-white/80 dark:text-[var(--text-muted)] font-arabic-body mb-4 text-xs sm:text-sm">{tr("سجّل في دقيقة وابدأ البيع والشراء")}</p>
                     <Link to="/register" data-testid="cta-register-btn" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-5 py-2 font-bold text-xs sm:text-sm hover:bg-[var(--primary-hover)] font-arabic">{t("register")}</Link>
                 </div>
             </div>

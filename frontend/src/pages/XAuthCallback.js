@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { tr } from "@/contexts/I18nContext";
 
 export default function XAuthCallback() {
     const nav = useNavigate();
@@ -34,7 +35,7 @@ export default function XAuthCallback() {
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]" dir="rtl">
             <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-[var(--primary)] border-t-transparent animate-spin"></div>
-                <p className="font-arabic font-bold text-[var(--text)]">جاري إتمام تسجيل الدخول بـ X...</p>
+                <p className="font-arabic font-bold text-[var(--text)]">{tr("جاري إتمام تسجيل الدخول بـ X...")}</p>
             </div>
         </div>
     );

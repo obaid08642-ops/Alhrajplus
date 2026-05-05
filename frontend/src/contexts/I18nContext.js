@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import AUTO_TRANSLATIONS from "@/auto_translations.json";
 
 const I18nCtx = createContext(null);
 
@@ -235,12 +236,34 @@ const TRANSLATIONS = {
 
 const RTL_LANGS = ["ar", "ur"];
 
+// Module-level mutable language state. Updated by I18nProvider on every render.
+// Allows `tr()` to be imported and called from any component (even those that don't call useI18n()).
+// React re-renders consumers when language changes, so tr() will see the latest lang.
+let _currentLang = (typeof window !== "undefined" && localStorage.getItem("hp_lang")) || "ar";
+
+export function tr(text) {
+    if (text == null) return text;
+    if (_currentLang === "ar") return text;
+    if (typeof text !== "string") return text;
+    const trimmed = text.trim();
+    if (!trimmed) return text;
+    const entry = AUTO_TRANSLATIONS[trimmed];
+    if (entry && entry[_currentLang]) {
+        const lead = text.match(/^\s*/)[0];
+        const tail = text.match(/\s*$/)[0];
+        return lead + entry[_currentLang] + tail;
+    }
+    return text;
+}
+
 export function I18nProvider({ children }) {
     const [lang, setLang] = useState(() => localStorage.getItem("hp_lang") || "ar");
+    _currentLang = lang; // sync module-level state on every render
     useEffect(() => {
         document.documentElement.lang = lang;
         document.documentElement.dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
         localStorage.setItem("hp_lang", lang);
+        _currentLang = lang;
     }, [lang]);
     const t = (key) => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.ar[key] || key;
     const isRTL = RTL_LANGS.includes(lang);
@@ -256,7 +279,7 @@ export function I18nProvider({ children }) {
         return field.label_en || field.label_ar || field.key;
     };
     return (
-        <I18nCtx.Provider value={{ lang, setLang, t, isRTL, pickName, pickLabel, available: ["ar", "en", "ur", "hi", "bn", "fr"] }}>
+        <I18nCtx.Provider value={{ lang, setLang, t, tr, isRTL, pickName, pickLabel, available: ["ar", "en", "ur", "hi", "bn", "fr"] }}>
             {children}
         </I18nCtx.Provider>
     );

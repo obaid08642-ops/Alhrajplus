@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
 
 export default function ProfilePage() {
     const { user, loading, logout } = useAuth();
-    const { t } = useI18n();
+    const { t, tr } = useI18n();
     const nav = useNavigate();
     const [tab, setTab] = useState("listings");
     const [myListings, setMyListings] = useState([]);
@@ -27,7 +27,7 @@ export default function ProfilePage() {
     }, [user]);
 
     const removeListing = async (id) => {
-        if (!window.confirm("متأكد من حذف الإعلان؟")) return;
+        if (!window.confirm(tr("متأكد من حذف الإعلان؟"))) return;
         await api.delete(`/listings/${id}`);
         setMyListings((l) => l.filter((x) => x.id !== id));
     };
@@ -54,9 +54,9 @@ export default function ProfilePage() {
                     </button>
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-                    <Stat label="إعلاناتي" value={myListings.length} />
-                    <Stat label="المفضلة" value={favorites.length} />
-                    <Stat label="درجة الموثوقية" value={user.trust_score || 50} />
+                    <Stat label={tr("إعلاناتي")} value={myListings.length} />
+                    <Stat label={tr("المفضلة")} value={favorites.length} />
+                    <Stat label={tr("درجة الموثوقية")} value={user.trust_score || 50} />
                 </div>
             </div>
 
@@ -68,7 +68,7 @@ export default function ProfilePage() {
                         <h3 className="font-arabic font-black text-base text-[var(--text)]">{t("referral_program")}</h3>
                         {referral.badge && <span className="ms-auto text-xs font-bold text-[var(--accent)] font-arabic">{referral.badge}</span>}
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-3">ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً (5 = 🥉 برونزي، 10 = 🥈 فضي، 25 = ⭐ ذهبي)</p>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-3">{tr("ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً (5 = 🥉 برونزي، 10 = 🥈 فضي، 25 = ⭐ ذهبي)")}</p>
                     <div className="flex items-center gap-2">
                         <div className="flex-1 bg-[var(--surface)] rounded-xl px-3 py-2 border border-[var(--border)] flex items-center justify-between">
                             <span className="font-mono font-black text-sm text-[var(--primary)]">{referral.code}</span>
@@ -77,7 +77,7 @@ export default function ProfilePage() {
                         <button data-testid="copy-referral-btn" onClick={() => {
                             const link = `${window.location.origin}/register?ref=${referral.code}`;
                             navigator.clipboard.writeText(link);
-                            alert("تم نسخ رابط الدعوة ✅");
+                            alert(tr("تم نسخ رابط الدعوة ✅"));
                         }} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl px-4 py-2 font-arabic font-bold text-xs flex items-center gap-1">
                             <Copy className="w-3.5 h-3.5" /> {t("copy_link")}
                         </button>
@@ -99,32 +99,32 @@ export default function ProfilePage() {
             <div className="bg-[var(--surface)] rounded-3xl border border-[var(--border)] mb-6 overflow-hidden">
                 <Link to="/settings" data-testid="menu-settings" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Settings className="w-5 h-5 text-[var(--primary)]" />
-                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">الإعدادات</span>
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("الإعدادات")}</span>
                     <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
                 </Link>
                 <Link to="/about" data-testid="menu-about" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Info className="w-5 h-5 text-[var(--primary)]" />
-                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">عن التطبيق</span>
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("عن التطبيق")}</span>
                     <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
                 </Link>
                 <Link to="/terms" data-testid="menu-terms" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <FileText className="w-5 h-5 text-[var(--primary)]" />
-                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">الشروط والأحكام</span>
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("الشروط والأحكام")}</span>
                     <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
                 </Link>
                 <Link to="/privacy" data-testid="menu-privacy" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Shield className="w-5 h-5 text-[var(--primary)]" />
-                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">سياسة الخصوصية</span>
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("سياسة الخصوصية")}</span>
                     <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
                 </Link>
                 <Link to="/contact" data-testid="menu-contact" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Mail className="w-5 h-5 text-[var(--primary)]" />
-                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">تواصل معنا / الإعلان</span>
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("تواصل معنا / الإعلان")}</span>
                     <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
                 </Link>
                 <button data-testid="menu-logout" onClick={async () => { await logout(); nav("/"); }} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-600">
                     <LogOut className="w-5 h-5" />
-                    <span className="flex-1 font-arabic font-bold text-sm text-start">تسجيل الخروج</span>
+                    <span className="flex-1 font-arabic font-bold text-sm text-start">{tr("تسجيل الخروج")}</span>
                 </button>
             </div>
 
@@ -140,7 +140,7 @@ export default function ProfilePage() {
             {tab === "listings" ? (
                 myListings.length === 0 ? (
                     <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)]">
-                        <p className="text-[var(--text-muted)] font-arabic-body mb-3">لم تنشر أي إعلان بعد</p>
+                        <p className="text-[var(--text-muted)] font-arabic-body mb-3">{tr("لم تنشر أي إعلان بعد")}</p>
                         <Link to="/post" data-testid="profile-post-cta" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 rounded-full font-arabic font-bold text-sm">{t("cta_post")}</Link>
                     </div>
                 ) : (
@@ -158,7 +158,7 @@ export default function ProfilePage() {
             ) : (
                 favorites.length === 0 ? (
                     <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)]">
-                        <p className="text-[var(--text-muted)] font-arabic-body">لا توجد إعلانات في المفضلة</p>
+                        <p className="text-[var(--text-muted)] font-arabic-body">{tr("لا توجد إعلانات في المفضلة")}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { Flame, TrendingDown, Sparkles, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { tr } from "@/contexts/I18nContext";
 
 export default function DealsPage() {
     const { user } = useAuth();
@@ -25,7 +26,7 @@ export default function DealsPage() {
                         <Flame className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)]">صفقات اليوم الذهبية</h1>
+                        <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)]">{tr("صفقات اليوم الذهبية")}</h1>
                         <p className="text-xs sm:text-sm text-[var(--text-muted)] font-arabic-body">
                             <Sparkles className="inline w-3 h-3 text-[var(--primary)]" /> أفضل الأسعار تحت متوسط السوق — مختارة بذكاء اصطناعي
                         </p>
@@ -40,8 +41,8 @@ export default function DealsPage() {
             ) : deals.length === 0 ? (
                 <div className="bg-[var(--surface)] rounded-2xl p-10 text-center border border-[var(--border)]">
                     <Flame className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-3 opacity-40" />
-                    <p className="text-[var(--text-muted)] font-arabic-body mb-2">لا توجد صفقات بارزة الآن</p>
-                    <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-4">نحتاج المزيد من الإعلانات لمقارنة الأسعار</p>
+                    <p className="text-[var(--text-muted)] font-arabic-body mb-2">{tr("لا توجد صفقات بارزة الآن")}</p>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-4">{tr("نحتاج المزيد من الإعلانات لمقارنة الأسعار")}</p>
                     <Link to="/" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 rounded-full font-arabic font-bold text-sm">
                         <ArrowLeft className="inline w-4 h-4" /> العودة للرئيسية
                     </Link>
@@ -68,7 +69,7 @@ function DealCard({ deal }) {
                 {deal.images?.[0] ? (
                     <img src={deal.images[0]} alt={deal.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">لا توجد صورة</div>
+                    <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">{tr("لا توجد صورة")}</div>
                 )}
             </div>
             <div className="p-2.5 flex-1 flex flex-col">

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { tr } from "@/contexts/I18nContext";
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 export default function AuthCallback() {
@@ -38,8 +39,8 @@ export default function AuthCallback() {
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]" dir="rtl">
             <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-[var(--primary)] border-t-transparent animate-spin"></div>
-                <p className="font-arabic font-bold text-[var(--text)]">جاري إتمام تسجيل الدخول...</p>
-                <p className="font-arabic-body text-xs text-[var(--text-muted)] mt-1">لحظة واحدة من فضلك</p>
+                <p className="font-arabic font-bold text-[var(--text)]">{tr("جاري إتمام تسجيل الدخول...")}</p>
+                <p className="font-arabic-body text-xs text-[var(--text-muted)] mt-1">{tr("لحظة واحدة من فضلك")}</p>
             </div>
         </div>
     );

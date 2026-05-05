@@ -4,7 +4,7 @@ import api, { formatApiError } from "@/lib/api";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -13,7 +13,7 @@ export default function PostListing() {
     const [searchParams] = useSearchParams();
     const editId = searchParams.get("edit");
     const { user, loading } = useAuth();
-    const { t, pickName, pickLabel } = useI18n();
+    const { t, pickName, pickLabel, tr } = useI18n();
     const [step, setStep] = useState(editId ? 2 : 1);
     const [categories, setCategories] = useState([]);
     const [countries, setCountries] = useState([]);
@@ -65,7 +65,7 @@ export default function PostListing() {
                 lng: data.lng || null,
                 show_phone: data.show_phone !== false,
             });
-        }).catch(() => alert("تعذر تحميل الإعلان"));
+        }).catch(() => alert(tr("تعذر تحميل الإعلان")));
     }, [editId]);
 
     useEffect(() => {
@@ -147,7 +147,7 @@ export default function PostListing() {
             } else {
                 alert(data.note || "لا توجد بيانات كافية");
             }
-        } catch (_) { alert("تعذر اقتراح السعر"); }
+        } catch (_) { alert(tr("تعذر اقتراح السعر")); }
     };
 
     const canNext = () => {
@@ -190,18 +190,18 @@ export default function PostListing() {
                         <button data-testid="quick-jobs" onClick={() => setForm({ ...form, category: "jobs", subcategory: "", custom_fields: {} })}
                             className={`relative overflow-hidden rounded-2xl p-4 border-2 text-start transition-all ${form.category === "jobs" ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--border)] bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 hover:border-[var(--primary)]/50"}`}>
                             <Icons.Briefcase className="w-7 h-7 text-emerald-600 mb-2" />
-                            <h3 className="font-arabic font-black text-base text-[var(--text)]">وظائف 💼</h3>
-                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">عرض وظيفة • طلب عمل</p>
+                            <h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("وظائف 💼")}</h3>
+                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("عرض وظيفة • طلب عمل")}</p>
                         </button>
                         <button data-testid="quick-services" onClick={() => setForm({ ...form, category: "services", subcategory: "", custom_fields: {} })}
                             className={`relative overflow-hidden rounded-2xl p-4 border-2 text-start transition-all ${form.category === "services" ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--border)] bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 hover:border-[var(--primary)]/50"}`}>
                             <Icons.Wrench className="w-7 h-7 text-orange-600 mb-2" />
-                            <h3 className="font-arabic font-black text-base text-[var(--text)]">خدمات 🔧</h3>
-                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">سباك • كهربائي • نظافة • نقل ...</p>
+                            <h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("خدمات 🔧")}</h3>
+                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("سباك • كهربائي • نظافة • نقل ...")}</p>
                         </button>
                     </div>
 
-                    <div className="text-xs font-arabic font-bold text-[var(--text-muted)] mb-3">أو اختر من الفئات</div>
+                    <div className="text-xs font-arabic font-bold text-[var(--text-muted)] mb-3">{tr("أو اختر من الفئات")}</div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
                         {categories.filter((c) => c.key !== "jobs" && c.key !== "services").map((c) => {
                             const Icon = Icons[c.icon] || Icons.Shapes;
@@ -218,7 +218,7 @@ export default function PostListing() {
 
                     {cat?.subcategories?.length > 0 && (
                         <div className="mt-6">
-                            <h3 className="font-arabic font-bold text-sm text-[var(--text)] mb-3">الفئة الفرعية</h3>
+                            <h3 className="font-arabic font-bold text-sm text-[var(--text)] mb-3">{tr("الفئة الفرعية")}</h3>
                             <div className="flex flex-wrap gap-2">
                                 {cat.subcategories.map((s) => (
                                     <button key={s.key} data-testid={`pick-sub-${s.key}`} onClick={() => setForm({ ...form, subcategory: s.key })}
@@ -253,7 +253,7 @@ export default function PostListing() {
                                             className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "عرض وظيفة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
                                         >
                                             🟢 عرض وظيفة
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أنا أوظّف شخص</div>
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أوظّف شخص")}</div>
                                         </button>
                                         <button
                                             type="button"
@@ -262,7 +262,7 @@ export default function PostListing() {
                                             className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "باحث عن عمل" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
                                         >
                                             🔵 باحث عن عمل
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أنا أبحث عن وظيفة</div>
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أبحث عن وظيفة")}</div>
                                         </button>
                                     </>
                                 ) : (
@@ -274,7 +274,7 @@ export default function PostListing() {
                                             className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "تقديم خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
                                         >
                                             🟢 تقديم خدمة
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أنا مقدّم خدمة</div>
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا مقدّم خدمة")}</div>
                                         </button>
                                         <button
                                             type="button"
@@ -283,7 +283,7 @@ export default function PostListing() {
                                             className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "طلب خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
                                         >
                                             🔵 طلب خدمة
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">أحتاج هذه الخدمة</div>
+                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أحتاج هذه الخدمة")}</div>
                                         </button>
                                     </>
                                 )}
@@ -293,20 +293,20 @@ export default function PostListing() {
 
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("title")} *</label>
-                        <input data-testid="post-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={120} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder="عنوان واضح وموجز" />
+                        <input data-testid="post-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={120} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("عنوان واضح وموجز")} />
                     </div>
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("description")} *</label>
-                        <textarea data-testid="post-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder="اكتب وصفاً تفصيلياً..." />
+                        <textarea data-testid="post-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("اكتب وصفاً تفصيلياً...")} />
                     </div>
                     {form.category !== "jobs" && form.category !== "services" && (
                         <div className="flex gap-2">
                             <div className="flex-1">
                                 <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("price")}</label>
-                                <input data-testid="post-price" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder="اتركه فارغاً للسوم" />
+                                <input data-testid="post-price" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("اتركه فارغاً للسوم")} />
                             </div>
                             <div className="w-24">
-                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">العملة</label>
+                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("العملة")}</label>
                                 <input value={country?.currency || "ر.س"} disabled className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text-muted)] outline-none font-arabic-body" />
                             </div>
                             <div className="self-end">
@@ -325,7 +325,7 @@ export default function PostListing() {
                             </label>
                             {f.type === "select" ? (
                                 <select data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
-                                    <option value="">اختر...</option>
+                                    <option value="">{tr("اختر...")}</option>
                                     {f.options?.map((o) => <option key={o} value={o}>{o}</option>)}
                                 </select>
                             ) : f.type === "number" ? (
@@ -337,9 +337,9 @@ export default function PostListing() {
                     ))}
 
                     <div>
-                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">المدينة *</label>
+                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("المدينة *")}</label>
                         <select data-testid="post-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value, district: "" })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
-                            <option value="">اختر المدينة</option>
+                            <option value="">{tr("اختر المدينة")}</option>
                             {country?.cities.map((c) => <option key={c.name_ar} value={c.name_ar}>{c.name_ar}</option>)}
                         </select>
                     </div>
@@ -350,7 +350,7 @@ export default function PostListing() {
                         const districts = cityObj?.districts || [];
                         return (
                             <div>
-                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">الحي / المنطقة</label>
+                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("الحي / المنطقة")}</label>
                                 <select
                                     data-testid="post-district"
                                     value={form.district === "__other__" ? "__other__" : (districts.includes(form.district) ? form.district : (form.district ? "__other__" : ""))}
@@ -363,15 +363,15 @@ export default function PostListing() {
                                     }}
                                     className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body"
                                 >
-                                    <option value="">اختر الحي (اختياري)</option>
+                                    <option value="">{tr("اختر الحي (اختياري)")}</option>
                                     {districts.map((d) => <option key={d} value={d}>{d}</option>)}
-                                    <option value="__other__">⚙️ أخرى (اكتبه بنفسك)</option>
+                                    <option value="__other__">{tr("⚙️ أخرى (اكتبه بنفسك)")}</option>
                                 </select>
                                 {form.district === "__other__" && (
                                     <input
                                         data-testid="post-district-custom"
                                         autoFocus
-                                        placeholder="اكتب اسم الحي"
+                                        placeholder={tr("اكتب اسم الحي")}
                                         onChange={(e) => setForm({ ...form, district: e.target.value })}
                                         className="mt-2 w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--primary)] text-[var(--text)] outline-none font-arabic-body"
                                     />
@@ -399,12 +399,12 @@ export default function PostListing() {
                         </label>
                         <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 rounded-2xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] py-6 flex flex-col items-center justify-center gap-2 transition-all">
                             <Video className="w-6 h-6 text-[var(--accent)]" />
-                            <span className="font-arabic font-bold text-xs text-[var(--text)]">فيديو</span>
+                            <span className="font-arabic font-bold text-xs text-[var(--text)]">{tr("فيديو")}</span>
                             <input data-testid="upload-videos" type="file" accept="video/*" className="hidden" onChange={(e) => onFiles(e.target.files, "video")} disabled={busy} />
                         </label>
                     </div>
-                    <p className="text-[10px] text-[var(--text-muted)] font-arabic-body text-center">📸 يمكنك رفع 8-16 صورة من زوايا مختلفة لإنشاء معاينة دوّارة 360° تلقائية</p>
-                    {busy && <div className="text-center text-sm font-arabic text-[var(--primary)]">جاري الرفع...</div>}
+                    <p className="text-[10px] text-[var(--text-muted)] font-arabic-body text-center">{tr("📸 يمكنك رفع 8-16 صورة من زوايا مختلفة لإنشاء معاينة دوّارة 360° تلقائية")}</p>
+                    {busy && <div className="text-center text-sm font-arabic text-[var(--primary)]">{tr("جاري الرفع...")}</div>}
                     {form.images.length > 0 && (
                         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                             {form.images.map((src, i) => (
@@ -432,18 +432,18 @@ export default function PostListing() {
             {step === 4 && (
                 <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)] space-y-4">
                     <div className="flex items-center justify-between gap-2">
-                        <h2 className="font-arabic font-bold text-lg text-[var(--text)] flex items-center gap-2"><MapPin className="w-4 h-4 text-[var(--primary)]" /> حدد الموقع</h2>
+                        <h2 className="font-arabic font-bold text-lg text-[var(--text)] flex items-center gap-2"><MapPin className="w-4 h-4 text-[var(--primary)]" />{tr(" حدد الموقع")}</h2>
                         <button type="button" data-testid="use-my-location-btn" onClick={() => {
-                            if (!navigator.geolocation) { alert("المتصفح لا يدعم تحديد الموقع"); return; }
+                            if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }
                             navigator.geolocation.getCurrentPosition(
                                 (pos) => setForm((f) => ({ ...f, lat: pos.coords.latitude, lng: pos.coords.longitude })),
-                                () => alert("تعذر الوصول للموقع. تأكد من السماح بالموقع")
+                                () => alert(tr("تعذر الوصول للموقع. تأكد من السماح بالموقع"))
                             );
                         }} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-3 py-1.5 text-xs font-bold flex items-center gap-1 font-arabic">
                             <Locate className="w-3.5 h-3.5" /> {t("use_my_location")}
                         </button>
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] font-arabic-body">اضغط على الخريطة أو استخدم زر الموقع الحالي</p>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("اضغط على الخريطة أو استخدم زر الموقع الحالي")}</p>
                     <div className="h-64 sm:h-80 rounded-2xl overflow-hidden border border-[var(--border)]">
                         <MapContainer center={[form.lat || 24.7136, form.lng || 46.6753]} zoom={form.lat ? 14 : 6} className="w-full h-full">
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
@@ -451,20 +451,20 @@ export default function PostListing() {
                             {form.lat && <Marker position={[form.lat, form.lng]} />}
                         </MapContainer>
                     </div>
-                    {form.lat && <div className="text-xs text-[var(--success)] font-arabic-body">✓ تم تحديد الموقع</div>}
+                    {form.lat && <div className="text-xs text-[var(--success)] font-arabic-body">{tr("✓ تم تحديد الموقع")}</div>}
                     <label className="flex items-center gap-2 cursor-pointer">
                         <input data-testid="show-phone-checkbox" type="checkbox" checked={form.show_phone} onChange={(e) => setForm({ ...form, show_phone: e.target.checked })} className="w-4 h-4 accent-[var(--primary)]" />
                         <span className="text-sm font-arabic-body text-[var(--text)]">{t("show_phone")}</span>
                     </label>
 
                     <div className="bg-[var(--surface-elevated)] rounded-xl p-4 mt-4">
-                        <h3 className="font-arabic font-bold text-sm text-[var(--text)] mb-2">ملخص الإعلان</h3>
+                        <h3 className="font-arabic font-bold text-sm text-[var(--text)] mb-2">{tr("ملخص الإعلان")}</h3>
                         <div className="text-sm font-arabic-body text-[var(--text-muted)] space-y-1">
-                            <div>الفئة: <span className="text-[var(--text)] font-bold">{pickName(cat)}</span></div>
-                            <div>العنوان: <span className="text-[var(--text)] font-bold">{form.title}</span></div>
-                            <div>السعر: <span className="text-[var(--text)] font-bold">{form.price ? `${Number(form.price).toLocaleString()} ${form.currency}` : "على السوم"}</span></div>
-                            <div>المدينة: <span className="text-[var(--text)] font-bold">{form.city}</span></div>
-                            <div>الصور: <span className="text-[var(--text)] font-bold">{form.images.length}</span></div>
+                            <div>{tr("الفئة: ")}<span className="text-[var(--text)] font-bold">{pickName(cat)}</span></div>
+                            <div>{tr("العنوان: ")}<span className="text-[var(--text)] font-bold">{form.title}</span></div>
+                            <div>{tr("السعر: ")}<span className="text-[var(--text)] font-bold">{form.price ? `${Number(form.price).toLocaleString()} ${form.currency}` : "على السوم"}</span></div>
+                            <div>{tr("المدينة: ")}<span className="text-[var(--text)] font-bold">{form.city}</span></div>
+                            <div>{tr("الصور: ")}<span className="text-[var(--text)] font-bold">{form.images.length}</span></div>
                         </div>
                     </div>
                 </div>

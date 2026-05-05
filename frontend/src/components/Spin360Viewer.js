@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { RotateCw, X, Sparkles, Maximize2 } from "lucide-react";
+import { tr } from "@/contexts/I18nContext";
 
 /**
  * Real 3D Viewer using Three.js / WebGL.
@@ -254,7 +255,7 @@ export default function Spin360Viewer({ images = [], onClose }) {
             </button>
             <div className="absolute top-4 start-4 flex items-center gap-2 text-white/90 text-xs font-arabic z-10 bg-white/10 backdrop-blur rounded-full px-3 py-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
-                <span>عرض ثلاثي الأبعاد حقيقي (WebGL)</span>
+                <span>{tr("عرض ثلاثي الأبعاد حقيقي (WebGL)")}</span>
             </div>
 
             <div ref={mountRef} className="relative w-full max-w-3xl aspect-square cursor-grab active:cursor-grabbing select-none touch-none" />

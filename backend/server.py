@@ -1979,6 +1979,89 @@ async def follow_status(seller_id: str, user: dict = Depends(get_current_user)):
 
 
 # ============================================================
+# Search Suggestions: Trending + User History
+# ============================================================
+class SearchLogIn(BaseModel):
+    query: str
+
+
+@api.post("/search/log")
+async def log_search(body: SearchLogIn, request: Request):
+    """Log a search. Increments global counter; if logged-in user, also adds to history."""
+    q = (body.query or "").strip()
+    if not q or len(q) > 100:
+        return {"ok": True}
+    now = datetime.now(timezone.utc).isoformat()
+    # global counter
+    await db.search_terms.update_one(
+        {"q_lower": q.lower()},
+        {"$inc": {"count": 1}, "$set": {"last_seen": now, "q": q}},
+        upsert=True,
+    )
+    # personal history (if authed)
+    user = await _get_user_from_cookie(request)
+    if user:
+        await db.search_history.update_one(
+            {"user_id": user["id"], "q_lower": q.lower()},
+            {"$set": {"q": q, "ts": now, "user_id": user["id"], "q_lower": q.lower()}},
+            upsert=True,
+        )
+        # Trim to last 20 per user
+        cur = db.search_history.find({"user_id": user["id"]}, {"_id": 0, "q_lower": 1, "ts": 1}).sort("ts", -1)
+        all_items = await cur.to_list(length=200)
+        if len(all_items) > 20:
+            old_lowers = [it["q_lower"] for it in all_items[20:]]
+            await db.search_history.delete_many({"user_id": user["id"], "q_lower": {"$in": old_lowers}})
+    return {"ok": True}
+
+
+@api.get("/search/trending")
+async def trending_searches(limit: int = 10):
+    items = await db.search_terms.find(
+        {}, {"_id": 0, "q": 1, "count": 1}
+    ).sort("count", -1).limit(max(1, min(limit, 30))).to_list(length=30)
+    return [{"query": it["q"], "count": it.get("count", 0)} for it in items]
+
+
+@api.get("/search/history")
+async def search_history(request: Request, limit: int = 10):
+    user = await _get_user_from_cookie(request)
+    if not user:
+        return []
+    items = await db.search_history.find(
+        {"user_id": user["id"]}, {"_id": 0, "q": 1, "ts": 1, "q_lower": 1}
+    ).sort("ts", -1).limit(max(1, min(limit, 50))).to_list(length=50)
+    return [{"query": it["q"], "ts": it["ts"], "id": it["q_lower"]} for it in items]
+
+
+class SearchHistoryDeleteIn(BaseModel):
+    query: Optional[str] = None  # if None, clear all
+    all: Optional[bool] = False
+
+
+@api.delete("/search/history")
+async def delete_search_history(body: SearchHistoryDeleteIn, user: dict = Depends(get_current_user)):
+    if body.all or body.query is None:
+        await db.search_history.delete_many({"user_id": user["id"]})
+        return {"ok": True, "cleared": "all"}
+    await db.search_history.delete_one({"user_id": user["id"], "q_lower": body.query.lower()})
+    return {"ok": True, "cleared": body.query}
+
+
+# Helper: get user from cookie or None (no exception)
+async def _get_user_from_cookie(request: Request):
+    try:
+        token = request.cookies.get("access_token")
+        if not token:
+            return None
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        u = await db.users.find_one({"id": payload.get("sub")}, {"_id": 0, "password_hash": 0})
+        return u
+    except Exception:
+        return None
+
+
+# ============================================================
 # Mount routers (MUST be after ALL endpoint definitions)
 # ============================================================
 api.include_router(admin_router)
@@ -2009,6 +2092,10 @@ async def startup():
     await db.push_tokens.create_index("user_id")
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
     await db.reports.create_index("status")
+    await db.search_terms.create_index("q_lower", unique=True)
+    await db.search_terms.create_index([("count", -1)])
+    await db.search_history.create_index([("user_id", 1), ("q_lower", 1)], unique=True)
+    await db.search_history.create_index([("user_id", 1), ("ts", -1)])
     # Seed admin (idempotent)
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if existing is None:

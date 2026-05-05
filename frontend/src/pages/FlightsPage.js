@@ -1,5 +1,6 @@
 import { Plane, MapPin, Calendar, Users, Search, ExternalLink, Globe } from "lucide-react";
 import { useState, useMemo } from "react";
+import { tr } from "@/contexts/I18nContext";
 
 // Comprehensive global airport database (IATA + Arabic names)
 const AIRPORTS = [
@@ -149,13 +150,13 @@ function AirportPicker({ label, value, onChange, testid }) {
                             autoFocus
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
-                            placeholder="ابحث عن مدينة أو مطار أو رمز IATA..."
+                            placeholder={tr("ابحث عن مدينة أو مطار أو رمز IATA...")}
                             className="flex-1 bg-transparent outline-none text-sm font-arabic-body text-[var(--text)]"
                         />
                     </div>
                     <div className="max-h-72 overflow-y-auto">
                         {filtered.length === 0 ? (
-                            <div className="p-4 text-center text-xs text-[var(--text-muted)] font-arabic-body">لم نجد نتائج. جرّب رمز IATA (مثل: RUH, DXB)</div>
+                            <div className="p-4 text-center text-xs text-[var(--text-muted)] font-arabic-body">{tr("لم نجد نتائج. جرّب رمز IATA (مثل: RUH, DXB)")}</div>
                         ) : filtered.map((a) => (
                             <button
                                 key={a.code}
@@ -199,8 +200,8 @@ export default function FlightsPage() {
     };
 
     const search = (provider) => {
-        if (!from || !to || !date) { alert("الرجاء اختيار المطار والتاريخ"); return; }
-        if (from === to) { alert("لا يمكن أن يكون مطار المغادرة والوصول متشابهين"); return; }
+        if (!from || !to || !date) { alert(tr("الرجاء اختيار المطار والتاريخ")); return; }
+        if (from === to) { alert(tr("لا يمكن أن يكون مطار المغادرة والوصول متشابهين")); return; }
         const links = buildLinks();
         window.open(links[provider], "_blank");
     };
@@ -221,49 +222,49 @@ export default function FlightsPage() {
                         <Plane className="w-6 h-6 text-[var(--primary-fg)]" />
                     </div>
                     <div>
-                        <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)]">احجز رحلتك</h1>
-                        <p className="text-xs text-[var(--text-muted)] font-arabic-body">قارن أسعار 4 محركات بحث عالمية في ضغطة واحدة</p>
+                        <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)]">{tr("احجز رحلتك")}</h1>
+                        <p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("قارن أسعار 4 محركات بحث عالمية في ضغطة واحدة")}</p>
                     </div>
                 </div>
             </div>
 
             <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)] space-y-4">
                 <div className="flex gap-2">
-                    <button data-testid="trip-oneway" onClick={() => setTripType("oneway")} className={`flex-1 py-2.5 rounded-full text-sm font-arabic font-bold ${tripType === "oneway" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface-elevated)] text-[var(--text)]"}`}>ذهاب فقط</button>
-                    <button data-testid="trip-round" onClick={() => setTripType("round")} className={`flex-1 py-2.5 rounded-full text-sm font-arabic font-bold ${tripType === "round" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface-elevated)] text-[var(--text)]"}`}>ذهاب وعودة</button>
+                    <button data-testid="trip-oneway" onClick={() => setTripType("oneway")} className={`flex-1 py-2.5 rounded-full text-sm font-arabic font-bold ${tripType === "oneway" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface-elevated)] text-[var(--text)]"}`}>{tr("ذهاب فقط")}</button>
+                    <button data-testid="trip-round" onClick={() => setTripType("round")} className={`flex-1 py-2.5 rounded-full text-sm font-arabic font-bold ${tripType === "round" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface-elevated)] text-[var(--text)]"}`}>{tr("ذهاب وعودة")}</button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <AirportPicker label="من" value={from} onChange={setFrom} testid="flight-from" />
-                    <AirportPicker label="إلى" value={to} onChange={setTo} testid="flight-to" />
+                    <AirportPicker label={tr("من")} value={from} onChange={setFrom} testid="flight-from" />
+                    <AirportPicker label={tr("إلى")} value={to} onChange={setTo} testid="flight-to" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Calendar className="w-3 h-3" /> تاريخ الذهاب</label>
+                        <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Calendar className="w-3 h-3" />{tr(" تاريخ الذهاب")}</label>
                         <input data-testid="flight-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
                     </div>
                     {tripType === "round" ? (
                         <div>
-                            <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Calendar className="w-3 h-3" /> تاريخ العودة</label>
+                            <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Calendar className="w-3 h-3" />{tr(" تاريخ العودة")}</label>
                             <input data-testid="flight-return" type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} min={date || new Date().toISOString().slice(0, 10)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Users className="w-3 h-3" /> المسافرون</label>
+                            <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Users className="w-3 h-3" />{tr(" المسافرون")}</label>
                             <input data-testid="flight-pax" type="number" min={1} max={9} value={pax} onChange={(e) => setPax(parseInt(e.target.value) || 1)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
                         </div>
                     )}
                 </div>
                 {tripType === "round" && (
                     <div>
-                        <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Users className="w-3 h-3" /> عدد المسافرين</label>
+                        <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1.5 flex items-center gap-1"><Users className="w-3 h-3" />{tr(" عدد المسافرين")}</label>
                         <input data-testid="flight-pax" type="number" min={1} max={9} value={pax} onChange={(e) => setPax(parseInt(e.target.value) || 1)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
                     </div>
                 )}
 
                 <div className="border-t border-[var(--border)] pt-4">
-                    <p className="text-xs font-arabic font-bold text-[var(--text)] mb-2 flex items-center gap-1.5"><Globe className="w-4 h-4 text-[var(--primary)]" /> ابحث في:</p>
+                    <p className="text-xs font-arabic font-bold text-[var(--text)] mb-2 flex items-center gap-1.5"><Globe className="w-4 h-4 text-[var(--primary)]" />{tr(" ابحث في:")}</p>
                     <div className="grid grid-cols-2 gap-2">
                         {PROVIDERS.map((p) => (
                             <button

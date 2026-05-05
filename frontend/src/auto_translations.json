@@ -1,0 +1,3838 @@
+{
+  "💬 آلية التواصل: عند إرسال هذا النموذج تصلنا رسالتك على لوحة الإدارة وسيتم الرد على بريدك الإلكتروني خلال 24-48 ساعة. تأكد من إدخال بريد إلكتروني صحيح.": {
+    "en": "💬 Communication Mechanism: When you send this form, your message reaches our administration panel and we will reply to your email within 24-48 hours. Make sure to enter a valid email address.",
+    "ur": "💬 رابطے کا طریقہ کار: جب آپ یہ فارم بھیجیں گے تو آپ کا پیغام ہمارے انتظامی پینل میں موصول ہوگا اور 24-48 گھنٹوں کے اندر آپ کی ای میل کا جواب دیا جائے گا۔ یقینی بنائیں کہ آپ نے ایک درست ای میل ایڈریس داخل کیا ہے۔",
+    "hi": "💬 संचार की प्रक्रिया: जब आप यह फॉर्म सबमिट करते हैं, तो आपका संदेश हमारे प्रशासन पैनल तक पहुँच जाएगा और आपके ईमेल का 24-48 घंटों के भीतर जवाब दिया जाएगा। कृपया एक वैध ईमेल पता दर्ज करना सुनिश्चित करें।",
+    "bn": "💬 যোগাযোগের পদ্ধতি: এই ফর্মটি জমা দিলে আপনার বার্তা আমাদের অ্যাডমিন প্যানেলে পৌঁছাবে এবং 24-48 ঘণ্টার মধ্যে আপনার ইমেলের উত্তর দেওয়া হবে। একটি সঠিক ইমেল ঠিকানা প্রবেশ করিয়েছেন তা নিশ্চিত করুন।",
+    "fr": "💬 Mécanisme de contact : Lorsque vous envoyez ce formulaire, votre message nous parvient sur le tableau de bord d'administration et une réponse sera envoyée à votre adresse e-mail dans les 24-48 heures. Assurez-vous d'entrer une adresse e-mail valide."
+  },
+  "الحراج بلس هي منصة بيع وشراء عربية حديثة لدول الخليج، مدعومة بالذكاء الاصطناعي لجعل عملية البيع والشراء أسرع وأذكى وأكثر أماناً.": {
+    "en": "Haraj Plus is a modern Arab buying and selling platform for Gulf countries, powered by artificial intelligence to make the buying and selling process faster, smarter, and more secure.",
+    "ur": "الحراج بلس خلیجی ممالک کے لیے ایک جدید عربی خرید و فروخت کا پلیٹ فارم ہے، جو مصنوعی ذہانت سے تقویت یافتہ ہے تاکہ خرید و فروخت کے عمل کو تیز، ذہین اور زیادہ محفوظ بنایا جا سکے۔",
+    "hi": "हराज प्लस खाड़ी देशों के लिए एक आधुनिक अरबी खरीद-बिक्री मंच है, जो खरीद और बिक्री की प्रक्रिया को तेज, स्मार्ट और अधिक सुरक्षित बनाने के लिए आर्टिफिशियल इंटेलिजेंस द्वारा संचालित है।",
+    "bn": "হারাজ প্লাস উপসাগরীয় দেশগুলির জন্য একটি আধুনিক আরবি কেনা-বেচার প্ল্যাটফর্ম, যা কৃত্রিম বুদ্ধিমত্তা দ্বারা চালিত যাতে কেনা-বেচার প্রক্রিয়া দ্রুত, স্মার্ট এবং আরও নিরাপদ হয়।",
+    "fr": "Haraj Plus est une plateforme arabe moderne d'achat et de vente pour les pays du Golfe, alimentée par l'intelligence artificielle pour rendre le processus d'achat et de vente plus rapide, plus intelligent et plus sûr."
+  },
+  "🤝 الحراج بلس وسيط فقط • النتائج والأسعار من المحركات أعلاه مباشرة • أكثر من 1,200 شركة طيران": {
+    "en": "🤝 Haraj Plus is only an intermediary • Results and prices directly from the engines above • More than 1,200 airlines",
+    "ur": "🤝 الحراج بلس صرف ایک ثالث ہے • نتائج اور قیمتیں براہ راست اوپر دیے گئے انجنوں سے ہیں • 1,200 سے زیادہ ایئرلائنز",
+    "hi": "🤝 हराज प्लस केवल एक मध्यस्थ है • परिणाम और कीमतें सीधे ऊपर दिए गए इंजनों से हैं • 1,200 से अधिक एयरलाइंस",
+    "bn": "🤝 হারাজ প্লাস শুধুমাত্র একজন মধ্যস্থতাকারী • ফলাফল এবং মূল্যগুলি সরাসরি উপরের ইঞ্জিনগুলি থেকে আসে • 1,200টিরও বেশি এয়ারলাইন",
+    "fr": "🤝 Haraj Plus est un simple intermédiaire • Résultats et prix directement des moteurs ci-dessus • Plus de 1 200 compagnies aériennes"
+  },
+  "1. الحراج بلس منصة وسيطة فقط لربط البائعين بالمشترين، ولا نتلقى أي مدفوعات أو نضمن أي صفقة.": {
+    "en": "1. Haraj Plus is only an intermediary platform to connect sellers with buyers, and we do not receive any payments or guarantee any transaction.",
+    "ur": "1. الحراج بلس صرف بیچنے والوں کو خریداروں سے جوڑنے والا ایک ثالثی پلیٹ فارم ہے، اور ہم کوئی ادائیگی وصول نہیں کرتے یا کسی بھی سودے کی ضمانت نہیں دیتے۔",
+    "hi": "1. हराज प्लस केवल खरीदारों को विक्रेताओं से जोड़ने के लिए एक मध्यस्थ मंच है, और हम कोई भुगतान प्राप्त नहीं करते हैं और न ही किसी सौदे की गारंटी देते हैं।",
+    "bn": "1. হারাজ প্লাস শুধুমাত্র বিক্রেতাদের ক্রেতাদের সাথে সংযোগ করার জন্য একটি মধ্যস্থতাকারী প্ল্যাটফর্ম, এবং আমরা কোনো পেমেন্ট গ্রহণ করি না বা কোনো চুক্তি নিশ্চিত করি না।",
+    "fr": "1. Haraj Plus est une plateforme intermédiaire uniquement pour connecter les vendeurs aux acheteurs, nous ne recevons aucun paiement et ne garantissons aucune transaction."
+  },
+  "نهدف إلى ربط البائعين والمشترين في الخليج العربي عبر تجربة فاخرة وسلسة، مع ميزات حصرية مثل:": {
+    "en": "We aim to connect sellers and buyers in the Arabian Gulf through a luxurious and seamless experience, with exclusive features such as:",
+    "ur": "ہمارا مقصد خلیج عرب میں بیچنے والوں اور خریداروں کو ایک پرتعیش اور ہموار تجربے کے ذریعے جوڑنا ہے، جس میں خصوصی خصوصیات شامل ہیں جیسے:",
+    "hi": "हमारा लक्ष्य एक शानदार और सहज अनुभव के माध्यम से अरब खाड़ी में विक्रेताओं और खरीदारों को जोड़ना है, विशेष सुविधाओं के साथ जैसे:",
+    "bn": "আমরা পারস্য উপসাগরের বিক্রেতা ও ক্রেতাদের মধ্যে একটি বিলাসবহুল এবং মসৃণ অভিজ্ঞতার মাধ্যমে সংযোগ স্থাপন করতে চাই, একচেটিয়া বৈশিষ্ট্য সহ যেমন:",
+    "fr": "Notre objectif est de connecter les vendeurs et les acheteurs dans le Golfe arabe grâce à une expérience luxueuse et fluide, avec des fonctionnalités exclusives telles que :"
+  },
+  "3. يُمنع نشر أي محتوى مخالف للأنظمة أو الذوق العام، وستُحذف الإعلانات المخالفة فوراً.": {
+    "en": "3. Publishing any content that violates regulations or public taste is prohibited, and infringing ads will be deleted immediately.",
+    "ur": "3. سسٹم یا عوامی ذوق کے خلاف کسی بھی مواد کو شائع کرنا ممنوع ہے، اور خلاف ورزی کرنے والے اشتہارات کو فوری طور پر حذف کر دیا جائے گا۔",
+    "hi": "3. नियमों या सार्वजनिक शालीनता के विपरीत किसी भी सामग्री को प्रकाशित करना प्रतिबंधित है, और उल्लंघन करने वाले विज्ञापनों को तुरंत हटा दिया जाएगा।",
+    "bn": "3. সিস্টেম বা সাধারণ রুচির বিরুদ্ধে কোনো সামগ্রী প্রকাশ করা নিষিদ্ধ, এবং লঙ্ঘনকারী বিজ্ঞাপনগুলি অবিলম্বে মুছে ফেলা হবে।",
+    "fr": "3. Il est interdit de publier tout contenu enfreignant les réglementations ou la décence publique, et les annonces non conformes seront supprimées immédiatement."
+  },
+  "ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً (5 = 🥉 برونزي، 10 = 🥈 فضي، 25 = ⭐ ذهبي)": {
+    "en": "Invite your friends and get verified badges for free (5 = 🥉 Bronze, 10 = 🥈 Silver, 25 = ⭐ Gold)",
+    "ur": "اپنے دوستوں کو مدعو کریں اور مفت تصدیق شدہ بیجز حاصل کریں (5 = 🥉 برونزی، 10 = 🥈 فضي، 25 = ⭐ ذهبي)",
+    "hi": "अपने दोस्तों को आमंत्रित करें और मुफ्त में प्रमाणित बैज प्राप्त करें (5 = 🥉 कांस्य, 10 = 🥈 रजत, 25 = ⭐ स्वर्ण)",
+    "bn": "আপনার বন্ধুদের আমন্ত্রণ জানান এবং বিনামূল্যে যাচাইকৃত ব্যাজ পান (5 = 🥉 ব্রোঞ্জ, 10 = 🥈 সিলভার, 25 = ⭐ গোল্ড)",
+    "fr": "Invitez vos amis et obtenez des badges vérifiés gratuitement (5 = 🥉 Bronze, 10 = 🥈 Argent, 25 = ⭐ Or)"
+  },
+  "2. يلتزم البائع بصحة المعلومات والصور المعروضة، ويتحمل وحده مسؤولية محتوى إعلانه.": {
+    "en": "2. The seller is responsible for the accuracy of the information and images displayed, and solely bears responsibility for the content of their advertisement.",
+    "ur": "2. بیچنے والا دکھائی جانے والی معلومات اور تصاویر کی درستگی کا پابند ہے، اور اپنے اشتہار کے مواد کی ذمہ داری خود اٹھاتا ہے۔",
+    "hi": "2. विक्रेता प्रदर्शित जानकारी और छवियों की सत्यता के लिए प्रतिबद्ध है, और वह अकेले अपने विज्ञापन की सामग्री के लिए जिम्मेदार है।",
+    "bn": "2. বিক্রেতা প্রদর্শিত তথ্য ও ছবির সত্যতা নিশ্চিত করতে বাধ্য, এবং তার বিজ্ঞাপনের বিষয়বস্তুর জন্য তিনি একাই দায়ী।",
+    "fr": "2. Le vendeur s'engage sur l'exactitude des informations et des photos affichées, et assume l'entière responsabilité du contenu de son annonce."
+  },
+  "أهلاً بك في الحراج بلس. باستخدامك هذا التطبيق فإنك توافق على الشروط التالية:": {
+    "en": "Welcome to Haraj Plus. By using this application, you agree to the following terms:",
+    "ur": "الحراج بلس میں خوش آمدید۔ اس ایپلیکیشن کو استعمال کرکے آپ درج ذیل شرائط سے اتفاق کرتے ہیں:",
+    "hi": "हराज प्लस में आपका स्वागत है। इस एप्लिकेशन का उपयोग करके, आप निम्नलिखित शर्तों से सहमत हैं:",
+    "bn": "হারাজ প্লাসে স্বাগতম। এই অ্যাপ্লিকেশনটি ব্যবহার করে আপনি নিম্নলিখিত শর্তাবলীতে সম্মত হচ্ছেন:",
+    "fr": "Bienvenue sur Haraj Plus. En utilisant cette application, vous acceptez les conditions suivantes :"
+  },
+  "تعذر بدء تسجيل الدخول بـ Snapchat. تأكد من إعدادات Snap Developer Portal.": {
+    "en": "Failed to start Snapchat login. Check Snap Developer Portal settings.",
+    "ur": "Snapchat کے ساتھ لاگ ان شروع نہیں ہو سکا۔ Snap Developer Portal کی ترتیبات کی تصدیق کریں۔",
+    "hi": "स्नैपचैट के साथ लॉगिन शुरू नहीं हो सका। स्नैप डेवलपर पोर्टल सेटिंग्स की जाँच करें।",
+    "bn": "Snapchat দিয়ে লগইন শুরু করা যায়নি। Snap Developer Portal-এর সেটিংস পরীক্ষা করুন।",
+    "fr": "Échec du démarrage de la connexion avec Snapchat. Vérifiez les paramètres du portail Snap Developer."
+  },
+  "📸 يمكنك رفع 8-16 صورة من زوايا مختلفة لإنشاء معاينة دوّارة 360° تلقائية": {
+    "en": "📸 You can upload 8-16 photos from different angles to create an automatic 360° rotating preview",
+    "ur": "📸 آپ مختلف زاویوں سے 8-16 تصاویر اپ لوڈ کر سکتے ہیں تاکہ ایک خودکار 360° گھومنے والا پیش نظارہ بنایا جا سکے۔",
+    "hi": "📸 आप विभिन्न कोणों से 8-16 तस्वीरें अपलोड कर सकते हैं एक स्वचालित 360° घूर्णन पूर्वावलोकन बनाने के लिए",
+    "bn": "📸 আপনি বিভিন্ন কোণ থেকে 8-16টি ছবি আপলোড করতে পারেন একটি স্বয়ংক্রিয় 360° ঘূর্ণনশীল প্রিভিউ তৈরি করতে",
+    "fr": "📸 Vous pouvez télécharger 8 à 16 photos sous différents angles pour créer un aperçu rotatif à 360° automatique."
+  },
+  "4. ننصح بعقد الصفقات في أماكن عامة آمنة، والتحقق من المنتج قبل الدفع.": {
+    "en": "4. We advise conducting transactions in safe public places, and verifying the product before payment.",
+    "ur": "4. ہم محفوظ عوامی مقامات پر سودے کرنے اور ادائیگی سے پہلے پروڈکٹ کی تصدیق کرنے کا مشورہ دیتے ہیں۔",
+    "hi": "4. हम सुरक्षित सार्वजनिक स्थानों पर लेनदेन करने की सलाह देते हैं, और भुगतान करने से पहले उत्पाद की जाँच करें।",
+    "bn": "4. আমরা নিরাপদ পাবলিক স্থানে লেনদেন করার পরামর্শ দিই, এবং পেমেন্টের আগে পণ্যটি যাচাই করতে বলি।",
+    "fr": "4. Nous vous conseillons de conclure les transactions dans des lieux publics sûrs et de vérifier le produit avant de payer."
+  },
+  "5. تحتفظ إدارة الحراج بلس بحقها في تعليق أو حذف أي حساب يخالف الشروط.": {
+    "en": "5. Haraj Plus administration reserves the right to suspend or delete any account that violates the terms.",
+    "ur": "5. الحراج بلس کی انتظامیہ شرائط کی خلاف ورزی کرنے والے کسی بھی اکاؤنٹ کو معطل یا حذف کرنے کا حق محفوظ رکھتی ہے۔",
+    "hi": "5. हराज प्लस प्रशासन शर्तों का उल्लंघन करने वाले किसी भी खाते को निलंबित या हटाने का अधिकार सुरक्षित रखता है।",
+    "bn": "5. হারাজ প্লাস কর্তৃপক্ষ শর্তাবলী লঙ্ঘনকারী যেকোনো অ্যাকাউন্ট স্থগিত বা মুছে ফেলার অধিকার সংরক্ষণ করে।",
+    "fr": "5. La direction de Haraj Plus se réserve le droit de suspendre ou de supprimer tout compte qui enfreint les conditions."
+  },
+  "تم استلام طلب حذف الحساب. سيتم مراجعته من قبل الإدارة خلال 48 ساعة.": {
+    "en": "Account deletion request received. It will be reviewed by administration within 48 hours.",
+    "ur": "اکاؤنٹ حذف کرنے کی درخواست موصول ہو گئی ہے۔ انتظامیہ کی جانب سے 48 گھنٹوں کے اندر اس کا جائزہ لیا جائے گا۔",
+    "hi": "खाता हटाने का अनुरोध प्राप्त हो गया है। इसका 48 घंटों के भीतर प्रशासन द्वारा समीक्षा की जाएगी।",
+    "bn": "অ্যাকাউন্ট মুছে ফেলার অনুরোধ গৃহীত হয়েছে। 48 ঘন্টার মধ্যে কর্তৃপক্ষ এটি পর্যালোচনা করবে।",
+    "fr": "Demande de suppression de compte reçue. Elle sera examinée par l'administration dans les 48 heures."
+  },
+  "تحقق من صندوق البريد الوارد ومجلد الـ Spam. الرابط صالح لمدة ساعة.": {
+    "en": "Check your inbox and Spam folder. The link is valid for one hour.",
+    "ur": "ان باکس اور اسپام فولڈر چیک کریں۔ لنک ایک گھنٹے کے لیے درست ہے۔",
+    "hi": "अपने इनबॉक्स और स्पैम फ़ोल्डर की जाँच करें। लिंक एक घंटे के लिए वैध है।",
+    "bn": "ইনবক্স এবং স্প্যাম ফোল্ডার পরীক্ষা করুন। লিঙ্কটি এক ঘণ্টার জন্য বৈধ।",
+    "fr": "Vérifiez votre boîte de réception et votre dossier de spam. Le lien est valable une heure."
+  },
+  "هل تم الاتفاق على الصفقة وتريد مشاركة موقعك مع البائع/المشتري؟\\n\\n": {
+    "en": "Has the deal been agreed upon and you want to share your location with the seller/buyer?\\n\\n",
+    "ur": "کیا سودے پر اتفاق ہو گیا ہے اور آپ بیچنے والے/خریدار کے ساتھ اپنی لوکیشن شیئر کرنا چاہتے ہیں؟\\n\\n",
+    "hi": "क्या सौदा तय हो गया है और क्या आप विक्रेता/खरीदार के साथ अपना स्थान साझा करना चाहते हैं?\n\n",
+    "bn": "চুক্তি কি চূড়ান্ত হয়েছে এবং আপনি কি বিক্রেতা/ক্রেতার সাথে আপনার অবস্থান শেয়ার করতে চান?\\n\\n",
+    "fr": "La transaction a-t-elle été conclue et souhaitez-vous partager votre emplacement avec le vendeur/acheteur ?\\n\\n"
+  },
+  "يفضّل مشاركة موقعك فقط بعد الاتفاق على الصفقة لحماية خصوصيتك.\\n\\n": {
+    "en": "It is preferred to share your location only after agreeing on the deal to protect your privacy.\\n\\n",
+    "ur": "اپنی پرائیویسی کی حفاظت کے لیے سودے پر اتفاق ہونے کے بعد ہی اپنی لوکیشن شیئر کرنا بہتر ہے۔\\n\\n",
+    "hi": "आपकी गोपनीयता की सुरक्षा के लिए, सौदे पर सहमत होने के बाद ही अपना स्थान साझा करना बेहतर है।\n\n",
+    "bn": "আপনার গোপনীয়তা রক্ষা করার জন্য শুধুমাত্র চুক্তি চূড়ান্ত হওয়ার পরেই আপনার অবস্থান শেয়ার করা ভালো।\\n\\n",
+    "fr": "Il est préférable de partager votre emplacement uniquement après avoir conclu la transaction pour protéger votre vie privée.\\n\\n"
+  },
+  "تعذر بدء تسجيل الدخول بـ X — تأكد من إعدادات Developer Portal": {
+    "en": "Failed to start X login — Check Developer Portal settings",
+    "ur": "X کے ساتھ لاگ ان شروع نہیں ہو سکا — Developer Portal کی ترتیبات کی تصدیق کریں۔",
+    "hi": "X के साथ लॉगिन शुरू नहीं हो सका — डेवलपर पोर्टल सेटिंग्स की जाँच करें",
+    "bn": "X দিয়ে লগইন শুরু করা যায়নি — Developer Portal সেটিংস পরীক্ষা করুন",
+    "fr": "Échec du démarrage de la connexion avec X — vérifiez les paramètres du portail développeur."
+  },
+  "هل تم بيع المنتج فعلاً؟ سيتم إخفاء الإعلان من القائمة العامة.": {
+    "en": "Has the product actually been sold? The ad will be hidden from the public list.",
+    "ur": "کیا پروڈکٹ واقعی بک گیا ہے؟ اشتہار کو عام فہرست سے چھپا دیا جائے گا۔",
+    "hi": "क्या उत्पाद वास्तव में बिक गया है? विज्ञापन को सार्वजनिक सूची से छिपा दिया जाएगा।",
+    "bn": "পণ্যটি কি সত্যিই বিক্রি হয়ে গেছে? বিজ্ঞাপনটি সাধারণ তালিকা থেকে লুকানো হবে।",
+    "fr": "Le produit a-t-il réellement été vendu ? L'annonce sera masquée de la liste publique."
+  },
+  "• البريد الإلكتروني ورقم الجوال — لإنشاء حسابك والتواصل معك.": {
+    "en": "• Email and mobile number — to create your account and communicate with you.",
+    "ur": "• ای میل اور موبائل نمبر — آپ کا اکاؤنٹ بنانے اور آپ سے رابطہ کرنے کے لیے۔",
+    "hi": "• ईमेल और मोबाइल नंबर — आपका खाता बनाने और आपसे संपर्क करने के लिए।",
+    "bn": "• ইমেল এবং মোবাইল নম্বর — আপনার অ্যাকাউন্ট তৈরি করতে এবং আপনার সাথে যোগাযোগ করতে।",
+    "fr": "• Adresse e-mail et numéro de téléphone mobile — pour créer votre compte et vous contacter."
+  },
+  "المتصفح لا يدعم البحث الصوتي. جرّب Chrome أو Safari الحديث": {
+    "en": "Browser does not support voice search. Try modern Chrome or Safari",
+    "ur": "براؤزر وائس سرچ کو سپورٹ نہیں کرتا۔ جدید کروم یا سفاری آزمائیں۔",
+    "hi": "ब्राउज़र ध्वनि खोज का समर्थन नहीं करता है। आधुनिक क्रोम या सफारी आज़माएं।",
+    "bn": "ব্রাউজার ভয়েস সার্চ সমর্থন করে না। আধুনিক Chrome বা Safari ব্যবহার করে দেখুন",
+    "fr": "Votre navigateur ne prend pas en charge la recherche vocale. Essayez Chrome ou un Safari récent."
+  },
+  "كلمة المرور ضعيفة. استخدم أحرف كبيرة وصغيرة وأرقام ورموز.": {
+    "en": "Weak password. Use uppercase and lowercase letters, numbers, and symbols.",
+    "ur": "پاس ورڈ کمزور ہے۔ بڑے اور چھوٹے حروف، اعداد اور علامات استعمال کریں۔",
+    "hi": "पासवर्ड कमजोर है। बड़े और छोटे अक्षरों, संख्याओं और प्रतीकों का उपयोग करें।",
+    "bn": "পাসওয়ার্ড দুর্বল। বড় ও ছোট হাতের অক্ষর, সংখ্যা এবং প্রতীক ব্যবহার করুন।",
+    "fr": "Mot de passe faible. Utilisez des lettres majuscules et minuscules, des chiffres et des symboles."
+  },
+  "• الموقع الجغرافي — لعرض الإعلانات القريبة منك (اختياري).": {
+    "en": "• Geographic location — to display ads near you (optional).",
+    "ur": "• جغرافیائی مقام — اپنے قریب کے اشتہارات دکھانے کے لیے (اختیاری)۔",
+    "hi": "• भौगोलिक स्थान — आपके आस-पास के विज्ञापन दिखाने के लिए (वैकल्पिक)।",
+    "bn": "• ভৌগোলিক অবস্থান — আপনার কাছাকাছি বিজ্ঞাপনগুলি দেখাতে (ঐচ্ছিক)।",
+    "fr": "• Localisation géographique — pour afficher les annonces près de chez vous (facultatif)."
+  },
+  "كلمة المرور ضعيفة جداً. استخدم أحرف كبيرة وصغيرة وأرقام.": {
+    "en": "Very weak password. Use uppercase and lowercase letters and numbers.",
+    "ur": "پاس ورڈ بہت کمزور ہے۔ بڑے اور چھوٹے حروف اور اعداد استعمال کریں۔",
+    "hi": "पासवर्ड बहुत कमजोर है। बड़े और छोटे अक्षरों और संख्याओं का उपयोग करें।",
+    "bn": "পাসওয়ার্ড খুব দুর্বল। বড় ও ছোট হাতের অক্ষর এবং সংখ্যা ব্যবহার করুন।",
+    "fr": "Mot de passe très faible. Utilisez des lettres majuscules et minuscules et des chiffres."
+  },
+  "هل تم بيع المنتج؟ اختر OK = تم البيع، Cancel = حذف فقط": {
+    "en": "Has the product been sold? Choose OK = Sold, Cancel = Delete only",
+    "ur": "کیا پروڈکٹ بک گیا ہے؟ OK منتخب کریں = بک گیا، Cancel = صرف حذف کریں۔",
+    "hi": "क्या उत्पाद बिक गया है? चुनें OK = बिक गया, Cancel = केवल हटाएँ",
+    "bn": "পণ্যটি কি বিক্রি হয়েছে? OK নির্বাচন করুন = বিক্রি হয়েছে, Cancel = শুধু মুছে ফেলুন",
+    "fr": "Le produit a-t-il été vendu ? Choisissez OK = Vendu, Annuler = Supprimer seulement"
+  },
+  "✅ تم تحديد الإعلان كمباع. شكراً لاستخدامك الحراج بلس!": {
+    "en": "✅ The ad has been marked as sold. Thank you for using Haraj Plus!",
+    "ur": "✅ اشتہار کو فروخت شدہ نشانزد کر دیا گیا ہے۔ حراج پلس استعمال کرنے کا شکریہ!",
+    "hi": "✅ विज्ञापन को बेचा गया चिह्नित किया गया है। Haraj Plus का उपयोग करने के लिए धन्यवाद!",
+    "bn": "✅ বিজ্ঞাপনটি বিক্রি হয়েছে হিসেবে চিহ্নিত করা হয়েছে। হারাজ প্লাস ব্যবহার করার জন্য ধন্যবাদ!",
+    "fr": "✅ L'annonce a été marquée comme vendue. Merci d'utiliser Haraj Plus !"
+  },
+  "لا توجد فيديوهات بعد. كن أول من يرفع فيديو لمنتجاته!": {
+    "en": "No videos yet. Be the first to upload a video for your products!",
+    "ur": "ابھی تک کوئی ویڈیو نہیں ہے۔ اپنے مصنوعات کے لیے پہلی ویڈیو اپ لوڈ کرنے والے بنیں!",
+    "hi": "अभी तक कोई वीडियो नहीं है। अपने उत्पादों के लिए वीडियो अपलोड करने वाले पहले व्यक्ति बनें!",
+    "bn": "এখনও কোনো ভিডিও নেই। আপনার পণ্যের জন্য প্রথম ভিডিও আপলোড করুন!",
+    "fr": "Il n'y a pas encore de vidéos. Soyez le premier à télécharger une vidéo de vos produits !"
+  },
+  "أفضل الأسعار تحت متوسط السوق — مختارة بذكاء اصطناعي": {
+    "en": "Best prices below market average — selected by AI",
+    "ur": "بازار کی اوسط سے کم بہترین قیمتیں — مصنوعی ذہانت کے ذریعے منتخب کردہ",
+    "hi": "बाज़ार औसत से कम सर्वोत्तम मूल्य — कृत्रिम बुद्धिमत्ता द्वारा चुने गए",
+    "bn": "বাজারের গড় মূল্যের নিচে সেরা দাম — কৃত্রিম বুদ্ধিমত্তা দ্বারা নির্বাচিত",
+    "fr": "Les meilleurs prix en dessous de la moyenne du marché — sélectionnés par intelligence artificielle"
+  },
+  "نحرص على حماية بياناتك. إليك ما نجمعه وكيف نستخدمه:": {
+    "en": "We care about protecting your data. Here's what we collect and how we use it:",
+    "ur": "ہم آپ کے ڈیٹا کی حفاظت کو یقینی بناتے ہیں۔ یہ ہے جو ہم جمع کرتے ہیں اور کیسے استعمال کرتے ہیں:",
+    "hi": "हम आपके डेटा की सुरक्षा सुनिश्चित करते हैं। यहाँ बताया गया है कि हम क्या एकत्र करते हैं और इसका उपयोग कैसे करते हैं:",
+    "bn": "আমরা আপনার ডেটা সুরক্ষিত রাখতে যত্নশীল। আমরা কী সংগ্রহ করি এবং কীভাবে ব্যবহার করি তা এখানে দেওয়া হলো:",
+    "fr": "Nous nous engageons à protéger vos données. Voici ce que nous collectons et comment nous l'utilisons :"
+  },
+  "خدمة الإيميل غير مفعّلة بعد. استخدم الرابط مباشرة:": {
+    "en": "Email service is not activated yet. Use the link directly:",
+    "ur": "ای میل سروس ابھی فعال نہیں ہے۔ براہ راست لنک استعمال کریں:",
+    "hi": "ईमेल सेवा अभी तक सक्रिय नहीं हुई है। सीधे लिंक का उपयोग करें:",
+    "bn": "ইমেল পরিষেবা এখনও সক্রিয় হয়নি। সরাসরি লিঙ্কটি ব্যবহার করুন:",
+    "fr": "Le service de messagerie n'est pas encore activé. Utilisez le lien directement :"
+  },
+  "أكبر سوق رقمي للخليج العربي — كل شيء في مكان واحد": {
+    "en": "The largest digital marketplace for the Arabian Gulf — everything in one place",
+    "ur": "خلیج عرب کے لیے سب سے بڑی ڈیجیٹل مارکیٹ — سب کچھ ایک جگہ پر",
+    "hi": "अरब खाड़ी का सबसे बड़ा डिजिटल बाज़ार — सब कुछ एक ही जगह पर",
+    "bn": "আরব উপসাগরের বৃহত্তম ডিজিটাল মার্কেটপ্লেস — সবকিছু এক জায়গায়",
+    "fr": "Le plus grand marché numérique pour le Golfe Arabe — tout en un seul endroit"
+  },
+  "سنرسل لك رابط إعادة التعيين على بريدك الإلكتروني": {
+    "en": "We will send you a reset link to your email",
+    "ur": "ہم آپ کے ای میل پر ری سیٹ لنک بھیجیں گے۔",
+    "hi": "हम आपको आपके ईमेल पर रीसेट लिंक भेजेंगे।",
+    "bn": "আমরা আপনার ইমেল ঠিকানায় রিসেট লিঙ্ক পাঠাবো",
+    "fr": "Nous vous enverrons un lien de réinitialisation par e-mail"
+  },
+  "سيتم إعادة نشر الإعلان في أعلى القائمة. متابعة؟": {
+    "en": "The ad will be reposted at the top of the list. Continue?",
+    "ur": "اشتہار کو فہرست کے اوپر دوبارہ شائع کیا جائے گا۔ جاری رکھیں؟",
+    "hi": "विज्ञापन को सूची में सबसे ऊपर फिर से पोस्ट किया जाएगा। जारी रखें?",
+    "bn": "বিজ্ঞাপনটি তালিকার শীর্ষে পুনরায় প্রকাশ করা হবে। চালিয়ে যাবেন?",
+    "fr": "L'annonce sera republiée en haut de la liste. Continuer ?"
+  },
+  "لا يمكن أن يكون مطار المغادرة والوصول متشابهين": {
+    "en": "Departure and arrival airports cannot be the same",
+    "ur": "روانگی اور آمد کے ہوائی اڈے ایک جیسے نہیں ہو سکتے",
+    "hi": "प्रस्थान और आगमन हवाई अड्डे एक जैसे नहीं हो सकते।",
+    "bn": "ছাড়ার এবং পৌঁছানোর বিমানবন্দর একই হতে পারে না",
+    "fr": "Les aéroports de départ et d'arrivée ne peuvent pas être identiques"
+  },
+  "• يمكنك طلب حذف حسابك في أي وقت من الإعدادات.": {
+    "en": "• You can request to delete your account at any time from Settings.",
+    "ur": "• آپ سیٹنگز سے کسی بھی وقت اپنا اکاؤنٹ حذف کرنے کی درخواست کر سکتے ہیں۔",
+    "hi": "• आप सेटिंग से कभी भी अपना खाता हटाने का अनुरोध कर सकते हैं।",
+    "bn": "• আপনি যেকোনো সময় সেটিংস থেকে আপনার অ্যাকাউন্ট মুছে ফেলার অনুরোধ করতে পারেন।",
+    "fr": "• Vous pouvez demander la suppression de votre compte à tout moment depuis les paramètres."
+  },
+  "تم الحفظ ✅ يرجى تحديث الصفحة لرؤية التغييرات": {
+    "en": "Saved ✅ Please refresh the page to see the changes",
+    "ur": "محفوظ کر لیا گیا ✅ تبدیلیوں کو دیکھنے کے لیے صفحہ کو ریفریش کریں۔",
+    "hi": "सहेजा गया ✅ कृपया परिवर्तन देखने के लिए पेज रीफ्रेश करें।",
+    "bn": "সংরক্ষণ করা হয়েছে ✅ পরিবর্তন দেখতে অনুগ্রহ করে পৃষ্ঠাটি রিফ্রেশ করুন",
+    "fr": "Enregistré ✅ Veuillez rafraîchir la page pour voir les changements"
+  },
+  "سيارات نادرة • عقارات مميزة • مقتنيات تراثية": {
+    "en": "Rare Cars • Premium Properties • Heritage Collectibles",
+    "ur": "نایاب کاریں • منفرد پراپرٹیز • ثقافتی نوادرات",
+    "hi": "दुर्लभ कारें • विशिष्ट संपत्तियां • विरासत संग्रहणीय वस्तुएं",
+    "bn": "বিরল গাড়ি • বিশেষ সম্পত্তি • ঐতিহ্যবাহী সংগ্রহযোগ্য জিনিস",
+    "fr": "Voitures rares • Propriétés d'exception • Objets de collection patrimoniaux"
+  },
+  "قارن أسعار 4 محركات بحث عالمية في ضغطة واحدة": {
+    "en": "Compare prices from 4 global search engines with one click",
+    "ur": "ایک کلک میں 4 عالمی سرچ انجنوں کی قیمتوں کا موازنہ کریں",
+    "hi": "एक क्लिक में 4 वैश्विक सर्च इंजनों की कीमतों की तुलना करें।",
+    "bn": "এক ক্লিকে 4টি আন্তর্জাতিক সার্চ ইঞ্জিনের দাম তুলনা করুন",
+    "fr": "Comparez les prix de 4 moteurs de recherche mondiaux en un seul clic"
+  },
+  "✅ تم تغيير كلمة المرور بنجاح! جاري تحويلك...": {
+    "en": "✅ Password changed successfully! Redirecting you...",
+    "ur": "✅ پاس ورڈ کامیابی سے تبدیل ہو گیا! آپ کو ری ڈائریکٹ کیا جا رہا ہے...",
+    "hi": "✅ पासवर्ड सफलतापूर्वक बदल दिया गया है! आपको रीडायरेक्ट किया जा रहा है...",
+    "bn": "✅ পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে! আপনাকে রিডাইরেক্ট করা হচ্ছে...",
+    "fr": "✅ Votre mot de passe a été modifié avec succès ! Redirection en cours..."
+  },
+  "اضغط على الخريطة أو استخدم زر الموقع الحالي": {
+    "en": "Tap on the map or use the current location button",
+    "ur": "نقشے پر ٹیپ کریں یا موجودہ مقام کا بٹن استعمال کریں۔",
+    "hi": "मानचित्र पर टैप करें या वर्तमान स्थान बटन का उपयोग करें।",
+    "bn": "ম্যাপে ক্লিক করুন অথবা বর্তমান অবস্থানের বোতামটি ব্যবহার করুন",
+    "fr": "Appuyez sur la carte ou utilisez le bouton de localisation actuelle"
+  },
+  "لم نجد نتائج. جرّب رمز IATA (مثل: RUH, DXB)": {
+    "en": "No results found. Try an IATA code (e.g., RUH, DXB)",
+    "ur": "کوئی نتائج نہیں ملے۔ IATA کوڈ آزمائیں (مثال کے طور پر: RUH, DXB)",
+    "hi": "हमें कोई परिणाम नहीं मिला। IATA कोड आज़माएं (जैसे: RUH, DXB)",
+    "bn": "কোনো ফলাফল পাওয়া যায়নি। IATA কোড চেষ্টা করুন (যেমন: RUH, DXB)",
+    "fr": "Aucun résultat trouvé. Essayez un code IATA (ex: RUH, DXB)"
+  },
+  "تعذر الوصول للموقع. تأكد من السماح بالموقع": {
+    "en": "Location access failed. Make sure location is allowed",
+    "ur": "مقام تک رسائی ممکن نہیں ہوئی۔ یقینی بنائیں کہ مقام کی اجازت دی گئی ہے۔",
+    "hi": "स्थान तक पहुँचने में असमर्थ। सुनिश्चित करें कि स्थान की अनुमति है।",
+    "bn": "অবস্থান অ্যাক্সেস করা যায়নি। নিশ্চিত করুন যে অবস্থান অনুমোদিত।",
+    "fr": "Impossible d'accéder à la localisation. Assurez-vous d'autoriser la localisation."
+  },
+  "نحتاج المزيد من الإعلانات لمقارنة الأسعار": {
+    "en": "We need more ads to compare prices",
+    "ur": "قیمتوں کا موازنہ کرنے کے لیے ہمیں مزید اشتہارات درکار ہیں۔",
+    "hi": "कीमतों की तुलना करने के लिए हमें और विज्ञापनों की आवश्यकता है।",
+    "bn": "দাম তুলনা করার জন্য আমাদের আরও বিজ্ঞাপনের প্রয়োজন",
+    "fr": "Nous avons besoin de plus d'annonces pour comparer les prix"
+  },
+  "اكتشف صفقات حصرية على الإعلانات الجديدة!": {
+    "en": "Discover exclusive deals on new listings!",
+    "ur": "نئے اشتہارات پر خصوصی سودے دریافت کریں!",
+    "hi": "नए विज्ञापनों पर विशेष सौदों की खोज करें!",
+    "bn": "নতুন বিজ্ঞাপনে এক্সক্লুসিভ ডিল আবিষ্কার করুন!",
+    "fr": "Découvrez des offres exclusives sur les nouvelles annonces !"
+  },
+  "كلمة المرور يجب أن تكون 8 أحرف على الأقل": {
+    "en": "Password must be at least 8 characters",
+    "ur": "پاس ورڈ کم از کم 8 حروف کا ہونا چاہیے۔",
+    "hi": "पासवर्ड कम से कम 8 अक्षर का होना चाहिए।",
+    "bn": "পাসওয়ার্ডে কমপক্ষে 8টি অক্ষর থাকতে হবে",
+    "fr": "Le mot de passe doit contenir au moins 8 caractères"
+  },
+  "لم نتمكن من فهم الصورة. حاول بصورة أوضح.": {
+    "en": "Could not understand the image. Try with a clearer picture.",
+    "ur": "ہم تصویر کو سمجھ نہیں پائے۔ زیادہ واضح تصویر کی کوشش کریں۔",
+    "hi": "हम छवि को समझ नहीं पाए। एक स्पष्ट छवि के साथ पुनः प्रयास करें।",
+    "bn": "আমরা ছবিটি বুঝতে পারিনি। আরও স্পষ্ট একটি ছবি দিয়ে চেষ্টা করুন।",
+    "fr": "Nous n'avons pas pu comprendre l'image. Essayez avec une image plus claire."
+  },
+  "تعذر تشغيل الميكروفون. تحقق من الأذونات": {
+    "en": "Microphone failed to start. Check permissions",
+    "ur": "مائیکروفون کو فعال نہیں کیا جا سکا۔ اجازتیں چیک کریں۔",
+    "hi": "माइक्रोफ़ोन चालू नहीं हो सका। अनुमतियाँ जांचें।",
+    "bn": "মাইক্রোফোন চালু করা যায়নি। অনুমতি পরীক্ষা করুন।",
+    "fr": "Impossible d'activer le microphone. Vérifiez les autorisations."
+  },
+  "جاري إتمام تسجيل الدخول بـ Snapchat...": {
+    "en": "Completing login with Snapchat...",
+    "ur": "Snapchat کے ساتھ لاگ ان مکمل کیا جا رہا ہے...",
+    "hi": "Snapchat के साथ लॉगिन पूरा किया जा रहा है...",
+    "bn": "Snapchat দিয়ে লগইন সম্পন্ন হচ্ছে...",
+    "fr": "Connexion via Snapchat en cours..."
+  },
+  "حجم الصورة كبير جداً (الحد الأقصى 8MB)": {
+    "en": "Image size is too large (maximum 8MB)",
+    "ur": "تصویر کا سائز بہت بڑا ہے (زیادہ سے زیادہ 8MB)",
+    "hi": "छवि का आकार बहुत बड़ा है (अधिकतम 8MB)",
+    "bn": "ছবির আকার অনেক বড় (সর্বোচ্চ 8MB)",
+    "fr": "La taille de l'image est trop grande (maximum 8MB)"
+  },
+  "✅ شكراً، نتمنى لك بيعاً موفقاً دائماً!": {
+    "en": "✅ Thank you, we wish you successful sales always!",
+    "ur": "✅ شکریہ، ہم ہمیشہ آپ کی کامیاب فروخت کی خواہش کرتے ہیں!",
+    "hi": "✅ धन्यवाद, हम हमेशा आपके सफल विक्रय की कामना करते हैं!",
+    "bn": "✅ ধন্যবাদ, আমরা আপনার সর্বদা সফল বিক্রয় কামনা করি!",
+    "fr": "✅ Merci, nous vous souhaitons toujours de bonnes ventes !"
+  },
+  "الخطوة 1: اختر الفئة المناسبة لإعلانك": {
+    "en": "Step 1: Choose the appropriate category for your ad",
+    "ur": "قدم 1: اپنے اشتہار کے لیے مناسب زمرہ منتخب کریں",
+    "hi": "चरण 1: अपने विज्ञापन के लिए उपयुक्त श्रेणी चुनें",
+    "bn": "ধাপ ১: আপনার বিজ্ঞাপনের জন্য সঠিক বিভাগ নির্বাচন করুন",
+    "fr": "Étape 1 : Choisissez la catégorie appropriée pour votre annonce"
+  },
+  "• الصور والوسائط — لرفع إعلاناتك فقط.": {
+    "en": "• Photos and media — for uploading your ads only.",
+    "ur": "• تصاویر اور میڈیا — صرف اپنے اشتہارات اپ لوڈ کرنے کے لیے۔",
+    "hi": "• तस्वीरें और मीडिया — केवल आपके विज्ञापन अपलोड करने के लिए।",
+    "bn": "• ছবি এবং মিডিয়া — শুধুমাত্র আপনার বিজ্ঞাপন আপলোড করার জন্য।",
+    "fr": "• Images et médias — uniquement pour télécharger vos annonces."
+  },
+  "✅ تم استلام رسالتك. سنرد عليك قريباً.": {
+    "en": "✅ Your message has been received. We will reply soon.",
+    "ur": "✅ آپ کا پیغام موصول ہو گیا ہے۔ ہم جلد ہی آپ کو جواب دیں گے۔",
+    "hi": "✅ आपका संदेश प्राप्त हो गया है। हम जल्द ही आपसे संपर्क करेंगे।",
+    "bn": "✅ আপনার বার্তা গৃহীত হয়েছে। আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।",
+    "fr": "✅ Votre message a été reçu. Nous vous répondrons bientôt."
+  },
+  "ابحث عن مدينة أو مطار أو رمز IATA...": {
+    "en": "Search for a city, airport, or IATA code...",
+    "ur": "شہر، ہوائی اڈہ یا IATA کوڈ تلاش کریں...",
+    "hi": "शहर, हवाई अड्डे या IATA कोड खोजें...",
+    "bn": "একটি শহর, বিমানবন্দর বা IATA কোড খুঁজুন...",
+    "fr": "Recherchez une ville, un aéroport ou un code IATA..."
+  },
+  "اضغط OK للمتابعة، أو Cancel للإلغاء.": {
+    "en": "Press OK to continue, or Cancel to abort.",
+    "ur": "جاری رکھنے کے لیے OK دبائیں، یا منسوخ کرنے کے لیے Cancel۔",
+    "hi": "जारी रखने के लिए OK दबाएं, या रद्द करने के लिए Cancel दबाएं।",
+    "bn": "চালিয়ে যাওয়ার জন্য OK চাপুন, অথবা বাতিল করার জন্য Cancel চাপুন।",
+    "fr": "Appuyez sur OK pour continuer, ou sur Annuler pour annuler."
+  },
+  "لا توجد إعلانات بانتظار المراجعة ✅": {
+    "en": "No ads awaiting review ✅",
+    "ur": "کوئی اشتہار جائزہ کے لیے زیر التوا نہیں ✅",
+    "hi": "समीक्षा के लिए कोई विज्ञापन लंबित नहीं है ✅",
+    "bn": "পর্যালোচনার জন্য কোনো বিজ্ঞাপন নেই ✅",
+    "fr": "Aucune annonce en attente de révision ✅"
+  },
+  "يبدأ بـ 50/52/54/55/56/58، 9 أرقام": {
+    "en": "Starts with 50/52/54/55/56/58, 9 digits",
+    "ur": "50/52/54/55/56/58 سے شروع ہوتا ہے، 9 ہندسے",
+    "hi": "50/52/54/55/56/58 से शुरू होता है, 9 अंक",
+    "bn": "50/52/54/55/56/58 দিয়ে শুরু, 9 সংখ্যা",
+    "fr": "Commence par 50/52/54/55/56/58, 9 chiffres"
+  },
+  "الخطوة 2: أضف التفاصيل والمواصفات": {
+    "en": "Step 2: Add details and specifications",
+    "ur": "قدم 2: تفصیلات اور وضاحتیں شامل کریں",
+    "hi": "चरण 2: विवरण और विशिष्टताएँ जोड़ें",
+    "bn": "ধাপ ২: বিস্তারিত এবং স্পেসিফিকেশন যোগ করুন",
+    "fr": "Étape 2 : Ajoutez les détails et les spécifications"
+  },
+  "سجّل في دقيقة وابدأ البيع والشراء": {
+    "en": "Register in a minute and start buying and selling",
+    "ur": "ایک منٹ میں سائن اپ کریں اور خرید و فروخت شروع کریں",
+    "hi": "एक मिनट में रजिस्टर करें और बेचना-खरीदना शुरू करें",
+    "bn": "এক মিনিটে নিবন্ধন করুন এবং কেনা-বেচা শুরু করুন",
+    "fr": "Inscrivez-vous en une minute et commencez à acheter et à vendre"
+  },
+  "كلمة المرور، حذف الحساب، البيانات": {
+    "en": "Password, account deletion, data",
+    "ur": "پاس ورڈ، اکاؤنٹ حذف کریں، ڈیٹا",
+    "hi": "पासवर्ड, खाता हटाना, डेटा",
+    "bn": "পাসওয়ার্ড, অ্যাকাউন্ট মুছে ফেলা, ডেটা",
+    "fr": "Mot de passe, suppression du compte, données"
+  },
+  "يجب تسجيل الدخول لاستخدام الرسائل": {
+    "en": "You must log in to use messages",
+    "ur": "پیغامات استعمال کرنے کے لیے لاگ ان کرنا ضروری ہے",
+    "hi": "संदेशों का उपयोग करने के लिए लॉगिन करना होगा",
+    "bn": "বার্তা ব্যবহার করতে লগইন করতে হবে",
+    "fr": "Vous devez vous connecter pour utiliser la messagerie"
+  },
+  "الخطوة 4: حدد الموقع وأكّد النشر": {
+    "en": "Step 4: Select location and confirm publishing",
+    "ur": "قدم 4: مقام منتخب کریں اور اشاعت کی تصدیق کریں",
+    "hi": "चरण 4: स्थान चुनें और प्रकाशन की पुष्टि करें",
+    "bn": "ধাপ ৪: অবস্থান নির্বাচন করুন এবং প্রকাশনা নিশ্চিত করুন",
+    "fr": "Étape 4 : Sélectionnez l'emplacement et confirmez la publication"
+  },
+  "حدث خطأ. يرجى المحاولة مرة أخرى.": {
+    "en": "An error occurred. Please try again.",
+    "ur": "ایک خرابی پیش آئی۔ براہ کرم دوبارہ کوشش کریں۔",
+    "hi": "एक त्रुटि हुई। कृपया पुनः प्रयास करें।",
+    "bn": "একটি ত্রুটি ঘটেছে। অনুগ্রহ করে আবার চেষ্টা করুন।",
+    "fr": "Une erreur s'est produite. Veuillez réessayer."
+  },
+  "سباك • كهربائي • نظافة • نقل ...": {
+    "en": "Plumber • Electrician • Cleaning • Moving ...",
+    "ur": "پلمبر • الیکٹریشن • صفائی • نقل و حمل ...",
+    "hi": "प्लंबर • इलेक्ट्रीशियन • सफाई • परिवहन ...",
+    "bn": "প্লাম্বার • ইলেকট্রিশিয়ান • পরিচ্ছন্নতা • পরিবহন ...",
+    "fr": "Plombier • Électricien • Nettoyage • Déménagement ..."
+  },
+  "لا توجد إعلانات في هذه الفئة بعد": {
+    "en": "No ads in this category yet",
+    "ur": "اس زمرے میں ابھی تک کوئی اشتہار نہیں ہے",
+    "hi": "इस श्रेणी में अभी तक कोई विज्ञापन नहीं है",
+    "bn": "এই বিভাগে এখনও কোনো বিজ্ঞাপন নেই",
+    "fr": "Il n'y a pas encore d'annonces dans cette catégorie"
+  },
+  "للأعمال والإعلان وطلبات الشراكة:": {
+    "en": "For business, advertising, and partnership inquiries:",
+    "ur": "کاروبار، اشتہار اور شراکت داری کی درخواستوں کے لیے:",
+    "hi": "व्यवसाय, विज्ञापन और साझेदारी अनुरोधों के लिए:",
+    "bn": "ব্যবসা, বিজ্ঞাপন এবং অংশীদারিত্বের অনুরোধের জন্য:",
+    "fr": "Pour les affaires, la publicité et les demandes de partenariat :"
+  },
+  "مشاركة الموقع (بعد إتمام الصفقة)": {
+    "en": "Share location (after deal completion)",
+    "ur": "مقام کا اشتراک (سودا مکمل ہونے کے بعد)",
+    "hi": "स्थान साझा करें (सौदे के पूरा होने के बाद)",
+    "bn": "অবস্থান শেয়ার করুন (লেনদেন সম্পন্ন হওয়ার পর)",
+    "fr": "Partage de localisation (après la finalisation de la transaction)"
+  },
+  "انضم لمجتمع الخليج 🇸🇦🇦🇪🇰🇼🇶🇦🇧🇭🇴🇲": {
+    "en": "Join the Gulf community 🇸🇦🇦🇪🇰🇼🇶🇦🇧🇭🇴🇲",
+    "ur": "خلیجی کمیونٹی میں شامل ہوں 🇸🇦🇦🇪🇰🇼🇶🇦🇧🇭🇴🇲",
+    "hi": "खाड़ी समुदाय में शामिल हों 🇸🇦🇦🇪🇰🇼🇶🇦🇧🇭🇴🇲",
+    "bn": "উপসাগরীয় সম্প্রদায়ে যোগ দিন 🇸🇦🇦🇪🇰🇼🇶🇦🇧🇭🇴🇲",
+    "fr": "Rejoignez la communauté du Golfe 🇸🇦🇦🇪🇰🇼🇶🇦🇧🇭🇴🇲"
+  },
+  "تعذر تحليل الصورة. حاول لاحقاً.": {
+    "en": "Could not analyze image. Try again later.",
+    "ur": "تصویر کا تجزیہ نہیں ہو سکا۔ بعد میں کوشش کریں۔",
+    "hi": "छवि को संसाधित नहीं किया जा सका। बाद में प्रयास करें।",
+    "bn": "ছবি বিশ্লেষণ করা যায়নি। পরে আবার চেষ্টা করুন।",
+    "fr": "Impossible d'analyser l'image. Veuillez réessayer plus tard."
+  },
+  "جاري إتمام تسجيل الدخول بـ X...": {
+    "en": "Completing login with X...",
+    "ur": "X کے ساتھ لاگ ان مکمل کیا جا رہا ہے...",
+    "hi": "X से लॉगिन पूरा किया जा रहा है...",
+    "bn": "X দিয়ে লগইন সম্পন্ন হচ্ছে...",
+    "fr": "Connexion en cours avec X..."
+  },
+  "سيتم تعطيل حسابك. هل أنت متأكد؟": {
+    "en": "Your account will be disabled. Are you sure?",
+    "ur": "آپ کا اکاؤنٹ غیر فعال کر دیا جائے گا۔ کیا آپ کو یقین ہے؟",
+    "hi": "आपका खाता निष्क्रिय कर दिया जाएगा। क्या आप निश्चित हैं?",
+    "bn": "আপনার অ্যাকাউন্ট নিষ্ক্রিয় করা হবে। আপনি কি নিশ্চিত?",
+    "fr": "Votre compte sera désactivé. Êtes-vous sûr ?"
+  },
+  "عرض ثلاثي الأبعاد حقيقي (WebGL)": {
+    "en": "Real 3D view (WebGL)",
+    "ur": "اصلی تھری ڈی ویو (WebGL)",
+    "hi": "वास्तविक 3D दृश्य (WebGL)",
+    "bn": "বাস্তব থ্রিডি ভিউ (WebGL)",
+    "fr": "Vue 3D réelle (WebGL)"
+  },
+  "• لا نبيع بياناتك لأي طرف ثالث.": {
+    "en": "• We do not sell your data to any third party.",
+    "ur": "• ہم آپ کا ڈیٹا کسی تیسرے فریق کو نہیں بیچتے۔",
+    "hi": "• हम आपका डेटा किसी तीसरे पक्ष को नहीं बेचते हैं।",
+    "bn": "• আমরা আপনার ডেটা কোনো তৃতীয় পক্ষের কাছে বিক্রি করি না।",
+    "fr": "• Nous ne vendons pas vos données à des tiers."
+  },
+  "اقتراح السعر بالذكاء الاصطناعي": {
+    "en": "AI price suggestion",
+    "ur": "مصنوعی ذہانت کے ذریعے قیمت کی تجویز",
+    "hi": "आर्टिफिशियल इंटेलिजेंस द्वारा मूल्य सुझाव",
+    "bn": "আর্টিফিশিয়াল ইন্টেলিজেন্স দ্বারা মূল্য প্রস্তাব",
+    "fr": "Suggestion de prix par IA"
+  },
+  "جاري تأكيد بريدك الإلكتروني...": {
+    "en": "Confirming your email...",
+    "ur": "آپ کے ای میل کی تصدیق کی جا رہی ہے...",
+    "hi": "आपके ईमेल की पुष्टि की जा रही है...",
+    "bn": "আপনার ইমেল নিশ্চিত করা হচ্ছে...",
+    "fr": "Confirmation de votre adresse e-mail en cours..."
+  },
+  "الخطوة 3: ارفع الصور والفيديو": {
+    "en": "Step 3: Upload Photos and Videos",
+    "ur": "مرحلہ 3: تصاویر اور ویڈیوز اپ لوڈ کریں",
+    "hi": "चरण 3: फ़ोटो और वीडियो अपलोड करें",
+    "bn": "ধাপ 3: ছবি এবং ভিডিও আপলোড করুন",
+    "fr": "Étape 3 : Téléchargez les photos et la vidéo"
+  },
+  "الرجاء اختيار المطار والتاريخ": {
+    "en": "Please select airport and date",
+    "ur": "براہ کرم ایئرپورٹ اور تاریخ منتخب کریں",
+    "hi": "कृपया हवाई अड्डा और तारीख चुनें",
+    "bn": "দয়া করে বিমানবন্দর এবং তারিখ নির্বাচন করুন",
+    "fr": "Veuillez choisir l'aéroport et la date"
+  },
+  "إدارة كاملة لمنصة الحراج بلس": {
+    "en": "Complete management for Haraj Plus platform",
+    "ur": "Haraj Plus / الحراج بلس پلیٹ فارم کا مکمل انتظام",
+    "hi": "हरज प्लस प्लेटफॉर्म का पूर्ण प्रबंधन",
+    "bn": "হারাজ প্লাস প্ল্যাটফর্মের সম্পূর্ণ ব্যবস্থাপনা",
+    "fr": "Gestion complète de la plateforme Haraj Plus"
+  },
+  "المتصفح لا يدعم البحث الصوتي": {
+    "en": "Browser does not support voice search",
+    "ur": "براؤزر وائس سرچ کو سپورٹ نہیں کرتا",
+    "hi": "ब्राउज़र ध्वनि खोज का समर्थन नहीं करता है",
+    "bn": "ব্রাউজার ভয়েস অনুসন্ধান সমর্থন করে না",
+    "fr": "Le navigateur ne prend pas en charge la recherche vocale"
+  },
+  "المتصفح لا يدعم تحديد الموقع": {
+    "en": "Browser does not support location detection",
+    "ur": "براؤزر مقام کا تعین سپورٹ نہیں کرتا",
+    "hi": "ब्राउज़र स्थान निर्धारण का समर्थन नहीं करता है",
+    "bn": "ব্রাউজার অবস্থান সনাক্তকরণ সমর্থন করে না",
+    "fr": "Le navigateur ne prend pas en charge la géolocalisation"
+  },
+  "بيع و اشتري | جديد أو مستعمل": {
+    "en": "Sell & Buy | New or Used",
+    "ur": "بیچیں اور خریدیں | نیا یا استعمال شدہ",
+    "hi": "बेचें और खरीदें | नया या पुराना",
+    "bn": "বিক্রি করুন এবং কিনুন | নতুন অথবা ব্যবহৃত",
+    "fr": "Vendez et achetez | Neuf ou occasion"
+  },
+  "فشل رفع الملف. حاول مرة أخرى": {
+    "en": "File upload failed. Try again",
+    "ur": "فائل اپ لوڈ ناکام ہو گئی۔ دوبارہ کوشش کریں",
+    "hi": "फ़ाइल अपलोड विफल। पुनः प्रयास करें",
+    "bn": "ফাইল আপলোড ব্যর্থ হয়েছে। আবার চেষ্টা করুন",
+    "fr": "Échec du téléchargement du fichier. Veuillez réessayer"
+  },
+  "تخصيص رنين وأنواع الإشعارات": {
+    "en": "Customize ringtone and notification types",
+    "ur": "رنگ ٹون اور نوٹیفیکیشن کی اقسام کو حسب ضرورت بنائیں",
+    "hi": "रिंगटोन और सूचना प्रकार अनुकूलित करें",
+    "bn": "রিংটোন এবং বিজ্ঞপ্তির প্রকার কাস্টমাইজ করুন",
+    "fr": "Personnaliser la sonnerie et les types de notifications"
+  },
+  "تواصل معنا، الأسئلة الشائعة": {
+    "en": "Contact us, FAQ",
+    "ur": "ہم سے رابطہ کریں، اکثر پوچھے جانے والے سوالات",
+    "hi": "हमसे संपर्क करें, अक्सर पूछे जाने वाले प्रश्न",
+    "bn": "আমাদের সাথে যোগাযোগ করুন, প্রায়শই জিজ্ঞাসিত প্রশ্নাবলী",
+    "fr": "Contactez-nous, Questions fréquentes"
+  },
+  "انضم اليوم — مجاناً تماماً": {
+    "en": "Join Today — Completely Free",
+    "ur": "آج ہی شامل ہوں — بالکل مفت",
+    "hi": "आज ही जुड़ें — बिल्कुल मुफ्त",
+    "bn": "আজই যোগ দিন — সম্পূর্ণ বিনামূল্যে",
+    "fr": "Rejoignez-nous aujourd'hui — entièrement gratuit"
+  },
+  "جاري إتمام تسجيل الدخول...": {
+    "en": "Completing login...",
+    "ur": "لاگ ان مکمل کیا جا رہا ہے...",
+    "hi": "लॉगिन पूरा हो रहा है...",
+    "bn": "লগইন প্রক্রিয়া চলছে...",
+    "fr": "Finalisation de la connexion..."
+  },
+  "كلمتا المرور غير متطابقتين": {
+    "en": "Passwords do not match",
+    "ur": "پاس ورڈز میل نہیں کھاتے",
+    "hi": "पासवर्ड मेल नहीं खाते",
+    "bn": "পাসওয়ার্ড মেলে না",
+    "fr": "Les mots de passe ne correspondent pas"
+  },
+  "لا توجد إعلانات في المفضلة": {
+    "en": "No ads in favorites",
+    "ur": "پسندیدہ میں کوئی اشتہارات نہیں ہیں",
+    "hi": "पसंदीदा में कोई विज्ञापन नहीं",
+    "bn": "প্রিয়তে কোনো বিজ্ঞাপন নেই",
+    "fr": "Aucune annonce dans les favoris"
+  },
+  "5+ لغات لخدمة كل المقيمين": {
+    "en": "5+ languages to serve all residents",
+    "ur": "تمام رہائشیوں کی خدمت کے لیے 5+ زبانیں",
+    "hi": "सभी निवासियों की सेवा के लिए 5+ भाषाएँ",
+    "bn": "সকল বাসিন্দাদের সেবা দেওয়ার জন্য 5+ ভাষা",
+    "fr": "5+ langues pour servir tous les résidents"
+  },
+  "اختر كلمة مرور قوية وآمنة": {
+    "en": "Choose a strong and secure password",
+    "ur": "ایک مضبوط اور محفوظ پاس ورڈ منتخب کریں",
+    "hi": "एक मजबूत और सुरक्षित पासवर्ड चुनें",
+    "bn": "একটি শক্তিশালী এবং সুরক্ষিত পাসওয়ার্ড নির্বাচন করুন",
+    "fr": "Choisissez un mot de passe fort et sécurisé"
+  },
+  "اختر محادثة لبدء المراسلة": {
+    "en": "Choose a chat to start messaging",
+    "ur": "مراسلت شروع کرنے کے لیے ایک چیٹ منتخب کریں",
+    "hi": "संदेश भेजना शुरू करने के लिए एक चैट चुनें",
+    "bn": "বার্তা পাঠানো শুরু করতে একটি কথোপকথন নির্বাচন করুন",
+    "fr": "Choisissez une conversation pour commencer la messagerie"
+  },
+  "اقتراحات الذكاء الاصطناعي": {
+    "en": "AI Suggestions",
+    "ur": "مصنوعی ذہانت کی تجاویز",
+    "hi": "एआई सुझाव",
+    "bn": "কৃত্রিম বুদ্ধিমত্তার পরামর্শ",
+    "fr": "Suggestions d'IA"
+  },
+  "رابط الصورة (https://...)": {
+    "en": "Image link (https://...)",
+    "ur": "تصویر کا لنک (https://...)",
+    "hi": "छवि लिंक (https://...)",
+    "bn": "ছবির লিঙ্ক (https://...)",
+    "fr": "Lien de l'image (https://...)"
+  },
+  "خرائط وإعلانات قريبة منك": {
+    "en": "Maps and ads near you",
+    "ur": "آپ کے قریب نقشے اور اشتہارات",
+    "hi": "आपके आस-पास के नक्शे और विज्ञापन",
+    "bn": "আপনার কাছাকাছি মানচিত্র এবং বিজ্ঞাপন",
+    "fr": "Cartes et annonces près de chez vous"
+  },
+  "رابط عند الضغط (اختياري)": {
+    "en": "Link on click (optional)",
+    "ur": "کلک کرنے پر لنک (اختیاری)",
+    "hi": "क्लिक करने पर लिंक (वैकल्पिक)",
+    "bn": "ক্লিক করলে লিঙ্ক (ঐচ্ছিক)",
+    "fr": "Lien au clic (facultatif)"
+  },
+  "لا توجد صفقات بارزة الآن": {
+    "en": "No featured deals now",
+    "ur": "ابھی کوئی نمایاں سودے نہیں ہیں",
+    "hi": "अभी कोई खास डील नहीं है",
+    "bn": "বর্তমানে কোনো উল্লেখযোগ্য ডিল নেই",
+    "fr": "Aucune offre spéciale pour le moment"
+  },
+  "لا توجد مزادات نشطة الآن": {
+    "en": "No active auctions now",
+    "ur": "ابھی کوئی فعال نیلامیاں نہیں ہیں",
+    "hi": "अभी कोई सक्रिय नीलामी नहीं है",
+    "bn": "বর্তমানে কোনো সক্রিয় নিলাম নেই",
+    "fr": "Aucune enchère active pour le moment"
+  },
+  "يبدأ بـ 3/5/6/7، 8 أرقام": {
+    "en": "Starts with 3/5/6/7, 8 digits",
+    "ur": "3/5/6/7 سے شروع ہوتا ہے، 8 ہندسے",
+    "hi": "3/5/6/7 से शुरू होता है, 8 अंक",
+    "bn": "3/5/6/7 দিয়ে শুরু, 8 সংখ্যা",
+    "fr": "Commence par 3/5/6/7, 8 chiffres"
+  },
+  "✅ تم إرسال الرابط بنجاح!": {
+    "en": "✅ Link sent successfully!",
+    "ur": "✅ لنک کامیابی کے ساتھ بھیج دیا گیا ہے!",
+    "hi": "✅ लिंक सफलतापूर्वक भेजा गया!",
+    "bn": "✅ লিঙ্ক সফলভাবে পাঠানো হয়েছে!",
+    "fr": "✅ Le lien a été envoyé avec succès !"
+  },
+  "حفظ كلمة المرور الجديدة": {
+    "en": "Save new password",
+    "ur": "نیا پاس ورڈ محفوظ کریں",
+    "hi": "नया पासवर्ड सहेजें",
+    "bn": "নতুন পাসওয়ার্ড সংরক্ষণ করুন",
+    "fr": "Enregistrer le nouveau mot de passe"
+  },
+  "عارض صور احترافي وفيديو": {
+    "en": "Professional Photo and Video Viewer",
+    "ur": "پیشہ ورانہ تصاویر اور ویڈیوز کا ویور",
+    "hi": "पेशेवर फोटो और वीडियो दर्शक",
+    "bn": "পেশাদার ছবি এবং ভিডিও ভিউয়ার",
+    "fr": "Visionneuse photo et vidéo professionnelle"
+  },
+  "مدعوم بالذكاء الاصطناعي": {
+    "en": "AI-powered",
+    "ur": "مصنوعی ذہانت سے تقویت یافتہ",
+    "hi": "आर्टिफिशियल इंटेलिजेंस द्वारा संचालित",
+    "bn": "কৃত্রিম বুদ্ধিমত্তা দ্বারা চালিত",
+    "fr": "Propulsé par l'IA"
+  },
+  "🌐 الموقع: alhraj.online": {
+    "en": "🌐 Website: alhraj.online",
+    "ur": "🌐 ویب سائٹ: alhraj.online",
+    "hi": "🌐 वेबसाइट: alhraj.online",
+    "bn": "🌐 ওয়েবসাইট: alhraj.online",
+    "fr": "🌐 Site web: alhraj.online"
+  },
+  "اكتب وصفاً تفصيلياً...": {
+    "en": "Write a detailed description...",
+    "ur": "تفصیلی وضاحت لکھیں...",
+    "hi": "विस्तृत विवरण लिखें...",
+    "bn": "বিস্তারিত বর্ণনা লিখুন...",
+    "fr": "Écrire une description détaillée..."
+  },
+  "تعذر الوصول للميكروفون": {
+    "en": "Microphone access denied",
+    "ur": "مائیکروفون تک رسائی ممکن نہیں",
+    "hi": "माइक्रोफ़ोन तक पहुँचने में असमर्थ",
+    "bn": "মাইক্রোফোন অ্যাক্সেস করা যায়নি",
+    "fr": "Impossible d'accéder au microphone"
+  },
+  "يبدأ بـ 3/6/9، 8 أرقام": {
+    "en": "Starts with 3/6/9, 8 digits",
+    "ur": "3/6/9 سے شروع ہوتا ہے، 8 ہندسے",
+    "hi": "3/6/9 से शुरू होता है, 8 अंक",
+    "bn": "3/6/9 দিয়ে শুরু, 8 সংখ্যা",
+    "fr": "Commence par 3/6/9, 8 chiffres"
+  },
+  "يبدأ بـ 5/6/9، 8 أرقام": {
+    "en": "Starts with 5/6/9, 8 digits",
+    "ur": "5/6/9 سے شروع ہوتا ہے، 8 ہندسے",
+    "hi": "5/6/9 से शुरू होता है, 8 अंक",
+    "bn": "5/6/9 দিয়ে শুরু, 8 সংখ্যা",
+    "fr": "Commence par 5/6/9, 8 chiffres"
+  },
+  "الإعلانات على الخريطة": {
+    "en": "Ads on the map",
+    "ur": "نقشے پر اشتہارات",
+    "hi": "मानचित्र पर विज्ञापन",
+    "bn": "ম্যাপে বিজ্ঞাপন",
+    "fr": "Annonces sur la carte"
+  },
+  "تعذر توليد الاقتراحات": {
+    "en": "Failed to generate suggestions",
+    "ur": "تجاویز تیار نہیں کی جا سکیں",
+    "hi": "सुझाव उत्पन्न करने में असमर्थ",
+    "bn": "পরামর্শ তৈরি করা যায়নি",
+    "fr": "Impossible de générer des suggestions"
+  },
+  "شات مباشر بكل الوسائط": {
+    "en": "Live chat with all media",
+    "ur": "تمام میڈیا کے ساتھ لائیو چیٹ",
+    "hi": "सभी मीडिया के साथ लाइव चैट",
+    "bn": "সব মাধ্যম ব্যবহার করে লাইভ চ্যাট",
+    "fr": "Chat en direct multimédia"
+  },
+  "كود الإحالة (اختياري)": {
+    "en": "Referral code (optional)",
+    "ur": "ریفرل کوڈ (اختیاری)",
+    "hi": "रेफरल कोड (वैकल्पिक)",
+    "bn": "রেফারেল কোড (ঐচ্ছিক)",
+    "fr": "Code de parrainage (facultatif)"
+  },
+  "لم يتم توليد اقتراحات": {
+    "en": "No suggestions generated",
+    "ur": "کوئی تجاویز تیار نہیں کی گئیں۔",
+    "hi": "कोई सुझाव उत्पन्न नहीं हुआ",
+    "bn": "কোনো পরামর্শ তৈরি হয়নি",
+    "fr": "Aucune suggestion générée"
+  },
+  "متأكد من حذف الإعلان؟": {
+    "en": "Are you sure you want to delete the ad?",
+    "ur": "کیا آپ واقعی اشتہار حذف کرنا چاہتے ہیں؟",
+    "hi": "विज्ञापन हटाने के लिए निश्चित हैं?",
+    "bn": "বিজ্ঞাপনটি মুছে ফেলার বিষয়ে নিশ্চিত?",
+    "fr": "Voulez-vous vraiment supprimer l'annonce ?"
+  },
+  "⚙️ أخرى (اكتبه بنفسك)": {
+    "en": "⚙️ Other (write it yourself)",
+    "ur": "⚙️ دیگر (خود لکھیں)",
+    "hi": "⚙️ अन्य (स्वयं लिखें)",
+    "bn": "⚙️ অন্যান্য (নিজেই লিখুন)",
+    "fr": "⚙️ Autre (écrivez-le vous-même)"
+  },
+  "✅ تم نسخ رابط الإعلان": {
+    "en": "✅ Ad link copied",
+    "ur": "✅ اشتہار کا لنک کاپی ہو گیا",
+    "hi": "✅ विज्ञापन लिंक कॉपी किया गया",
+    "bn": "✅ বিজ্ঞাপনের লিঙ্ক কপি করা হয়েছে",
+    "fr": "✅ Lien de l'annonce copié"
+  },
+  "إرسال رابط الاستعادة": {
+    "en": "Send recovery link",
+    "ur": "بازیابی کا لنک بھیجیں",
+    "hi": "रिकवरी लिंक भेजें",
+    "bn": "রিকভারি লিঙ্ক পাঠান",
+    "fr": "Envoyer le lien de récupération"
+  },
+  "العودة لتسجيل الدخول": {
+    "en": "Return to login",
+    "ur": "لاگ ان پر واپس جائیں",
+    "hi": "लॉगिन पर वापस जाएं",
+    "bn": "লগইন-এ ফিরে যান",
+    "fr": "Retour à la connexion"
+  },
+  "تخصيص الهوية البصرية": {
+    "en": "Customize visual identity",
+    "ur": "بصری شناخت کو حسب ضرورت بنائیں",
+    "hi": "विज़ुअल पहचान को अनुकूलित करें",
+    "bn": "ভিজ্যুয়াল পরিচিতি কাস্টমাইজ করুন",
+    "fr": "Personnaliser l'identité visuelle"
+  },
+  "تفاصيل من المُبلِّغ:": {
+    "en": "Details from the reporter:",
+    "ur": "اطلاع دینے والے کی تفصیلات:",
+    "hi": "रिपोर्टर से विवरण:",
+    "bn": "রিপোর্টারের বিস্তারিত বিবরণ:",
+    "fr": "Détails du déclarant :"
+  },
+  "تم نسخ رابط الدعوة ✅": {
+    "en": "Invitation link copied ✅",
+    "ur": "دعوت نامہ کا لنک کاپی ہو گیا ✅",
+    "hi": "आमंत्रण लिंक कॉपी किया गया ✅",
+    "bn": "আমন্ত্রণ লিঙ্ক কপি করা হয়েছে ✅",
+    "fr": "Lien d'invitation copié ✅"
+  },
+  "تواصل معنا / الإعلان": {
+    "en": "Contact Us / Advertise",
+    "ur": "ہم سے رابطہ کریں / اشتہار",
+    "hi": "हमसे संपर्क करें / विज्ञापन करें",
+    "bn": "আমাদের সাথে যোগাযোগ করুন / বিজ্ঞাপন",
+    "fr": "Nous contacter / Publicité"
+  },
+  "حدث خطأ، حاول لاحقاً": {
+    "en": "An error occurred, please try again later",
+    "ur": "ایک خامی پیش آئی، بعد میں کوشش کریں",
+    "hi": "एक त्रुटि हुई, बाद में पुनः प्रयास करें",
+    "bn": "একটি ত্রুটি হয়েছে, পরে চেষ্টা করুন",
+    "fr": "Une erreur s'est produite, veuillez réessayer plus tard."
+  },
+  "خطأ في البحث بالصورة": {
+    "en": "Image search error",
+    "ur": "تصویر کی تلاش میں خامی",
+    "hi": "छवि खोज में त्रुटि",
+    "bn": "ছবি অনুসন্ধানে ত্রুটি",
+    "fr": "Erreur lors de la recherche par image"
+  },
+  "لا توجد بيانات كافية": {
+    "en": "Not enough data",
+    "ur": "کافی ڈیٹا موجود نہیں",
+    "hi": "पर्याप्त डेटा नहीं है",
+    "bn": "পর্যাপ্ত ডেটা নেই",
+    "fr": "Données insuffisantes"
+  },
+  "لم تنشر أي إعلان بعد": {
+    "en": "You haven't posted any ads yet",
+    "ur": "ابھی تک کوئی اشتہار شائع نہیں ہوا ہے",
+    "hi": "अभी तक कोई विज्ञापन पोस्ट नहीं किया गया है",
+    "bn": "এখনো কোনো বিজ্ঞাপন প্রকাশ করা হয়নি",
+    "fr": "Aucune annonce publiée pour le moment."
+  },
+  "مشاركة من جميع الدول": {
+    "en": "Sharing from all countries",
+    "ur": "تمام ممالک سے شرکت",
+    "hi": "सभी देशों से साझा करें",
+    "bn": "সমস্ত দেশ থেকে শেয়ার করুন",
+    "fr": "Participation de tous les pays"
+  },
+  "هذا إعلانك — تحكم به": {
+    "en": "This is your ad — control it",
+    "ur": "یہ آپ کا اشتہار ہے — اسے کنٹرول کریں",
+    "hi": "यह आपका विज्ञापन है — इसे नियंत्रित करें",
+    "bn": "এটি আপনার বিজ্ঞাপন — এটি নিয়ন্ত্রণ করুন",
+    "fr": "Votre annonce — gérez-la"
+  },
+  "يبدأ بـ 7/9، 8 أرقام": {
+    "en": "Starts with 7/9, 8 digits",
+    "ur": "7/9 سے شروع ہوتا ہے، 8 ہندسے",
+    "hi": "7/9 से शुरू होता है, 8 अंक",
+    "bn": "শুরু হবে 7/9 দিয়ে, 8 সংখ্যা",
+    "fr": "Commence par 7/9, 8 chiffres"
+  },
+  "اختر الحي (اختياري)": {
+    "en": "Choose neighborhood (optional)",
+    "ur": "محلہ منتخب کریں (اختیاری)",
+    "hi": "पड़ोस चुनें (वैकल्पिक)",
+    "bn": "এলাকা নির্বাচন করুন (ঐচ্ছিক)",
+    "fr": "Choisissez le quartier (facultatif)"
+  },
+  "بيع، اشترِ، استأجر،": {
+    "en": "Sell, Buy, Rent,",
+    "ur": "بیچیں، خریدیں، کرایہ پر لیں،",
+    "hi": "बेचें, खरीदें, किराए पर लें,",
+    "bn": "বিক্রি করুন, কিনুন, ভাড়া করুন,",
+    "fr": "Vendez, achetez, louez,"
+  },
+  "تعذر إيداع المزايدة": {
+    "en": "Failed to deposit bid",
+    "ur": "بولی جمع نہیں کی جا سکی",
+    "hi": "बोली जमा नहीं हो सकी",
+    "bn": "বিড জমা দেওয়া যায়নি",
+    "fr": "Impossible de déposer l'enchère"
+  },
+  "صفقات اليوم الذهبية": {
+    "en": "Golden Deals of the Day",
+    "ur": "آج کے سنہری سودے",
+    "hi": "आज के सुनहरे सौदे",
+    "bn": "আজকের গোল্ডেন ডিল",
+    "fr": "Les affaires en or du jour"
+  },
+  "عرض وظيفة • طلب عمل": {
+    "en": "Offer a job • Apply for a job",
+    "ur": "نوکری کی پیشکش • ملازمت کی تلاش",
+    "hi": "नौकरी की पेशकश • नौकरी के लिए आवेदन",
+    "bn": "চাকরির প্রস্তাব • কাজের আবেদন",
+    "fr": "Offre d'emploi • Demande d'emploi"
+  },
+  "كلمة المرور الجديدة": {
+    "en": "New password",
+    "ur": "نیا پاس ورڈ",
+    "hi": "नया पासवर्ड",
+    "bn": "নতুন পাসওয়ার্ড",
+    "fr": "Nouveau mot de passe"
+  },
+  "لا توجد محادثات بعد": {
+    "en": "No chats yet",
+    "ur": "ابھی تک کوئی گفتگو نہیں",
+    "hi": "अभी तक कोई बातचीत नहीं",
+    "bn": "এখনো কোনো কথোপকথন নেই",
+    "fr": "Aucune conversation pour le moment"
+  },
+  "متابعة بحساب Google": {
+    "en": "Continue with Google account",
+    "ur": "گوگل اکاؤنٹ کے ساتھ جاری رکھیں",
+    "hi": "Google खाते से जारी रखें",
+    "bn": "গুগল অ্যাকাউন্ট দিয়ে চালিয়ে যান",
+    "fr": "Continuer avec un compte Google"
+  },
+  "📍 مشاركة الموقع\\n\\n": {
+    "en": "📍 Share location\\n\\n",
+    "ur": "📍 مقام کا اشتراک\\n\\n",
+    "hi": "📍 स्थान साझा करें\\n\\n",
+    "bn": "📍 অবস্থান শেয়ার করুন\\n\\n",
+    "fr": "📍 Partager la localisation\\n\\n"
+  },
+  "إعلانات بنرات نشطة": {
+    "en": "Active banner ads",
+    "ur": "فعال بینر اشتہارات",
+    "hi": "सक्रिय बैनर विज्ञापन",
+    "bn": "সক্রিয় ব্যানার বিজ্ঞাপন",
+    "fr": "Annonces de bannières actives"
+  },
+  "اتركه فارغاً للسوم": {
+    "en": "Leave it empty for bidding",
+    "ur": "بولی کے لیے اسے خالی چھوڑ دیں",
+    "hi": "मोलभाव के लिए इसे खाली छोड़ दें",
+    "bn": "দাম নির্ধারণের জন্য খালি রাখুন",
+    "fr": "Laissez vide pour négocier"
+  },
+  "الإبلاغ عن الإعلان": {
+    "en": "Report ad",
+    "ur": "اشتہار کی اطلاع دیں",
+    "hi": "विज्ञापन की रिपोर्ट करें",
+    "bn": "বিজ্ঞাপনটি রিপোর্ট করুন",
+    "fr": "Signaler l'annonce"
+  },
+  "الإصدار 1.5 — 2026": {
+    "en": "Version 1.5 — 2026",
+    "ur": "ورژن 1.5 — 2026",
+    "hi": "संस्करण 1.5 — 2026",
+    "bn": "সংস্করণ 1.5 — 2026",
+    "fr": "Version 1.5 — 2026"
+  },
+  "املأ العنوان والنص": {
+    "en": "Fill in title and text",
+    "ur": "عنوان اور متن پُر کریں",
+    "hi": "शीर्षक और पाठ भरें",
+    "bn": "শিরোনাম এবং লেখা পূরণ করুন",
+    "fr": "Remplissez le titre et le texte"
+  },
+  "تعذر الوصول للموقع": {
+    "en": "Failed to access location",
+    "ur": "مقام تک رسائی ممکن نہیں",
+    "hi": "स्थान तक नहीं पहुंच सका",
+    "bn": "অবস্থানে প্রবেশ করা যায়নি",
+    "fr": "Impossible d'accéder à la localisation"
+  },
+  "تعذر تحميل الإعلان": {
+    "en": "Failed to load ad",
+    "ur": "اشتہار لوڈ نہیں ہو سکا",
+    "hi": "विज्ञापन लोड नहीं हो सका",
+    "bn": "বিজ্ঞাপন লোড করা যায়নি",
+    "fr": "Impossible de charger l'annonce"
+  },
+  "صفحة المنتج - أسفل": {
+    "en": "Product page - bottom",
+    "ur": "پروڈکٹ صفحہ - نیچے",
+    "hi": "उत्पाद पृष्ठ - नीचे",
+    "bn": "পণ্য পৃষ্ঠা - নিচে",
+    "fr": "Page produit - Bas"
+  },
+  "لحظة واحدة من فضلك": {
+    "en": "One moment please",
+    "ur": "براہ کرم ایک لمحہ انتظار کریں",
+    "hi": "कृपया एक क्षण रुकें",
+    "bn": "এক মুহূর্ত অপেক্ষা করুন",
+    "fr": "Un instant s'il vous plaît"
+  },
+  "مستخدمون جدد (24س)": {
+    "en": "New users (24h)",
+    "ur": "نئے صارفین (24 گھنٹے)",
+    "hi": "नए उपयोगकर्ता (24घं)",
+    "bn": "নতুন ব্যবহারকারী (24ঘ)",
+    "fr": "Nouveaux utilisateurs (24h)"
+  },
+  "يبدأ بـ 5، 9 أرقام": {
+    "en": "Starts with 5, 9 digits",
+    "ur": "5 سے شروع ہوتا ہے، 9 ہندسے",
+    "hi": "5 से शुरू होता है, 9 अंक",
+    "bn": "শুরু হবে 5 দিয়ে, 9 সংখ্যা",
+    "fr": "Commence par 5, 9 chiffres"
+  },
+  "🗺️ خريطة قريبة منك": {
+    "en": "🗺️ Map near you",
+    "ur": "🗺️ آپ کے قریب کا نقشہ",
+    "hi": "🗺️ आपके नज़दीक का नक्शा",
+    "bn": "🗺️ আপনার কাছাকাছি মানচিত্র",
+    "fr": "🗺️ Carte près de chez vous"
+  },
+  "أنا أبحث عن وظيفة": {
+    "en": "I am looking for a job",
+    "ur": "میں نوکری تلاش کر رہا ہوں",
+    "hi": "मैं नौकरी ढूंढ रहा हूँ",
+    "bn": "আমি একটি চাকরি খুঁজছি",
+    "fr": "Je cherche un emploi"
+  },
+  "أنشر إعلان بفيديو": {
+    "en": "Post an ad with video",
+    "ur": "ویڈیو کے ساتھ اشتہار پوسٹ کریں",
+    "hi": "वीडियो के साथ विज्ञापन पोस्ट करें",
+    "bn": "একটি ভিডিও বিজ্ঞাপন প্রকাশ করুন",
+    "fr": "Publier une annonce avec vidéo"
+  },
+  "أو اختر من الفئات": {
+    "en": "Or choose from categories",
+    "ur": "یا زمروں میں سے منتخب کریں",
+    "hi": "या श्रेणियों में से चुनें",
+    "bn": "অথবা বিভাগ থেকে বেছে নিন",
+    "fr": "Ou choisir parmi les catégories"
+  },
+  "إجمالي المستخدمين": {
+    "en": "Total users",
+    "ur": "کل صارفین",
+    "hi": "कुल उपयोगकर्ता",
+    "bn": "মোট ব্যবহারকারী",
+    "fr": "Total des utilisateurs"
+  },
+  "إرسال إشعار جماعي": {
+    "en": "Send a mass notification",
+    "ur": "اجتماعی اطلاع بھیجیں",
+    "hi": "सामूहिक सूचना भेजें",
+    "bn": "একটি গণ-বিজ্ঞপ্তি পাঠান",
+    "fr": "Envoyer une notification de masse"
+  },
+  "اسحب للتدوير الحر": {
+    "en": "Drag to rotate freely",
+    "ur": "آزادانہ گھمانے کے لیے گھسیٹیں",
+    "hi": "फ्री रोटेशन के लिए स्वाइप करें",
+    "bn": "মুক্তভাবে ঘোরানোর জন্য টানুন",
+    "fr": "Faites glisser pour faire pivoter librement"
+  },
+  "تأكيد كلمة المرور": {
+    "en": "Confirm password",
+    "ur": "پاس ورڈ کی تصدیق کریں",
+    "hi": "पासवर्ड की पुष्टि करें",
+    "bn": "পাসওয়ার্ড নিশ্চিত করুন",
+    "fr": "Confirmer le mot de passe"
+  },
+  "تعذر اقتراح السعر": {
+    "en": "Unable to suggest price",
+    "ur": "قیمت تجویز کرنا ممکن نہیں",
+    "hi": "कीमत का सुझाव देने में असमर्थ",
+    "bn": "দাম প্রস্তাব করা যায়নি",
+    "fr": "Impossible de suggérer le prix"
+  },
+  "تعذر تأكيد البريد": {
+    "en": "Unable to confirm email",
+    "ur": "ای میل کی تصدیق نہیں ہو سکی",
+    "hi": "ईमेल की पुष्टि करने में असमर्थ",
+    "bn": "ইমেল নিশ্চিত করা যায়নি",
+    "fr": "Impossible de confirmer l'e-mail"
+  },
+  "تم تأكيد البريد ✅": {
+    "en": "Email confirmed ✅",
+    "ur": "ای میل کی تصدیق ہو گئی ✅",
+    "hi": "ईमेल की पुष्टि हो गई है ✅",
+    "bn": "ইমেল নিশ্চিত করা হয়েছে ✅",
+    "fr": "E-mail confirmé ✅"
+  },
+  "✅ تم إنشاء الرابط": {
+    "en": "✅ Link created",
+    "ur": "لنک بنا دیا گیا ✅",
+    "hi": "✅ लिंक बन गया है",
+    "bn": "✅ লিঙ্ক তৈরি হয়েছে",
+    "fr": "✅ Le lien a été créé"
+  },
+  "✓ تم تحديد الموقع": {
+    "en": "✓ Location determined",
+    "ur": "مقام منتخب ہو گیا ✓",
+    "hi": "✓ स्थान चुन लिया गया है",
+    "bn": "✓ অবস্থান চিহ্নিত করা হয়েছে",
+    "fr": "✓ Emplacement sélectionné"
+  },
+  "💼 ما نوع الإعلان؟": {
+    "en": "💼 What type of ad?",
+    "ur": "💼 اشتہار کی قسم کیا ہے؟",
+    "hi": "💼 विज्ञापन का प्रकार क्या है?",
+    "bn": "💼 বিজ্ঞাপনের ধরন কী?",
+    "fr": "💼 Quel type d'annonce ?"
+  },
+  "🔧 ما نوع الإعلان؟": {
+    "en": "🔧 What type of ad?",
+    "ur": "🔧 اشتہار کی قسم کیا ہے؟",
+    "hi": "🔧 विज्ञापन का प्रकार क्या है?",
+    "bn": "🔧 বিজ্ঞাপনের ধরন কী?",
+    "fr": "🔧 Quel type d'annonce ?"
+  },
+  "أحتاج هذه الخدمة": {
+    "en": "I need this service",
+    "ur": "مجھے یہ سروس چاہیے",
+    "hi": "मुझे इस सेवा की आवश्यकता है",
+    "bn": "আমার এই পরিষেবাটি প্রয়োজন",
+    "fr": "J'ai besoin de ce service"
+  },
+  "إجمالي الإعلانات": {
+    "en": "Total ads",
+    "ur": "کل اشتہارات",
+    "hi": "कुल विज्ञापन",
+    "bn": "মোট বিজ্ঞাপন",
+    "fr": "Total des annonces"
+  },
+  "إضافة بنر إعلاني": {
+    "en": "Add ad banner",
+    "ur": "اشتہاری بینر شامل کریں",
+    "hi": "विज्ञापन बैनर जोड़ें",
+    "bn": "একটি ব্যানার বিজ্ঞাপন যোগ করুন",
+    "fr": "Ajouter une bannière publicitaire"
+  },
+  "إظهار رقم الجوال": {
+    "en": "Show mobile number",
+    "ur": "موبائل نمبر دکھائیں",
+    "hi": "मोबाइल नंबर दिखाएँ",
+    "bn": "মোবাইল নম্বর দেখান",
+    "fr": "Afficher le numéro de mobile"
+  },
+  "إعادة تعيين الآن": {
+    "en": "Reset now",
+    "ur": "ابھی ری سیٹ کریں",
+    "hi": "अभी रीसेट करें",
+    "bn": "এখন রিসেট করুন",
+    "fr": "Réinitialiser maintenant"
+  },
+  "الأمان والخصوصية": {
+    "en": "Security and Privacy",
+    "ur": "سیکیورٹی اور پرائیویسی",
+    "hi": "सुरक्षा और गोपनीयता",
+    "bn": "নিরাপত্তা ও গোপনীয়তা",
+    "fr": "Sécurité et confidentialité"
+  },
+  "الجمهور المستهدف": {
+    "en": "Target audience",
+    "ur": "ہدف شدہ سامعین",
+    "hi": "लक्षित दर्शक",
+    "bn": "লক্ষ্যযুক্ত শ্রোতা",
+    "fr": "Public cible"
+  },
+  "السعر: من الأعلى": {
+    "en": "Price: High to Low",
+    "ur": "قیمت: سب سے زیادہ سے",
+    "hi": "कीमत: उच्चतम से",
+    "bn": "দাম: সর্বোচ্চ থেকে",
+    "fr": "Prix : du plus élevé"
+  },
+  "بانتظار المراجعة": {
+    "en": "Pending review",
+    "ur": "جائزے کا انتظار ہے",
+    "hi": "समीक्षा की प्रतीक्षा में",
+    "bn": "পর্যালোচনার অপেক্ষায়",
+    "fr": "En attente de révision"
+  },
+  "تعذر إرسال الطلب": {
+    "en": "Unable to send request",
+    "ur": "درخواست بھیجنا ممکن نہیں",
+    "hi": "अनुरोध भेजने में असमर्थ",
+    "bn": "অনুরোধ পাঠানো যায়নি",
+    "fr": "Impossible d'envoyer la demande"
+  },
+  "عنوان واضح وموجز": {
+    "en": "Clear and concise title",
+    "ur": "واضح اور مختصر عنوان",
+    "hi": "स्पष्ट और संक्षिप्त शीर्षक",
+    "bn": "স্পষ্ট এবং সংক্ষিপ্ত শিরোনাম",
+    "fr": "Titre clair et concis"
+  },
+  "مراجعة الإعلانات": {
+    "en": "Review ads",
+    "ur": "اشتہارات کا جائزہ لیں",
+    "hi": "विज्ञापनों की समीक्षा करें",
+    "bn": "বিজ্ঞাপন পর্যালোচনা করুন",
+    "fr": "Révision des annonces"
+  },
+  "الذهاب للرئيسية": {
+    "en": "Go to Home",
+    "ur": "ہوم پر جائیں",
+    "hi": "मुख्य पृष्ठ पर जाएं",
+    "bn": "হোমে যান",
+    "fr": "Aller à l'accueil"
+  },
+  "الرئيسية - أسفل": {
+    "en": "Home - Bottom",
+    "ur": "ہوم - نیچے",
+    "hi": "मुख्य पृष्ठ - नीचे",
+    "bn": "হোম - নিচে",
+    "fr": "Accueil - Bas"
+  },
+  "الرئيسية - أعلى": {
+    "en": "Home - Top",
+    "ur": "ہوم - اوپر",
+    "hi": "मुख्य पृष्ठ - ऊपर",
+    "bn": "হোম - উপরে",
+    "fr": "Accueil - Haut"
+  },
+  "السعر الابتدائي": {
+    "en": "Starting Price",
+    "ur": "ابتدائی قیمت",
+    "hi": "प्रारंभिक कीमत",
+    "bn": "প্রাথমিক মূল্য",
+    "fr": "Prix de départ"
+  },
+  "السعر: من الأقل": {
+    "en": "Price: Lowest First",
+    "ur": "قیمت: کم ترین سے",
+    "hi": "कीमत: सबसे कम से",
+    "bn": "মূল্য: সর্বনিম্ন থেকে",
+    "fr": "Prix : Du plus bas"
+  },
+  "الشروط والأحكام": {
+    "en": "Terms and Conditions",
+    "ur": "شرائط و ضوابط",
+    "hi": "नियम और शर्तें",
+    "bn": "শর্তাবলী",
+    "fr": "Conditions générales"
+  },
+  "العودة للرئيسية": {
+    "en": "Back to Home",
+    "ur": "ہوم پر واپس جائیں",
+    "hi": "मुख्य पृष्ठ पर वापस जाएं",
+    "bn": "হোমে ফিরে যান",
+    "fr": "Retour à l'accueil"
+  },
+  "المدينة المنورة": {
+    "en": "Madinah",
+    "ur": "مدینہ منورہ",
+    "hi": "मदीना मुनव्वरा",
+    "bn": "মদিনা মুনাওয়ারা",
+    "fr": "Médine"
+  },
+  "المزادات النشطة": {
+    "en": "Active Auctions",
+    "ur": "فعال نیلامیاں",
+    "hi": "सक्रिय नीलामी",
+    "bn": "সক্রিয় নিলাম",
+    "fr": "Enchères actives"
+  },
+  "المساعدة والدعم": {
+    "en": "Help and Support",
+    "ur": "مدد اور معاونت",
+    "hi": "सहायता और समर्थन",
+    "bn": "সহায়তা ও সমর্থন",
+    "fr": "Aide et support"
+  },
+  "تاريخ المزايدات": {
+    "en": "Bidding History",
+    "ur": "نیلامیوں کی تاریخ",
+    "hi": "बोली का इतिहास",
+    "bn": "নিলামের ইতিহাস",
+    "fr": "Historique des enchères"
+  },
+  "تواصل / الإعلان": {
+    "en": "Contact / Advertise",
+    "ur": "رابطہ / اشتہار",
+    "hi": "संपर्क करें / विज्ञापन दें",
+    "bn": "যোগাযোগ / বিজ্ঞাপন",
+    "fr": "Contact / Publicité"
+  },
+  "جاري الإرسال...": {
+    "en": "Sending...",
+    "ur": "بھیجا جا رہا ہے...",
+    "hi": "भेजा जा रहा है...",
+    "bn": "পাঠানো হচ্ছে...",
+    "fr": "Envoi en cours..."
+  },
+  "جاري الإيداع...": {
+    "en": "Depositing...",
+    "ur": "جمع کیا جا رہا ہے...",
+    "hi": "जमा किया जा रहा है...",
+    "bn": "জমা করা হচ্ছে...",
+    "fr": "Dépôt en cours..."
+  },
+  "جاري التحميل...": {
+    "en": "Loading...",
+    "ur": "لوڈ ہو رہا ہے...",
+    "hi": "लोड हो रहा है...",
+    "bn": "লোড হচ্ছে...",
+    "fr": "Chargement en cours..."
+  },
+  "جميع المستخدمين": {
+    "en": "All Users",
+    "ur": "تمام صارفین",
+    "hi": "सभी उपयोगकर्ता",
+    "bn": "সকল ব্যবহারকারী",
+    "fr": "Tous les utilisateurs"
+  },
+  "عرض على الخريطة": {
+    "en": "View on Map",
+    "ur": "نقشے پر دیکھیں",
+    "hi": "नक्शे पर देखें",
+    "bn": "মানচিত্রে দেখুন",
+    "fr": "Afficher sur la carte"
+  },
+  "مرحباً بعودتك 👋": {
+    "en": "Welcome back 👋",
+    "ur": "خوش آمدید واپس 👋",
+    "hi": "वापसी पर आपका स्वागत है 👋",
+    "bn": "ফিরে আসার জন্য স্বাগতম 👋",
+    "fr": "Bienvenue de retour 👋"
+  },
+  "أنا مقدّم خدمة": {
+    "en": "I am a Service Provider",
+    "ur": "میں ایک سروس فراہم کنندہ ہوں",
+    "hi": "मैं एक सेवा प्रदाता हूँ",
+    "bn": "আমি একজন সেবা প্রদানকারী",
+    "fr": "Je suis un fournisseur de services"
+  },
+  "افتح الاتجاهات": {
+    "en": "Open Directions",
+    "ur": "سمتیں کھولیں",
+    "hi": "दिशा-निर्देश खोलें",
+    "bn": "দিকনির্দেশ খুলুন",
+    "fr": "Ouvrir les itinéraires"
+  },
+  "اكتب رسالتك...": {
+    "en": "Type your message...",
+    "ur": "اپنا پیغام لکھیں...",
+    "hi": "अपना संदेश लिखें...",
+    "bn": "আপনার বার্তা লিখুন...",
+    "fr": "Écrivez votre message..."
+  },
+  "الحي / المنطقة": {
+    "en": "Neighborhood / Area",
+    "ur": "محلہ / علاقہ",
+    "hi": "पड़ोस / क्षेत्र",
+    "bn": "এলাকা / অঞ্চল",
+    "fr": "Quartier / Zone"
+  },
+  "الرئيسية - وسط": {
+    "en": "Home - Middle",
+    "ur": "ہوم - بیچ",
+    "hi": "मुख्य पृष्ठ - मध्य",
+    "bn": "হোম - মাঝখানে",
+    "fr": "Accueil - Milieu"
+  },
+  "المزادات الحية": {
+    "en": "Live Auctions",
+    "ur": "لائیو نیلامیاں",
+    "hi": "लाइव नीलामी",
+    "bn": "লাইভ নিলাম",
+    "fr": "Enchères en direct"
+  },
+  "الهوية البصرية": {
+    "en": "Visual Identity",
+    "ur": "بصری شناخت",
+    "hi": "दृश्य पहचान",
+    "bn": "ভিজ্যুয়াল পরিচয়",
+    "fr": "Identité visuelle"
+  },
+  "تم حذف الإعلان": {
+    "en": "Ad Deleted",
+    "ur": "اشتہار حذف کر دیا گیا",
+    "hi": "विज्ञापन हटा दिया गया है",
+    "bn": "বিজ্ঞাপন মুছে ফেলা হয়েছে",
+    "fr": "L'annonce a été supprimée"
+  },
+  "درجة الموثوقية": {
+    "en": "Reliability Score",
+    "ur": "اعتمادیت کا درجہ",
+    "hi": "विश्वसनीयता का स्तर",
+    "bn": "নির্ভরযোগ্যতার মাত্রা",
+    "fr": "Degré de fiabilité"
+  },
+  "سياسة الخصوصية": {
+    "en": "Privacy Policy",
+    "ur": "رازداری کی پالیسی",
+    "hi": "गोपनीयता नीति",
+    "bn": "গোপনীয়তা নীতি",
+    "fr": "Politique de confidentialité"
+  },
+  "طلب حذف الحساب": {
+    "en": "Account Deletion Request",
+    "ur": "اکاؤنٹ حذف کرنے کی درخواست",
+    "hi": "खाता हटाने का अनुरोध",
+    "bn": "অ্যাকাউন্ট মোছার অনুরোধ",
+    "fr": "Demande de suppression de compte"
+  },
+  "لا توجد بلاغات": {
+    "en": "No Reports",
+    "ur": "کوئی رپورٹس نہیں",
+    "hi": "कोई रिपोर्ट नहीं",
+    "bn": "কোনো রিপোর্ট নেই",
+    "fr": "Aucun signalement"
+  },
+  "📍 موقعي الحالي": {
+    "en": "📍 My Current Location",
+    "ur": "📍 میری موجودہ لوکیشن",
+    "hi": "📍 मेरा वर्तमान स्थान",
+    "bn": "📍 আমার বর্তমান অবস্থান",
+    "fr": "📍 Ma position actuelle"
+  },
+  "أنا أوظّف شخص": {
+    "en": "I'm Hiring",
+    "ur": "میں نوکری پر رکھ رہا ہوں",
+    "hi": "मैं किसी को काम पर रख रहा हूँ",
+    "bn": "আমি একজন ব্যক্তি নিয়োগ করছি",
+    "fr": "J'embauche une personne"
+  },
+  "أنشئ أول مزاد": {
+    "en": "Create Your First Auction",
+    "ur": "اپنی پہلی نیلامی بنائیں",
+    "hi": "अपनी पहली नीलामी बनाएँ",
+    "bn": "প্রথম নিলাম তৈরি করুন",
+    "fr": "Créez votre première enchère"
+  },
+  "إسطنبول صبيحة": {
+    "en": "Istanbul Sabiha",
+    "ur": "استنبول صبیا",
+    "hi": "इस्तांबुल सबीहा",
+    "bn": "ইস্তাম্বুল সাবিহা",
+    "fr": "Istanbul Sabiha"
+  },
+  "إيقاف الدوران": {
+    "en": "Stop Rotation",
+    "ur": "گھومنا بند کریں",
+    "hi": "घुमाव बंद करें",
+    "bn": "ঘূর্ণন বন্ধ করুন",
+    "fr": "Arrêter la rotation"
+  },
+  "اكتب اسم الحي": {
+    "en": "Enter Neighborhood Name",
+    "ur": "محلے کا نام لکھیں",
+    "hi": "मोहल्ले का नाम लिखें",
+    "bn": "এলাকার নাম লিখুন",
+    "fr": "Saisissez le nom du quartier"
+  },
+  "الأكثر مشاهدة": {
+    "en": "Most Viewed",
+    "ur": "سب سے زیادہ دیکھے گئے",
+    "hi": "सबसे ज़्यादा देखे गए",
+    "bn": "সবচেয়ে বেশি দেখা হয়েছে",
+    "fr": "Les plus vus"
+  },
+  "الدار البيضاء": {
+    "en": "Casablanca",
+    "ur": "کاسابلانکا",
+    "hi": "कासाब्लांका",
+    "bn": "কাসাব্লাঙ্কা",
+    "fr": "Casablanca"
+  },
+  "السبب الكامل:": {
+    "en": "Full Reason:",
+    "ur": "مکمل وجہ:",
+    "hi": "पूरा कारण:",
+    "bn": "সম্পূর্ণ কারণ:",
+    "fr": "La raison complète :"
+  },
+  "الفئة الفرعية": {
+    "en": "Subcategory",
+    "ur": "ذیلی زمرہ",
+    "hi": "उपश्रेणी",
+    "bn": "উপশ্রেণী",
+    "fr": "Sous-catégorie"
+  },
+  "اللون الأساسي": {
+    "en": "Primary Color",
+    "ur": "بنیادی رنگ",
+    "hi": "प्राथमिक रंग",
+    "bn": "প্রাথমিক রঙ",
+    "fr": "Couleur principale"
+  },
+  "اللون الثانوي": {
+    "en": "Secondary Color",
+    "ur": "ثانوی رنگ",
+    "hi": "द्वितीयक रंग",
+    "bn": "দ্বিতীয় রঙ",
+    "fr": "Couleur secondaire"
+  },
+  "المُبلِّغ ID:": {
+    "en": "Reporter ID:",
+    "ur": "رپورٹ کنندہ ID:",
+    "hi": "रिपोर्टर आईडी:",
+    "bn": "রিপোর্টারের আইডি:",
+    "fr": "ID du signaleur :"
+  },
+  "بلاغات مفتوحة": {
+    "en": "Open Reports",
+    "ur": "کھلی رپورٹس",
+    "hi": "खुली रिपोर्टें",
+    "bn": "খোলা রিপোর্ট",
+    "fr": "Signalements ouverts"
+  },
+  "تعذرت الترجمة": {
+    "en": "Translation Failed",
+    "ur": "ترجمہ ناکام ہو گیا",
+    "hi": "अनुवाद विफल रहा",
+    "bn": "অনুবাদ ব্যর্থ হয়েছে",
+    "fr": "Traduction impossible"
+  },
+  "جاري الحفظ...": {
+    "en": "Saving...",
+    "ur": "محفوظ کیا جا رہا ہے...",
+    "hi": "सहेजा जा रहा है...",
+    "bn": "সংরক্ষণ করা হচ্ছে...",
+    "fr": "Sauvegarde en cours..."
+  },
+  "جاري الرفع...": {
+    "en": "Uploading...",
+    "ur": "اپ لوڈ کیا جا رہا ہے...",
+    "hi": "अपलोड किया जा रहा है...",
+    "bn": "আপলোড করা হচ্ছে...",
+    "fr": "Chargement en cours..."
+  },
+  "رابط غير صالح": {
+    "en": "Invalid Link",
+    "ur": "غلط لنک",
+    "hi": "अमान्य लिंक",
+    "bn": "অকার্যকর লিঙ্ক",
+    "fr": "Lien invalide"
+  },
+  "عدد المزايدات": {
+    "en": "Number of Bids",
+    "ur": "بولیوں کی تعداد",
+    "hi": "बोलियों की संख्या",
+    "bn": "বিডের সংখ্যা",
+    "fr": "Nombre d'enchères"
+  },
+  "عدد المسافرين": {
+    "en": "Number of Travelers",
+    "ur": "مسافروں کی تعداد",
+    "hi": "यात्रियों की संख्या",
+    "bn": "যাত্রীর সংখ্যা",
+    "fr": "Nombre de voyageurs"
+  },
+  "عن الحراج بلس": {
+    "en": "About Haraj Plus",
+    "ur": "حراج پلس کے بارے میں",
+    "hi": "हरज प्लस के बारे में",
+    "bn": "হারাজ প্লাস সম্পর্কে",
+    "fr": "À propos de Haraj Plus"
+  },
+  "عنوان الإعلان": {
+    "en": "Ad Title",
+    "ur": "اشتہار کا عنوان",
+    "hi": "विज्ञापन शीर्षक",
+    "bn": "বিজ্ঞাপনের শিরোনাম",
+    "fr": "Titre de l'annonce"
+  },
+  "مبلغ المزايدة": {
+    "en": "Bid Amount",
+    "ur": "بولی کی رقم",
+    "hi": "बोली राशि",
+    "bn": "বিডের পরিমাণ",
+    "fr": "Montant de l'enchère"
+  },
+  "موقع حي مباشر": {
+    "en": "Live Location",
+    "ur": "براہ راست مقام",
+    "hi": "लाइव लोकेशन",
+    "bn": "সরাসরি লাইভ অবস্থান",
+    "fr": "Localisation en direct"
+  },
+  "🔗 فتح الإعلان": {
+    "en": "🔗 Open Ad",
+    "ur": "🔗 اشتہار کھولیں",
+    "hi": "🔗 विज्ञापन खोलें",
+    "bn": "🔗 বিজ্ঞাপন খুলুন",
+    "fr": "🔗 Ouvrir l'annonce"
+  },
+  "🔵 باحث عن عمل": {
+    "en": "🔵 Job Seeker",
+    "ur": "🔵 نوکری کا متلاشی",
+    "hi": "🔵 नौकरी ढूंढने वाला",
+    "bn": "🔵 চাকরিপ্রার্থী",
+    "fr": "🔵 Chercheur d'emploi"
+  },
+  "أكد المزايدة": {
+    "en": "Confirm Bid",
+    "ur": "بولی کی تصدیق کریں",
+    "hi": "बोली की पुष्टि करें",
+    "bn": "বিড নিশ্চিত করুন",
+    "fr": "Confirmer l'enchère"
+  },
+  "إرسال للجميع": {
+    "en": "Send to All",
+    "ur": "سب کو بھیجیں",
+    "hi": "सभी को भेजें",
+    "bn": "সবার কাছে পাঠান",
+    "fr": "Envoyer à tous"
+  },
+  "إعلانات نشطة": {
+    "en": "Active Ads",
+    "ur": "فعال اشتہارات",
+    "hi": "सक्रिय विज्ञापन",
+    "bn": "সক্রিয় বিজ্ঞাপন",
+    "fr": "Annonces actives"
+  },
+  "ابدأ الدوران": {
+    "en": "Start Spin",
+    "ur": "گھمانا شروع کریں",
+    "hi": "घूमना शुरू करें",
+    "bn": "ঘুরানো শুরু করুন",
+    "fr": "Commencer la rotation"
+  },
+  "اختر المدينة": {
+    "en": "Select City",
+    "ur": "شہر منتخب کریں",
+    "hi": "शहर चुनें",
+    "bn": "শহর নির্বাচন করুন",
+    "fr": "Choisir la ville"
+  },
+  "القصص قريباً": {
+    "en": "Stories Soon",
+    "ur": "کہانیاں جلد آرہی ہیں",
+    "hi": "कहानियां जल्द आ रही हैं",
+    "bn": "গল্প শীঘ্রই",
+    "fr": "Histoires bientôt"
+  },
+  "الموثقون فقط": {
+    "en": "Verified Only",
+    "ur": "صرف تصدیق شدہ",
+    "hi": "केवल सत्यापित",
+    "bn": "শুধুমাত্র যাচাইকৃত",
+    "fr": "Vérifiés uniquement"
+  },
+  "الوضع الداكن": {
+    "en": "Dark Mode",
+    "ur": "ڈارک موڈ",
+    "hi": "डार्क मोड",
+    "bn": "ডার্ক মোড",
+    "fr": "Mode sombre"
+  },
+  "تاريخ الذهاب": {
+    "en": "Departure Date",
+    "ur": "جانے کی تاریخ",
+    "hi": "जाने की तारीख",
+    "bn": "যাওয়ার তারিখ",
+    "fr": "Date de départ"
+  },
+  "تاريخ العودة": {
+    "en": "Return Date",
+    "ur": "واپسی کی تاریخ",
+    "hi": "वापसी की तारीख",
+    "bn": "ফেরার তারিখ",
+    "fr": "Date de retour"
+  },
+  "تسجيل الخروج": {
+    "en": "Log Out",
+    "ur": "لاگ آؤٹ",
+    "hi": "लॉग आउट करें",
+    "bn": "লগ আউট",
+    "fr": "Se déconnecter"
+  },
+  "تعذر الإرسال": {
+    "en": "Failed to Send",
+    "ur": "ارسال میں ناکامی",
+    "hi": "भेजने में विफल",
+    "bn": "পাঠানো যায়নি",
+    "fr": "Échec de l'envoi"
+  },
+  "تعذر التجديد": {
+    "en": "Failed to Renew",
+    "ur": "تجدید میں ناکامی",
+    "hi": "नवीनीकरण विफल",
+    "bn": "নবায়ন করা যায়নি",
+    "fr": "Échec du renouvellement"
+  },
+  "تعذر التحديث": {
+    "en": "Failed to Update",
+    "ur": "اپ ڈیٹ میں ناکامی",
+    "hi": "अपडेट विफल",
+    "bn": "আপডেট করা যায়নি",
+    "fr": "Échec de la mise à jour"
+  },
+  "جنوب أفريقيا": {
+    "en": "South Africa",
+    "ur": "جنوبی افریقہ",
+    "hi": "दक्षिण अफ्रीका",
+    "bn": "দক্ষিণ আফ্রিকা",
+    "fr": "Afrique du Sud"
+  },
+  "حذف الإعلان؟": {
+    "en": "Delete Ad?",
+    "ur": "اشتہار حذف کریں؟",
+    "hi": "विज्ञापन हटाएँ?",
+    "bn": "বিজ্ঞাপন মুছবেন?",
+    "fr": "Supprimer l'annonce ?"
+  },
+  "طوكيو ناريتا": {
+    "en": "Tokyo Narita",
+    "ur": "ٹوکیو نریتا",
+    "hi": "टोक्यो नारिता",
+    "bn": "টোকিও নারিতা",
+    "fr": "Tokyo Narita"
+  },
+  "طوكيو هانيدا": {
+    "en": "Tokyo Haneda",
+    "ur": "ٹوکیو ہانیڈا",
+    "hi": "टोक्यो हानेडा",
+    "bn": "টোকিও হানেদা",
+    "fr": "Tokyo Haneda"
+  },
+  "غير الموثقين": {
+    "en": "Unverified",
+    "ur": "غیر تصدیق شدہ",
+    "hi": "असत्यापित",
+    "bn": "যাচাইকৃত নয়",
+    "fr": "Non vérifiés"
+  },
+  "كل الإعلانات": {
+    "en": "All Ads",
+    "ur": "تمام اعلانات",
+    "hi": "सभी विज्ञापन",
+    "bn": "সব বিজ্ঞাপন",
+    "fr": "Toutes les annonces"
+  },
+  "لا توجد صورة": {
+    "en": "No Image",
+    "ur": "کوئی تصویر نہیں",
+    "hi": "कोई तस्वीर नहीं",
+    "bn": "কোনো ছবি নেই",
+    "fr": "Pas d'image"
+  },
+  "لوحة الإدارة": {
+    "en": "Admin Panel",
+    "ur": "انتظامی پینل",
+    "hi": "प्रशासन पैनल",
+    "bn": "প্রশাসন প্যানেল",
+    "fr": "Panneau d'administration"
+  },
+  "مزايدة فورية": {
+    "en": "Instant Bid",
+    "ur": "فوری بولی",
+    "hi": "तत्काल बोली",
+    "bn": "তাৎক্ষণিক বিড",
+    "fr": "Enchère immédiate"
+  },
+  "ملخص الإعلان": {
+    "en": "Ad Summary",
+    "ur": "اعلان کا خلاصہ",
+    "hi": "विज्ञापन सारांश",
+    "bn": "বিজ্ঞাপনের সারাংশ",
+    "fr": "Résumé de l'annonce"
+  },
+  "موقعك الحالي": {
+    "en": "Your Current Location",
+    "ur": "آپ کا موجودہ مقام",
+    "hi": "आपका वर्तमान स्थान",
+    "bn": "আপনার বর্তমান অবস্থান",
+    "fr": "Votre emplacement actuel"
+  },
+  "🔥 عرض اليوم!": {
+    "en": "🔥 Today's Offer!",
+    "ur": "🔥 آج کی پیشکش!",
+    "hi": "🔥 आज का ऑफर!",
+    "bn": "🔥 আজকের অফার!",
+    "fr": "🔥 Offre du jour!"
+  },
+  "🟢 تقديم خدمة": {
+    "en": "🟢 Offer Service",
+    "ur": "🟢 خدمت فراہم کریں",
+    "hi": "🟢 सेवा प्रदान करें",
+    "bn": "🟢 পরিষেবা প্রদান করুন",
+    "fr": "🟢 Offrir un service"
+  },
+  "+ أنشئ مزاد": {
+    "en": "+ Create Auction",
+    "ur": "+ نیلامی بنائیں",
+    "hi": "+ नीलामी बनाएँ",
+    "bn": "+ নিলাম তৈরি করুন",
+    "fr": "+ Créer une enchère"
+  },
+  "أعلى مزايدة": {
+    "en": "Highest Bid",
+    "ur": "سب سے اونچی بولی",
+    "hi": "उच्चतम बोली",
+    "bn": "সর্বোচ্চ বিড",
+    "fr": "Meilleure enchère"
+  },
+  "أنشر مجاناً": {
+    "en": "Post for Free",
+    "ur": "مفت شائع کریں",
+    "hi": "मुफ्त में पोस्ट करें",
+    "bn": "বিনামূল্যে প্রকাশ করুন",
+    "fr": "Publier gratuitement"
+  },
+  "اتصال مباشر": {
+    "en": "Direct Contact",
+    "ur": "براہ راست رابطہ",
+    "hi": "सीधा संपर्क",
+    "bn": "সরাসরি যোগাযোগ",
+    "fr": "Contact direct"
+  },
+  "اختر المطار": {
+    "en": "Select Airport",
+    "ur": "ایئرپورٹ منتخب کریں",
+    "hi": "हवाई अड्डा चुनें",
+    "bn": "বিমানবন্দর নির্বাচন করুন",
+    "fr": "Sélectionner l'aéroport"
+  },
+  "اقتراحات AI": {
+    "en": "AI Suggestions",
+    "ur": "AI تجاویز",
+    "hi": "AI सुझाव",
+    "bn": "এআই পরামর্শ",
+    "fr": "Suggestions IA"
+  },
+  "باحث عن عمل": {
+    "en": "Job Seeker",
+    "ur": "ملازمت کا متلاشی",
+    "hi": "नौकरी खोजने वाला",
+    "bn": "চাকরিপ্রার্থী",
+    "fr": "Demandeur d'emploi"
+  },
+  "باريس أورلي": {
+    "en": "Paris Orly",
+    "ur": "پیرس اورلی",
+    "hi": "पेरिस ओरली",
+    "bn": "প্যারিস অরলি",
+    "fr": "Paris Orly"
+  },
+  "بحث بالصورة": {
+    "en": "Search by Image",
+    "ur": "تصویر کے ذریعے تلاش کریں",
+    "hi": "छवि द्वारा खोजें",
+    "bn": "ছবি দিয়ে অনুসন্ধান",
+    "fr": "Recherche par image"
+  },
+  "تجديد النشر": {
+    "en": "Renew Post",
+    "ur": "اشاعت کی تجدید",
+    "hi": "पोस्ट का नवीनीकरण करें",
+    "bn": "প্রকাশনা নবায়ন করুন",
+    "fr": "Renouveler la publication"
+  },
+  "رسائل (24س)": {
+    "en": "Messages (24h)",
+    "ur": "پیغامات (24 گھنٹے)",
+    "hi": "संदेश (24घं)",
+    "bn": "মেসেজ (২৪ঘ)",
+    "fr": "Messages (24h)"
+  },
+  "رسالة صوتية": {
+    "en": "Voice Message",
+    "ur": "صوتی پیغام",
+    "hi": "वॉयस मैसेज",
+    "bn": "ভয়েস মেসেজ",
+    "fr": "Message vocal"
+  },
+  "صفقات اليوم": {
+    "en": "Today's Deals",
+    "ur": "آج کی ڈیلز",
+    "hi": "आज के सौदे",
+    "bn": "আজকের ডিল",
+    "fr": "Offres du jour"
+  },
+  "عرض الإعلان": {
+    "en": "View Ad",
+    "ur": "اعلان دیکھیں",
+    "hi": "विज्ञापन देखें",
+    "bn": "বিজ্ঞাপন দেখুন",
+    "fr": "Voir l'annonce"
+  },
+  "لا توجد صور": {
+    "en": "No Images",
+    "ur": "کوئی تصاویر نہیں",
+    "hi": "कोई तस्वीरें नहीं",
+    "bn": "কোনো ছবি নেই",
+    "fr": "Pas d'images"
+  },
+  "لندن جاتويك": {
+    "en": "London Gatwick",
+    "ur": "لندن گیٹوک",
+    "hi": "लंदन गैटविक",
+    "bn": "লন্ডন গ্যাটউইক",
+    "fr": "Londres Gatwick"
+  },
+  "لون التمييز": {
+    "en": "Accent Color",
+    "ur": "نمایاں رنگ",
+    "hi": "हाइलाइट रंग",
+    "bn": "হাইলাইট রঙ",
+    "fr": "Couleur d'accentuation"
+  },
+  "متابعة بـ X": {
+    "en": "Continue with X",
+    "ur": "X کے ساتھ جاری رکھیں",
+    "hi": "X के साथ जारी रखें",
+    "bn": "X দিয়ে চালিয়ে যান",
+    "fr": "Continuer avec X"
+  },
+  "نيويورك JFK": {
+    "en": "New York JFK",
+    "ur": "نیویارک JFK",
+    "hi": "न्यूयॉर्क जेएफके",
+    "bn": "নিউ ইয়র্ক জেএফকে",
+    "fr": "New York JFK"
+  },
+  "🟢 عرض وظيفة": {
+    "en": "🟢 Job Offer",
+    "ur": "🟢 نوکری کی پیشکش",
+    "hi": "🟢 नौकरी का प्रस्ताव",
+    "bn": "🟢 চাকরির প্রস্তাব",
+    "fr": "🟢 Offre d'emploi"
+  },
+  "🧭 الاتجاهات": {
+    "en": "🧭 Directions",
+    "ur": "🧭 سمتیں",
+    "hi": "🧭 दिशा-निर्देश",
+    "bn": "🧭 দিকনির্দেশ",
+    "fr": "🧭 Itinéraire"
+  },
+  "AI يفكر...": {
+    "en": "AI thinking...",
+    "ur": "AI سوچ رہا ہے...",
+    "hi": "एआई सोच रहा है...",
+    "bn": "এআই ভাবছে...",
+    "fr": "L'IA réfléchit..."
+  },
+  "أديس أبابا": {
+    "en": "Addis Ababa",
+    "ur": "ادیس ابابا",
+    "hi": "अदीस अबाबा",
+    "bn": "আদ্দিস আবাবা",
+    "fr": "Addis-Abeba"
+  },
+  "إسلام آباد": {
+    "en": "Islamabad",
+    "ur": "اسلام آباد",
+    "hi": "इस्लामाबाद",
+    "bn": "ইসলামাবাদ",
+    "fr": "Islamabad"
+  },
+  "احجز رحلتك": {
+    "en": "Book your trip",
+    "ur": "اپنی پرواز بک کریں",
+    "hi": "अपनी यात्रा बुक करें",
+    "bn": "আপনার ট্রিপ বুক করুন",
+    "fr": "Réservez votre vol"
+  },
+  "استخدم هذا": {
+    "en": "Use this",
+    "ur": "یہ استعمال کریں",
+    "hi": "इसका प्रयोग करें",
+    "bn": "এটি ব্যবহার করুন",
+    "fr": "Utiliser ceci"
+  },
+  "اسم الموقع": {
+    "en": "Site name",
+    "ur": "سائٹ کا نام",
+    "hi": "साइट का नाम",
+    "bn": "স্থানের নাম",
+    "fr": "Nom du site"
+  },
+  "الإحصائيات": {
+    "en": "Statistics",
+    "ur": "اعداد و شمار",
+    "hi": "आँकड़े",
+    "bn": "পরিসংখ্যান",
+    "fr": "Statistiques"
+  },
+  "الحراج بلس": {
+    "en": "Haraj Plus",
+    "ur": "الحراج پلس",
+    "hi": "अल-हराज़ प्लस",
+    "bn": "হারাজ প্লাস",
+    "fr": "Haraj Plus"
+  },
+  "المستخدمون": {
+    "en": "Users",
+    "ur": "صارفین",
+    "hi": "उपयोगकर्ता",
+    "bn": "ব্যবহারকারীগণ",
+    "fr": "Utilisateurs"
+  },
+  "تعذر الحذف": {
+    "en": "Failed to delete",
+    "ur": "حذف نہیں ہو سکا",
+    "hi": "हटाया नहीं जा सका",
+    "bn": "মুছে ফেলা যায়নি",
+    "fr": "Suppression impossible"
+  },
+  "تقديم خدمة": {
+    "en": "Provide service",
+    "ur": "خدمت فراہم کریں",
+    "hi": "सेवा प्रदान करें",
+    "bn": "পরিষেবা প্রদান করুন",
+    "fr": "Offrir un service"
+  },
+  "تم التأكيد": {
+    "en": "Confirmed",
+    "ur": "تصدیق شدہ",
+    "hi": "पुष्टि की गई",
+    "bn": "নিশ্চিত করা হয়েছে",
+    "fr": "Confirmé"
+  },
+  "تم التجديد": {
+    "en": "Renewed",
+    "ur": "تجدید شدہ",
+    "hi": "नवीनीकृत",
+    "bn": "নবায়ন করা হয়েছে",
+    "fr": "Renouvelé"
+  },
+  "تواصل معنا": {
+    "en": "Contact Us",
+    "ur": "ہم سے رابطہ کریں",
+    "hi": "हमसे संपर्क करें",
+    "bn": "আমাদের সাথে যোগাযোগ করুন",
+    "fr": "Contactez-nous"
+  },
+  "حدد الموقع": {
+    "en": "Select location",
+    "ur": "مقام منتخب کریں",
+    "hi": "स्थान चुनें",
+    "bn": "অবস্থান নির্বাচন করুন",
+    "fr": "Sélectionner l'emplacement"
+  },
+  "حسب الدولة": {
+    "en": "By country",
+    "ur": "ملک کے لحاظ سے",
+    "hi": "देश के अनुसार",
+    "bn": "দেশ অনুযায়ী",
+    "fr": "Par pays"
+  },
+  "دبي الدولي": {
+    "en": "Dubai International",
+    "ur": "دبئی انٹرنیشنل",
+    "hi": "दुबई अंतर्राष्ट्रीय",
+    "bn": "দুবাই আন্তর্জাতিক",
+    "fr": "Dubaï International"
+  },
+  "ذهاب وعودة": {
+    "en": "Round trip",
+    "ur": "آنا جانا",
+    "hi": "आना-जाना",
+    "bn": "যাতায়াত",
+    "fr": "Aller-retour"
+  },
+  "رأس الخيمة": {
+    "en": "Ras Al Khaimah",
+    "ur": "راس الخیمہ",
+    "hi": "रास अल खैमाह",
+    "bn": "রাস আল খাইমাহ",
+    "fr": "Ras al-Khaimah"
+  },
+  "رقم الجوال": {
+    "en": "Mobile number",
+    "ur": "موبائل نمبر",
+    "hi": "मोबाइल नंबर",
+    "bn": "মোবাইল নম্বর",
+    "fr": "Numéro de mobile"
+  },
+  "رمز الدولة": {
+    "en": "Country code",
+    "ur": "ملکی کوڈ",
+    "hi": "देश कोड",
+    "bn": "দেশের কোড",
+    "fr": "Code pays"
+  },
+  "شريط جانبي": {
+    "en": "Sidebar",
+    "ur": "سائیڈبار",
+    "hi": "साइडबार",
+    "bn": "সাইডবার",
+    "fr": "Barre latérale"
+  },
+  "شعار رئيسي": {
+    "en": "Main Logo",
+    "ur": "مرکزی لوگو",
+    "hi": "मुख्य लोगो",
+    "bn": "প্রধান লোগো",
+    "fr": "Logo principal"
+  },
+  "ضعيفة جداً": {
+    "en": "Very Weak",
+    "ur": "بہت کمزور",
+    "hi": "बहुत कमजोर",
+    "bn": "খুব দুর্বল",
+    "fr": "Très faible"
+  },
+  "عرض الموقع": {
+    "en": "View Site",
+    "ur": "ویب سائٹ دیکھیں",
+    "hi": "साइट देखें",
+    "bn": "ওয়েবসাইট দেখুন",
+    "fr": "Afficher le site"
+  },
+  "عن التطبيق": {
+    "en": "About App",
+    "ur": "ایپ کے بارے میں",
+    "hi": "ऐप के बारे में",
+    "bn": "অ্যাপ সম্পর্কে",
+    "fr": "À propos de l'application"
+  },
+  "كوالالمبور": {
+    "en": "Kuala Lumpur",
+    "ur": "کوالالمپور",
+    "hi": "कुआलालंपुर",
+    "bn": "কুয়ালালামপুর",
+    "fr": "Kuala Lumpur"
+  },
+  "لندن هيثرو": {
+    "en": "London Heathrow",
+    "ur": "لندن ہیتھرو",
+    "hi": "लंदन हीथ्रो",
+    "bn": "লন্ডন হিথ্রো",
+    "fr": "Londres Heathrow"
+  },
+  "لوس أنجلوس": {
+    "en": "Los Angeles",
+    "ur": "لاس اینجلس",
+    "hi": "लॉस एंजिल्स",
+    "bn": "লস অ্যাঞ্জেলেস",
+    "fr": "Los Angeles"
+  },
+  "وضع تطوير:": {
+    "en": "Development Mode:",
+    "ur": "ڈویلپمنٹ موڈ:",
+    "hi": "डेवलपमेंट मोड:",
+    "bn": "ডেভেলপমেন্ট মোড:",
+    "fr": "Mode développement :"
+  },
+  "🇸🇦 العربية": {
+    "en": "🇸🇦 Arabic",
+    "ur": "🇸🇦 عربی",
+    "hi": "🇸🇦 अरबी",
+    "bn": "🇸🇦 আরবি",
+    "fr": "🇸🇦 Arabe"
+  },
+  "🔵 طلب خدمة": {
+    "en": "🔵 Request Service",
+    "ur": "🔵 سروس کی درخواست",
+    "hi": "🔵 सेवा का अनुरोध करें",
+    "bn": "🔵 সেবা অনুরোধ করুন",
+    "fr": "🔵 Demander un service"
+  },
+  "إلغاء حظر": {
+    "en": "Unblock",
+    "ur": "ان بلاک کریں",
+    "hi": "अनब्लॉक करें",
+    "bn": "আনব্লক করুন",
+    "fr": "Débloquer"
+  },
+  "إندونيسيا": {
+    "en": "Indonesia",
+    "ur": "انڈونیشیا",
+    "hi": "इंडोनेशिया",
+    "bn": "ইন্দোনেশিয়া",
+    "fr": "Indonésie"
+  },
+  "الإشعارات": {
+    "en": "Notifications",
+    "ur": "اطلاعات",
+    "hi": "सूचनाएं",
+    "bn": "নোটিফিকেশন",
+    "fr": "Notifications"
+  },
+  "الإعدادات": {
+    "en": "Settings",
+    "ur": "ترتیبات",
+    "hi": "सेटिंग्स",
+    "bn": "সেটিংস",
+    "fr": "Paramètres"
+  },
+  "الإعلانات": {
+    "en": "Ads",
+    "ur": "اشتہارات",
+    "hi": "विज्ञापन",
+    "bn": "বিজ্ঞাপনগুলি",
+    "fr": "Annonces"
+  },
+  "السعر إلى": {
+    "en": "Price To",
+    "ur": "قیمت تک",
+    "hi": "कीमत तक",
+    "bn": "দাম পর্যন্ত",
+    "fr": "Prix jusqu'à"
+  },
+  "المحادثات": {
+    "en": "Chats",
+    "ur": "بات چیت",
+    "hi": "चैट",
+    "bn": "চ্যাট",
+    "fr": "Conversations"
+  },
+  "المدينة *": {
+    "en": "City *",
+    "ur": "شہر *",
+    "hi": "शहर *",
+    "bn": "শহর *",
+    "fr": "Ville *"
+  },
+  "المسافرون": {
+    "en": "Travelers",
+    "ur": "مسافر",
+    "hi": "यात्री",
+    "bn": "যাত্রীগণ",
+    "fr": "Voyageurs"
+  },
+  "المواصفات": {
+    "en": "Specifications",
+    "ur": "تفصیلات",
+    "hi": "विनिर्देश",
+    "bn": "বৈশিষ্ট্যসমূহ",
+    "fr": "Spécifications"
+  },
+  "الهدف ID:": {
+    "en": "Target ID:",
+    "ur": "ٹارگٹ ID:",
+    "hi": "टारगेट आईडी:",
+    "bn": "লক্ষ্য আইডি:",
+    "fr": "ID cible :"
+  },
+  "جوهانسبرغ": {
+    "en": "Johannesburg",
+    "ur": "جوہانسبرگ",
+    "hi": "जोहान्सबर्ग",
+    "bn": "জোহানেসবার্গ",
+    "fr": "Johannesbourg"
+  },
+  "حجز طيران": {
+    "en": "Book Flight",
+    "ur": "فلائٹ بکنگ",
+    "hi": "फ्लाइट बुक करें",
+    "bn": "বিমান বুকিং",
+    "fr": "Réserver un vol"
+  },
+  "زايد الآن": {
+    "en": "Zayed Now",
+    "ur": "زاید ابھی",
+    "hi": "ज़ायद अब",
+    "bn": "জায়েদ এখন",
+    "fr": "Zayed maintenant"
+  },
+  "ساو باولو": {
+    "en": "Sao Paulo",
+    "ur": "ساؤ پالو",
+    "hi": "साओ पाउलो",
+    "bn": "সাও পাওলো",
+    "fr": "São Paulo"
+  },
+  "شرم الشيخ": {
+    "en": "Sharm El Sheikh",
+    "ur": "شرم الشیخ",
+    "hi": "शर्म अल शेख",
+    "bn": "শার্ম এল শেখ",
+    "fr": "Charm el-Cheikh"
+  },
+  "عرض وظيفة": {
+    "en": "Job Offer",
+    "ur": "ملازمت کی پیشکش",
+    "hi": "नौकरी ऑफ़र",
+    "bn": "চাকরির অফার",
+    "fr": "Offre d'emploi"
+  },
+  "على السوم": {
+    "en": "Open to Offers",
+    "ur": "بولی پر",
+    "hi": "बोली पर",
+    "bn": "দর কষাকষি",
+    "fr": "Prix à débattre"
+  },
+  "فرانكفورت": {
+    "en": "Frankfurt",
+    "ur": "فرینکفرٹ",
+    "hi": "फ़्रैंकफ़र्ट",
+    "bn": "ফ্রাঙ্কফুর্ট",
+    "fr": "Francfort"
+  },
+  "فشل الحفظ": {
+    "en": "Save Failed",
+    "ur": "محفوظ کرنے میں ناکامی",
+    "hi": "सहेजने में विफल",
+    "bn": "সংরক্ষণ ব্যর্থ হয়েছে",
+    "fr": "Échec de la sauvegarde"
+  },
+  "فشل الرفع": {
+    "en": "Upload Failed",
+    "ur": "اپ لوڈ ناکام",
+    "hi": "अपलोड करने में विफल",
+    "bn": "আপলোড ব্যর্থ হয়েছে",
+    "fr": "Échec de l'envoi"
+  },
+  "فشل النشر": {
+    "en": "Publish Failed",
+    "ur": "پوسٹ کرنے میں ناکامی",
+    "hi": "प्रकाशित करने में विफल",
+    "bn": "প্রকাশনা ব্যর্থ হয়েছে",
+    "fr": "Échec de la publication"
+  },
+  "قصص فيديو": {
+    "en": "Video Stories",
+    "ur": "ویڈیو کہانیاں",
+    "hi": "वीडियो कहानियाँ",
+    "bn": "ভিডিও গল্প",
+    "fr": "Stories vidéo"
+  },
+  "قوية جداً": {
+    "en": "Very Strong",
+    "ur": "بہت مضبوط",
+    "hi": "बहुत शक्तिशाली",
+    "bn": "খুব শক্তিশালী",
+    "fr": "Très puissant"
+  },
+  "هونغ كونغ": {
+    "en": "Hong Kong",
+    "ur": "ہانگ کانگ",
+    "hi": "हांगकांग",
+    "bn": "হংকং",
+    "fr": "Hong Kong"
+  },
+  "(الأعلى)": {
+    "en": "(Top)",
+    "ur": "(سب سے اوپر)",
+    "hi": "(शीर्ष)",
+    "bn": "(সর্বোচ্চ)",
+    "fr": "(Le plus élevé)"
+  },
+  "آل مكتوم": {
+    "en": "Al Maktoum",
+    "ur": "آل مکتوم",
+    "hi": "अल मकतूम",
+    "bn": "আল মাকতুম",
+    "fr": "Al Maktoum"
+  },
+  "أستراليا": {
+    "en": "Australia",
+    "ur": "آسٹریلیا",
+    "hi": "ऑस्ट्रेलिया",
+    "bn": "অস্ট্রেলিয়া",
+    "fr": "Australie"
+  },
+  "أمستردام": {
+    "en": "Amsterdam",
+    "ur": "ایمسٹرڈیم",
+    "hi": "एम्स्टर्डम",
+    "bn": "আমস্টারডাম",
+    "fr": "Amsterdam"
+  },
+  "إعلاناتي": {
+    "en": "My Ads",
+    "ur": "میرے اشتہارات",
+    "hi": "मेरे विज्ञापन",
+    "bn": "আমার বিজ্ঞাপন",
+    "fr": "Mes annonces"
+  },
+  "ابحث في:": {
+    "en": "Search in:",
+    "ur": "میں تلاش کریں:",
+    "hi": "इसमें खोजें:",
+    "bn": "অনুসন্ধান করুন:",
+    "fr": "Rechercher dans :"
+  },
+  "الإمارات": {
+    "en": "Emirates",
+    "ur": "امارات",
+    "hi": "अमीरात",
+    "bn": "সংযুক্ত আরব আমিরাত",
+    "fr": "Émirats"
+  },
+  "البرازيل": {
+    "en": "Brazil",
+    "ur": "برازیل",
+    "hi": "ब्राज़ील",
+    "bn": "ব্রাজিল",
+    "fr": "Brésil"
+  },
+  "البلاغات": {
+    "en": "Reports",
+    "ur": "رپورٹیں",
+    "hi": "रिपोर्टें",
+    "bn": "প্রতিবেদন",
+    "fr": "Signalements"
+  },
+  "الرئيسية": {
+    "en": "Home",
+    "ur": "ہوم",
+    "hi": "मुखपृष्ठ",
+    "bn": "হোম",
+    "fr": "Accueil"
+  },
+  "السعر من": {
+    "en": "Price From",
+    "ur": "قیمت سے",
+    "hi": "कीमत से",
+    "bn": "মূল্য থেকে",
+    "fr": "Prix de"
+  },
+  "السعودية": {
+    "en": "Saudi Arabia",
+    "ur": "سعودی عرب",
+    "hi": "सऊदी अरब",
+    "bn": "সৌদি আরব",
+    "fr": "Arabie Saoudite"
+  },
+  "العنوان:": {
+    "en": "Title:",
+    "ur": "پتہ:",
+    "hi": "पता:",
+    "bn": "ঠিকানা:",
+    "fr": "Titre :"
+  },
+  "المالديف": {
+    "en": "Maldives",
+    "ur": "مالدیپ",
+    "hi": "मालदीव",
+    "bn": "মালদ্বীপ",
+    "fr": "Maldives"
+  },
+  "المدينة:": {
+    "en": "City:",
+    "ur": "شہر:",
+    "hi": "शहर:",
+    "bn": "শহর:",
+    "fr": "Ville:"
+  },
+  "بحث صوتي": {
+    "en": "Voice search",
+    "ur": "صوتی تلاش",
+    "hi": "वॉइस सर्च",
+    "bn": "ভয়েস অনুসন্ধান",
+    "fr": "Recherche vocale"
+  },
+  "بريطانيا": {
+    "en": "United Kingdom",
+    "ur": "برطانیہ",
+    "hi": "ब्रिटेन",
+    "bn": "ব্রিটেন",
+    "fr": "Royaume-Uni"
+  },
+  "بنغلاديش": {
+    "en": "Bangladesh",
+    "ur": "بنگلہ دیش",
+    "hi": "बांग्लादेश",
+    "bn": "বাংলাদেশ",
+    "fr": "Bangladesh"
+  },
+  "تحميل...": {
+    "en": "Loading...",
+    "ur": "لوڈ ہو رہا ہے...",
+    "hi": "लोड हो रहा है...",
+    "bn": "লোড হচ্ছে...",
+    "fr": "Chargement..."
+  },
+  "تم البيع": {
+    "en": "Sold",
+    "ur": "فروخت ہو چکا ہے",
+    "hi": "बिक गया",
+    "bn": "বিক্রি হয়েছে",
+    "fr": "Vendu"
+  },
+  "ذهاب فقط": {
+    "en": "One-way",
+    "ur": "صرف یک طرفہ",
+    "hi": "वन-वे",
+    "bn": "একমুখী",
+    "fr": "Aller simple"
+  },
+  "سريلانكا": {
+    "en": "Sri Lanka",
+    "ur": "سری لنکا",
+    "hi": "श्रीलंका",
+    "bn": "শ্রীলঙ্কা",
+    "fr": "Sri Lanka"
+  },
+  "سنغافورة": {
+    "en": "Singapore",
+    "ur": "سنگاپور",
+    "hi": "सिंगापुर",
+    "bn": "সিঙ্গাপুর",
+    "fr": "Singapour"
+  },
+  "طلب خدمة": {
+    "en": "Request service",
+    "ur": "سروس کی درخواست",
+    "hi": "सेवा अनुरोध",
+    "bn": "পরিষেবার অনুরোধ",
+    "fr": "Demander un service"
+  },
+  "عرض الكل": {
+    "en": "View All",
+    "ur": "سب دیکھیں",
+    "hi": "सभी देखें",
+    "bn": "সব দেখুন",
+    "fr": "Voir tout"
+  },
+  "عرض كامل": {
+    "en": "Full View",
+    "ur": "مکمل دیکھیں",
+    "hi": "पूर्ण दृश्य",
+    "bn": "সম্পূর্ণ দেখুন",
+    "fr": "Vue complète"
+  },
+  "كيب تاون": {
+    "en": "Cape Town",
+    "ur": "کیپ ٹاؤن",
+    "hi": "केप टाउन",
+    "bn": "কেপ টাউন",
+    "fr": "Le Cap"
+  },
+  "مونتريال": {
+    "en": "Montreal",
+    "ur": "مونٹریال",
+    "hi": "मॉन्ट्रियल",
+    "bn": "মন্ট্রিয়ল",
+    "fr": "Montréal"
+  },
+  "ألمانيا": {
+    "en": "Germany",
+    "ur": "جرمنی",
+    "hi": "जर्मनी",
+    "bn": "জার্মানি",
+    "fr": "Allemagne"
+  },
+  "أنطاليا": {
+    "en": "Antalya",
+    "ur": "انطالیہ",
+    "hi": "अंताल्या",
+    "bn": "আন্তালিয়া",
+    "fr": "Antalya"
+  },
+  "إثيوبيا": {
+    "en": "Ethiopia",
+    "ur": "ایتھوپیا",
+    "hi": "इथियोपिया",
+    "bn": "ইথিওপিয়া",
+    "fr": "Éthiopie"
+  },
+  "إجراءات": {
+    "en": "Actions",
+    "ur": "اقدامات",
+    "hi": "क्रियाएँ",
+    "bn": "প্রক্রিয়া",
+    "fr": "Actions"
+  },
+  "إسبانيا": {
+    "en": "Spain",
+    "ur": "اسپین",
+    "hi": "स्पेन",
+    "bn": "স্পেন",
+    "fr": "Espagne"
+  },
+  "إسطنبول": {
+    "en": "Istanbul",
+    "ur": "استنبول",
+    "hi": "इस्तांबुल",
+    "bn": "ইস্তাম্বুল",
+    "fr": "Istanbul"
+  },
+  "إيطاليا": {
+    "en": "Italy",
+    "ur": "اٹلی",
+    "hi": "इटली",
+    "bn": "ইতালি",
+    "fr": "Italie"
+  },
+  "اختر...": {
+    "en": "Select...",
+    "ur": "منتخب کریں...",
+    "hi": "चुनें...",
+    "bn": "নির্বাচন করুন...",
+    "fr": "Sélectionner..."
+  },
+  "الأحساء": {
+    "en": "Al-Ahsa",
+    "ur": "الاحساء",
+    "hi": "अल-अहसा",
+    "bn": "আল-আহসা",
+    "fr": "Al-Hasa"
+  },
+  "البحرين": {
+    "en": "Bahrain",
+    "ur": "بحرین",
+    "hi": "बहरीन",
+    "bn": "বাহরাইন",
+    "fr": "Bahreïn"
+  },
+  "الجزائر": {
+    "en": "Algeria",
+    "ur": "الجزائر",
+    "hi": "अल्जीरिया",
+    "bn": "আলজেরিয়া",
+    "fr": "Algérie"
+  },
+  "الخرطوم": {
+    "en": "Khartoum",
+    "ur": "خرطوم",
+    "hi": "खार्तूम",
+    "bn": "খার্তুম",
+    "fr": "Khartoum"
+  },
+  "السودان": {
+    "en": "Sudan",
+    "ur": "سوڈان",
+    "hi": "सूडान",
+    "bn": "সুদান",
+    "fr": "Soudan"
+  },
+  "الشارقة": {
+    "en": "Sharjah",
+    "ur": "شارجہ",
+    "hi": "शारजाह",
+    "bn": "শারজাহ",
+    "fr": "Charjah"
+  },
+  "العنوان": {
+    "en": "Address",
+    "ur": "پتہ",
+    "hi": "पता",
+    "bn": "ঠিকানা",
+    "fr": "Adresse"
+  },
+  "الغردقة": {
+    "en": "Hurghada",
+    "ur": "ہُرغادہ",
+    "hi": "हर्गहाडा",
+    "bn": "হুরঘাদা",
+    "fr": "Hourghada"
+  },
+  "الفلبين": {
+    "en": "Philippines",
+    "ur": "فلپائن",
+    "hi": "फिलीपींस",
+    "bn": "ফিলিপাইন",
+    "fr": "Philippines"
+  },
+  "الفيديو": {
+    "en": "Video",
+    "ur": "ویڈیو",
+    "hi": "वीडियो",
+    "bn": "ভিডিও",
+    "fr": "Vidéo"
+  },
+  "القاهرة": {
+    "en": "Cairo",
+    "ur": "قاہرہ",
+    "hi": "काहिरा",
+    "bn": "কায়রো",
+    "fr": "Le Caire"
+  },
+  "المدينة": {
+    "en": "City",
+    "ur": "شہر",
+    "hi": "शहर",
+    "bn": "শহর",
+    "fr": "Ville"
+  },
+  "المفضلة": {
+    "en": "Favorites",
+    "ur": "پسندیدہ",
+    "hi": "पसंदीदा",
+    "bn": "পছন্দসই",
+    "fr": "Favori"
+  },
+  "الموضوع": {
+    "en": "Subject",
+    "ur": "موضوع",
+    "hi": "विषय",
+    "bn": "বিষয়",
+    "fr": "Sujet"
+  },
+  "اليابان": {
+    "en": "Japan",
+    "ur": "جاپان",
+    "hi": "जापान",
+    "bn": "জাপান",
+    "fr": "Japon"
+  },
+  "اليونان": {
+    "en": "Greece",
+    "ur": "یونان",
+    "hi": "यूनान",
+    "bn": "গ্রীস",
+    "fr": "Grèce"
+  },
+  "باكستان": {
+    "en": "Pakistan",
+    "ur": "پاکستان",
+    "hi": "पाकिस्तान",
+    "bn": "পাকিস্তান",
+    "fr": "Pakistan"
+  },
+  "برشلونة": {
+    "en": "Barcelona",
+    "ur": "بارسلونا",
+    "hi": "बार्सिलोना",
+    "bn": "বার্সেলোনা",
+    "fr": "Barcelone"
+  },
+  "بنغالور": {
+    "en": "Bangalore",
+    "ur": "بنگلور",
+    "hi": "बेंगलुरु",
+    "bn": "বেঙ্গালুরু",
+    "fr": "Bangalore"
+  },
+  "تايلاند": {
+    "en": "Thailand",
+    "ur": "تھائی لینڈ",
+    "hi": "थाईलैंड",
+    "bn": "থাইল্যান্ড",
+    "fr": "Thaïlande"
+  },
+  "خدمات 🔧": {
+    "en": "Services 🔧",
+    "ur": "خدمات 🔧",
+    "hi": "सेवाएँ 🔧",
+    "bn": "পরিষেবা 🔧",
+    "fr": "Services 🔧"
+  },
+  "عرض أقل": {
+    "en": "Show Less",
+    "ur": "کم دکھائیں",
+    "hi": "कम दिखाएँ",
+    "bn": "কম দেখান",
+    "fr": "Afficher moins"
+  },
+  "كولومبو": {
+    "en": "Colombo",
+    "ur": "کولمبو",
+    "hi": "कोलंबो",
+    "bn": "কলম্বো",
+    "fr": "Colombo"
+  },
+  "ماليزيا": {
+    "en": "Malaysia",
+    "ur": "ملائیشیا",
+    "hi": "मलेशिया",
+    "bn": "মালয়েশিয়া",
+    "fr": "Malaisie"
+  },
+  "مانشستر": {
+    "en": "Manchester",
+    "ur": "مانچسٹر",
+    "hi": "मैनचेस्टर",
+    "bn": "ম্যানচেস্টার",
+    "fr": "Manchester"
+  },
+  "نيجيريا": {
+    "en": "Nigeria",
+    "ur": "نائجیریا",
+    "hi": "नाइजीरिया",
+    "bn": "নাইজেরিয়া",
+    "fr": "Nigéria"
+  },
+  "وظائف 💼": {
+    "en": "Jobs 💼",
+    "ur": "نوکریاں 💼",
+    "hi": "नौकरियाँ 💼",
+    "bn": "চাকরি 💼",
+    "fr": "Emplois 💼"
+  },
+  "🇵🇰 اردو": {
+    "en": "🇵🇰 Urdu",
+    "ur": "🇵🇰 اردو",
+    "hi": "🇵🇰 उर्दू",
+    "bn": "🇵🇰 উর্দু",
+    "fr": "🇵🇰 Ourdou"
+  },
+  "أبوظبي": {
+    "en": "Abu Dhabi",
+    "ur": "ابوظہبی",
+    "hi": "अबू धाबी",
+    "bn": "আবুধাবি",
+    "fr": "Abou Dabi"
+  },
+  "أمريكا": {
+    "en": "America",
+    "ur": "امریکہ",
+    "hi": "अमेरिका",
+    "bn": "আমেরিকা",
+    "fr": "Amérique"
+  },
+  "الأحدث": {
+    "en": "Latest",
+    "ur": "تازہ ترین",
+    "hi": "नवीनतम",
+    "bn": "সর্বশেষ",
+    "fr": "Le plus récent"
+  },
+  "الأردن": {
+    "en": "Jordan",
+    "ur": "اردن",
+    "hi": "जॉर्डन",
+    "bn": "জর্ডান",
+    "fr": "Jordanie"
+  },
+  "البائع": {
+    "en": "Seller",
+    "ur": "فروشندہ",
+    "hi": "विक्रेता",
+    "bn": "বিক্রেতা",
+    "fr": "Le vendeur"
+  },
+  "البريد": {
+    "en": "Mail",
+    "ur": "ڈاک",
+    "hi": "मेल",
+    "bn": "মেইল",
+    "fr": "Courrier"
+  },
+  "البصرة": {
+    "en": "Basra",
+    "ur": "بصرہ",
+    "hi": "बसरा",
+    "bn": "বসরা",
+    "fr": "Bassora"
+  },
+  "التالي": {
+    "en": "Next",
+    "ur": "اگلا",
+    "hi": "अगला",
+    "bn": "পরবর্তী",
+    "fr": "Suivant"
+  },
+  "الحالة": {
+    "en": "Status",
+    "ur": "حالت",
+    "hi": "स्थिति",
+    "bn": "অবস্থা",
+    "fr": "État"
+  },
+  "الحراج": {
+    "en": "Haraj",
+    "ur": "الحراج",
+    "hi": "हरज",
+    "bn": "হারাজ",
+    "fr": "Le marché"
+  },
+  "الدمام": {
+    "en": "Dammam",
+    "ur": "دمام",
+    "hi": "दम्मम",
+    "bn": "দাম্মাম",
+    "fr": "Dammam"
+  },
+  "الدوحة": {
+    "en": "Doha",
+    "ur": "دوحہ",
+    "hi": "दोहा",
+    "bn": "দোহা",
+    "fr": "Doha"
+  },
+  "الدولة": {
+    "en": "Country",
+    "ur": "ملک",
+    "hi": "देश",
+    "bn": "দেশ",
+    "fr": "Le pays"
+  },
+  "الرياض": {
+    "en": "Riyadh",
+    "ur": "ریاض",
+    "hi": "रियाद",
+    "bn": "রিয়াদ",
+    "fr": "Riyad"
+  },
+  "السابق": {
+    "en": "Previous",
+    "ur": "پچھلا",
+    "hi": "पिछला",
+    "bn": "পূর্ববর্তী",
+    "fr": "Précédent"
+  },
+  "السعر:": {
+    "en": "Price:",
+    "ur": "قیمت:",
+    "hi": "कीमत:",
+    "bn": "মূল্য:",
+    "fr": "Prix :"
+  },
+  "الشروط": {
+    "en": "Terms",
+    "ur": "شرائط",
+    "hi": "शर्तें",
+    "bn": "শর্তাবলী",
+    "fr": "Conditions"
+  },
+  "الصور:": {
+    "en": "Photos:",
+    "ur": "تصاویر:",
+    "hi": "तस्वीरें:",
+    "bn": "ছবি:",
+    "fr": "Photos :"
+  },
+  "الطائف": {
+    "en": "Taif",
+    "ur": "طائف",
+    "hi": "ताइफ़",
+    "bn": "তাইফ",
+    "fr": "Taïf"
+  },
+  "العراق": {
+    "en": "Iraq",
+    "ur": "عراق",
+    "hi": "इराक",
+    "bn": "ইরাক",
+    "fr": "Irak"
+  },
+  "العملة": {
+    "en": "Currency",
+    "ur": "کرنسی",
+    "hi": "मुद्रा",
+    "bn": "মুদ্রা",
+    "fr": "Devise"
+  },
+  "العودة": {
+    "en": "Back",
+    "ur": "واپس",
+    "hi": "वापसी",
+    "bn": "ফিরে যান",
+    "fr": "Retour"
+  },
+  "الفئة:": {
+    "en": "Category:",
+    "ur": "زمرہ:",
+    "hi": "श्रेणी:",
+    "bn": "বিভাগ:",
+    "fr": "Catégorie :"
+  },
+  "الكويت": {
+    "en": "Kuwait",
+    "ur": "کویت",
+    "hi": "कुवैत",
+    "bn": "কুয়েত",
+    "fr": "Koweït"
+  },
+  "المغرب": {
+    "en": "Morocco",
+    "ur": "مراکش",
+    "hi": "मोरक्को",
+    "bn": "মরক্কো",
+    "fr": "Maroc"
+  },
+  "النمسا": {
+    "en": "Austria",
+    "ur": "آسٹریا",
+    "hi": "ऑस्ट्रिया",
+    "bn": "অস্ট্রিয়া",
+    "fr": "Autriche"
+  },
+  "بانكوك": {
+    "en": "Bangkok",
+    "ur": "بنکاک",
+    "hi": "बैंकॉक",
+    "bn": "ব্যাংকক",
+    "fr": "Bangkok"
+  },
+  "بروكسل": {
+    "en": "Brussels",
+    "ur": "برسلز",
+    "hi": "ब्रुसेल्स",
+    "bn": "ব্রাসেলস",
+    "fr": "Bruxelles"
+  },
+  "بلجيكا": {
+    "en": "Belgium",
+    "ur": "بیلجیئم",
+    "hi": "बेल्जियम",
+    "bn": "বেলজিয়াম",
+    "fr": "Belgique"
+  },
+  "بولندا": {
+    "en": "Poland",
+    "ur": "پولینڈ",
+    "hi": "पोलैंड",
+    "bn": "পোল্যান্ড",
+    "fr": "Pologne"
+  },
+  "تشيناي": {
+    "en": "Chennai",
+    "ur": "چنائی",
+    "hi": "चेन्नई",
+    "bn": "চেন্নাই",
+    "fr": "Chennai"
+  },
+  "تفاصيل": {
+    "en": "Details",
+    "ur": "تفصیلات",
+    "hi": "विवरण",
+    "bn": "বিস্তারিত",
+    "fr": "Détails"
+  },
+  "تورنتو": {
+    "en": "Toronto",
+    "ur": "ٹورنٹو",
+    "hi": "टोरंटो",
+    "bn": "টরন্টো",
+    "fr": "Toronto"
+  },
+  "جاكرتا": {
+    "en": "Jakarta",
+    "ur": "جکارتہ",
+    "hi": "जकार्ता",
+    "bn": "জাকার্তা",
+    "fr": "Jakarta"
+  },
+  "سويسرا": {
+    "en": "Switzerland",
+    "ur": "سوئٹزرلینڈ",
+    "hi": "स्विट्जरलैंड",
+    "bn": "সুইজারল্যান্ড",
+    "fr": "Suisse"
+  },
+  "شنغهاي": {
+    "en": "Shanghai",
+    "ur": "شنگھائی",
+    "hi": "शंघाई",
+    "bn": "সাংহাই",
+    "fr": "Shanghai"
+  },
+  "شيكاغو": {
+    "en": "Chicago",
+    "ur": "شکاگو",
+    "hi": "शिकागो",
+    "bn": "শিকাগো",
+    "fr": "Chicago"
+  },
+  "طرابلس": {
+    "en": "Tripoli",
+    "ur": "طرابلس",
+    "hi": "त्रिपोली",
+    "bn": "ত্রিপোলি",
+    "fr": "Tripoli"
+  },
+  "كراتشي": {
+    "en": "Karachi",
+    "ur": "کراچی",
+    "hi": "कराची",
+    "bn": "করাচি",
+    "fr": "Karachi"
+  },
+  "مانيلا": {
+    "en": "Manila",
+    "ur": "منیلا",
+    "hi": "मनीला",
+    "bn": "ম্যানিলা",
+    "fr": "Manille"
+  },
+  "متوسطة": {
+    "en": "Medium",
+    "ur": "درمیانہ",
+    "hi": "मध्यम",
+    "bn": "মাঝারি",
+    "fr": "Moyenne"
+  },
+  "محادثة": {
+    "en": "Chat",
+    "ur": "گفتگو",
+    "hi": "बातचीत",
+    "bn": "কথোপকথন",
+    "fr": "Conversation"
+  },
+  "مزادات": {
+    "en": "Auctions",
+    "ur": "نیلامیاں",
+    "hi": "नीलामी",
+    "bn": "নিলাম",
+    "fr": "Enchères"
+  },
+  "مستخدم": {
+    "en": "User",
+    "ur": "صارف",
+    "hi": "उपयोगकर्ता",
+    "bn": "ব্যবহারকারী",
+    "fr": "Utilisateur"
+  },
+  "مشاركة": {
+    "en": "Share",
+    "ur": "اشتراک",
+    "hi": "साझा करें",
+    "bn": "শেয়ার করুন",
+    "fr": "Partage"
+  },
+  "ملبورن": {
+    "en": "Melbourne",
+    "ur": "میلبورن",
+    "hi": "मेलबर्न",
+    "bn": "মেলবোর্ন",
+    "fr": "Melbourne"
+  },
+  "موافقة": {
+    "en": "Approval",
+    "ur": "منظوری",
+    "hi": "मंज़ूरी",
+    "bn": "অনুমোদন",
+    "fr": "Approbation"
+  },
+  "مومباي": {
+    "en": "Mumbai",
+    "ur": "ممبئی",
+    "hi": "मुंबई",
+    "bn": "মুম্বাই",
+    "fr": "Mumbai"
+  },
+  "ميلانو": {
+    "en": "Milan",
+    "ur": "میلان",
+    "hi": "मिलानो",
+    "bn": "মিলান",
+    "fr": "Milan"
+  },
+  "نيروبي": {
+    "en": "Nairobi",
+    "ur": "نیروبی",
+    "hi": "नैरोबी",
+    "bn": "নাইরোবি",
+    "fr": "Nairobi"
+  },
+  "هولندا": {
+    "en": "Netherlands",
+    "ur": "ہالینڈ",
+    "hi": "नीदरलैंड",
+    "bn": "নেদারল্যান্ডস",
+    "fr": "Pays-Bas"
+  },
+  "واشنطن": {
+    "en": "Washington",
+    "ur": "واشنگٹن",
+    "hi": "वॉशिंगटन",
+    "bn": "ওয়াশিংটন",
+    "fr": "Washington"
+  },
+  "🔥 صفقة": {
+    "en": "🔥 Deal",
+    "ur": "🔥 سودا",
+    "hi": "🔥 डील",
+    "bn": "🔥 ডিল",
+    "fr": "🔥 Offre"
+  },
+  "أثينا": {
+    "en": "Athens",
+    "ur": "ایتھنز",
+    "hi": "एथेंस",
+    "bn": "এথেন্স",
+    "fr": "Athènes"
+  },
+  "أربيل": {
+    "en": "Erbil",
+    "ur": "اربیل",
+    "hi": "एरबिल",
+    "bn": "আরবিল",
+    "fr": "Erbil"
+  },
+  "أنقرة": {
+    "en": "Ankara",
+    "ur": "انقرہ",
+    "hi": "अंकारा",
+    "bn": "আঙ্কারা",
+    "fr": "Ankara"
+  },
+  "إخفاء": {
+    "en": "Hide",
+    "ur": "چھپائیں",
+    "hi": "छिपाएँ",
+    "bn": "লুকান",
+    "fr": "Masquer"
+  },
+  "إرسال": {
+    "en": "Send",
+    "ur": "بھیجیں",
+    "hi": "भेजें",
+    "bn": "পাঠান",
+    "fr": "Envoyer"
+  },
+  "إزمير": {
+    "en": "Izmir",
+    "ur": "ازمیر",
+    "hi": "इज़मिर",
+    "bn": "ইজমির",
+    "fr": "Izmir"
+  },
+  "إعلان": {
+    "en": "Ad",
+    "ur": "اعلان",
+    "hi": "विज्ञापन",
+    "bn": "বিজ্ঞাপন",
+    "fr": "Annonce"
+  },
+  "إغلاق": {
+    "en": "Close",
+    "ur": "بند کریں",
+    "hi": "बंद करें",
+    "bn": "বন্ধ করুন",
+    "fr": "Fermer"
+  },
+  "إيران": {
+    "en": "Iran",
+    "ur": "ایران",
+    "hi": "ईरान",
+    "bn": "ইরান",
+    "fr": "Iran"
+  },
+  "الاسم": {
+    "en": "Name",
+    "ur": "نام",
+    "hi": "नाम",
+    "bn": "নাম",
+    "fr": "Nom"
+  },
+  "الصين": {
+    "en": "China",
+    "ur": "چین",
+    "hi": "चीन",
+    "bn": "চীন",
+    "fr": "Chine"
+  },
+  "اللغة": {
+    "en": "Language",
+    "ur": "زبان",
+    "hi": "भाषा",
+    "bn": "ভাষা",
+    "fr": "Langue"
+  },
+  "الهند": {
+    "en": "India",
+    "ur": "بھارت",
+    "hi": "भारत",
+    "bn": "ভারত",
+    "fr": "Inde"
+  },
+  "الوصف": {
+    "en": "Description",
+    "ur": "تفصیل",
+    "hi": "विवरण",
+    "bn": "বিবরণ",
+    "fr": "Description"
+  },
+  "اليمن": {
+    "en": "Yemen",
+    "ur": "یمن",
+    "hi": "यमन",
+    "bn": "ইয়েমেন",
+    "fr": "Yémen"
+  },
+  "باريس": {
+    "en": "Paris",
+    "ur": "پیرس",
+    "hi": "पेरिस",
+    "bn": "প্যারিস",
+    "fr": "Paris"
+  },
+  "برلين": {
+    "en": "Berlin",
+    "ur": "برلن",
+    "hi": "बर्लिन",
+    "bn": "বার্লিন",
+    "fr": "Berlin"
+  },
+  "بغداد": {
+    "en": "Baghdad",
+    "ur": "بغداد",
+    "hi": "बगदाद",
+    "bn": "বাগদাদ",
+    "fr": "Bagdad"
+  },
+  "بيروت": {
+    "en": "Beirut",
+    "ur": "بیروت",
+    "hi": "बेरूत",
+    "bn": "বৈরুত",
+    "fr": "Beyrouth"
+  },
+  "تركيا": {
+    "en": "Turkey",
+    "ur": "ترکی",
+    "hi": "तुर्की",
+    "bn": "তুরস্ক",
+    "fr": "Turquie"
+  },
+  "تعديل": {
+    "en": "Edit",
+    "ur": "ترمیم کریں",
+    "hi": "संपादित करें",
+    "bn": "সম্পাদনা করুন",
+    "fr": "Modifier"
+  },
+  "توثيق": {
+    "en": "Verification",
+    "ur": "توثیق",
+    "hi": "सत्यापन",
+    "bn": "যাচাই করুন",
+    "fr": "Authentification"
+  },
+  "جازان": {
+    "en": "Jazan",
+    "ur": "جازان",
+    "hi": "जाज़ान",
+    "bn": "জাজান",
+    "fr": "Jazan"
+  },
+  "خريطة": {
+    "en": "Map",
+    "ur": "نقشہ",
+    "hi": "नक्शा",
+    "bn": "মানচিত্র",
+    "fr": "Carte"
+  },
+  "رسالة": {
+    "en": "Message",
+    "ur": "پیغام",
+    "hi": "संदेश",
+    "bn": "বার্তা",
+    "fr": "Message"
+  },
+  "روسيا": {
+    "en": "Russia",
+    "ur": "روس",
+    "hi": "रूस",
+    "bn": "রাশিয়া",
+    "fr": "Russie"
+  },
+  "زيورخ": {
+    "en": "Zurich",
+    "ur": "زیورخ",
+    "hi": "ज्यूरिख",
+    "bn": "জুরিখ",
+    "fr": "Zurich"
+  },
+  "سوريا": {
+    "en": "Syria",
+    "ur": "شام",
+    "hi": "सीरिया",
+    "bn": "সিরিয়া",
+    "fr": "Syrie"
+  },
+  "سيدني": {
+    "en": "Sydney",
+    "ur": "سڈنی",
+    "hi": "सिडनी",
+    "bn": "সিডনি",
+    "fr": "Sydney"
+  },
+  "صلالة": {
+    "en": "Salalah",
+    "ur": "صلالہ",
+    "hi": "सलालाह",
+    "bn": "সালালা",
+    "fr": "Salalah"
+  },
+  "صنعاء": {
+    "en": "Sana'a",
+    "ur": "صنعا",
+    "hi": "सना",
+    "bn": "সানা",
+    "fr": "Sanaa"
+  },
+  "ضعيفة": {
+    "en": "Weak",
+    "ur": "کمزور",
+    "hi": "कमजोर",
+    "bn": "দুর্বল",
+    "fr": "Faible"
+  },
+  "طهران": {
+    "en": "Tehran",
+    "ur": "تہران",
+    "hi": "तेहरान",
+    "bn": "তেহরান",
+    "fr": "Téhéran"
+  },
+  "عمّان": {
+    "en": "Amman",
+    "ur": "عمان",
+    "hi": "अम्मान",
+    "bn": "আম্মান",
+    "fr": "Amman"
+  },
+  "عُمان": {
+    "en": "Oman",
+    "ur": "عمان",
+    "hi": "ओमान",
+    "bn": "ওমান",
+    "fr": "Oman"
+  },
+  "فرنسا": {
+    "en": "France",
+    "ur": "فرانس",
+    "hi": "फ्रांस",
+    "bn": "ফ্রান্স",
+    "fr": "France"
+  },
+  "فلترة": {
+    "en": "Filter",
+    "ur": "فلٹر",
+    "hi": "फ़िल्टर",
+    "bn": "ফিল্টার",
+    "fr": "Filtre"
+  },
+  "فيديو": {
+    "en": "Video",
+    "ur": "ویڈیو",
+    "hi": "वीडियो",
+    "bn": "ভিডিও",
+    "fr": "Vidéo"
+  },
+  "فيينا": {
+    "en": "Vienna",
+    "ur": "ویانا",
+    "hi": "वियना",
+    "bn": "ভিয়েনা",
+    "fr": "Vienne"
+  },
+  "كوريا": {
+    "en": "Korea",
+    "ur": "کوریا",
+    "hi": "कोरिया",
+    "bn": "কোরিয়া",
+    "fr": "Corée"
+  },
+  "كينيا": {
+    "en": "Kenya",
+    "ur": "کینیا",
+    "hi": "केन्या",
+    "bn": "কেনিয়া",
+    "fr": "Kenya"
+  },
+  "لاغوس": {
+    "en": "Lagos",
+    "ur": "لاگوس",
+    "hi": "लागोस",
+    "bn": "লাগোস",
+    "fr": "Lagos"
+  },
+  "لاهور": {
+    "en": "Lahore",
+    "ur": "لاہور",
+    "hi": "लाहौर",
+    "bn": "লাহোর",
+    "fr": "Lahore"
+  },
+  "لبنان": {
+    "en": "Lebanon",
+    "ur": "لبنان",
+    "hi": "लेबनान",
+    "bn": "লেবানন",
+    "fr": "Liban"
+  },
+  "ليبيا": {
+    "en": "Libya",
+    "ur": "لیبیا",
+    "hi": "लीबिया",
+    "bn": "লিবিয়া",
+    "fr": "Libye"
+  },
+  "ماليه": {
+    "en": "Malé",
+    "ur": "مالے",
+    "hi": "माले",
+    "bn": "মালে",
+    "fr": "Malé"
+  },
+  "مباشر": {
+    "en": "Live",
+    "ur": "براہ راست",
+    "hi": "लाइव",
+    "bn": "সরাসরি",
+    "fr": "En direct"
+  },
+  "محظور": {
+    "en": "Forbidden",
+    "ur": "ممنوع",
+    "hi": "अवरुद्ध",
+    "bn": "নিষিদ্ধ",
+    "fr": "Bloqué"
+  },
+  "مدريد": {
+    "en": "Madrid",
+    "ur": "میڈرڈ",
+    "hi": "मैड्रिड",
+    "bn": "মাদ্রিদ",
+    "fr": "Madrid"
+  },
+  "مراكش": {
+    "en": "Marrakech",
+    "ur": "مراکش",
+    "hi": "माराकेच",
+    "bn": "মারাকাশ",
+    "fr": "Marrakech"
+  },
+  "مفتوح": {
+    "en": "Open",
+    "ur": "کھلا",
+    "hi": "खुला",
+    "bn": "খোলা",
+    "fr": "Ouvert"
+  },
+  "مفضلة": {
+    "en": "Favorite",
+    "ur": "پسندیدہ",
+    "hi": "पसंदीदा",
+    "bn": "প্রিয়",
+    "fr": "Favoris"
+  },
+  "موثّق": {
+    "en": "Verified",
+    "ur": "تصدیق شدہ",
+    "hi": "सत्यापित",
+    "bn": "যাচাইকৃত",
+    "fr": "Vérifié"
+  },
+  "موسكو": {
+    "en": "Moscow",
+    "ur": "ماسکو",
+    "hi": "मॉस्को",
+    "bn": "মস্কো",
+    "fr": "Moscou"
+  },
+  "ميامي": {
+    "en": "Miami",
+    "ur": "میامی",
+    "hi": "मियामी",
+    "bn": "মিয়ামি",
+    "fr": "Miami"
+  },
+  "ميونخ": {
+    "en": "Munich",
+    "ur": "میونخ",
+    "hi": "म्यूनिख",
+    "bn": "মিউনিখ",
+    "fr": "Munich"
+  },
+  "وارسو": {
+    "en": "Warsaw",
+    "ur": "وارسا",
+    "hi": "वारसॉ",
+    "bn": "ওয়ারশ",
+    "fr": "Varsovie"
+  },
+  "أبها": {
+    "en": "Abha",
+    "ur": "ابہا",
+    "hi": "आभा",
+    "bn": "আভা",
+    "fr": "Abha"
+  },
+  "الآن": {
+    "en": "Now",
+    "ur": "ابھی",
+    "hi": "अभी",
+    "bn": "এখন",
+    "fr": "Maintenant"
+  },
+  "الكل": {
+    "en": "All",
+    "ur": "تمام",
+    "hi": "सभी",
+    "bn": "সব",
+    "fr": "Tout"
+  },
+  "النص": {
+    "en": "Text",
+    "ur": "متن",
+    "hi": "पाठ",
+    "bn": "পাঠ্য",
+    "fr": "Texte"
+  },
+  "بالي": {
+    "en": "Bali",
+    "ur": "بالی",
+    "hi": "बाली",
+    "bn": "বালি",
+    "fr": "Bali"
+  },
+  "بكين": {
+    "en": "Beijing",
+    "ur": "بیجنگ",
+    "hi": "बीजिंग",
+    "bn": "বেইজিং",
+    "fr": "Pékin"
+  },
+  "تبوك": {
+    "en": "Tabuk",
+    "ur": "تبوک",
+    "hi": "तबुक",
+    "bn": "তাবুক",
+    "fr": "Tabuk"
+  },
+  "ترجم": {
+    "en": "Translate",
+    "ur": "ترجمہ کریں",
+    "hi": "अनुवाद करें",
+    "bn": "অনুবাদ করুন",
+    "fr": "Traduire"
+  },
+  "تونس": {
+    "en": "Tunis",
+    "ur": "تونس",
+    "hi": "ट्यूनिस",
+    "bn": "তিউনিস",
+    "fr": "Tunis"
+  },
+  "جنيف": {
+    "en": "Geneva",
+    "ur": "جنیوا",
+    "hi": "जिनेवा",
+    "bn": "জেনেভা",
+    "fr": "Genève"
+  },
+  "دلهي": {
+    "en": "Delhi",
+    "ur": "دہلی",
+    "hi": "दिल्ली",
+    "bn": "দিল্লি",
+    "fr": "Delhi"
+  },
+  "دمشق": {
+    "en": "Damascus",
+    "ur": "دمشق",
+    "hi": "दमिश्क",
+    "bn": "দামেস্ক",
+    "fr": "Damas"
+  },
+  "روما": {
+    "en": "Rome",
+    "ur": "روم",
+    "hi": "रोम",
+    "bn": "রোম",
+    "fr": "Rome"
+  },
+  "سيول": {
+    "en": "Seoul",
+    "ur": "سیول",
+    "hi": "सियोल",
+    "bn": "সিউল",
+    "fr": "Séoul"
+  },
+  "شارك": {
+    "en": "Share",
+    "ur": "شیئر کریں",
+    "hi": "साझा करें",
+    "bn": "শেয়ার করুন",
+    "fr": "Partager"
+  },
+  "صفقة": {
+    "en": "Deal",
+    "ur": "ڈیل",
+    "hi": "सौदा",
+    "bn": "চুক্তি",
+    "fr": "Offre"
+  },
+  "صورة": {
+    "en": "Image",
+    "ur": "تصویر",
+    "hi": "तस्वीर",
+    "bn": "ছবি",
+    "fr": "Image"
+  },
+  "عادي": {
+    "en": "Normal",
+    "ur": "عام",
+    "hi": "सामान्य",
+    "bn": "সাধারণ",
+    "fr": "Normal"
+  },
+  "قوية": {
+    "en": "Strong",
+    "ur": "مضبوط",
+    "hi": "मजबूत",
+    "bn": "শক্তিশালী",
+    "fr": "Fort"
+  },
+  "كندا": {
+    "en": "Canada",
+    "ur": "کینیڈا",
+    "hi": "कनाडा",
+    "bn": "কানাডা",
+    "fr": "Canada"
+  },
+  "مسقط": {
+    "en": "Muscat",
+    "ur": "مسقط",
+    "hi": "मस्कट",
+    "bn": "মাস্কাট",
+    "fr": "Mascate"
+  },
+  "مشهد": {
+    "en": "Scene",
+    "ur": "منظر",
+    "hi": "दृश्य",
+    "bn": "দৃশ্য",
+    "fr": "Machhad"
+  },
+  "مغلق": {
+    "en": "Closed",
+    "ur": "بند",
+    "hi": "बंद",
+    "bn": "বন্ধ",
+    "fr": "Fermé"
+  },
+  "وظّف": {
+    "en": "Hire",
+    "ur": "ملازمت",
+    "hi": "नियुक्त करें",
+    "bn": "নিয়োগ করুন",
+    "fr": "Embaucher"
+  },
+  "إلى": {
+    "en": "To",
+    "ur": "کو",
+    "hi": "को",
+    "bn": "প্রতি",
+    "fr": "À"
+  },
+  "بلس": {
+    "en": "Plus",
+    "ur": "پلس",
+    "hi": "प्लस",
+    "bn": "প্লাস",
+    "fr": "Plus"
+  },
+  "جدة": {
+    "en": "Jeddah",
+    "ur": "جدہ",
+    "hi": "जेद्दाह",
+    "bn": "জেদ্দা",
+    "fr": "Djeddah"
+  },
+  "حذف": {
+    "en": "Delete",
+    "ur": "حذف",
+    "hi": "हटाएँ",
+    "bn": "মুছে ফেলুন",
+    "fr": "Supprimer"
+  },
+  "حظر": {
+    "en": "Block",
+    "ur": "بلاک",
+    "hi": "ब्लॉक करें",
+    "bn": "ব্লক করুন",
+    "fr": "Bloquer"
+  },
+  "حفظ": {
+    "en": "Save",
+    "ur": "محفوظ",
+    "hi": "सहेजें",
+    "bn": "সংরক্ষণ করুন",
+    "fr": "Enregistrer"
+  },
+  "دكا": {
+    "en": "Dhaka",
+    "ur": "ڈھاکہ",
+    "hi": "ढाका",
+    "bn": "ঢাকা",
+    "fr": "Dhaka"
+  },
+  "ر.س": {
+    "en": "SAR",
+    "ur": "ر.س",
+    "hi": "रि.स.",
+    "bn": "র.স",
+    "fr": "SAR"
+  },
+  "رفض": {
+    "en": "Reject",
+    "ur": "مسترد",
+    "hi": "अस्वीकार करें",
+    "bn": "প্রত্যাখ্যান করুন",
+    "fr": "Refuser"
+  },
+  "عدن": {
+    "en": "Aden",
+    "ur": "عدن",
+    "hi": "अदन",
+    "bn": "এডেন",
+    "fr": "Aden"
+  },
+  "قطر": {
+    "en": "Qatar",
+    "ur": "قطر",
+    "hi": "कतर",
+    "bn": "কাতার",
+    "fr": "Qatar"
+  },
+  "مصر": {
+    "en": "Egypt",
+    "ur": "مصر",
+    "hi": "मिस्र",
+    "bn": "মিশর",
+    "fr": "Égypte"
+  },
+  "أو": {
+    "en": "Or",
+    "ur": "یا",
+    "hi": "या",
+    "bn": "অথবা",
+    "fr": "Ou"
+  },
+  "من": {
+    "en": "From",
+    "ur": "سے",
+    "hi": "से",
+    "bn": "থেকে",
+    "fr": "De"
+  }
+}

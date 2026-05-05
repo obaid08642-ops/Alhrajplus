@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { tr } from "@/contexts/I18nContext";
 
 export default function ImageViewer({ images = [], initialIndex = 0, onClose }) {
     const [idx, setIdx] = useState(initialIndex);
@@ -85,7 +86,7 @@ export default function ImageViewer({ images = [], initialIndex = 0, onClose }) 
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" data-testid="image-viewer-overlay">
-            <button data-testid="iv-close" onClick={onClose} aria-label="إغلاق" className="absolute top-3 end-3 w-14 h-14 rounded-full bg-red-500/95 hover:bg-red-500 shadow-2xl text-white flex items-center justify-center z-[110] border-2 border-white/40"><X className="w-7 h-7" /></button>
+            <button data-testid="iv-close" onClick={onClose} aria-label={tr("إغلاق")} className="absolute top-3 end-3 w-14 h-14 rounded-full bg-red-500/95 hover:bg-red-500 shadow-2xl text-white flex items-center justify-center z-[110] border-2 border-white/40"><X className="w-7 h-7" /></button>
 
             <div className="absolute top-5 start-4 bg-white/15 backdrop-blur text-white rounded-full px-4 py-1.5 text-sm font-bold font-arabic-body shadow-lg z-[105]">
                 {idx + 1} / {images.length}
@@ -100,9 +101,9 @@ export default function ImageViewer({ images = [], initialIndex = 0, onClose }) 
             {showNav && (
                 <>
                     {/* Previous (right side in RTL) */}
-                    <button data-testid="iv-prev" onClick={prev} aria-label="السابق" className="absolute end-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 active:bg-white/40 backdrop-blur text-white flex items-center justify-center shadow-lg z-[105] mt-7"><ChevronRight className="w-6 h-6" /></button>
+                    <button data-testid="iv-prev" onClick={prev} aria-label={tr("السابق")} className="absolute end-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 active:bg-white/40 backdrop-blur text-white flex items-center justify-center shadow-lg z-[105] mt-7"><ChevronRight className="w-6 h-6" /></button>
                     {/* Next (left side in RTL) */}
-                    <button data-testid="iv-next" onClick={next} aria-label="التالي" className="absolute start-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 active:bg-white/40 backdrop-blur text-white flex items-center justify-center shadow-lg z-[105] mt-7"><ChevronLeft className="w-6 h-6" /></button>
+                    <button data-testid="iv-next" onClick={next} aria-label={tr("التالي")} className="absolute start-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 active:bg-white/40 backdrop-blur text-white flex items-center justify-center shadow-lg z-[105] mt-7"><ChevronLeft className="w-6 h-6" /></button>
                 </>
             )}
 

@@ -1,0 +1,55 @@
+{
+  "summary": "Iteration 9 — Tested search-suggestions backend (5 new endpoints) + frontend Topbar redesign + language-switch translation pipeline. Backend: 16/16 pytest green (test_iteration9_search.py) covering /api/search/log (anonymous + authed, increments count, empty-noop), /api/search/trending (with limit cap), /api/search/history (anon returns [], authed returns user list with query/ts/id), DELETE /api/search/history (single + all + auth-required 401). Regression: admin login, /api/auth/me, /api/listings, /api/auth/x/start (twitter.com/i/oauth2/authorize), /api/auth/snapchat/start (accounts.snapchat.com/accounts/oauth2/auth), /api/auctions/active, /api/deals/today — all green. Frontend: TopBar IS now baby-blue gradient ✅, Login CTA color rgb(10,17,40) dark navy ✅, search dropdown opens correctly (data-testid=search-suggestions) and shows trending items with 🔥 counts ✅. CRITICAL FINDING: Translation pipeline is PARTIALLY working. After setting localStorage.hp_lang='en' and reloading, MANY Arabic strings remain on the Home page (the very issue the user has reported 8 times). Specifically: hero subtitle 'مدعوم بالذكاء الاصطناعي' (powered-by-AI), the verbs 'بيع، اشترِ، استأجر،' (only 'Hire' got translated — the comma-separated chain is mid-word), 'أنشر مجاناً' (post-free CTA), '🗺️ خريطة قريبة منك' (map button), the entire icon-row labels 'صفقات اليوم/مزادات/قصص فيديو/حجز طيران/خريطة', 'عرض الكل' (show-all chip), section heading 'قريب منك' + subtitle 'إعلانات في مدينتك ومدن قريبة'. On /login, the OAuth button labels 'متابعة بحساب Google' and 'متابعة بـ X' remained Arabic; Snapchat button label is 'Snapchat' (English) but its sibling pair is still Arabic. Search dropdown header 'الأكثر بحثاً' (Most-Searched) also stays Arabic. About page IS fully translated ✅. Categories/Near-You/Login/Sign-Up/Forgot-password/footer-tabs (Profile/Messages/Search/Home) DO translate ✅. Pattern strongly suggests the wrap_arabic_with_tr.py / wrap_js_calls.py scripts missed many JSX text nodes — likely those nested inside template literals, conditional ternaries, or composite Arabic strings that contain punctuation/commas that the regex skipped. Auto_translations.json is loaded (we can confirm because PARTIAL strings DID translate). The fix is not the dictionary — it's the wrapping coverage.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Home / hero block", "issue": "After switching language to English, hero subtitle 'مدعوم بالذكاء الاصطناعي' and verb chain 'بيع، اشترِ، استأجر،' (only 'Hire' translated) remain in Arabic", "selector": "[data-testid=hero-headline], [data-testid=hero-subtitle]", "priority": "HIGH"},
+      {"component": "Home / quick-action icons row", "issue": "Labels صفقات اليوم / مزادات / قصص فيديو / حجز طيران / خريطة stay Arabic in English mode", "selector": "section icon labels", "priority": "HIGH"},
+      {"component": "Home / Categories 'show all' chip", "issue": "'عرض الكل' not translated", "selector": "categories show-all", "priority": "MEDIUM"},
+      {"component": "Home / Near-you list", "issue": "'قريب منك' heading + 'إعلانات في مدينتك ومدن قريبة' subtitle remain Arabic", "selector": "near-you section", "priority": "MEDIUM"},
+      {"component": "Home / hero CTA", "issue": "'أنشر مجاناً' button + '🗺️ خريطة قريبة منك' button remain Arabic", "selector": "hero CTA buttons", "priority": "MEDIUM"},
+      {"component": "Login page OAuth buttons", "issue": "'متابعة بحساب Google' and 'متابعة بـ X' button labels remain Arabic; Snapchat button label rendered in English ('Snapchat') so localization is inconsistent across the three siblings", "selector": "[data-testid=login-google-btn], [data-testid=login-x-btn]", "priority": "HIGH"},
+      {"component": "TopBar search dropdown", "issue": "Dropdown title 'الأكثر بحثاً' (Most-Searched) stays Arabic in English mode", "selector": "[data-testid=search-suggestions]", "priority": "MEDIUM"},
+      {"component": "Console", "issue": "React warning: 'Each child in a list should have a unique key prop' inside NearbySection (pre-existing, but flagged)", "selector": "NearbySection.jsx", "priority": "LOW"},
+      {"component": "Console", "issue": "Repeated 401s on / page load (likely /api/auth/me when not logged in being treated as error rather than expected anonymous case)", "selector": "global", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login page", "issues": ["The 'Forgot password?' label rendered as '?Forgot password' in LTR mode (the trailing '?' is at the start) — likely a leftover dir='rtl' or unicode-bidi rule on the link container that should be flipped when lang!=ar"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration9_search.py",
+    "/app/test_reports/pytest/iteration_9_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Re-run / extend the wrap_arabic_with_tr.py script. Current coverage misses: (a) JSX text nodes that contain Arabic + punctuation/commas/emojis (e.g., 'بيع، اشترِ، استأجر، وظّف'), (b) string children of headings/subtitles that contain a single Arabic phrase used as a label, (c) labels rendered from arrays/maps (icon-row labels, near-you section), (d) OAuth button labels in Auth.js that still hard-code 'متابعة بحساب Google' / 'متابعة بـ X'. Recommend: instead of regex wrapping, audit each top-level page (Home.js, Auth.js, sections used in Home) and manually wrap any remaining Arabic literal with tr(\"...\")  — there are < 30 such strings now.",
+    "Add 'الأكثر بحثاً' (search-suggestions header), 'الإعلانات الرائجة' / 'سجل البحث' (any other suggestion-dropdown titles), and the leftover Home strings to auto_translations.json keys AND wrap them with tr() in TopBar.js / Home.js.",
+    "Login page: replace the 'متابعة بحساب Google' and 'متابعة بـ X' string literals in Auth.js OAuth buttons with tr() calls (Snapchat button is fine because its label is already a Latin word).",
+    "Fix RTL leftover on '?Forgot password' link in /login — wrap text in a span with dir={lang==='ar'?'rtl':'ltr'} or remove the inherited unicode-bidi.",
+    "Fix React 'unique key' warning in NearbySection (pre-existing).",
+    "Optional: Quiet the /api/auth/me 401 console errors when user is anonymous (catch + return null silently)."
+  ],
+  "critical_code_review_comments": [
+    "Backend search endpoints are clean: tight 100-char query cap, lower-cased q_lower for global counter, 20-item per-user history trim, proper auth-required on DELETE /search/history, anonymous GET /search/history returns [] not 401 (good UX).",
+    "Good: /search/log uses _get_user_from_cookie helper (no exception bubble) so anonymous logging works without try/except in the route.",
+    "Minor: /search/log returns {ok: true} even when query is empty/over-100 chars — fine for client UX, but consider logging a debug counter for anomalous over-100 attempts to detect abuse.",
+    "Minor: db.search_terms collection has no index on q_lower (only on count via sort). For trending at scale, add index on count desc + ttl on last_seen for stale terms.",
+    "Translation pipeline issue: relying on regex wrapping for JSX is fragile. Strings inside attribute values like aria-label, placeholder, title, alt that contain Arabic must also be wrapped — confirm wrap_arabic_with_tr.py handles JSXAttribute → JSXExpressionContainer conversion (e.g. placeholder=\"ابحث\" → placeholder={tr('ابحث')}).",
+    "Search-dropdown trending count (3) uses 🔥 emoji prefix: works, but the count visually merges with the next entry (e.g. '🔥 3تويوتا كامري' on the screenshot). Add CSS gap or wrap in a separate <span> for legibility."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration9_search.py (new — 16 tests)",
+    "/app/test_reports/pytest/iteration_9_results.xml (generated)"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "60% — TopBar redesign + login color + search dropdown all PASS; translation coverage incomplete (multiple Arabic strings remain on Home + Login OAuth labels)"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 (verified). Fresh test users created via /api/auth/register with TEST_iter9_*@example.com.",
+  "seed_data_creation": "Each test run creates 1 fresh user (TEST_iter9_*@example.com). Search trending DB now contains TEST_inc_*, TEST_anon_*, TEST_hist*, TEST_del*, TEST_clr_* artifacts and the legitimate seed entries 'تويوتا كامري' and 'شقة للايجار'. Recommend periodic cleanup: db.search_terms.delete_many({q_lower: /^test_/i}).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend search APIs are stable — focus next iteration on the FRONTEND translation gap. Quick repro: open /, click lang dropdown → switch to English (or run localStorage.setItem('hp_lang','en') + reload). Use Playwright body.innerText regex /[\\u0600-\\u06FF]/g to count residual Arabic chars per page. Target <10 residual chars per page (only proper-noun cities like 'الرياض' should remain). Re-run /app/backend/tests/test_iteration9_search.py to confirm no backend regression. The search-trending DB has accumulated test data; use limit=5 query to keep dropdown manageable.",
+  "rca_of_the_issue": "Translation pipeline (wrap_arabic_with_tr.py + wrap_js_calls.py) does not achieve 100% coverage. The auto_translations.json import works (proven because Categories, Near-You-heading, Login, Sign-Up, About-page, footer-tabs ALL translate). What fails: (1) Composite Arabic strings containing internal commas/punctuation — the wrapper either skipped them or only wrapped a sub-segment, leaving e.g. 'بيع، اشترِ، استأجر، Hire' (Hire was a separate node). (2) Labels rendered from JS arrays/maps in iteration components (icon-row, NearbySection) — these are JS expressions, not raw JSX text, so the JSX-text-only regex missed them. (3) Hard-coded Arabic in Auth.js OAuth buttons that pre-dates the translation refactor and was missed because the file wasn't in the wrapping script's target glob. Mitigation: do a manual sweep of pages/components/Home.js + components/sections/* + pages/Auth.js, replacing remaining Arabic literals with tr('...') calls. Estimated <30 lines of edits."
+}

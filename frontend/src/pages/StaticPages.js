@@ -2,14 +2,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, Bell, Globe, Shield, FileText, Info, Mail, HelpCircle, Lock, Trash2, Moon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useI18n } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { useState } from "react";
 import api from "@/lib/api";
 
 export function SettingsPage() {
     const { user, logout } = useAuth();
     const { isDark, toggle } = useTheme();
-    const { t, lang, setLang, available } = useI18n();
+    const { t, lang, setLang, available, tr } = useI18n();
     const nav = useNavigate();
 
     const items = [
@@ -22,18 +22,18 @@ export function SettingsPage() {
     ];
 
     const deleteAccount = async () => {
-        if (!window.confirm("سيتم تعطيل حسابك. هل أنت متأكد؟")) return;
+        if (!window.confirm(tr("سيتم تعطيل حسابك. هل أنت متأكد؟"))) return;
         try {
             await api.post("/auth/request-account-deletion");
-            alert("تم استلام طلب حذف الحساب. سيتم مراجعته من قبل الإدارة خلال 48 ساعة.");
-        } catch (_) { alert("تعذر إرسال الطلب"); }
+            alert(tr("تم استلام طلب حذف الحساب. سيتم مراجعته من قبل الإدارة خلال 48 ساعة."));
+        } catch (_) { alert(tr("تعذر إرسال الطلب")); }
     };
 
     return (
         <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 pb-24">
             <div className="flex items-center gap-2 mb-5">
                 <Link to="/profile" className="text-[var(--text-muted)]"><ArrowLeft className="w-5 h-5" /></Link>
-                <h1 className="font-arabic font-black text-2xl text-[var(--text)]">الإعدادات</h1>
+                <h1 className="font-arabic font-black text-2xl text-[var(--text)]">{tr("الإعدادات")}</h1>
             </div>
 
             {/* Theme + Lang quick toggles */}
@@ -41,7 +41,7 @@ export function SettingsPage() {
                 <div className="flex items-center justify-between py-2">
                     <div className="flex items-center gap-3">
                         <Moon className="w-5 h-5 text-[var(--primary)]" />
-                        <span className="font-arabic font-bold text-sm text-[var(--text)]">الوضع الداكن</span>
+                        <span className="font-arabic font-bold text-sm text-[var(--text)]">{tr("الوضع الداكن")}</span>
                     </div>
                     <button onClick={toggle} data-testid="settings-theme-toggle" className={`relative w-12 h-6 rounded-full transition-all ${isDark ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
                         <div className={`absolute top-0.5 ${isDark ? "left-0.5" : "left-6"} w-5 h-5 bg-white rounded-full transition-all shadow`}></div>
@@ -50,7 +50,7 @@ export function SettingsPage() {
                 <div className="flex items-center justify-between py-2 border-t border-[var(--border)]">
                     <div className="flex items-center gap-3">
                         <Globe className="w-5 h-5 text-[var(--primary)]" />
-                        <span className="font-arabic font-bold text-sm text-[var(--text)]">اللغة</span>
+                        <span className="font-arabic font-bold text-sm text-[var(--text)]">{tr("اللغة")}</span>
                     </div>
                     <select value={lang} onChange={(e) => setLang(e.target.value)} data-testid="settings-lang-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
                         {available.map((l) => <option key={l} value={l}>
@@ -84,7 +84,7 @@ export function SettingsPage() {
 export function StaticPage({ title, children }) {
     return (
         <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 pb-24">
-            <Link to="/profile" className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body inline-flex items-center gap-1 mb-3"><ArrowLeft className="w-4 h-4" /> العودة</Link>
+            <Link to="/profile" className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body inline-flex items-center gap-1 mb-3"><ArrowLeft className="w-4 h-4" />{tr(" العودة")}</Link>
             <h1 className="font-arabic font-black text-2xl sm:text-3xl text-[var(--text)] mb-5">{title}</h1>
             <div className="bg-[var(--surface)] rounded-3xl p-6 border border-[var(--border)] font-arabic-body text-sm text-[var(--text)] leading-relaxed space-y-4">
                 {children}
@@ -95,44 +95,44 @@ export function StaticPage({ title, children }) {
 
 export function TermsPage() {
     return (
-        <StaticPage title="الشروط والأحكام">
-            <p>أهلاً بك في الحراج بلس. باستخدامك هذا التطبيق فإنك توافق على الشروط التالية:</p>
-            <p>1. الحراج بلس منصة وسيطة فقط لربط البائعين بالمشترين، ولا نتلقى أي مدفوعات أو نضمن أي صفقة.</p>
-            <p>2. يلتزم البائع بصحة المعلومات والصور المعروضة، ويتحمل وحده مسؤولية محتوى إعلانه.</p>
-            <p>3. يُمنع نشر أي محتوى مخالف للأنظمة أو الذوق العام، وستُحذف الإعلانات المخالفة فوراً.</p>
-            <p>4. ننصح بعقد الصفقات في أماكن عامة آمنة، والتحقق من المنتج قبل الدفع.</p>
-            <p>5. تحتفظ إدارة الحراج بلس بحقها في تعليق أو حذف أي حساب يخالف الشروط.</p>
+        <StaticPage title={tr("الشروط والأحكام")}>
+            <p>{tr("أهلاً بك في الحراج بلس. باستخدامك هذا التطبيق فإنك توافق على الشروط التالية:")}</p>
+            <p>{tr("1. الحراج بلس منصة وسيطة فقط لربط البائعين بالمشترين، ولا نتلقى أي مدفوعات أو نضمن أي صفقة.")}</p>
+            <p>{tr("2. يلتزم البائع بصحة المعلومات والصور المعروضة، ويتحمل وحده مسؤولية محتوى إعلانه.")}</p>
+            <p>{tr("3. يُمنع نشر أي محتوى مخالف للأنظمة أو الذوق العام، وستُحذف الإعلانات المخالفة فوراً.")}</p>
+            <p>{tr("4. ننصح بعقد الصفقات في أماكن عامة آمنة، والتحقق من المنتج قبل الدفع.")}</p>
+            <p>{tr("5. تحتفظ إدارة الحراج بلس بحقها في تعليق أو حذف أي حساب يخالف الشروط.")}</p>
         </StaticPage>
     );
 }
 export function PrivacyPage() {
     return (
-        <StaticPage title="سياسة الخصوصية">
-            <p>نحرص على حماية بياناتك. إليك ما نجمعه وكيف نستخدمه:</p>
-            <p>• البريد الإلكتروني ورقم الجوال — لإنشاء حسابك والتواصل معك.</p>
-            <p>• الموقع الجغرافي — لعرض الإعلانات القريبة منك (اختياري).</p>
-            <p>• الصور والوسائط — لرفع إعلاناتك فقط.</p>
-            <p>• لا نبيع بياناتك لأي طرف ثالث.</p>
-            <p>• يمكنك طلب حذف حسابك في أي وقت من الإعدادات.</p>
+        <StaticPage title={tr("سياسة الخصوصية")}>
+            <p>{tr("نحرص على حماية بياناتك. إليك ما نجمعه وكيف نستخدمه:")}</p>
+            <p>{tr("• البريد الإلكتروني ورقم الجوال — لإنشاء حسابك والتواصل معك.")}</p>
+            <p>{tr("• الموقع الجغرافي — لعرض الإعلانات القريبة منك (اختياري).")}</p>
+            <p>{tr("• الصور والوسائط — لرفع إعلاناتك فقط.")}</p>
+            <p>{tr("• لا نبيع بياناتك لأي طرف ثالث.")}</p>
+            <p>{tr("• يمكنك طلب حذف حسابك في أي وقت من الإعدادات.")}</p>
         </StaticPage>
     );
 }
 export function AboutPage() {
     return (
-        <StaticPage title="عن الحراج بلس">
+        <StaticPage title={tr("عن الحراج بلس")}>
             <div className="flex justify-center mb-4">
                 <img src="/logo-haraj.png" alt="logo" className="w-24 h-24 object-contain" />
             </div>
-            <p>الحراج بلس هي منصة بيع وشراء عربية حديثة لدول الخليج، مدعومة بالذكاء الاصطناعي لجعل عملية البيع والشراء أسرع وأذكى وأكثر أماناً.</p>
-            <p>نهدف إلى ربط البائعين والمشترين في الخليج العربي عبر تجربة فاخرة وسلسة، مع ميزات حصرية مثل:</p>
+            <p>{tr("الحراج بلس هي منصة بيع وشراء عربية حديثة لدول الخليج، مدعومة بالذكاء الاصطناعي لجعل عملية البيع والشراء أسرع وأذكى وأكثر أماناً.")}</p>
+            <p>{tr("نهدف إلى ربط البائعين والمشترين في الخليج العربي عبر تجربة فاخرة وسلسة، مع ميزات حصرية مثل:")}</p>
             <ul className="list-disc ms-5 space-y-1">
-                <li>اقتراح السعر بالذكاء الاصطناعي</li>
-                <li>عارض صور احترافي وفيديو</li>
-                <li>شات مباشر بكل الوسائط</li>
-                <li>خرائط وإعلانات قريبة منك</li>
-                <li>5+ لغات لخدمة كل المقيمين</li>
+                <li>{tr("اقتراح السعر بالذكاء الاصطناعي")}</li>
+                <li>{tr("عارض صور احترافي وفيديو")}</li>
+                <li>{tr("شات مباشر بكل الوسائط")}</li>
+                <li>{tr("خرائط وإعلانات قريبة منك")}</li>
+                <li>{tr("5+ لغات لخدمة كل المقيمين")}</li>
             </ul>
-            <p className="text-center font-bold text-[var(--primary)] mt-4">الإصدار 1.5 — 2026</p>
+            <p className="text-center font-bold text-[var(--primary)] mt-4">{tr("الإصدار 1.5 — 2026")}</p>
         </StaticPage>
     );
 }
@@ -148,18 +148,18 @@ export function ContactPage() {
         } catch (_) {} finally { setBusy(false); }
     };
     return (
-        <StaticPage title="تواصل معنا">
-            <p className="font-bold">للأعمال والإعلان وطلبات الشراكة:</p>
+        <StaticPage title={tr("تواصل معنا")}>
+            <p className="font-bold">{tr("للأعمال والإعلان وطلبات الشراكة:")}</p>
             <p>📧 contact@alhraj.online</p>
             <p>📧 support@alhraj.online</p>
-            <p>🌐 الموقع: alhraj.online</p>
-            <p>💬 آلية التواصل: عند إرسال هذا النموذج تصلنا رسالتك على لوحة الإدارة وسيتم الرد على بريدك الإلكتروني خلال 24-48 ساعة. تأكد من إدخال بريد إلكتروني صحيح.</p>
+            <p>{tr("🌐 الموقع: alhraj.online")}</p>
+            <p>{tr("💬 آلية التواصل: عند إرسال هذا النموذج تصلنا رسالتك على لوحة الإدارة وسيتم الرد على بريدك الإلكتروني خلال 24-48 ساعة. تأكد من إدخال بريد إلكتروني صحيح.")}</p>
             {ok ? (
-                <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-3 font-bold">✅ تم استلام رسالتك. سنرد عليك قريباً.</div>
+                <div className="bg-[var(--success)]/10 text-[var(--success)] rounded-xl p-3 font-bold">{tr("✅ تم استلام رسالتك. سنرد عليك قريباً.")}</div>
             ) : (
                 <form onSubmit={submit} className="space-y-3">
-                    <input data-testid="contact-subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="الموضوع" className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
-                    <textarea data-testid="contact-message" required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="اكتب رسالتك..." className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]"></textarea>
+                    <input data-testid="contact-subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder={tr("الموضوع")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+                    <textarea data-testid="contact-message" required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder={tr("اكتب رسالتك...")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]"></textarea>
                     <button data-testid="contact-send" disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-bold text-sm font-arabic disabled:opacity-50">
                         {busy ? "جاري الإرسال..." : "إرسال"}
                     </button>

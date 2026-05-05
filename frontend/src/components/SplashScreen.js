@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { tr } from "@/contexts/I18nContext";
 
 export default function SplashScreen() {
     const [hide, setHide] = useState(false);
@@ -14,14 +15,14 @@ export default function SplashScreen() {
             <div className="relative flex flex-col items-center gap-5">
                 <div className="relative">
                     <div className="absolute inset-0 bg-[#4FB6E6]/40 rounded-full blur-2xl scale-110 animate-pulse"></div>
-                    <img src="/logo-haraj.png" alt="الحراج بلس" className="relative w-32 h-32 sm:w-40 sm:h-40 object-contain animate-fade-up drop-shadow-2xl" />
+                    <img src="/logo-haraj.png" alt={tr("الحراج بلس")} className="relative w-32 h-32 sm:w-40 sm:h-40 object-contain animate-fade-up drop-shadow-2xl" />
                 </div>
                 <div className="text-center animate-fade-up" style={{ animationDelay: "0.3s" }}>
                     <div className="flex items-baseline justify-center gap-2">
-                        <h1 className="font-arabic font-black text-3xl sm:text-4xl text-white tracking-tight">الحراج</h1>
-                        <span className="font-arabic font-bold text-base sm:text-lg text-[#4FB6E6]">بلس</span>
+                        <h1 className="font-arabic font-black text-3xl sm:text-4xl text-white tracking-tight">{tr("الحراج")}</h1>
+                        <span className="font-arabic font-bold text-base sm:text-lg text-[#4FB6E6]">{tr("بلس")}</span>
                     </div>
-                    <p className="text-white/60 font-arabic-body text-xs sm:text-sm mt-1">بيع و اشتري | جديد أو مستعمل</p>
+                    <p className="text-white/60 font-arabic-body text-xs sm:text-sm mt-1">{tr("بيع و اشتري | جديد أو مستعمل")}</p>
                 </div>
                 <div className="w-44 h-0.5 bg-white/10 rounded-full overflow-hidden animate-fade-up" style={{ animationDelay: "0.6s" }}>
                     <div className="h-full bg-gradient-to-r from-[#4FB6E6] to-[#D4AF37] rounded-full" style={{ animation: "splashLoad 1.4s ease-out forwards" }}></div>
