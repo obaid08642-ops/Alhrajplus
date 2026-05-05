@@ -20,8 +20,13 @@ function SocialLoginButtons() {
             alert("تعذر بدء تسجيل الدخول بـ X — تأكد من إعدادات Developer Portal");
         }
     };
-    const snapPending = () => {
-        alert("👻 Snapchat\n\nهذا الزر سيعمل بمجرد الموافقة من Snap Kit Review.\nالحالة: قيد المراجعة من فريق Snap (1-3 أيام عمل).");
+    const startSnap = async () => {
+        try {
+            const { data } = await api.get("/auth/snapchat/start");
+            window.location.href = data.auth_url;
+        } catch (e) {
+            alert("تعذر بدء تسجيل الدخول بـ Snapchat. تأكد من إعدادات Snap Developer Portal.");
+        }
     };
     return (
         <div className="space-y-2">
@@ -57,12 +62,11 @@ function SocialLoginButtons() {
                 <button
                     type="button"
                     data-testid="snapchat-login-btn"
-                    onClick={snapPending}
-                    className="bg-yellow-400 hover:bg-yellow-500 text-black py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all font-arabic relative"
+                    onClick={startSnap}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-black py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all font-arabic"
                 >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.166.34c2.853-.04 5.49 1.92 6.34 4.6.31 1.05.21 2.18.21 3.27 0 .85-.21 1.7-.07 2.55.31 0 .61-.07.92-.13.21-.04.42-.07.62-.04.42.07.85.21.92.71.07.55-.42.85-.85.99-.42.21-.92.28-1.34.42-.42.21-.71.55-.85.99-.07.21-.07.42 0 .62.42 1.27 1.34 2.4 2.55 3.06.42.21.92.42 1.41.42.21 0 .42-.07.62.07.21.21.21.55 0 .78-.34.42-.85.71-1.34.99-.71.34-1.55.42-2.33.42-.42 0-.85.13-1.2.42-.42.34-.62.85-.92 1.27-.34.42-.78.55-1.27.55-.42 0-.85-.13-1.27-.21-.42-.07-.85-.07-1.27 0-.55.07-1.06.34-1.55.42-.21.07-.42.07-.62 0-.42-.13-.71-.42-.92-.78-.34-.42-.62-.85-1.06-1.13-.42-.28-.99-.34-1.48-.42-.71-.07-1.41-.13-2.05-.42-.55-.21-.99-.55-1.34-.99-.21-.21-.21-.55-.07-.78.21-.21.42-.13.62-.13.42 0 .85-.13 1.27-.34 1.27-.62 2.26-1.84 2.69-3.21.07-.21 0-.42-.07-.62-.21-.42-.55-.78-.99-.92-.42-.13-.85-.21-1.27-.42-.42-.13-.92-.42-.85-.99 0-.42.42-.62.85-.71.21-.07.42 0 .62.04.34.07.62.13.92.13.13-.85-.07-1.7-.07-2.55 0-1.06-.07-2.18.21-3.21C6.747 2.18 9.319.3 12.166.34z"/></svg>
                     Snapchat
-                    <span className="absolute -top-1 -right-1 bg-amber-400 text-black text-[8px] font-bold px-1 py-0.5 rounded-full border border-yellow-600">قيد المراجعة</span>
                 </button>
             </div>
         </div>

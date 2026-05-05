@@ -601,6 +601,163 @@ async def x_oauth_callback(body: XCallbackIn, request: Request, response: Respon
 
 
 # ============================================================
+# Snapchat Login Kit (OAuth 2.0 PKCE)
+# ============================================================
+@api.get("/auth/snapchat/start")
+async def snap_oauth_start(request: Request):
+    if not SNAPCHAT_CLIENT_ID:
+        raise HTTPException(503, "Snapchat login غير مفعّل")
+    state = secrets.token_urlsafe(16)
+    code_verifier = secrets.token_urlsafe(64)[:96]
+    code_challenge = _b64url(_hashlib.sha256(code_verifier.encode()).digest())
+    await db.snap_oauth_states.insert_one({
+        "state": state, "code_verifier": code_verifier,
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+        "created_at": datetime.now(timezone.utc),
+    })
+    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    redirect_uri = f"{origin}/auth/snapchat/callback"
+    scope = "https://auth.snapchat.com/oauth2/api/user.display_name https://auth.snapchat.com/oauth2/api/user.bitmoji.avatar https://auth.snapchat.com/oauth2/api/user.external_id"
+    auth_url = (
+        "https://accounts.snapchat.com/accounts/oauth2/auth"
+        f"?response_type=code&client_id={SNAPCHAT_CLIENT_ID}"
+        f"&redirect_uri={redirect_uri}&scope={scope.replace(' ', '+').replace(':', '%3A').replace('/', '%2F')}"
+        f"&state={state}&code_challenge={code_challenge}&code_challenge_method=S256"
+    )
+    return {"auth_url": auth_url}
+
+
+class SnapCallbackIn(BaseModel):
+    code: str
+    state: str
+
+@api.post("/auth/snapchat/callback")
+async def snap_oauth_callback(body: SnapCallbackIn, request: Request, response: Response):
+    if not SNAPCHAT_CLIENT_ID or not SNAPCHAT_CLIENT_SECRET:
+        raise HTTPException(503, "Snapchat login غير مفعّل")
+    rec = await db.snap_oauth_states.find_one({"state": body.state})
+    if not rec:
+        raise HTTPException(400, "state غير صالح")
+    expires_at = rec.get("expires_at")
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if not expires_at or expires_at < datetime.now(timezone.utc):
+        raise HTTPException(400, "انتهت صلاحية الجلسة")
+    await db.snap_oauth_states.delete_one({"state": body.state})
+
+    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    redirect_uri = f"{origin}/auth/snapchat/callback"
+    basic = _b64.b64encode(f"{SNAPCHAT_CLIENT_ID}:{SNAPCHAT_CLIENT_SECRET}".encode()).decode()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as cx:
+            tok = await cx.post(
+                "https://accounts.snapchat.com/login/oauth2/access_token",
+                headers={"Authorization": f"Basic {basic}", "Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "code": body.code, "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri, "code_verifier": rec["code_verifier"],
+                },
+            )
+            if tok.status_code != 200:
+                logger.error(f"[Snap token] {tok.status_code} {tok.text[:200]}")
+                raise HTTPException(401, "فشل التحقق من Snapchat")
+            access_snap = tok.json().get("access_token")
+            me = await cx.post(
+                "https://kit.snapchat.com/v1/me",
+                headers={"Authorization": f"Bearer {access_snap}", "Content-Type": "application/json"},
+                json={"query": "{me{externalId displayName bitmoji{avatar}}}"},
+            )
+            if me.status_code != 200:
+                raise HTTPException(401, "فشل قراءة الحساب من Snapchat")
+            data = (me.json() or {}).get("data", {}).get("me", {})
+    except httpx.HTTPError as e:
+        logger.error(f"[Snap HTTP] {e}")
+        raise HTTPException(502, "تعذر الاتصال بـ Snapchat")
+
+    snap_id = data.get("externalId")
+    snap_name = data.get("displayName") or "مستخدم Snapchat"
+    snap_avatar = (data.get("bitmoji") or {}).get("avatar")
+    if not snap_id:
+        raise HTTPException(400, "لا يوجد معرف من Snapchat")
+
+    placeholder_email = f"snap_{snap_id}@snapchat.local"
+    user = await db.users.find_one({"$or": [{"snap_id": snap_id}, {"email": placeholder_email}]})
+    if not user:
+        uid = str(uuid.uuid4())
+        user = {
+            "id": uid, "name": snap_name, "email": placeholder_email,
+            "phone": "", "country_code": "SA", "phone_full": "", "city": None,
+            "password_hash": hash_password(secrets.token_urlsafe(24)),
+            "role": "user", "verified": False, "trust_score": 60,
+            "avatar_url": snap_avatar, "bio": "", "language": "ar",
+            "banned": False, "snap_id": snap_id,
+            "referral_code": gen_referral_code(snap_name), "referred_by": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    else:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"snap_id": snap_id, "avatar_url": user.get("avatar_url") or snap_avatar}})
+
+    if user.get("banned"):
+        raise HTTPException(403, "تم حظر حسابك")
+    access = create_access_token(user["id"], user["email"], user.get("role", "user"))
+    refresh = create_refresh_token(user["id"])
+    set_auth_cookies(response, access, refresh)
+    user.pop("password_hash", None)
+    user.pop("_id", None)
+    return {"user": user, "access_token": access}
+
+
+# ============================================================
+# Push Notifications (Expo Push Service)
+# ============================================================
+class PushTokenIn(BaseModel):
+    expo_token: str = Field(min_length=10)
+    platform: Optional[str] = None  # ios|android|web
+
+@api.post("/push/register")
+async def register_push_token(body: PushTokenIn, user: dict = Depends(get_current_user)):
+    await db.push_tokens.update_one(
+        {"expo_token": body.expo_token},
+        {"$set": {
+            "user_id": user["id"],
+            "expo_token": body.expo_token,
+            "platform": body.platform,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"success": True}
+
+@api.delete("/push/unregister")
+async def unregister_push_token(expo_token: str, user: dict = Depends(get_current_user)):
+    await db.push_tokens.delete_one({"expo_token": expo_token, "user_id": user["id"]})
+    return {"success": True}
+
+async def expo_send_push(tokens: list, title: str, body: str, data: Optional[dict] = None):
+    """Send via Expo Push Service. Free, no FCM setup needed for Expo Go testing."""
+    if not tokens:
+        return {"sent": 0}
+    messages = [
+        {"to": t, "sound": "default", "title": title, "body": body, "data": data or {}, "priority": "high"}
+        for t in tokens
+    ]
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as cx:
+            r = await cx.post(
+                "https://exp.host/--/api/v2/push/send",
+                json=messages,
+                headers={"Accept": "application/json", "Content-Type": "application/json"},
+            )
+            return {"sent": len(tokens), "status": r.status_code}
+    except Exception as e:
+        logger.error(f"[Expo Push] {e}")
+        return {"sent": 0, "error": str(e)}
+
+
+# ============================================================
 # Google OAuth (Emergent-managed)
 # ============================================================
 class GoogleAuthIn(BaseModel):
@@ -1617,7 +1774,12 @@ async def broadcast_notification(body: BroadcastIn):
     ]
     if docs:
         await db.notifications.insert_many(docs)
-    return {"sent": len(docs), "target": body.target}
+    # Also send Expo Push to registered devices
+    if user_ids:
+        tokens = [t["expo_token"] async for t in db.push_tokens.find({"user_id": {"$in": user_ids}}, {"_id": 0, "expo_token": 1})]
+        if tokens:
+            asyncio.create_task(expo_send_push(tokens, body.title, body.body, {"type": "admin_broadcast"}))
+    return {"sent": len(docs), "target": body.target, "push_devices": await db.push_tokens.count_documents({"user_id": {"$in": user_ids}}) if user_ids else 0}
 
 @admin_router.get("/notifications/ai-suggest")
 async def ai_suggest_notifications():
@@ -1842,6 +2004,9 @@ async def startup():
     await db.translation_cache.create_index("key", unique=True)
     await db.notifications.create_index([("user_id", 1), ("ts", -1)])
     await db.x_oauth_states.create_index("expires_at", expireAfterSeconds=0)
+    await db.snap_oauth_states.create_index("expires_at", expireAfterSeconds=0)
+    await db.push_tokens.create_index("expo_token", unique=True)
+    await db.push_tokens.create_index("user_id")
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
     await db.reports.create_index("status")
     # Seed admin (idempotent)

@@ -23,6 +23,7 @@ import FlightsPage from "@/pages/FlightsPage";
 import DealsPage from "@/pages/DealsPage";
 import VerifyEmailPage from "@/pages/VerifyEmailPage";
 import XAuthCallback from "@/pages/XAuthCallback";
+import SnapAuthCallback from "@/pages/SnapAuthCallback";
 import { SettingsPage, TermsPage, PrivacyPage, AboutPage, ContactPage } from "@/pages/StaticPages";
 
 function Layout({ children, hideNav = false }) {
@@ -48,6 +49,7 @@ function AppRouter() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/auth/x/callback" element={<XAuthCallback />} />
+            <Route path="/auth/snapchat/callback" element={<SnapAuthCallback />} />
             <Route path="/" element={<Layout><HomePage /></Layout>} />
             <Route path="/category/:categoryKey" element={<Layout><CategoryPage /></Layout>} />
             <Route path="/listing/:id" element={<Layout><ListingDetail /></Layout>} />

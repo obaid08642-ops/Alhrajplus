@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 8 — Snapchat OAuth (production Client ID 383e7c1e-...) + Expo Push register/unregister + admin broadcast push integration. Backend: 17/17 pytest green (test_iteration8_snap_push.py). GET /api/auth/snapchat/start returns a valid https://accounts.snapchat.com/accounts/oauth2/auth URL with client_id=383e7c1e-..., redirect_uri ending in /auth/snapchat/callback, response_type=code, state, code_challenge (S256, base64url ~43 chars), code_challenge_method=S256, and the required Snap scopes (user.display_name, user.bitmoji.avatar, user.external_id). POST /api/auth/snapchat/callback rejects unknown state with 400 and missing fields with 422 (real OAuth round-trip not automatable). POST /api/push/register requires auth (401 without bearer), validates expo_token min_length=10 (422), upserts by expo_token (idempotent, returns success:true). DELETE /api/push/unregister requires auth and removes the row (success:true). POST /api/admin/notifications/broadcast now also fires expo_send_push asynchronously and the response includes push_devices count (verified >=1 after registering a token). Auth required for broadcast (non-admin gets 403). Regression: register, login, admin login, forgot-password, X OAuth start (twitter.com/i/oauth2/authorize), X callback unknown-state 400, /api/meta/categories, /api/meta/countries — all green. Frontend smoke: /login renders Google + X + Snapchat buttons with data-testids. Snapchat button is now real (yellow Snap-styled), 'قيد المراجعة' badge fully removed (count=0). startSnap() wired to GET /auth/snapchat/start and redirects via window.location.href = auth_url.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Auth.js startSnap error path", "issues": ["Still uses native window.alert('تعذر بدء تسجيل الدخول بـ Snapchat...') on failure — should use the app's Sonner toast pattern for consistency with the rest of the RTL/themed UI (same comment from iteration_7 — applies to startX as well, still not addressed)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration8_snap_push.py",
+    "/app/test_reports/pytest/iteration_8_results.xml"
+  ],
+  "action_items": [
+    "User: Add redirect URL https://platform-inspect.preview.emergentagent.com/auth/snapchat/callback (preview) AND https://alhraj.online/auth/snapchat/callback (production) to Snap Developer Portal under the OAuth2 app for Client ID 383e7c1e-a79f-4176-ade9-4bcfeab9873d before end-to-end Snap login can complete.",
+    "Cosmetic: Replace alert() in Auth.js (startSnap + startX error handlers) with Sonner toast for consistent UX.",
+    "Optional: Add a helper endpoint /api/push/test-send (admin-only) that fires a single expo push to a target user_id — useful for QA without triggering a full broadcast.",
+    "Optional: When expo_send_push gets back a DeviceNotRegistered receipt from Expo, auto-prune the dead expo_token from db.push_tokens (currently we only log status code).",
+    "Optional: server.py is now ~2057 lines — strongly recommend splitting auth/push/admin into separate routers (/backend/routes/{auth,push,admin}.py) per the 700-line guideline."
+  ],
+  "critical_code_review_comments": [
+    "Good: /auth/snapchat/start uses secrets.token_urlsafe(16) for state and 96-char code_verifier with SHA-256 challenge — matches RFC 7636 PKCE.",
+    "Good: snap_oauth_states record carries expires_at (10 min TTL); callback rotates state via delete_one before token exchange (prevents replay).",
+    "Good: callback exchanges code at https://accounts.snapchat.com/login/oauth2/access_token with HTTP Basic auth header (client_id:client_secret) AND code_verifier — correct.",
+    "Good: Snap user-info via POST https://kit.snapchat.com/v1/me with GraphQL { me { externalId displayName bitmoji { avatar } } } — uses externalId as the stable Snap user key.",
+    "Good: Placeholder email pattern snap_{external_id}@snapchat.local mirrors X's x_{x_id}@x.local — consistent strategy. Same caveat: blocks future email comms until user updates email.",
+    "Good: user.pop('_id', None) before returning from snap callback — no Mongo ObjectId leak.",
+    "Good: /push/register uses upsert by expo_token — idempotent, won't duplicate per-device records on re-login. Updates user_id on each upsert, so token rotation between users on the same device is handled correctly.",
+    "Good: expo_send_push is fire-and-forget via asyncio.create_task in broadcast — won't block the admin's HTTP response if Expo is slow.",
+    "Minor: expo_send_push catches all Exceptions and only logs — doesn't surface a partial failure to the admin endpoint. push_devices in the broadcast response is the COUNT of registered devices, not the number Expo accepted. Acceptable for v1, but consider returning an Expo ticket-id list for receipt polling later.",
+    "Minor: /push/register has no per-user limit. A malicious authenticated client could insert thousands of bogus expo_token rows. Consider a hard cap per user_id (e.g., 10 most-recent device tokens).",
+    "Minor: Snap OAuth scope URLs are URL-encoded with a manual replace chain (' ' → '+', ':' → '%3A', '/' → '%2F'). Works for the current scope literals but is fragile — prefer urllib.parse.urlencode or quote_plus.",
+    "Minor: redirect_uri derives from FRONTEND_URL env or request.base_url; the .env now has FRONTEND_URL=https://platform-inspect.preview.emergentagent.com (good). Production deploy must override FRONTEND_URL=https://alhraj.online before going live.",
+    "No SNAPCHAT_CONFIDENTIAL_CLIENT_ID is currently used in code (only SNAPCHAT_CLIENT_ID + SNAPCHAT_CLIENT_SECRET). The duplicate env var is harmless but dead — remove or document its purpose."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration8_snap_push.py (new — 17 tests)",
+    "/app/test_reports/pytest/iteration_8_results.xml (generated)"
+  ],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% smoke (login Snapchat button rendering + pending-badge removal verified visually + via DOM)"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026. SNAPCHAT_CLIENT_ID=383e7c1e-a79f-4176-ade9-4bcfeab9873d + SNAPCHAT_CLIENT_SECRET set in backend/.env. End-to-end Snap login still requires the user to whitelist the redirect URI in Snap Dev Portal.",
+  "seed_data_creation": "Each run creates 1-2 TEST_iter8_*@example.com / TEST_reg8_*@example.com users with random 8-digit phones. Push tokens prefixed ExponentPushToken[TEST_*]; cleaned up by test_push_unregister_works. broadcast test cleans up its own token. No production data touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Snapchat OAuth backend is fully wired with the real production Client ID. End-to-end browser flow cannot be automated (Snap login page requires real consent). To verify manually: click Snapchat button on /login → browser navigates to accounts.snapchat.com/accounts/oauth2/auth?client_id=383e7c1e-...&redirect_uri=https%3A%2F%2Fplatform-inspect.preview.emergentagent.com%2Fauth%2Fsnapchat%2Fcallback&... → after user authorizes (assuming the callback URI is whitelisted in Snap Dev Portal), browser returns to /auth/snapchat/callback?code=...&state=... → SnapAuthCallback.js POSTs to /api/auth/snapchat/callback → session cookies set + user redirected. Push notifications: backend /push/register + /push/unregister are confirmed. The /app/mobile/src/notifications.js Expo wiring is for the mobile app and was explicitly out-of-scope for this iteration. The next iteration could add an Expo push 'receipt' polling job and per-user device cap. Pytest file /app/backend/tests/test_iteration8_snap_push.py contains the full regression suite — keep it.",
+  "rca_of_the_issue": "N/A — no new bugs. One initial test failure (test_push_unregister_requires_auth returned 200 instead of 401) was a TEST artifact: the session-scoped requests.Session was reused across the admin-token fixture, so the unauth test inadvertently carried admin auth cookies. Fixed by using a fresh requests.delete() with no shared cookies. Backend dependency get_current_user is correct."
+}
