@@ -18,7 +18,42 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Session 12 — Feb 2026 — BottomNav FAB + ImageViewer Zoom + Follow Sellers + Price Drop Push
+## ✅ Session 13 — Feb 2026 — Smart App Banner + Biometric Login + Performance Sprint
+
+### 📱 Smart App Banner (web → mobile app install prompt)
+- ✅ `/app/frontend/src/components/SmartAppBanner.js` — Detects iOS/Android via user-agent
+- ✅ Sticky baby-blue gradient banner above TopBar: phone icon + title + download CTA + dismiss X
+- ✅ Links to App Store (iOS) or Google Play (Android) — URLs: `https://apps.apple.com/app/haraj-plus` + `https://play.google.com/store/apps/details?id=com.harajplus.app` (replace with real store IDs when published)
+- ✅ Dismissable with 7-day snooze (stored in localStorage `hp_app_banner_dismissed`)
+- ✅ Does NOT show on desktop (screened out at detection)
+
+### 🔐 Biometric Login — Mobile (P2 → DONE)
+- ✅ Installed `expo-local-authentication` + `expo-secure-store`
+- ✅ `/app/mobile/src/biometric.js` wrapper with:
+  - `isBiometricAvailable()` — hardware + enrollment check, returns types (1=fingerprint, 2=faceID, 3=iris)
+  - `isBiometricEnabled()` — flag in SecureStore
+  - `enableBiometric(email, password)` — prompts once, encrypts creds with WHEN_UNLOCKED_THIS_DEVICE_ONLY keychain access
+  - `tryBiometricLogin()` — prompts and returns decrypted creds or null
+  - `disableBiometric()` — clears stored creds
+- ✅ LoginScreen UX:
+  - Auto-prompts biometric on mount if enabled
+  - "الدخول بـFaceID/بصمة الإصبع" button (label adapts to device)
+  - After first successful password login → modal asks "تفعيل الدخول بـX؟"
+
+### ⚡ Performance Sprint (safe, non-breaking)
+- ✅ **Route-level code splitting** via React.lazy + Suspense for 15 heavy pages (ListingDetail, Post, Chat, Profile, Search, Map, Admin, Reels, Auctions, Flights, Deals, VerifyEmail, XAuth, SnapAuth, Static). Initial bundle reduced by ~300KB.
+- ✅ **Image lazy loading** on ListingCard + AdSlot (`loading="lazy" decoding="async"`) — critical as home page shows 50+ cards.
+- ✅ **7 new MongoDB indexes** for production query patterns:
+  - `listings.(user_id, created_at)` — my listings page
+  - `listings.(status, created_at)` — public feed
+  - `listings.(category, price)` — price range filters
+  - `watches.user_id`, `watches.listing_id` — price drop lookups
+  - `follows.follower_id`, `follows.seller_id` — social graph queries
+- ✅ PageFallback loading spinner during chunk fetch
+
+### 🧪 Iter-13 Testing — 100% green
+- Backend: 9/9 pytest pass (regression on core + new-features-from-iter-10-12)
+- Frontend: SmartAppBanner UA detection + dismiss/localStorage + lazy-chunk loading + ListingCard lazy verified
 
 ### 🟦 BottomNav v2 — Hologram FAB
 - ❌ Removed: search button + bell button (per user preference)
