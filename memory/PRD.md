@@ -18,7 +18,24 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Implemented (Session 7 - Feb 2026 — Massive Bug Fixes + UX Overhaul)
+## ✅ Implemented (Session 8 - Feb 2026 — X Login + ImageViewer Rewrite + Snapchat Icon)
+- ✅ **X (Twitter) OAuth 2.0 PKCE Login** — Real implementation. `GET /auth/x/start` issues authorization URL with state + S256 code_challenge. `POST /auth/x/callback` exchanges code for token, fetches user profile, creates/links account. Stores `x_id` and `x_username` on user.
+- ✅ **Snapchat icon back** — With "قيد المراجعة" badge. Shows informative dialog explaining Snap Kit Review process. Backend creds in env, ready to activate post-approval.
+- ✅ **ImageViewer total rewrite**:
+  - Bigger red close button (14×14, white border)
+  - Removed auto-zoom on click
+  - **Touch swipe between images** (50px threshold, ignores when zoomed)
+  - Prev/Next nav buttons with chevrons
+  - Counter "1 / N" pill
+  - Zoom controls bar at bottom (in/out + percent)
+  - Thumbnail strip at bottom — tap any thumb to jump
+  - Mouse wheel zoom + drag pan when zoomed
+  - Keyboard arrows + Esc
+
+### 🧪 Testing (Session 8)
+- 9/9 backend tests pass + ImageViewer + Auth regression green.
+
+
 
 ### 🐛 Critical Bugs Fixed
 - ✅ **Reset password 500 error** — Was timezone comparison bug (naive vs aware datetime). Fixed normalization.
