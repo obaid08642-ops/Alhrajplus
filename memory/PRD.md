@@ -18,7 +18,31 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Session 14 — Feb 2026 — Trip.com Integration + Egypt + Cloud Run/Firebase Deployment
+## ✅ Session 15 — Feb 2026 — UX Polish: Price Box + Chat Input + Trip.com Live Ads + Reels Upload
+
+### 🎨 UX Fixes (from user screenshots)
+- ✅ **Price input** in PostListing: redesigned bigger (min-h 48px) with currency suffix INSIDE the field on the right (`ر.س` overlaid). No more cramped two-box layout. Supports very large numbers without truncation. Added font-latin tracking-wider for readability.
+- ✅ **Chat input overlap fix**: Added `body.chat-active` class — applied when ChatPage opens an active conversation. CSS hides BottomNav pill + FAB to give chat input + voice/location icons full bottom space.
+- ✅ **Notification ping** on new chat messages: subtle Web Audio sine-wave ping (880Hz → 440Hz, 250ms) plays only when receiving a message from other party (not own messages).
+
+### ✈️ Trip.com Real Affiliate Ads (live)
+- ✅ Backend seeds 3 Trip.com banner ads on startup (idempotent):
+  - `placement="home_middle"` — visible on homepage
+  - `placement="listing_top"` — above seller info on listing detail
+  - `placement="listing_bottom"` — between contact buttons and similar listings
+- ✅ Each renders the actual Trip.com iframe (DB16696577 — 300×250) with affiliate code `8199633` + SID `309959147` + `trip_sub1=alhraj`
+- ✅ Editable from `/admin → Ads` panel: change URL, dimensions, placement, or delete
+
+### 🎬 Reels Upload Button
+- ✅ Top-right `+ ارفع ستوري` button with baby-blue gradient → `/post?video=1`
+- ✅ Top-left back button (`ArrowLeft`) — fixes user being "stuck" in Reels
+
+### 🧪 Iter-15 Testing
+- Backend: 100% pass (all ad endpoints + regression)
+- Frontend: 85% → 100% after `listing_top` seed fix
+
+### 📦 All API keys are wired in `/app/backend/.env`:
+✅ CLOUDINARY (cloud_name, api_key, api_secret) ✅ RESEND (api_key) ✅ X_CLIENT (id, secret) ✅ SNAPCHAT (id, secret) ✅ EMERGENT_LLM_KEY ✅ GEMINI_API_KEY (fallback for external deploy)
 
 ### ✈️ Trip.com Integration on Flights Page
 - ✅ **Trip.com search button** added as first provider (col-span-2, ⭐ موصى به badge, baby-blue gradient)

@@ -2373,6 +2373,20 @@ async def startup():
                 "iframe_height": 250,
                 "created_at": now_iso,
             },
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Trip.com — احجز رحلتك",
+                "image_url": "",
+                "link_url": "https://www.trip.com/t/AYKu00NZbU2",
+                "placement": "listing_top",
+                "active": True,
+                "country_code": None,
+                "ad_type": "iframe",
+                "iframe_url": "https://www.trip.com/partners/ad/DB16696577?Allianceid=8199633&SID=309959147&trip_sub1=alhraj",
+                "iframe_width": 300,
+                "iframe_height": 250,
+                "created_at": now_iso,
+            },
         ])
 
 
