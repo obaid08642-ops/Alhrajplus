@@ -1,0 +1,33 @@
+{
+  "hosting": {
+    "public": "frontend/build",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "haraj-api",
+          "region": "me-central1"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|woff2|woff|ttf|otf)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      },
+      {
+        "source": "**/*.@(jpg|jpeg|png|webp|svg|ico)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
+      },
+      {
+        "source": "/index.html",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+      }
+    ]
+  }
+}

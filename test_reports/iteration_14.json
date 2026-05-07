@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 14 testing complete: Trip.com integration on Flights page, iframe-type ads via admin panel, Egypt country/phone validation, and deployment files. All 9 new backend tests + 9 iter13 regression tests pass. Frontend Flights page renders Trip.com SearchBox iframe (S16696136) with correct src and Trip.com button as first provider with ⭐ موصى به badge. Admin Ads panel fully supports image/iframe toggle with Trip.com default-banner shortcut auto-filling DB16696577 URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter14_trip_egypt.py",
+    "/app/test_reports/pytest/iter14_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 2347 lines — consider splitting into routers/modules (auth, ads, listings, admin, etc.) for maintainability.",
+    "Dockerfile uses --workers 2 with default Cloud Run min-instances=0 — cold-start latency may be noticeable; documented in DEPLOYMENT.md as acceptable tradeoff.",
+    "cloudbuild.yaml has placeholder values (CLOUDINARY_CLOUD_NAME=YOUR_CLOUD_NAME etc.) that must be replaced before deployment — clearly noted in DEPLOYMENT.md step 4.",
+    "AdIn model defaults iframe_width=300/iframe_height=250 even for image ads; harmless but slightly noisy in DB documents."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter14_trip_egypt.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin: admin@harajplus.com / Admin@HarajPlus2026 (verified working)",
+  "seed_data_creation": "Test created 2 ads (1 iframe + 1 image) with TEST_ prefix — all cleaned up via DELETE in final test step. EG test users (TEST_eg_*) registered but not cleaned (no admin delete-user-by-email endpoint used).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter14 added Trip.com flights integration + Egypt country + iframe ads + Cloud Run/Firebase deployment files. All backend endpoints and frontend flows green. Trip.com iframe loads from external CDN inside admin panel and flights page. Backend tests live in /app/backend/tests/test_iter14_trip_egypt.py — reuse for regression. Login flow uses [data-testid=login-email/password/submit]. Admin tabs accessible via [data-testid=admin-tab-{stats,moderation,users,reports,finance,seo,notifications,ads,theme}].",
+  "verified_features": [
+    "GET /api/meta/countries returns 7 countries including EG with name_ar='مصر', phone_code='+20', currency_code='EGP', 23 cities with districts",
+    "POST /api/auth/register with country_code=EG accepts 10-digit phones starting with 10/11/12/15 (200/201) and rejects prefix=99 or wrong length with 400 'رقم الجوال غير صحيح'",
+    "POST /api/admin/ads accepts ad_type='iframe' + iframe_url + iframe_width + iframe_height; GET /api/ads returns iframe ads with all fields preserved; image ads (default ad_type) still work for backward-compat",
+    "FRONTEND /flights: Trip.com is first provider in 'ابحث في:' grid (full row, baby-blue gradient, ⭐ موصى به badge); iframe with data-testid='trip-searchbox-iframe' renders with src='https://www.trip.com/partners/ad/S16696136?Allianceid=8199633&SID=309959147&trip_sub1=alhraj'; Wego/Skyscanner/Google Flights/Kayak buttons also present",
+    "FRONTEND /admin → الإعلانات tab → 'إضافة بنر إعلاني': type toggle 'صورة بنر' / 'بنر iframe (Trip.com)' works; selecting iframe shows 'استخدام بنر Trip.com الافتراضي' button + URL/width/height inputs; clicking shortcut auto-fills https://www.trip.com/partners/ad/DB16696577?... and width=300/height=250",
+    "Deployment files all exist and are syntactically valid: /app/Dockerfile (multi-stage Python 3.11 → uvicorn), /app/cloudbuild.yaml (Docker build → push → Cloud Run deploy with secrets), /app/firebase.json (hosting + /api proxy to Cloud Run me-central1), /app/.firebaserc (project=haraj-plus), /app/DEPLOYMENT.md (full Arabic guide), /app/.env.production.example, /app/.dockerignore"
+  ]
+}

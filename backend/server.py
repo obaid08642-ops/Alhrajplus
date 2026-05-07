@@ -64,6 +64,10 @@ EMERGENT_AUTH_URL = os.environ.get(
 
 # Emergent LLM Key (for AI features)
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
+# Fallback to direct Gemini API key when running outside Emergent platform
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+if not EMERGENT_LLM_KEY and GEMINI_API_KEY:
+    EMERGENT_LLM_KEY = GEMINI_API_KEY  # emergentintegrations accepts direct Gemini keys too
 X_CLIENT_ID = os.environ.get("X_CLIENT_ID", "").strip()
 X_CLIENT_SECRET = os.environ.get("X_CLIENT_SECRET", "").strip()
 SNAPCHAT_CLIENT_ID = os.environ.get("SNAPCHAT_CLIENT_ID", "").strip()
@@ -238,11 +242,16 @@ class ReportIn(BaseModel):
 
 class AdIn(BaseModel):
     title: str
-    image_url: str
+    image_url: Optional[str] = ""  # not required for iframe ads
     link_url: Optional[str] = ""
     placement: str  # home_top | home_middle | home_bottom | listing_bottom | sidebar
     active: bool = True
     country_code: Optional[str] = None  # filter by country, None = all
+    # Iframe-based banners (e.g., Trip.com affiliate banners)
+    ad_type: Optional[str] = "image"  # image | iframe
+    iframe_url: Optional[str] = ""
+    iframe_width: Optional[int] = 300
+    iframe_height: Optional[int] = 250
 
 class ThemeIn(BaseModel):
     primary_color: Optional[str] = None
@@ -411,6 +420,7 @@ PHONE_RULES = {
     "QA": {"prefix": ["3", "5", "6", "7"], "length": 8},
     "BH": {"prefix": ["3", "6", "9"], "length": 8},
     "OM": {"prefix": ["7", "9"], "length": 8},
+    "EG": {"prefix": ["10", "11", "12", "15"], "length": 10},
 }
 
 def validate_phone(country_code: str, phone: str) -> bool:

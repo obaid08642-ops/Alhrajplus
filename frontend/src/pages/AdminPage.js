@@ -389,16 +389,20 @@ function NotificationsPanel() {
 function AdsPanel() {
     const [ads, setAds] = useState([]);
     const [showForm, setShowForm] = useState(false);
-    const [form, setForm] = useState({ title: "", image_url: "", link_url: "", placement: "home_top", active: true, country_code: "" });
+    const initForm = { title: "", image_url: "", link_url: "", placement: "home_top", active: true, country_code: "", ad_type: "image", iframe_url: "", iframe_width: 300, iframe_height: 250 };
+    const [form, setForm] = useState(initForm);
     const reload = () => api.get("/admin/ads").then(({ data }) => setAds(data));
     useEffect(() => { reload(); }, []);
     const create = async (e) => {
         e.preventDefault();
         const payload = { ...form, country_code: form.country_code || null };
         await api.post("/admin/ads", payload);
-        setForm({ title: "", image_url: "", link_url: "", placement: "home_top", active: true, country_code: "" });
+        setForm(initForm);
         setShowForm(false);
         reload();
+    };
+    const useTripBanner = () => {
+        setForm({ ...form, ad_type: "iframe", iframe_url: "https://www.trip.com/partners/ad/DB16696577?Allianceid=8199633&SID=309959147&trip_sub1=alhraj", iframe_width: 300, iframe_height: 250, title: form.title || "Trip.com - حجز طيران وفنادق" });
     };
     const remove = async (id) => { if (!window.confirm(tr("حذف الإعلان؟"))) return; await api.delete(`/admin/ads/${id}`); reload(); };
     return (
@@ -406,9 +410,30 @@ function AdsPanel() {
             <button data-testid="new-ad-btn" onClick={() => setShowForm(!showForm)} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-full font-arabic font-bold text-sm flex items-center gap-2"><Plus className="w-4 h-4" />{tr(" إضافة بنر إعلاني")}</button>
             {showForm && (
                 <form onSubmit={create} className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-3 font-arabic-body">
+                    {/* Type toggle */}
+                    <div className="flex gap-2">
+                        <button type="button" onClick={() => setForm({ ...form, ad_type: "image" })} data-testid="ad-type-image" className={`flex-1 py-2 rounded-full text-xs font-arabic font-bold ${form.ad_type === "image" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface-elevated)] text-[var(--text)]"}`}>{tr("صورة بنر")}</button>
+                        <button type="button" onClick={() => setForm({ ...form, ad_type: "iframe" })} data-testid="ad-type-iframe" className={`flex-1 py-2 rounded-full text-xs font-arabic font-bold ${form.ad_type === "iframe" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface-elevated)] text-[var(--text)]"}`}>{tr("بنر iframe (Trip.com)")}</button>
+                    </div>
                     <input data-testid="ad-title-input" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("عنوان الإعلان")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
-                    <input data-testid="ad-image-input" required value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder={tr("رابط الصورة (https://...)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
-                    <input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder={tr("رابط عند الضغط (اختياري)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+
+                    {form.ad_type === "image" ? (
+                        <>
+                            <input data-testid="ad-image-input" required value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder={tr("رابط الصورة (https://...)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                            <input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder={tr("رابط عند الضغط (اختياري)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                        </>
+                    ) : (
+                        <>
+                            <button type="button" onClick={useTripBanner} data-testid="use-trip-default-btn" className="w-full bg-gradient-to-r from-[#287DFA] to-[#0F58D6] text-white py-2 rounded-xl text-xs font-arabic font-bold">{tr("استخدام بنر Trip.com الافتراضي")}</button>
+                            <input data-testid="ad-iframe-url-input" required value={form.iframe_url} onChange={(e) => setForm({ ...form, iframe_url: e.target.value })} placeholder={tr("رابط iframe الكامل (https://trip.com/...)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none ltr-text" dir="ltr" />
+                            <div className="grid grid-cols-2 gap-2">
+                                <input type="number" value={form.iframe_width} onChange={(e) => setForm({ ...form, iframe_width: parseInt(e.target.value) || 300 })} placeholder="العرض (px)" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                                <input type="number" value={form.iframe_height} onChange={(e) => setForm({ ...form, iframe_height: parseInt(e.target.value) || 250 })} placeholder="الارتفاع (px)" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+                            </div>
+                            <p className="text-[10px] text-[var(--text-muted)] font-arabic-body">{tr("💡 احصل على رابط البنر من لوحة Trip.com → Banner Creation → انسخ الـ src من iframe.")}</p>
+                        </>
+                    )}
+
                     <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none">
                         <option value="home_top">{tr("الرئيسية - أعلى")}</option>
                         <option value="home_middle">{tr("الرئيسية - وسط")}</option>
@@ -422,11 +447,17 @@ function AdsPanel() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {ads.map((a) => (
                     <div key={a.id} className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
-                        <img src={a.image_url} alt={a.title} className="w-full h-32 object-cover" />
+                        {a.ad_type === "iframe" ? (
+                            <div className="w-full h-32 bg-gradient-to-br from-[#287DFA]/20 to-[#0F58D6]/30 flex items-center justify-center">
+                                <span className="text-[var(--primary-hover)] font-arabic font-bold text-sm">🌐 iframe ({a.iframe_width}×{a.iframe_height})</span>
+                            </div>
+                        ) : (
+                            <img src={a.image_url} alt={a.title} className="w-full h-32 object-cover" />
+                        )}
                         <div className="p-3 flex items-center justify-between">
                             <div>
                                 <div className="font-arabic font-bold text-sm text-[var(--text)]">{a.title}</div>
-                                <div className="text-xs text-[var(--text-muted)] font-arabic-body">{a.placement}</div>
+                                <div className="text-xs text-[var(--text-muted)] font-arabic-body">{a.placement} • {a.ad_type || "image"}</div>
                             </div>
                             <button data-testid={`del-ad-${a.id}`} onClick={() => remove(a.id)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
                         </div>

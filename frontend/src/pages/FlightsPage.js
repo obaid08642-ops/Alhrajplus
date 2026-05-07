@@ -207,11 +207,35 @@ export default function FlightsPage() {
     };
 
     const PROVIDERS = [
+        { key: "trip", name: "Trip.com", color: "from-[#287DFA] to-[#0F58D6]", icon: "🌐" },
         { key: "skyscanner", name: "Skyscanner", color: "from-sky-500 to-sky-700", icon: "✈️" },
         { key: "wego", name: "Wego", color: "from-emerald-500 to-emerald-700", icon: "🌍" },
         { key: "kayak", name: "Kayak", color: "from-orange-500 to-orange-700", icon: "🛫" },
         { key: "googleFlights", name: "Google Flights", color: "from-blue-500 to-blue-700", icon: "🔍" },
     ];
+
+    // Trip.com affiliate link (replace from your dashboard if needed)
+    const TRIP_AFFILIATE = "https://www.trip.com/t/AYKu00NZbU2";
+    const TRIP_SEARCHBOX_URL = "https://www.trip.com/partners/ad/S16696136?Allianceid=8199633&SID=309959147&trip_sub1=alhraj";
+
+    const buildLinksWithTrip = () => {
+        const base = buildLinks();
+        // Build trip.com deep link with our affiliate (fallback to standard search)
+        const tripDeep = `https://www.trip.com/flights/showfarefirst?dcity=${from}&acity=${to}&ddate=${date || ""}${tripType === "round" && returnDate ? `&rdate=${returnDate}` : ""}&triptype=${tripType === "round" ? "rt" : "ow"}&class=y&quantity=${pax}&Allianceid=8199633&SID=309959147&trip_sub1=alhraj`;
+        return { ...base, trip: tripDeep };
+    };
+    const searchTrip = (provider) => {
+        if (provider === "trip") {
+            // If user provided dates, deep-link; else open generic affiliate
+            if (from && to && date) {
+                window.open(buildLinksWithTrip().trip, "_blank");
+            } else {
+                window.open(TRIP_AFFILIATE, "_blank");
+            }
+            return;
+        }
+        search(provider);
+    };
 
     return (
         <div className="max-w-4xl mx-auto px-3 sm:px-6 py-4 pb-24">
@@ -270,12 +294,34 @@ export default function FlightsPage() {
                             <button
                                 key={p.key}
                                 data-testid={`flight-search-${p.key}`}
-                                onClick={() => search(p.key)}
-                                className={`bg-gradient-to-r ${p.color} text-white py-3 rounded-xl font-arabic font-bold text-sm flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-shadow`}
+                                onClick={() => searchTrip(p.key)}
+                                className={`bg-gradient-to-r ${p.color} text-white py-3 rounded-xl font-arabic font-bold text-sm flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-shadow ${p.key === "trip" ? "col-span-2 ring-2 ring-[#287DFA]/40" : ""}`}
                             >
-                                <span>{p.icon}</span> {p.name} <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                                <span>{p.icon}</span> {p.name}
+                                {p.key === "trip" && <span className="bg-white/20 text-[10px] px-1.5 py-0.5 rounded-full">⭐ موصى به</span>}
+                                <ExternalLink className="w-3.5 h-3.5 opacity-70" />
                             </button>
                         ))}
+                    </div>
+                </div>
+
+                {/* Trip.com Embedded SearchBox (interactive form within iframe) */}
+                <div className="border-t border-[var(--border)] pt-4">
+                    <p className="text-xs font-arabic font-bold text-[var(--text)] mb-2 flex items-center gap-1.5">
+                        <Plane className="w-4 h-4 text-[#287DFA]" /> {tr("صندوق بحث Trip.com المباشر")}
+                    </p>
+                    <div className="flex justify-center bg-gradient-to-br from-[#287DFA]/5 to-[#0F58D6]/10 rounded-2xl p-3 overflow-hidden">
+                        <iframe
+                            data-testid="trip-searchbox-iframe"
+                            title="Trip.com Search"
+                            src={TRIP_SEARCHBOX_URL}
+                            width="320"
+                            height="480"
+                            scrolling="no"
+                            frameBorder="0"
+                            id="S16696136"
+                            style={{ border: "none", maxWidth: "100%" }}
+                        />
                     </div>
                 </div>
 

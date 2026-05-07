@@ -1,0 +1,17 @@
+.git
+.github
+.dockerignore
+.gitignore
+node_modules
+__pycache__
+*.pyc
+.env
+.env.local
+frontend/build
+frontend/node_modules
+mobile
+test_reports
+scripts/translate_strings.py
+*.log
+.emergent
+memory
