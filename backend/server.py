@@ -83,10 +83,12 @@ db = client[DB_NAME]
 app = FastAPI(title="Haraj Plus API", version="1.0")
 api = APIRouter(prefix="/api")
 
-cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+# Default CORS origins (production domain pre-wired so it works after migration without code edits)
+DEFAULT_CORS = "https://alhraj.online,https://www.alhraj.online,https://haraj-plus.web.app,https://haraj-plus.firebaseapp.com,*"
+cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", DEFAULT_CORS).split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins if cors_origins != ["*"] else ["*"],
+    allow_origins=cors_origins if "*" not in cors_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -133,6 +135,132 @@ async def send_password_reset_email(to_email: str, reset_url: str, user_name: st
     except Exception as e:
         logger.error(f"[Resend] Failed: {e}")
         return False
+
+
+# ============================================================
+# Daily Digest Email — sent to sellers each evening
+# ============================================================
+async def send_daily_digest_to(user_id: str) -> bool:
+    """Build and send a daily digest email to a single seller. Returns True if sent."""
+    if not RESEND_API_KEY:
+        return False
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "email": 1, "name": 1, "id": 1})
+    if not user or not user.get("email"):
+        return False
+
+    # Time window: last 24 hours
+    from datetime import timedelta
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+
+    # Aggregate metrics
+    my_listings = await db.listings.find({"user_id": user_id, "status": "active"}, {"_id": 0, "id": 1, "title": 1, "views": 1, "favorites": 1, "price": 1, "currency": 1}).to_list(length=200)
+    if not my_listings:
+        return False  # nothing to report
+
+    listing_ids = [l["id"] for l in my_listings]
+    total_views = sum(l.get("views", 0) for l in my_listings)
+    favs_count = await db.favorites.count_documents({"listing_id": {"$in": listing_ids}, "created_at": {"$gte": since}})
+    unread_msgs = await db.messages.count_documents({"to_user": user_id, "read": False})
+    new_followers = await db.follows.count_documents({"seller_id": user_id, "created_at": {"$gte": since}})
+    # Top listing of the day
+    top = sorted(my_listings, key=lambda x: x.get("views", 0), reverse=True)[:3]
+
+    rows = "".join([
+        f'<tr><td style="padding:8px;border-bottom:1px solid #E8F2FA">{l["title"][:50]}</td>'
+        f'<td style="padding:8px;text-align:center;border-bottom:1px solid #E8F2FA">👁 {l.get("views", 0)}</td></tr>'
+        for l in top
+    ])
+
+    html = f"""
+    <div style="font-family:Arial,Tahoma,sans-serif;max-width:600px;margin:0 auto;padding:0;background:#F0F8FE;direction:rtl">
+      <div style="background:linear-gradient(135deg,#4FB6E6 0%,#3AA9DD 100%);padding:32px 24px;text-align:center;color:#fff">
+        <h1 style="margin:0;font-size:26px">📊 ملخص يومك على الحراج بلس</h1>
+        <p style="margin:8px 0 0;opacity:.9;font-size:14px">مرحباً {user.get('name', 'بائع متميز')}</p>
+      </div>
+      <div style="padding:24px;background:#fff">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px">
+          <div style="background:#F0F8FE;border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:32px;font-weight:900;color:#4FB6E6">{total_views}</div>
+            <div style="font-size:12px;color:#64748B">مشاهدة إجمالية</div>
+          </div>
+          <div style="background:#FEF3C7;border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:32px;font-weight:900;color:#D97706">{favs_count}</div>
+            <div style="font-size:12px;color:#64748B">مفضل اليوم</div>
+          </div>
+          <div style="background:#DBEAFE;border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:32px;font-weight:900;color:#2563EB">{unread_msgs}</div>
+            <div style="font-size:12px;color:#64748B">رسالة لم تُقرأ</div>
+          </div>
+          <div style="background:#DCFCE7;border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:32px;font-weight:900;color:#16A34A">{new_followers}</div>
+            <div style="font-size:12px;color:#64748B">متابع جديد</div>
+          </div>
+        </div>
+
+        <h3 style="color:#0F1A35;font-size:16px;margin:24px 0 8px">🔥 إعلاناتك الأكثر مشاهدة</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          {rows or '<tr><td style="padding:8px;color:#94A3B8">لا توجد إعلانات نشطة حالياً</td></tr>'}
+        </table>
+
+        <div style="text-align:center;padding:24px 0">
+          <a href="https://alhraj.online/profile" style="background:#4FB6E6;color:#fff;text-decoration:none;padding:14px 32px;border-radius:999px;font-weight:bold;font-size:14px;display:inline-block">عرض لوحة التحكم</a>
+        </div>
+
+        <p style="color:#94A3B8;font-size:11px;text-align:center;margin-top:16px">
+          💡 نصيحة اليوم: حدّث صور إعلانك بصور عالية الجودة لزيادة المشاهدات بنسبة 3 أضعاف!
+        </p>
+      </div>
+      <div style="background:#0F1A35;color:#94A3B8;padding:16px;text-align:center;font-size:11px">
+        © 2026 الحراج بلس | <a href="https://alhraj.online/settings" style="color:#4FB6E6">إيقاف التنبيهات اليومية</a>
+      </div>
+    </div>
+    """
+    params = {
+        "from": SENDER_EMAIL,
+        "to": [user["email"]],
+        "subject": f"📊 ملخصك اليومي - {total_views} مشاهدة، {unread_msgs} رسالة جديدة",
+        "html": html,
+    }
+    try:
+        await asyncio.to_thread(resend.Emails.send, params)
+        return True
+    except Exception as e:
+        logger.error(f"[Digest] Failed for {user_id}: {e}")
+        return False
+
+
+# Public endpoint to trigger daily digest (called by Cloud Scheduler / cron at 8 PM)
+@api.post("/cron/daily-digest")
+async def cron_daily_digest(request: Request):
+    """
+    Send daily digest to all active sellers. Protected by CRON_SECRET header.
+    Setup with Cloud Scheduler: HTTP POST every day at 20:00.
+    Header: X-Cron-Secret: <CRON_SECRET env var>
+    """
+    secret_header = request.headers.get("X-Cron-Secret", "")
+    expected = os.environ.get("CRON_SECRET", "")
+    if not expected or secret_header != expected:
+        raise HTTPException(403, "Forbidden")
+    # Find all users who have at least one active listing
+    pipeline = [
+        {"$match": {"status": "active"}},
+        {"$group": {"_id": "$user_id"}},
+    ]
+    user_ids = [doc["_id"] async for doc in db.listings.aggregate(pipeline)]
+    sent = 0
+    failed = 0
+    for uid in user_ids:
+        try:
+            ok = await send_daily_digest_to(uid)
+            if ok: sent += 1
+            else: failed += 1
+        except Exception as e:
+            logger.error(f"[digest] error {uid}: {e}")
+            failed += 1
+    return {"sent": sent, "failed": failed, "total_sellers": len(user_ids)}
+
+
+# Admin: trigger digest for self (for testing) — defined later after get_current_user is available
 
 
 # ============================================================
@@ -390,6 +518,45 @@ async def logout(response: Response):
 @api.get("/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
     return user
+
+
+class MeUpdateIn(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+@api.put("/auth/me")
+async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
+    update = {}
+    if body.name is not None:
+        n = body.name.strip()
+        if len(n) >= 2:
+            update["name"] = n
+    if body.phone is not None:
+        p = (body.phone or "").strip().replace(" ", "").replace("-", "")
+        if p:
+            cc = user.get("country_code", "SA")
+            rule = PHONE_RULES.get(cc)
+            if rule:
+                pref = rule["prefix"] if isinstance(rule["prefix"], list) else [rule["prefix"]]
+                if len(p) != rule["length"] or not any(p.startswith(pp) for pp in pref):
+                    raise HTTPException(400, "رقم الجوال غير صحيح")
+            update["phone"] = p
+            # Build phone_full from country code
+            country_phone_codes = {"SA": "+966", "AE": "+971", "KW": "+965", "QA": "+974", "BH": "+973", "OM": "+968", "EG": "+20"}
+            update["phone_full"] = f"{country_phone_codes.get(cc, '+966')}{p}"
+    if body.city is not None:
+        update["city"] = body.city.strip()
+    if body.avatar_url is not None:
+        update["avatar_url"] = body.avatar_url
+    if not update:
+        return user
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"id": user["id"]}, {"$set": update})
+    new_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return new_user
 
 @api.post("/auth/refresh")
 async def refresh_token(request: Request, response: Response):
@@ -1139,22 +1306,101 @@ async def get_listing(listing_id: str):
     return item
 
 @api.get("/listings/{listing_id}/similar")
-async def similar_listings(listing_id: str, limit: int = 8):
+async def similar_listings(listing_id: str, limit: int = 12):
     base = await db.listings.find_one({"id": listing_id}, {"_id": 0})
     if not base:
         raise HTTPException(404)
-    # similarity: same category + same city > same category + nearby
-    same_city = await db.listings.find(
-        {"category": base["category"], "city": base["city"], "id": {"$ne": listing_id}, "status": "active"},
-        {"_id": 0}
-    ).limit(limit).to_list(length=limit)
-    if len(same_city) < limit:
-        more = await db.listings.find(
-            {"category": base["category"], "city": {"$ne": base["city"]}, "id": {"$ne": listing_id}, "status": "active"},
+
+    base_title = (base.get("title") or "").strip()
+    base_desc = (base.get("description") or "").strip()
+    base_city = base.get("city")
+    base_category = base.get("category")
+
+    # Tokenize title (Arabic-aware): split on whitespace, keep words ≥ 2 chars,
+    # strip Arabic diacritics for fair matching.
+    import re
+    AR_DIACRITICS = re.compile(r"[\u064B-\u065F\u0670]")
+    def normalize(s):
+        return AR_DIACRITICS.sub("", (s or "").lower()).strip()
+    def tokenize(s):
+        return [w for w in re.split(r"\s+", normalize(s)) if len(w) >= 2 and w not in {"the","and","or","في","من","الى","إلى","على","عن"}]
+
+    base_tokens = tokenize(base_title)
+    if not base_tokens:
+        # Fallback: original behavior (category + city)
+        same_city = await db.listings.find(
+            {"category": base_category, "city": base_city, "id": {"$ne": listing_id}, "status": "active"},
             {"_id": 0}
-        ).limit(limit - len(same_city)).to_list(length=limit)
-        same_city.extend(more)
-    return same_city
+        ).limit(limit).to_list(length=limit)
+        if len(same_city) < limit:
+            more = await db.listings.find(
+                {"category": base_category, "city": {"$ne": base_city}, "id": {"$ne": listing_id}, "status": "active"},
+                {"_id": 0}
+            ).limit(limit - len(same_city)).to_list(length=limit)
+            same_city.extend(more)
+        return same_city
+
+    # Build OR query: any candidate listing whose title contains any base token,
+    # OR whose description contains any base token, plus same category as a soft filter.
+    title_re = "|".join(re.escape(t) for t in base_tokens)
+    candidates = await db.listings.find(
+        {
+            "id": {"$ne": listing_id},
+            "status": "active",
+            "$or": [
+                {"title": {"$regex": title_re, "$options": "i"}},
+                {"description": {"$regex": title_re, "$options": "i"}},
+                {"category": base_category},
+            ],
+        },
+        {"_id": 0}
+    ).limit(200).to_list(length=200)
+
+    base_token_set = set(base_tokens)
+    base_desc_tokens = set(tokenize(base_desc))
+
+    def score(c):
+        # Higher = better match. Components:
+        #   - title token overlap (most weight)
+        #   - description token overlap
+        #   - same city (city bonus)
+        #   - same category (small bonus)
+        #   - seller verified small boost
+        c_title_tokens = set(tokenize(c.get("title")))
+        c_desc_tokens = set(tokenize(c.get("description")))
+        title_overlap = len(base_token_set & c_title_tokens)
+        desc_overlap = len(base_desc_tokens & c_desc_tokens) + len(base_token_set & c_desc_tokens) * 0.5
+        # Phrase match: how many CONSECUTIVE base tokens appear in title
+        c_norm_title = normalize(c.get("title"))
+        phrase_score = 0
+        for size in range(min(len(base_tokens), 5), 1, -1):
+            phrase = " ".join(base_tokens[:size])
+            if phrase and phrase in c_norm_title:
+                phrase_score = size * 3
+                break
+        s = title_overlap * 5 + desc_overlap + phrase_score
+        if base_city and c.get("city") == base_city:
+            s += 4  # city bonus
+        if c.get("category") == base_category:
+            s += 1
+        if (c.get("seller") or {}).get("verified") or c.get("verified"):
+            s += 0.5
+        # tie-breaker: newer listings preferred
+        return s
+
+    # Sort by (score desc, created_at desc — newer first as tiebreaker)
+    ranked = sorted(candidates, key=lambda c: (-score(c), c.get("created_at") or ""), reverse=False)
+    # The reverse=False with -score handles score order; for created_at we need newer first.
+    # Re-sort by negated score then by negative timestamp string trick:
+    def _ts(c):
+        try:
+            return datetime.fromisoformat((c.get("created_at") or "1970-01-01T00:00:00+00:00").replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return 0
+    ranked = sorted(candidates, key=lambda c: (-score(c), -_ts(c)))
+    # Filter out completely-irrelevant items (zero score)
+    ranked = [c for c in ranked if score(c) > 0]
+    return ranked[:limit]
 
 @api.delete("/listings/{listing_id}")
 async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)):
@@ -2260,6 +2506,15 @@ async def _get_user_from_cookie(request: Request):
 # Mount routers (MUST be after ALL endpoint definitions)
 # ============================================================
 api.include_router(admin_router)
+
+
+# Admin digest test endpoint (placed after admin_router to access require_admin)
+@api.post("/admin/digest/test")
+async def admin_test_digest(user: dict = Depends(require_admin)):
+    ok = await send_daily_digest_to(user["id"])
+    return {"sent": ok}
+
+
 app.include_router(api)
 
 
@@ -2342,52 +2597,22 @@ async def startup():
 
 
     # Seed Trip.com affiliate banner (idempotent: only if no Trip.com ad exists yet)
-    if await db.ads.count_documents({"iframe_url": {"$regex": "trip.com", "$options": "i"}}) == 0:
+    if await db.ads.count_documents({"link_url": {"$regex": "trip.com", "$options": "i"}}) == 0:
         now_iso = datetime.now(timezone.utc).isoformat()
-        await db.ads.insert_many([
-            {
+        TRIP_BANNER = "https://customer-assets.emergentagent.com/job_platform-inspect/artifacts/qxdi93hp_IMG_2109.jpeg"
+        TRIP_LINK = "https://www.trip.com/t/AYKu00NZbU2"
+        for placement in ["home_middle", "listing_top", "listing_bottom"]:
+            await db.ads.insert_one({
                 "id": str(uuid.uuid4()),
-                "title": "Trip.com — حجز طيران وفنادق",
-                "image_url": "",
-                "link_url": "https://www.trip.com/t/AYKu00NZbU2",
-                "placement": "home_middle",
+                "title": "Trip.com — احجز الآن وادفع لاحقاً",
+                "image_url": TRIP_BANNER,
+                "link_url": TRIP_LINK,
+                "placement": placement,
                 "active": True,
                 "country_code": None,
-                "ad_type": "iframe",
-                "iframe_url": "https://www.trip.com/partners/ad/DB16696577?Allianceid=8199633&SID=309959147&trip_sub1=alhraj",
-                "iframe_width": 300,
-                "iframe_height": 250,
+                "ad_type": "image",
                 "created_at": now_iso,
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "title": "Trip.com — صفقات السفر",
-                "image_url": "",
-                "link_url": "https://www.trip.com/t/AYKu00NZbU2",
-                "placement": "listing_bottom",
-                "active": True,
-                "country_code": None,
-                "ad_type": "iframe",
-                "iframe_url": "https://www.trip.com/partners/ad/DB16696577?Allianceid=8199633&SID=309959147&trip_sub1=alhraj",
-                "iframe_width": 300,
-                "iframe_height": 250,
-                "created_at": now_iso,
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "title": "Trip.com — احجز رحلتك",
-                "image_url": "",
-                "link_url": "https://www.trip.com/t/AYKu00NZbU2",
-                "placement": "listing_top",
-                "active": True,
-                "country_code": None,
-                "ad_type": "iframe",
-                "iframe_url": "https://www.trip.com/partners/ad/DB16696577?Allianceid=8199633&SID=309959147&trip_sub1=alhraj",
-                "iframe_width": 300,
-                "iframe_height": 250,
-                "created_at": now_iso,
-            },
-        ])
+            })
 
 
 @app.on_event("shutdown")

@@ -1,0 +1,37 @@
+{
+  "summary": "Iter-16 testing of (1) Trip.com banner switched from iframe to image (resolves the white-box screenshot bug), (2) similar-listings text-similarity algorithm, (3) PUT /auth/me phone editor with per-country validation, (4) Daily Digest via Resend (admin test endpoint + cron), (5) CORS pre-wired for alhraj.online, (6) PostListing sell-with-AI gallery picker (no capture attr), (7) ProfilePage inline phone editor. ALL 14 backend tests PASS. ALL 4 critical UI flows verified end-to-end. NO blocking issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/ads", "issue": "Existing Trip.com ad records still contain a stale 'iframe_url' field alongside ad_type='image'. Harmless because AdSlot.js only renders iframe when ad_type==='iframe' (verified visually — zero iframes on home + listing detail) but it would be cleaner to $unset iframe_url on the migration script for hygiene."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter16_features.py",
+    "/app/test_reports/pytest/iter16_results.xml"
+  ],
+  "action_items": [
+    "(Optional cleanup) On next migration, $unset iframe_url on the 3 trip ads so DB row is clean — currently leftover field from previous iframe-type seed. No user impact."
+  ],
+  "critical_code_review_comments": [
+    "server.py PUT /auth/me silently drops phone update when string is empty after strip — that's good (no validation error for clear-to-blank), but there's no explicit way to UNSET phone. If product wants 'remove phone' flow, add explicit null branch.",
+    "send_daily_digest_to() returns False (not True) when user has zero active listings — the cron summary will report these as 'failed' instead of 'skipped'. Consider adding a 'skipped' counter for clearer ops metrics.",
+    "Similar listings algorithm tokenizes title only — uses regex $regex|$or with up to ~50 OR clauses if title is long. For very large catalogs (>100k listings) this will slow down. Acceptable for current scale; consider Mongo $text index when listings >50k.",
+    "PhoneEditor in ProfilePage.js: after successful save, calls window.location.reload() — coarse but works. Could swap for context refetch to avoid full page reflow."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter16_features.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 — verified working",
+  "seed_data_creation": "Created 4 TEST_-prefixed listings via fixture for similar-listings ranking validation, then deleted them via teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter-16 features verified GREEN. Concrete results: (a) GET /api/ads?placement=home_middle|listing_top|listing_bottom each return Trip.com ad with ad_type='image' and image_url='https://customer-assets.emergentagent.com/job_platform-inspect/artifacts/qxdi93hp_IMG_2109.jpeg' — confirmed visually as <img> on /listing/:id (2 image ads + 0 iframes). (b) PUT /auth/me with phone=512345678 returns phone_full=+966512345678; with phone=99 → 400 with detail containing 'رقم الجوال غير صحيح'; prefix mismatch (912345678) → 400. (c) /admin/digest/test returns {sent: false} because RESEND_API_KEY not set — main agent should set RESEND_API_KEY in backend/.env to actually send emails. (d) /cron/daily-digest with bad/missing X-Cron-Secret → 403 (correct). CRON_SECRET env not set in current .env so we can't test the success path. (e) CORS OPTIONS from origins https://alhraj.online and https://www.alhraj.online both return 200 with matching Access-Control-Allow-Origin. (f) PostListing sell-with-ai input has accept='image/*' and capture is null/absent — gallery pick will work on mobile. (g) ProfilePage phone editor [data-testid=profile-phone-edit] visible, click reveals [data-testid=profile-phone-input] + [data-testid=profile-phone-save]. (h) Similar listings: TEST iPhone 15 Pro Max ranks iPhone exact-phrase matches above Samsung (category-only) — verified.",
+  "rca of the issue": "N/A — no bugs found in iter-16 implementation."
+}

@@ -220,7 +220,7 @@ export default function PostListing() {
                 <div className="bg-[var(--surface)] rounded-3xl p-5 border border-[var(--border)]">
                     {/* Sell with AI - hero CTA */}
                     <label data-testid="sell-with-ai-btn" className={`block relative overflow-hidden rounded-2xl border-2 border-[#4FB6E6] bg-gradient-to-br from-[#4FB6E6]/15 to-[#D4AF37]/10 p-4 mb-5 cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all ${aiBusy ? "pointer-events-none opacity-70" : ""}`}>
-                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => sellWithAI(e.target.files?.[0])} />
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => sellWithAI(e.target.files?.[0])} />
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4FB6E6] to-[#2196D9] flex items-center justify-center shrink-0 shadow-lg">
                                 {aiBusy ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Sparkle className="w-6 h-6 text-white" />}
