@@ -22,6 +22,34 @@ export default function ChatPage() {
     const [imgPreview, setImgPreview] = useState(null);
     const endRef = useRef();
 
+    // Hide BottomNav while a conversation is active (per user request — bottom-nav was overlapping input area)
+    useEffect(() => {
+        if (activeConvoId) {
+            document.body.classList.add("chat-active");
+        } else {
+            document.body.classList.remove("chat-active");
+        }
+        return () => document.body.classList.remove("chat-active");
+    }, [activeConvoId]);
+
+    // Notification sound on incoming messages (subtle ping)
+    const audioCtxRef = useRef(null);
+    const playPing = () => {
+        try {
+            if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = audioCtxRef.current;
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "sine";
+            o.frequency.setValueAtTime(880, ctx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.18);
+            g.gain.setValueAtTime(0.18, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(); o.stop(ctx.currentTime + 0.25);
+        } catch (_) { /* silent */ }
+    };
+
     useEffect(() => {
         const load = async () => {
             const { data } = await api.get("/chat/conversations");
@@ -43,15 +71,26 @@ export default function ChatPage() {
 
     useEffect(() => {
         if (!activeConvoId) return;
+        let prevCount = 0;
+        let firstLoad = true;
         const fetchMsgs = async () => {
             const { data } = await api.get(`/chat/messages/${activeConvoId}`);
+            // Detect new incoming message → play subtle ping
+            if (!firstLoad && data.length > prevCount) {
+                const last = data[data.length - 1];
+                if (last && last.sender_id !== user?.id) {
+                    playPing();
+                }
+            }
+            firstLoad = false;
+            prevCount = data.length;
             setMessages(data);
             setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
         };
         fetchMsgs();
         const id = setInterval(fetchMsgs, 4000);
         return () => clearInterval(id);
-    }, [activeConvoId]);
+    }, [activeConvoId, user?.id]);
 
     const sendLocation = () => {
         if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }

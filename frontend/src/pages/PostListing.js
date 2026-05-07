@@ -354,20 +354,18 @@ export default function PostListing() {
                         <textarea data-testid="post-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("اكتب وصفاً تفصيلياً...")} />
                     </div>
                     {form.category !== "jobs" && form.category !== "services" && (
-                        <div className="flex gap-2">
-                            <div className="flex-1">
-                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("price")}</label>
-                                <input data-testid="post-price" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("اتركه فارغاً للسوم")} />
-                            </div>
-                            <div className="w-24">
-                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("العملة")}</label>
-                                <input value={country?.currency || "ر.س"} disabled className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text-muted)] outline-none font-arabic-body" />
-                            </div>
-                            <div className="self-end">
-                                <button type="button" data-testid="ai-price-btn" onClick={aiSuggestPrice} className="flex items-center gap-1 bg-gradient-to-r from-[var(--accent)] to-amber-400 text-[var(--secondary)] rounded-xl px-3 py-2.5 text-xs font-bold font-arabic">
+                        <div>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("price")}</label>
+                            <div className="flex gap-2 items-stretch">
+                                <div className="flex-1 min-w-0 relative">
+                                    <input data-testid="post-price" type="number" inputMode="numeric" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl ps-4 pe-16 py-3 text-base border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-latin font-bold tracking-wider" placeholder={tr("اتركه فارغاً للسوم")} style={{ minHeight: "48px" }} />
+                                    <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--primary)] font-arabic-body pointer-events-none whitespace-nowrap">{country?.currency || "ر.س"}</span>
+                                </div>
+                                <button type="button" data-testid="ai-price-btn" onClick={aiSuggestPrice} className="shrink-0 flex items-center gap-1 bg-gradient-to-r from-[var(--accent)] to-amber-400 text-[var(--secondary)] rounded-xl px-3 py-2.5 text-xs font-bold font-arabic" style={{ minHeight: "48px" }}>
                                     <Sparkle className="w-3.5 h-3.5" /> {t("ai_price_suggest")}
                                 </button>
                             </div>
+                            <p className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-1.5">{tr("💡 يمكنك إدخال أرقام كبيرة بدون قلق — العملة تظهر داخل الحقل")}</p>
                         </div>
                     )}
 

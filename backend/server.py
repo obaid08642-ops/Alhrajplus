@@ -2341,6 +2341,41 @@ async def startup():
         })
 
 
+    # Seed Trip.com affiliate banner (idempotent: only if no Trip.com ad exists yet)
+    if await db.ads.count_documents({"iframe_url": {"$regex": "trip.com", "$options": "i"}}) == 0:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        await db.ads.insert_many([
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Trip.com — حجز طيران وفنادق",
+                "image_url": "",
+                "link_url": "https://www.trip.com/t/AYKu00NZbU2",
+                "placement": "home_middle",
+                "active": True,
+                "country_code": None,
+                "ad_type": "iframe",
+                "iframe_url": "https://www.trip.com/partners/ad/DB16696577?Allianceid=8199633&SID=309959147&trip_sub1=alhraj",
+                "iframe_width": 300,
+                "iframe_height": 250,
+                "created_at": now_iso,
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Trip.com — صفقات السفر",
+                "image_url": "",
+                "link_url": "https://www.trip.com/t/AYKu00NZbU2",
+                "placement": "listing_bottom",
+                "active": True,
+                "country_code": None,
+                "ad_type": "iframe",
+                "iframe_url": "https://www.trip.com/partners/ad/DB16696577?Allianceid=8199633&SID=309959147&trip_sub1=alhraj",
+                "iframe_width": 300,
+                "iframe_height": 250,
+                "created_at": now_iso,
+            },
+        ])
+
+
 @app.on_event("shutdown")
 async def shutdown():
     client.close()

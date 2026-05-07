@@ -72,6 +72,15 @@ export default function ReelsPage() {
 
     return (
         <div className="fixed inset-x-0 top-16 bottom-16 sm:relative sm:inset-auto sm:h-[calc(100vh-160px)] sm:max-w-md sm:mx-auto sm:rounded-3xl sm:overflow-hidden bg-black">
+            {/* Back + Upload buttons */}
+            <button data-testid="reels-back-btn" onClick={() => nav(-1)} aria-label="رجوع" className="absolute top-3 start-3 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur flex items-center justify-center text-white">
+                <ArrowLeft className="w-5 h-5" />
+            </button>
+            <Link to="/post?video=1" data-testid="reels-upload-btn" aria-label={tr("ارفع ستوري فيديو")} className="absolute top-3 end-3 z-30 flex items-center gap-1.5 bg-gradient-to-r from-[#4FB6E6] to-[#3AA9DD] text-white px-3 py-2 rounded-full shadow-lg hover:scale-105 transition-transform">
+                <span className="text-lg leading-none">+</span>
+                <span className="text-xs font-arabic font-bold">{tr("ارفع ستوري")}</span>
+            </Link>
+
             <div onScroll={onScroll} className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
                 {reels.map((l, i) => (
                     <div key={l.id} className="h-full w-full snap-start relative flex items-center justify-center">

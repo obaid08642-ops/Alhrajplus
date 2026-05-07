@@ -297,7 +297,7 @@ export default function ListingDetail() {
                     )}
 
                     {/* Ad slot under listing */}
-                    <AdSlot placement="listing_bottom" />
+                    <AdSlot placement="listing_top" />
 
                     {/* Seller Info & Contact (always before similar listings) */}
                     <div data-testid="seller-info-block" className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)] lg:hidden">
@@ -342,6 +342,9 @@ export default function ListingDetail() {
                             </button>
                         </div>
                     </div>
+
+                    {/* Sponsored ad — between contact info and similar listings (per user request) */}
+                    <AdSlot placement="listing_bottom" />
 
                     {/* Similar listings — placed AFTER seller info as requested */}
                     {similar.length > 0 && (

@@ -278,3 +278,9 @@ a[href*="emergent.com"][target="_blank"][style*="position: fixed"] {
     opacity: 0 !important;
     pointer-events: none !important;
 }
+
+/* Hide bottom-nav + FAB while inside a chat conversation */
+body.chat-active [data-testid="bottom-nav-pill"],
+body.chat-active [data-testid="nav-post-fab"] {
+    display: none !important;
+}
