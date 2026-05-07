@@ -18,7 +18,41 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Session 13 — Feb 2026 — Smart App Banner + Biometric Login + Performance Sprint
+## ✅ Session 14 — Feb 2026 — Trip.com Integration + Egypt + Cloud Run/Firebase Deployment
+
+### ✈️ Trip.com Integration on Flights Page
+- ✅ **Trip.com search button** added as first provider (col-span-2, ⭐ موصى به badge, baby-blue gradient)
+- ✅ **Deep-link** to Trip.com search results when user fills form (with affiliate ID `8199633` + SID `309959147` + `trip_sub1=alhraj`)
+- ✅ **Embedded SearchBox iframe** (S16696136 — 320×480) below provider buttons for direct interactive search
+- ✅ Affiliate link: `https://www.trip.com/t/AYKu00NZbU2` (used as fallback when form empty)
+
+### 📢 Iframe-type Ads (manageable via Admin Dashboard)
+- ✅ Backend `AdIn` model extended: `ad_type` (image/iframe), `iframe_url`, `iframe_width`, `iframe_height`
+- ✅ Frontend `AdSlot.js` rewritten — renders `<iframe>` for iframe-type ads, `<img>` for image-type
+- ✅ Admin Ads Panel: type toggle (Image/Iframe) + iframe URL/width/height inputs + "Use default Trip.com banner" shortcut button (auto-fills DB16696577 URL)
+- ✅ Trip.com banner ads (DB16696577 — 300×250) can be placed in any slot: home_top, home_middle, home_bottom, listing_bottom, sidebar
+
+### 🇪🇬 Egypt Added (now 7 countries)
+- ✅ Code: EG, name_ar: مصر, phone_code: +20, phone_length: 10
+- ✅ 23 cities with full districts: القاهرة (20 districts), الإسكندرية (14), الجيزة (9), شرم الشيخ, الغردقة, بورسعيد, السويس, الإسماعيلية, أسوان, الأقصر, أسيوط, المنصورة, طنطا, الزقازيق, المنيا, بني سويف, سوهاج, قنا, كفر الشيخ, الدقهلية, البحيرة, مرسى مطروح, العاصمة الإدارية
+- ✅ Phone validation: 10 digits starting with 10/11/12/15
+
+### 🚀 Deployment Files for Cloud Run + Firebase Hosting
+- ✅ `/app/Dockerfile` — multi-stage Python 3.11-slim image, port 8001, uvicorn with 2 workers, includes emergentintegrations install (graceful fail outside Emergent)
+- ✅ `/app/cloudbuild.yaml` — full CI/CD: build → push to Artifact Registry → deploy to Cloud Run with secrets binding (MONGO_URL, JWT_SECRET, GEMINI_API_KEY, etc.)
+- ✅ `/app/firebase.json` — Firebase Hosting config with `/api/**` rewrite to Cloud Run + cache headers (1-year for assets, no-cache for index.html)
+- ✅ `/app/.firebaserc` — project alias `haraj-plus`
+- ✅ `/app/.dockerignore` — excludes node_modules, mobile, test_reports, scripts, memory
+- ✅ `/app/.env.production.example` — template with all required env vars
+- ✅ `/app/DEPLOYMENT.md` — comprehensive Arabic deployment guide (350+ lines)
+- ✅ `server.py` — `GEMINI_API_KEY` fallback added: `if not EMERGENT_LLM_KEY and GEMINI_API_KEY: EMERGENT_LLM_KEY = GEMINI_API_KEY`
+
+### 🎨 UI Fix: "Made with Emergent" badge hidden via CSS
+- ✅ Added CSS rules in `index.css` to hide the floating Emergent badge that was covering bottom-nav FAB
+
+### 🧪 Iter-14 Testing — 100% green
+- Backend: 18/18 pytest pass (9 new + 9 iter-13 regression)
+- Frontend: All Trip.com + Admin iframe + Egypt verified
 
 ### 📱 Smart App Banner (web → mobile app install prompt)
 - ✅ `/app/frontend/src/components/SmartAppBanner.js` — Detects iOS/Android via user-agent

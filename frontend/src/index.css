@@ -265,3 +265,16 @@ code {
     0%   { transform: scale(0.4); opacity: 0.9; }
     100% { transform: scale(1.4); opacity: 0; }
 }
+
+/* === Hide Emergent preview badge (covers bottom UI elements) === */
+/* Targets the "Made with Emergent" floating badge in preview/deploy */
+#emergent-badge,
+[id*="emergent-badge"],
+[class*="emergent-badge"],
+a[href*="emergent.sh"][target="_blank"][style*="position: fixed"],
+a[href*="emergent.com"][target="_blank"][style*="position: fixed"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
