@@ -18,7 +18,46 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
-## ✅ Session 15 — Feb 2026 — UX Polish: Price Box + Chat Input + Trip.com Live Ads + Reels Upload
+## ✅ Session 16 — Feb 2026 — Trip.com Image Ads + Smart Similar + Phone Editor + Email Digest
+
+### 🖼️ Trip.com Banner Fix (white box → real banner)
+- ❌ Previous: iframe of `trip.com/partners/ad/DB16696577` was blocked by X-Frame-Options → showed white box
+- ✅ Now: stored as `ad_type="image"` with user-uploaded banner URL (`customer-assets.emergentagent.com/.../qxdi93hp_IMG_2109.jpeg`) wrapping link to affiliate `https://www.trip.com/t/AYKu00NZbU2`
+- ✅ All 3 placements live: home_middle / listing_top / listing_bottom
+- ✅ Editable from /admin → Ads (replace image, change link, etc.)
+
+### 🎯 Smart Similar Listings Algorithm
+- ✅ Tokenizes title+description, removes Arabic diacritics + stop words
+- ✅ Score = title-token-overlap × 5 + desc-overlap + phrase-match-bonus + city-bonus(+4) + category(+1) + verified(+0.5)
+- ✅ Phrase-match: detects 2-5 consecutive base tokens in candidate title (e.g., "iPhone 15 Pro Max" matches before "iPhone 15 Pro" before "iPhone")
+- ✅ City-priority: same-city listings always rank higher
+- ✅ Tiebreaker: newer listings first
+- ✅ Filters out zero-score (completely irrelevant) candidates
+
+### 📱 Profile Phone Editor (NEW)
+- ✅ Backend `PUT /api/auth/me` accepts `{name, phone, city, avatar_url}` with per-country phone validation
+- ✅ Auto-builds `phone_full = country_code_prefix + phone` (e.g., +966512345678)
+- ✅ Frontend: `<PhoneEditor>` inline component on /profile — shows country prefix + tel input + save/cancel
+- ✅ Shows "⚠️ لم يتم إضافة رقم جوال" + "إضافة الجوال" button when missing
+- ✅ Validates per country: SA(9 digits, starts 5), AE(9 digits, starts 50/52/54/55/56/58), KW/QA/BH/OM/EG-specific
+
+### 📧 Email Daily Digest (NEW — uses Resend)
+- ✅ `send_daily_digest_to(user_id)` — builds HTML email with: total_views, today's favorites, unread messages, new followers, top 3 listings
+- ✅ Beautiful baby-blue gradient design with stats grid + CTAs to /profile + tip-of-the-day
+- ✅ `POST /api/cron/daily-digest` (X-Cron-Secret header) — iterates all sellers with active listings, sends email to each
+- ✅ Admin test endpoint `POST /api/admin/digest/test` — sends to admin's own email for preview
+- ✅ Setup with Cloud Scheduler/cron at 8 PM daily for production
+
+### 🌐 CORS Pre-wired for Migration
+- ✅ Default `CORS_ORIGINS` includes alhraj.online + www + Firebase domains + wildcard fallback
+- ✅ User can deploy externally WITHOUT touching code (env override available too)
+
+### 🎨 UX Tweaks
+- ✅ Sell-with-AI: removed `capture="environment"` → user can upload from gallery (mobile + desktop)
+
+### 🧪 Iter-16 Testing — 100%/100%
+- Backend: 14/14 pytest pass (similar algorithm, phone validation, digest, CORS, ad image)
+- Frontend: All 4 critical UI flows verified
 
 ### 🎨 UX Fixes (from user screenshots)
 - ✅ **Price input** in PostListing: redesigned bigger (min-h 48px) with currency suffix INSIDE the field on the right (`ر.س` overlaid). No more cramped two-box layout. Supports very large numbers without truncation. Added font-latin tracking-wider for readability.
