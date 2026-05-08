@@ -4,11 +4,16 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
+        "source": "/sitemap.xml",
+        "run": { "serviceId": "haraj-api", "region": "me-central1" }
+      },
+      {
+        "source": "/robots.txt",
+        "run": { "serviceId": "haraj-api", "region": "me-central1" }
+      },
+      {
         "source": "/api/**",
-        "run": {
-          "serviceId": "haraj-api",
-          "region": "me-central1"
-        }
+        "run": { "serviceId": "haraj-api", "region": "me-central1" }
       },
       {
         "source": "**",
@@ -27,6 +32,20 @@
       {
         "source": "/index.html",
         "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+      },
+      {
+        "source": "/sitemap.xml",
+        "headers": [
+          { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
+          { "key": "Cache-Control", "value": "public, max-age=3600" }
+        ]
+      },
+      {
+        "source": "/robots.txt",
+        "headers": [
+          { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+          { "key": "Cache-Control", "value": "public, max-age=86400" }
+        ]
       }
     ]
   }

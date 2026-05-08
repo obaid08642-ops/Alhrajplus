@@ -15,6 +15,7 @@ import bcrypt
 import jwt
 import httpx
 import resend
+import re
 import cloudinary
 import cloudinary.utils
 import cloudinary.uploader
@@ -2515,7 +2516,179 @@ async def admin_test_digest(user: dict = Depends(require_admin)):
     return {"sent": ok}
 
 
+# ============================================================
+# SEO: Dynamic Sitemap.xml + Robots.txt + Bot prerender
+# In Emergent preview, only /api/* routes hit backend; in production (Firebase/Cloudflare),
+# we use rewrites to expose /sitemap.xml → /api/sitemap.xml at the root URL.
+# ============================================================
+from fastapi.responses import Response, HTMLResponse, PlainTextResponse, RedirectResponse
+
+
+async def _build_sitemap_xml() -> str:
+    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    static_pages = [
+        ("", 1.0, "daily"),
+        ("/auctions", 0.9, "daily"),
+        ("/deals", 0.9, "daily"),
+        ("/reels", 0.8, "daily"),
+        ("/flights", 0.7, "weekly"),
+        ("/about", 0.5, "monthly"),
+        ("/terms", 0.4, "monthly"),
+        ("/privacy", 0.4, "monthly"),
+        ("/contact", 0.4, "monthly"),
+    ]
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    listings = await db.listings.find(
+        {"status": "active", "created_at": {"$gte": cutoff}},
+        {"_id": 0, "id": 1, "title": 1, "updated_at": 1, "created_at": 1, "images": 1}
+    ).sort("created_at", -1).limit(50000).to_list(length=50000)
+
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']
+    for path, prio, freq in static_pages:
+        parts.append(f"<url><loc>{site}{path}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>")
+    for l in listings:
+        lastmod = (l.get("updated_at") or l.get("created_at") or "").split("T")[0] or ""
+        img = (l.get("images") or [None])[0]
+        title_safe = (l.get("title", "") or "").replace("]]>", "")
+        img_part = f"<image:image><image:loc>{img}</image:loc><image:title><![CDATA[{title_safe}]]></image:title></image:image>" if img else ""
+        parts.append(
+            f"<url><loc>{site}/listing/{l['id']}</loc>"
+            + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
+            + "<changefreq>weekly</changefreq><priority>0.7</priority>"
+            + img_part + "</url>"
+        )
+    parts.append('</urlset>')
+    return "\n".join(parts)
+
+
+async def _build_robots_txt() -> str:
+    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
+    if rec and rec.get("value", {}).get("robots_txt"):
+        return rec["value"]["robots_txt"]
+    return (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin\n"
+        "Disallow: /api/\n"
+        "\n"
+        "# AI agents — allow them to crawl listings for AI search results\n"
+        "User-agent: GPTBot\nAllow: /\n"
+        "User-agent: ClaudeBot\nAllow: /\n"
+        "User-agent: PerplexityBot\nAllow: /\n"
+        "User-agent: Google-Extended\nAllow: /\n"
+        "User-agent: anthropic-ai\nAllow: /\n"
+        "User-agent: Applebot-Extended\nAllow: /\n"
+        "\n"
+        f"Sitemap: {site}/sitemap.xml\n"
+    )
+
+
+# Both /api/sitemap.xml and /sitemap.xml work (frontend rewrites for the latter in production)
+@api.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml_api():
+    xml = await _build_sitemap_xml()
+    return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml_root():
+    xml = await _build_sitemap_xml()
+    return Response(content=xml, media_type="application/xml")
+
+
+@api.get("/robots.txt", include_in_schema=False)
+async def robots_txt_api():
+    text = await _build_robots_txt()
+    return PlainTextResponse(text)
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt_root():
+    text = await _build_robots_txt()
+    return PlainTextResponse(text)
+
+
+# Bot User-Agents that don't render JS — serve HTML stub with full meta tags
+BOT_UAS = re.compile(
+    r"(googlebot|bingbot|yandex|duckduckbot|baiduspider|facebookexternalhit|twitterbot|"
+    r"linkedinbot|whatsapp|telegrambot|slackbot|discordbot|gptbot|claudebot|"
+    r"perplexitybot|chatgpt|anthropic|google-extended|bytespider|applebot)",
+    re.IGNORECASE,
+)
+
+
+@api.get("/seo/listing/{listing_id}", include_in_schema=False)
+async def seo_listing_html(listing_id: str):
+    """Pre-rendered HTML for crawlers. Frontend can also call this to get meta tags."""
+    listing = await db.listings.find_one({"id": listing_id, "status": "active"}, {"_id": 0, "password_hash": 0})
+    if not listing:
+        return HTMLResponse("<h1>Listing not found</h1>", status_code=404)
+    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    title = (listing.get("title") or "")[:200]
+    desc = (listing.get("description") or listing.get("title") or "")[:300]
+    price = listing.get("price") or 0
+    currency = listing.get("currency") or "ر.س"
+    image = (listing.get("images") or [f"{site}/og-image.png"])[0]
+    keywords = ", ".join({title, listing.get("category", ""), listing.get("city", ""), "حراج", "بيع", "شراء"})
+    schema = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": title,
+        "description": desc,
+        "image": listing.get("images") or [image],
+        "url": f"{site}/listing/{listing_id}",
+        "sku": listing_id,
+        "category": listing.get("category"),
+        "offers": {
+            "@type": "Offer",
+            "url": f"{site}/listing/{listing_id}",
+            "priceCurrency": listing.get("currency_code") or "SAR",
+            "price": float(price) if price else 0,
+            "availability": "https://schema.org/InStock",
+            "seller": {"@type": "Person", "name": (listing.get("seller") or {}).get("name", "بائع")},
+            "areaServed": {"@type": "Place", "name": listing.get("city", "السعودية")},
+        },
+    }
+    import json as _json
+    schema_json = _json.dumps(schema, ensure_ascii=False)
+    html = f"""<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>{title} - {price} {currency} - الحراج بلس</title>
+<meta name="description" content="{desc}" />
+<meta name="keywords" content="{keywords}" />
+<link rel="canonical" href="{site}/listing/{listing_id}" />
+<meta property="og:type" content="product" />
+<meta property="og:title" content="{title}" />
+<meta property="og:description" content="{desc}" />
+<meta property="og:image" content="{image}" />
+<meta property="og:url" content="{site}/listing/{listing_id}" />
+<meta property="og:locale" content="ar_SA" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{title}" />
+<meta name="twitter:description" content="{desc}" />
+<meta name="twitter:image" content="{image}" />
+<script type="application/ld+json">{schema_json}</script>
+</head>
+<body>
+<h1>{title}</h1>
+<p><strong>السعر:</strong> {price} {currency}</p>
+<p><strong>المدينة:</strong> {listing.get("city", "")}</p>
+<p><strong>الفئة:</strong> {listing.get("category", "")}</p>
+<p>{desc}</p>
+{f'<img src="{image}" alt="{title}" loading="lazy" />' if image else ''}
+<p><a href="{site}/listing/{listing_id}">عرض الإعلان كاملاً على الحراج بلس</a></p>
+</body>
+</html>"""
+    return HTMLResponse(html)
+
+
 app.include_router(api)
+
+
 
 
 @app.on_event("startup")

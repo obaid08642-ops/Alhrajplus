@@ -1,6 +1,7 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState, lazy, Suspense } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider } from "@/contexts/I18nContext";
@@ -106,16 +107,18 @@ function App() {
     }, [showSplash]);
 
     return (
-        <I18nProvider>
-            <ThemeProvider>
-                <AuthProvider>
-                    {showSplash && <SplashScreen />}
-                    <BrowserRouter>
-                        <AppRouter />
-                    </BrowserRouter>
-                </AuthProvider>
-            </ThemeProvider>
-        </I18nProvider>
+        <HelmetProvider>
+            <I18nProvider>
+                <ThemeProvider>
+                    <AuthProvider>
+                        {showSplash && <SplashScreen />}
+                        <BrowserRouter>
+                            <AppRouter />
+                        </BrowserRouter>
+                    </AuthProvider>
+                </ThemeProvider>
+            </I18nProvider>
+        </HelmetProvider>
     );
 }
 

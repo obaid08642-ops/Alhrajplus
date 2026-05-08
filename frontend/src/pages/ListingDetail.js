@@ -10,6 +10,7 @@ import { useI18n, tr } from "@/contexts/I18nContext";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
+import { ListingSEO } from "@/components/SEO";
 import Spin360Viewer from "@/components/Spin360Viewer";
 import PriceBadge from "@/components/PriceBadge";
 
@@ -144,6 +145,7 @@ export default function ListingDetail() {
 
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24">
+            <ListingSEO listing={listing} />
             <Link to="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)] mb-4 font-arabic"><ChevronLeft className="w-4 h-4 rotate-180" />{tr(" العودة")}</Link>
 
             {isOwner && (

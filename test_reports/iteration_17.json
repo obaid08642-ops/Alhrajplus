@@ -1,0 +1,66 @@
+{
+  "summary": "Iter-17 SEO testing. Backend: 11/13 PASS. /api/sitemap.xml is fully correct (xml namespaces, image:image, static + listing entries, lastmod/priority/changefreq). /api/seo/listing/{id} HTML+JSON-LD Product schema is correct with offers/seller/areaServed/priceCurrency. 404 handled. Regression endpoints all OK. CRITICAL: /api/robots.txt is broken — DB override (set by GET /api/admin/seo at line 2179) returns 'User-agent: *\\nAllow: /\\nSitemap: …' which has NO Disallow rules and NO AI-bot allowlist (GPTBot/ClaudeBot/PerplexityBot/Google-Extended/anthropic-ai). Frontend: index.html base SEO is correct. Listing detail page has TWO copies of every meta/link tag — react-helmet-async appends listing-specific tags but does not remove the static home-page tags from index.html, so crawlers/AI agents see BOTH the generic home values AND the listing values for description/keywords/og:type/og:url/og:image/canonical/twitter:image. Only <title> is replaced cleanly (because the document allows just one title element).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/robots.txt",
+        "issue": "Returns the stale value persisted in db.settings._key=seo.value.robots_txt (the simple stub 'User-agent: *\\nAllow: /\\nSitemap: https://alhraj.online/sitemap.xml') instead of the rich default in _build_robots_txt(). Result: NO Disallow: /admin, NO Disallow: /api/, NO AI-bot allowlist (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, anthropic-ai, Applebot-Extended). This contradicts the iter-17 requirement.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ListingDetail SEO via react-helmet-async",
+        "issue": "Duplicate meta/link tags injected. Listing detail page now has TWO <meta name='description'>, TWO <meta name='keywords'>, TWO <meta property='og:type'> (one 'website', one 'product'), TWO <meta property='og:image'>, TWO <meta property='og:url'>, TWO <link rel='canonical'>, TWO <meta name='twitter:image'>. Static tags from index.html are NOT removed because react-helmet-async only manages tags it created (which carry data-rh='true'). Crawlers/AI agents typically read the FIRST occurrence → they will index the generic home description/keywords/og-image instead of listing-specific values. Title is fine (only one allowed). Verified: title='مياه نوفا نقية 330 مل جديدة بسعر 2 ر.س | مكة المكرمة - الحراج بلس' (correct), but description still=home description, og:image still=alhraj.online/og-image.png, og:url still=alhraj.online/, canonical still=alhraj.online/.",
+        "selector": "head meta[name='description'], meta[property='og:type'], link[rel='canonical']",
+        "priority": "HIGH"
+      },
+      {
+        "component": "public/index.html",
+        "issue": "Two <title> tags in <head>. Line 9 sets the SEO title, then line 76 overrides it with '<title>Emergent | Fullstack App</title>'. Browsers/crawlers without JS will see the second one (Emergent placeholder). Remove line 76.",
+        "selector": "head > title:nth-child(2)",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "AI/SEO discovery of listings",
+        "issue": "Because of the duplicate-tag bug, AI agents (ChatGPT/Perplexity/Claude) and Google crawlers reading server-rendered HTML for /listing/:id may pick the home-page generic description/keywords/og-image, defeating the iter-17 goal of per-listing discoverability. Server-side fallback at GET /api/seo/listing/{id} is correct, but the production rewrite (firebase.json) only routes /sitemap.xml and /robots.txt, NOT /listing/:id for bot user-agents — so JS-disabled crawlers landing on /listing/:id never reach the prerendered HTML.",
+        "affected_selectors": ["head meta", "/api/seo/listing/{id}"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter17_seo.py",
+    "/app/test_reports/pytest/iter17_results.xml"
+  ],
+  "action_items": [
+    "FIX robots.txt: in /api/admin/seo POST or in seed init, store the FULL default robots_txt (with Disallow rules and AI bot allowlist) instead of the bare stub. OR change _build_robots_txt() to ALWAYS return the comprehensive default and ignore the DB override (or merge with it). Quick fix: run a one-time db.settings.update_one({_key:'seo'}, {$unset: {'value.robots_txt':1}}) so the function falls back to the rich default; or update the seed defaults at line 2179 to include the full robots policy.",
+    "FIX duplicate meta tags on listing detail: either (a) remove all per-page-variable meta/link tags (description, keywords, og:type, og:url, og:image, canonical, twitter:image, twitter:title, twitter:description) from frontend/public/index.html so they are ONLY managed by react-helmet-async, keeping just the og:site_name + theme-color + JSON-LD Organization in the static head, OR (b) add a tiny inline script in index.html that strips those tags on document load before React hydrates, OR (c) add a top-level <Helmet defaultTitle/...> with empty defaults that explicitly clears them so subsequent ListingSEO can replace cleanly.",
+    "FIX duplicate <title> in index.html: remove line 76 '<title>Emergent | Fullstack App</title>' — it overrides the proper SEO title for non-JS crawlers.",
+    "Consider adding a Firebase rewrite that routes bot user-agents on /listing/:id to /api/seo/listing/:id so AI/SEO crawlers get the prerendered HTML with embedded JSON-LD.",
+    "(Optional) Set FRONTEND_URL env var on the backend so the sitemap/robots use the correct production URL when deployed (currently defaults to https://alhraj.online which is fine if that's the prod domain)."
+  ],
+  "critical_code_review_comments": [
+    "server.py _build_robots_txt() prefers DB-stored value over default — but the seed default for that DB record (line 2179) is missing the AI-bot allowlist and Disallow rules. Either keep the rich default-only path OR sync the seed value with the rich default.",
+    "frontend/public/index.html has comprehensive static SEO tags AND the React SPA injects per-page tags via react-helmet-async — without removing the originals, BOTH coexist. Best practice: keep only invariant tags in the static head (charset, viewport, theme-color, site_name, JSON-LD Organization) and let Helmet own everything page-variable.",
+    "frontend/public/index.html has duplicate <title> tags (line 9 SEO title + line 76 'Emergent | Fullstack App'). Non-JS crawlers see the second one.",
+    "SEO.js builds keywords by deduplicating with a Set built from a comma-joined list — fine, but listing.title is also pushed into the keyword list AND is repeated as the first split token, so it appears twice slightly differently. Minor.",
+    "No alt text on the noscript fallback image in /api/seo/listing/{id} HTML beyond the title — fine, but consider adding 'aria-label' or a more descriptive alt.",
+    "Sitemap caps at 50,000 listings + 90-day cutoff — sensible. Consider sitemap index file (sitemap_index.xml) when listings >50k for proper Google submission."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter17_seo.py"
+  ],
+  "success_rate": {"backend": "85%", "frontend": "60%"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 — verified working",
+  "seed_data_creation": "None. Used existing active SA listing 0005665a-fb5c-4604-98a8-0615f4395a61 ('مياه نوفا نقية 330 مل جديدة') for the listing detail SEO verification.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Three concrete bugs found in iter-17: (1) /api/robots.txt returns DB-overridden stub missing Disallow rules + AI bot rules — DB seed at server.py line 2179 is wrong. (2) Listing detail page injects DUPLICATE meta/link tags — react-helmet-async appends but does not remove static tags from index.html. Verified via document.querySelectorAll('meta[name=description]').length === 2 etc on /listing/0005665a-fb5c-4604-98a8-0615f4395a61. Only <title> is correctly replaced (browser-level constraint). (3) Duplicate <title> in index.html (lines 9 and 76). Backend tests file at /app/backend/tests/test_iter17_seo.py — re-run after fix with: pytest /app/backend/tests/test_iter17_seo.py::TestRobots -v. JSON-LD Product schema at /api/seo/listing/{id} is correct (verified offers, seller, areaServed, priceCurrency=SAR). Sitemap is fully correct including image:image entries.",
+  "rca of the issue": "Bug 1 (robots.txt): _build_robots_txt() at server.py:2565 first checks db.settings._key=seo.value.robots_txt and returns it if set. The default seed value at line 2179 is the simple stub. Fix: either update the seed dict to include full Disallow + AI bot allowlist, OR change _build_robots_txt to always return the rich default. Bug 2 (duplicate metas): react-helmet-async only tracks DOM nodes it injects (marks them with data-rh='true'). Static tags rendered server-side (or in CRA's index.html) lack that marker, so Helmet leaves them. When ListingSEO mounts, Helmet appends new <meta> elements; querySelector returns the first match (the static one). Fix: remove per-page-variable static meta tags from index.html, leaving only invariants (charset/viewport/theme-color/Organization JSON-LD/sitemap link/og:site_name). Bug 3 (duplicate title): straight-up two <title> tags in index.html — keep line 9, delete line 76."
+}
