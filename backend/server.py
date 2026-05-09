@@ -2564,10 +2564,7 @@ async def _build_sitemap_xml() -> str:
 
 async def _build_robots_txt() -> str:
     site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
-    rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
-    if rec and rec.get("value", {}).get("robots_txt"):
-        return rec["value"]["robots_txt"]
-    return (
+    DEFAULT = (
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /admin\n"
@@ -2583,6 +2580,13 @@ async def _build_robots_txt() -> str:
         "\n"
         f"Sitemap: {site}/sitemap.xml\n"
     )
+    rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
+    if rec and rec.get("value", {}).get("robots_txt"):
+        custom = rec["value"]["robots_txt"]
+        # Only honor if custom is comprehensive (has Disallow + AI bots)
+        if "Disallow" in custom and "GPTBot" in custom:
+            return custom
+    return DEFAULT
 
 
 # Both /api/sitemap.xml and /sitemap.xml work (frontend rewrites for the latter in production)
