@@ -16,9 +16,25 @@ export default function TopBar() {
     const [searchVal, setSearchVal] = useState("");
     const [trending, setTrending] = useState([]);
     const [history, setHistory] = useState([]);
+    const [autoSugg, setAutoSugg] = useState([]);
     const ref = useRef();
     const searchRef = useRef();
     const inputRef = useRef();
+    const suggDebounce = useRef(null);
+
+    // Live autocomplete (debounced) — calls /api/search/suggest
+    useEffect(() => {
+        if (suggDebounce.current) clearTimeout(suggDebounce.current);
+        const q = (searchVal || "").trim();
+        if (q.length < 1) { setAutoSugg([]); return; }
+        suggDebounce.current = setTimeout(async () => {
+            try {
+                const r = await api.get("/search/suggest", { params: { q, limit: 8 } });
+                setAutoSugg(r.data?.items || []);
+            } catch (e) { setAutoSugg([]); }
+        }, 180);
+        return () => { if (suggDebounce.current) clearTimeout(suggDebounce.current); };
+    }, [searchVal]);
 
     useEffect(() => {
         const close = (e) => {
@@ -146,8 +162,27 @@ export default function TopBar() {
                     {/* Suggestions dropdown */}
                     {showSugg && (
                         <div data-testid="search-suggestions" className="absolute top-12 inset-x-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-2 z-50 max-h-[70vh] overflow-y-auto font-arabic-body">
-                            {history.length > 0 && (
+                            {/* Live autocomplete (typo-tolerant suggestions from active listings) */}
+                            {autoSugg.length > 0 && (
                                 <div>
+                                    <div className="px-4 py-2 text-xs text-[var(--text-muted)] flex items-center gap-1.5">
+                                        <Search className="w-3.5 h-3.5" /> {tr("اقتراحات")}
+                                    </div>
+                                    {autoSugg.map((s, idx) => (
+                                        <button
+                                            key={`as-${idx}`}
+                                            data-testid={`search-autosuggest-${idx}`}
+                                            onClick={() => submitSearch(s)}
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-start text-sm hover:bg-[var(--primary)]/10 text-[var(--text)] truncate"
+                                        >
+                                            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
+                                            <span className="truncate">{s}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {history.length > 0 && (
+                                <div className={autoSugg.length > 0 ? "border-t border-[var(--border)] mt-1 pt-1" : ""}>
                                     <div className="flex items-center justify-between px-4 py-2 text-xs text-[var(--text-muted)]">
                                         <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {tr("آخر بحوثاتك")}</span>
                                         <button data-testid="search-history-clear-all" onClick={clearAllHistory} className="text-red-500 hover:underline">{tr("مسح الكل")}</button>
@@ -175,7 +210,7 @@ export default function TopBar() {
                                     ))}
                                 </div>
                             )}
-                            {history.length === 0 && trending.length === 0 && (
+                            {history.length === 0 && trending.length === 0 && autoSugg.length === 0 && (
                                 <div className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">
                                     {tr("ابدأ بالبحث لتظهر اقتراحات هنا")}
                                 </div>

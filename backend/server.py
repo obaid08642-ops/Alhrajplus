@@ -29,6 +29,12 @@ from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from seed_data import COUNTRIES, CATEGORIES, DEFAULT_THEME
+from search_engine import (
+    normalize_arabic,
+    build_search_blob,
+    search_listings as _search_listings_engine,
+    suggest as _search_suggest_engine,
+)
 
 logger = logging.getLogger("haraj_plus")
 
@@ -1237,6 +1243,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    doc["search_blob"] = build_search_blob(doc)
     await db.listings.insert_one(doc)
     doc.pop("_id", None)
     return doc
@@ -1270,11 +1277,6 @@ async def list_listings(
         query["subcategory"] = subcategory
     if city:
         query["city"] = city
-    if q:
-        query["$or"] = [
-            {"title": {"$regex": q, "$options": "i"}},
-            {"description": {"$regex": q, "$options": "i"}},
-        ]
     if min_price is not None or max_price is not None:
         pq: dict = {}
         if min_price is not None:
@@ -1289,6 +1291,13 @@ async def list_listings(
         sort_field = [("price", -1)]
     elif sort == "popular":
         sort_field = [("views", -1)]
+
+    # Smart search (Arabic-aware + typo-tolerant) when q is provided
+    if q and q.strip():
+        items, total, fuzzy_used = await _search_listings_engine(
+            db, q.strip(), query, sort_field, limit=min(limit, 60), skip=skip
+        )
+        return {"total": total, "items": items, "fuzzy": fuzzy_used}
 
     total = await db.listings.count_documents(query)
     cursor = db.listings.find(query, {"_id": 0}).sort(sort_field).skip(skip).limit(min(limit, 60))
@@ -1889,6 +1898,10 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     old_price = item.get("price") or 0
     new_price = update_data.get("price", old_price)
+    # Refresh searchable blob if any text-bearing field changed
+    if any(k in update_data for k in ("title", "description", "category", "subcategory", "city", "district", "custom_fields")):
+        merged = {**item, **update_data}
+        update_data["search_blob"] = build_search_blob(merged)
     await db.listings.update_one({"id": listing_id}, {"$set": update_data})
     # Price drop alert: notify watchers when price decreases by ≥1%
     try:
@@ -2465,6 +2478,15 @@ async def trending_searches(limit: int = 10):
     return [{"query": it["q"], "count": it.get("count", 0)} for it in items]
 
 
+@api.get("/search/suggest")
+async def search_suggest(q: str, country_code: Optional[str] = None, limit: int = 8):
+    """Autocomplete suggestions from active listing titles (Arabic-normalized)."""
+    if not q or not q.strip():
+        return {"items": []}
+    items = await _search_suggest_engine(db, q.strip(), country_code, limit=max(1, min(limit, 20)))
+    return {"items": items}
+
+
 @api.get("/search/history")
 async def search_history(request: Request, limit: int = 10):
     user = await _get_user_from_cookie(request)
@@ -2705,6 +2727,7 @@ async def startup():
     await db.listings.create_index([("category", 1), ("city", 1), ("created_at", -1)])
     await db.listings.create_index([("country_code", 1), ("status", 1)])
     await db.listings.create_index([("title", "text"), ("description", "text")])
+    await db.listings.create_index("search_blob")
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
     await db.conversations.create_index("id", unique=True)
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
@@ -2759,6 +2782,9 @@ async def startup():
     # Backfill referral codes for users without one
     async for u in db.users.find({"referral_code": {"$exists": False}}, {"_id": 0, "id": 1, "name": 1}):
         await db.users.update_one({"id": u["id"]}, {"$set": {"referral_code": gen_referral_code(u.get("name", "USER"))}})
+    # Backfill search_blob on existing listings (one-time, idempotent)
+    async for l in db.listings.find({"search_blob": {"$exists": False}}, {"_id": 0}):
+        await db.listings.update_one({"id": l["id"]}, {"$set": {"search_blob": build_search_blob(l)}})
     # Seed sample ad
     if await db.ads.count_documents({}) == 0:
         await db.ads.insert_one({

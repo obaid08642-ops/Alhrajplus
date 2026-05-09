@@ -1,0 +1,37 @@
+{
+  "summary": "Iter-18 Smart Search Engine (Arabic-aware + typo-tolerant) backend testing — 18/18 PASS (100%). Verified: (1) exact Arabic match (q=مرسيدس) returns relevant listings with fuzzy=false and proper response shape {total, items, fuzzy}; (2) Arabic typo (q=مرسيدسس with extra letter) returns same listings via RapidFuzz fallback with fuzzy=true; (3) Arabic letter normalization works — إيفون / أيفون / آيفون / ايفون all match same listing as exact (fuzzy=false); (4) Arabic-Indic digit normalization works (٢٠٠ → 200, and reverse); (5) English exact (republish) and English typo (republsh→fuzzy=true) both work; (6) nonsense query (xyzqwerty) returns total=0, fuzzy=false, items=[]; (7) GET /api/listings without q regression — returns all listings without breaking; (8) q + category filter combination respects both (exact and fuzzy paths); (9) /api/search/suggest returns {items: [...]} for prefix; empty q returns {items: []}; limit cap honored; (10) POST /api/listings populates search_blob in response and the listing is immediately searchable by unique title token; (11) PUT /api/listings/{id} updating title refreshes search_blob — new title is searchable, old title no longer exact-matches; (12) regression endpoints search/trending, search/log, search/history all work. RapidFuzz threshold (75) tuned correctly; min_score using max(WRatio_on_title, partial_ratio_per_word) handles 1-letter typos in short Arabic words.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter18_search.py",
+    "/app/test_reports/pytest/iter18_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "search_engine.py is clean and well-isolated (~185 lines): normalization rules, blob builder, exact regex + fuzzy fallback, suggest. No business logic mixed in.",
+    "Index on db.listings.search_blob created at startup (server.py:2730) — good. Backfill on startup (server.py:2785-2787) is idempotent ($exists:False guard) — safe to re-run.",
+    "_fuzzy_fallback uses candidate_pool=4000 most-recent listings — fine now (~30 listings), but at scale this in-Python scan will be the bottleneck. Consider gating fuzzy on a smaller pre-filtered candidate set (e.g., $text or first-letter prefix narrowing) when listings >50K.",
+    "_exact_search uses re.escape(token) inside $regex without ^/$ anchors — substring match across the whole search_blob. Combined with the search_blob storing all fields concatenated, this is correct behavior. The Mongo regex is NOT anchored to word boundaries, so 'سي' could match inside 'سيارة'; that is desirable for Arabic morphology but worth documenting.",
+    "build_search_blob includes custom_fields values via str(v) — note: for nested dicts/lists the str() will include Python repr (curly braces, quotes). Acceptable since regex match still finds the substrings, but a recursive flatten would be cleaner.",
+    "On update path (server.py:1902), search_blob is refreshed only when one of (title, description, category, subcategory, city, district, custom_fields) is in update_data. Price/image-only edits correctly skip the rebuild — efficient.",
+    "Response shape is inconsistent: GET /api/listings WITH q returns {total, items, fuzzy}, WITHOUT q returns {total, items} (no fuzzy key). Frontend should treat fuzzy as optional. Not a bug, but worth noting in API docs.",
+    "search/suggest does not honor the seller's listing.status filter beyond 'active' — listings under moderation review (moderation='pending') with status='active' will appear in suggestions. Probably fine for autocomplete; just flagging."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter18_search.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "not tested (skipped per request)"},
+  "test_credentials": "admin@harajplus.com / Admin@HarajPlus2026 — verified working",
+  "seed_data_creation": "Tests create 4 TEST_SEARCH_* listings (2 mercedes cars, 1 iphone, 1 republish) and clean up via DELETE in teardown. Index-hook tests create/delete temporary listings with unique markers (زمرد_خاص, ياقوت_فريد, زبرجد_جديد). All test data is cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter-18 search engine fully verified end-to-end via external REACT_APP_BACKEND_URL. Test file: /app/backend/tests/test_iter18_search.py (18 tests, ~5s runtime). Two API contract notes for next agent: (a) POST /api/search/log uses field 'query' (not 'q') — see SearchLogIn model. (b) GET /api/listings/{id} category whitelist comes from /api/meta/categories (slugs: cars, realestate, electronics, jobs, services, furniture, livestock, personal, auctions, books, games, garden, sports, kids). 'other' is NOT a valid category. Subcategory is loosely validated. The search_blob is correctly created on POST and refreshed on PUT — confirmed by searching unique title markers immediately after the mutation (with 0.3-0.5s latency to allow Mongo write to commit). Regression with previous iter-17 SEO bugs (robots.txt + duplicate metas) was NOT re-checked here — that is still pending main agent fix.",
+  "rca of the issue": "No issues found. Initial test failures during dev were entirely test-script issues: (1) used invalid category slug 'other' (real list does not include it) — fixed to 'personal'. (2) /api/search/log expects body field 'query' not 'q' — fixed. After both fixes, 18/18 tests pass."
+}

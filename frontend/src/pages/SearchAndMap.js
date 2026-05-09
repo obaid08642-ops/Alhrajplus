@@ -55,6 +55,7 @@ export function SearchPage() {
     const { t, tr } = useI18n();
     const [q, setQ] = useState(searchParams.get("q") || "");
     const [results, setResults] = useState([]);
+    const [fuzzy, setFuzzy] = useState(false);
     const [loading, setLoading] = useState(false);
     const [voiceActive, setVoiceActive] = useState(false);
 
@@ -65,6 +66,7 @@ export function SearchPage() {
                 const params = { q: q || undefined, country_code: user?.country_code, limit: 30 };
                 const { data } = await api.get("/listings", { params });
                 setResults(data.items);
+                setFuzzy(Boolean(data.fuzzy));
             } catch (_) {} finally { setLoading(false); }
         };
         search();
@@ -103,6 +105,13 @@ export function SearchPage() {
             </div>
 
             <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{q ? `نتائج: "${q}"` : "كل الإعلانات"} <span className="text-sm text-[var(--text-muted)]">({results.length})</span></h2>
+
+            {fuzzy && q && results.length > 0 && (
+                <div data-testid="fuzzy-match-banner" className="mb-3 px-4 py-2.5 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl text-sm text-[var(--text)] font-arabic-body flex items-center gap-2">
+                    <SearchIcon className="w-4 h-4 text-[var(--accent)] shrink-0" />
+                    <span>{tr("لم نجد نتائج مطابقة بالضبط، عرضنا نتائج مشابهة لـ")} <strong>"{q}"</strong></span>
+                </div>
+            )}
 
             {loading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
