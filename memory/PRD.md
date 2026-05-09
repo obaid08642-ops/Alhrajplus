@@ -20,6 +20,17 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 
 ## ✅ Session 16 — Feb 2026 — Trip.com Image Ads + Smart Similar + Phone Editor + Email Digest
 
+### 🔍 Smart Search Engine (Elasticsearch alternative — Feb 2026)
+- ✅ New `/app/backend/search_engine.py` (~185 lines): Arabic normalization + RapidFuzz fuzzy fallback + autocomplete
+- ✅ Arabic letter normalization: إأٱآ→ا, ى→ي, ة→ه, removes tashkeel + tatweel
+- ✅ Arabic-Indic digit normalization (٠١٢٣٤٥٦٧٨٩ → 0123456789, both directions)
+- ✅ Denormalized `search_blob` field on listings (auto-built on POST/PUT, indexed)
+- ✅ Two-stage search: (1) fast Mongo regex on `search_blob`, (2) RapidFuzz fallback for typos (WRatio + per-word partial_ratio, threshold 75)
+- ✅ `GET /api/listings?q=…` returns `{total, items, fuzzy:bool}` — fuzzy=true when typo fallback was used
+- ✅ `GET /api/search/suggest?q=…` autocomplete from active listing titles
+- ✅ Frontend: live debounced autocomplete in TopBar; "did you mean" banner on /search page when fuzzy=true
+- ✅ Backend tested 18/18 PASS (iter-18) — Arabic exact + typos + alef variants + digit normalization + English + nonsense + create/update hooks all verified
+
 ### 🖼️ Trip.com Banner Fix (white box → real banner)
 - ❌ Previous: iframe of `trip.com/partners/ad/DB16696577` was blocked by X-Frame-Options → showed white box
 - ✅ Now: stored as `ad_type="image"` with user-uploaded banner URL (`customer-assets.emergentagent.com/.../qxdi93hp_IMG_2109.jpeg`) wrapping link to affiliate `https://www.trip.com/t/AYKu00NZbU2`
