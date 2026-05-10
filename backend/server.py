@@ -2859,3 +2859,11 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     client.close()
+
+
+# Allow `python server.py` to start a dev server too (in addition to uvicorn CLI).
+# Cloud Run injects PORT=8080; locally we fall back to 8001 to match supervisor.
+if __name__ == "__main__":
+    import uvicorn as _uvicorn
+    _port = int(os.environ.get("PORT", "8001"))
+    _uvicorn.run("server:app", host="0.0.0.0", port=_port, workers=1, proxy_headers=True)

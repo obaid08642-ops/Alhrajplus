@@ -1,0 +1,41 @@
+# render.yaml — Render.com Blueprint (alternative to Cloud Run)
+# Deploy: connect GitHub repo on Render, it auto-detects this file.
+
+services:
+  - type: web
+    name: haraj-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # 0.5 CPU / 512 MB — enough for staging
+    region: frankfurt        # or singapore / oregon
+    healthCheckPath: /api/sitemap.xml
+    autoDeploy: true
+    envVars:
+      - key: MONGO_URL
+        sync: false          # set in Render dashboard
+      - key: DB_NAME
+        value: haraj_plus_db
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a secure value
+      - key: ADMIN_EMAIL
+        value: admin@harajplus.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        value: Haraj Plus <noreply@alhraj.online>
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://alhraj.online
+      - key: APP_ENV
+        value: production

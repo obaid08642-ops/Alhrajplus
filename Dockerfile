@@ -1,42 +1,48 @@
-# Multi-stage build for FastAPI backend on Google Cloud Run
-FROM python:3.11-slim AS base
+# Dockerfile for Haraj Plus FastAPI backend on Google Cloud Run
+#
+# Why WORKDIR=/app/backend (not /app)?
+#   server.py uses bare imports like `from seed_data import ...` and
+#   `from search_engine import ...`. Python finds these only when
+#   /app/backend is in sys.path — which happens when WORKDIR is set to
+#   /app/backend and the entry command is `uvicorn server:app`.
+#   This matches the local supervisor setup exactly, so behaviour
+#   on Cloud Run mirrors local dev.
+
+FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-WORKDIR /app
-
-# System deps for cryptography, image libs, etc.
+# System deps required by some Python packages (bcrypt, pillow, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python deps first (cached layer)
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 1. Install dependencies (cached layer)
+WORKDIR /app
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
-# Install emergentintegrations (Emergent's universal LLM key wrapper).
-# NOTE: emergentintegrations only works inside Emergent platform.
-# For external deployment (Cloud Run), AI features fall back to direct
-# provider SDKs via GEMINI_API_KEY / OPENAI_API_KEY env vars.
+# 2. Install emergentintegrations from Emergent's public CloudFront index.
+#    `|| true` so the build never fails if the index is unreachable —
+#    AI endpoints will return 503 in that case but the server still runs.
 RUN pip install --no-cache-dir emergentintegrations \
     --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/ || true
 
-# Copy application code
-COPY backend/ ./backend/
+# 3. Copy application code
+COPY backend/ /app/backend/
 
-# Cloud Run injects PORT env var (default 8080). EXPOSE is informational.
+# 4. Switch to the backend directory so Python imports resolve
+#    exactly like in local dev (sys.path includes /app/backend).
+WORKDIR /app/backend
+
+# Cloud Run injects PORT=8080. EXPOSE is purely informational.
 EXPOSE 8080
 
-# IMPORTANT: do NOT hardcode the port. Cloud Run sets PORT=8080 at runtime.
-# Single worker is recommended on Cloud Run (it scales by replicas, not workers),
-# and async FastAPI handles concurrency via the event loop.
-CMD exec uvicorn backend.server:app \
-    --host 0.0.0.0 \
-    --port ${PORT:-8080} \
-    --workers 1 \
-    --proxy-headers \
-    --forwarded-allow-ips='*'
+# Use shell form via `sh -c` to expand ${PORT}. `exec` makes uvicorn
+# PID 1 inside the shell, so it receives SIGTERM cleanly on revision
+# replacement (Cloud Run sends SIGTERM with a 10s grace period).
+CMD ["sh", "-c", "exec uvicorn server:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
