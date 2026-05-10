@@ -5,6 +5,19 @@
 
 ---
 
+## 🔴 Why "failed to start and listen on the port" was happening — FIXED
+
+Cloud Run kills any container that doesn't bind to `$PORT` within ~240s. Three things were causing the import to crash before uvicorn could bind:
+
+| Cause (before) | Fix applied |
+|---|---|
+| `os.environ["MONGO_URL"]` etc. raised `KeyError` if a single secret was missing | Replaced with safe `_env(...)` helper — logs a warning, does NOT crash |
+| `client = AsyncIOMotorClient(MONGO_URL)` had no `serverSelectionTimeoutMS` → driver hung 30+s on bad URL | Added `serverSelectionTimeoutMS=8000, connectTimeoutMS=10000` |
+| `@app.on_event("startup")` ran `create_index` calls that hung if Mongo was unreachable | Wrapped in `_safe_index` + 8s ping probe; failures are logged, port still binds |
+| `emergentintegrations==0.1.0` pinned in `requirements.txt` (unavailable on PyPI) | Removed from `requirements.txt`; Dockerfile installs separately with `\|\| true` |
+
+**After these fixes**: even with WRONG `MONGO_URL`, the container starts, binds the port, and only the MongoDB-dependent endpoints fail (with proper error messages). You'll see real errors instead of "failed to listen on port".
+
 ## ✅ What this codebase already handles for you
 
 | Concern | Status | Where |

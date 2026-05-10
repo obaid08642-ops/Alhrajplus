@@ -39,21 +39,33 @@ from search_engine import (
 logger = logging.getLogger("haraj_plus")
 
 # ============================================================
-# Configuration
+# Configuration — fail-soft: missing env vars log a warning but
+# do NOT crash the app at import time (which would prevent uvicorn
+# from binding the PORT and trigger Cloud Run's "failed to listen
+# on the port" error before logs even appear).
 # ============================================================
 ROOT_DIR = Path(__file__).parent
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
-JWT_SECRET = os.environ["JWT_SECRET"]
-JWT_ALGORITHM = "HS256"
-ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
-ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 
-# Cloudinary
+def _env(key: str, *, required: bool = False, default: str = "") -> str:
+    val = os.environ.get(key, default)
+    if required and not val:
+        # Log loudly but DO NOT raise — startup hook will fail clearly later.
+        logging.basicConfig(level=logging.INFO)
+        logger.error(f"[config] MISSING required env var: {key}")
+    return val
+
+MONGO_URL = _env("MONGO_URL", required=True, default="mongodb://localhost:27017")
+DB_NAME = _env("DB_NAME", required=True, default="haraj_plus_db")
+JWT_SECRET = _env("JWT_SECRET", required=True, default="change-me-in-production")
+JWT_ALGORITHM = "HS256"
+ADMIN_EMAIL = _env("ADMIN_EMAIL", default="admin@harajplus.com")
+ADMIN_PASSWORD = _env("ADMIN_PASSWORD", default="Admin@HarajPlus2026")
+
+# Cloudinary — config is lazy; missing keys only fail when an upload is attempted
 cloudinary.config(
-    cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"],
-    api_key=os.environ["CLOUDINARY_API_KEY"],
-    api_secret=os.environ["CLOUDINARY_API_SECRET"],
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
+    api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""),
     secure=True,
 )
 
@@ -81,7 +93,13 @@ SNAPCHAT_CLIENT_ID = os.environ.get("SNAPCHAT_CLIENT_ID", "").strip()
 SNAPCHAT_CLIENT_SECRET = os.environ.get("SNAPCHAT_CLIENT_SECRET", "").strip()
 
 # DB
-client = AsyncIOMotorClient(MONGO_URL)
+client = AsyncIOMotorClient(
+    MONGO_URL,
+    serverSelectionTimeoutMS=8000,  # fail fast (8s) on bad/unreachable URL
+    connectTimeoutMS=10000,
+    socketTimeoutMS=20000,
+    retryWrites=True,
+)
 db = client[DB_NAME]
 
 # ============================================================
@@ -2719,15 +2737,35 @@ app.include_router(api)
 
 @app.on_event("startup")
 async def startup():
+    """
+    Best-effort startup: index creation and seeding errors are logged but do NOT
+    prevent the server from binding the port. Cloud Run's startup probe expects
+    the container to be listening within ~240s; blocking on Mongo here would
+    surface as 'failed to start and listen on the port'.
+    """
+    try:
+        # Probe Mongo with a short timeout — if it fails we still come up so
+        # the platform can show a useful error in the response body.
+        await asyncio.wait_for(client.admin.command("ping"), timeout=8.0)
+    except Exception as e:
+        logger.error(f"[startup] Mongo ping failed (continuing anyway): {e}")
+        return
+
+    async def _safe_index(coll, *args, **kwargs):
+        try:
+            await coll.create_index(*args, **kwargs)
+        except Exception as e:
+            logger.warning(f"[startup] index failed on {coll.name}: {e}")
+
     # Indexes
-    await db.users.create_index("email", unique=True)
-    await db.users.create_index("phone_full")
-    await db.users.create_index("id", unique=True)
-    await db.listings.create_index("id", unique=True)
-    await db.listings.create_index([("category", 1), ("city", 1), ("created_at", -1)])
-    await db.listings.create_index([("country_code", 1), ("status", 1)])
-    await db.listings.create_index([("title", "text"), ("description", "text")])
-    await db.listings.create_index("search_blob")
+    await _safe_index(db.users, "email", unique=True)
+    await _safe_index(db.users, "phone_full")
+    await _safe_index(db.users, "id", unique=True)
+    await _safe_index(db.listings, "id", unique=True)
+    await _safe_index(db.listings, [("category", 1), ("city", 1), ("created_at", -1)])
+    await _safe_index(db.listings, [("country_code", 1), ("status", 1)])
+    await _safe_index(db.listings, [("title", "text"), ("description", "text")])
+    await _safe_index(db.listings, "search_blob")
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
     await db.conversations.create_index("id", unique=True)
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
