@@ -230,6 +230,7 @@ export default function Spin360Viewer({ images = [], onClose }) {
         };
 
         return () => {
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             stateRef.current.rendererCleanup?.();
         };
     }, [images]);

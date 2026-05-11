@@ -66,6 +66,7 @@ export default function PostListing() {
                 show_phone: data.show_phone !== false,
             });
         }).catch(() => alert(tr("تعذر تحميل الإعلان")));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editId]);
 
     useEffect(() => {

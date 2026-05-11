@@ -108,6 +108,18 @@ db = client[DB_NAME]
 app = FastAPI(title="Haraj Plus API", version="1.0")
 api = APIRouter(prefix="/api")
 
+
+@api.get("/health", include_in_schema=False)
+async def health_api():
+    """DB-aware health check. Returns 200 even if DB is slow — frontend just needs proof the server is up."""
+    db_ok = False
+    try:
+        await asyncio.wait_for(client.admin.command("ping"), timeout=2.0)
+        db_ok = True
+    except Exception:
+        db_ok = False
+    return {"status": "ok", "db": "up" if db_ok else "down"}
+
 # Default CORS origins (production domains pre-wired so it works after migration without code edits)
 # Render allows the backend to receive requests from any of these by default.
 # To override, set CORS_ORIGINS env var as a comma-separated list (e.g. "https://my-app.vercel.app,https://alhraj.online")
@@ -137,6 +149,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================
+# Health endpoints (used by Render keep-alive cron / Vercel health checks)
+# Both /health (root) and /api/health (api router) are exposed so any
+# uptime monitor or rewrite rule works without extra config.
+# Lightweight — no DB hit on the root endpoint so cold-start ping is fast.
+# ============================================================
+@app.get("/health", include_in_schema=False)
+async def health_root():
+    return {"status": "ok", "service": "haraj-plus-backend"}
+
+
+@app.get("/", include_in_schema=False)
+async def root_index():
+    return {"status": "ok", "service": "haraj-plus-backend", "docs": "/docs"}
 
 
 # ============================================================

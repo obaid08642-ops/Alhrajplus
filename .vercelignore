@@ -1,0 +1,24 @@
+# Speed up Vercel deploys by excluding everything not needed for the frontend build
+backend/
+mobile/
+scripts/
+test_reports/
+tests/
+memory/
+*.md
+Dockerfile
+cloudbuild.yaml
+Procfile
+render.yaml
+firebase.json
+.firebaserc
+__pycache__/
+*.pyc
+node_modules/
+frontend/node_modules/
+frontend/build/
+.env
+.env.local
+.git
+.github
+.emergent
