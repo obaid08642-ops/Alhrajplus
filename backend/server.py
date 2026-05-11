@@ -108,12 +108,31 @@ db = client[DB_NAME]
 app = FastAPI(title="Haraj Plus API", version="1.0")
 api = APIRouter(prefix="/api")
 
-# Default CORS origins (production domain pre-wired so it works after migration without code edits)
-DEFAULT_CORS = "https://alhraj.online,https://www.alhraj.online,https://haraj-plus.web.app,https://haraj-plus.firebaseapp.com,*"
+# Default CORS origins (production domains pre-wired so it works after migration without code edits)
+# Render allows the backend to receive requests from any of these by default.
+# To override, set CORS_ORIGINS env var as a comma-separated list (e.g. "https://my-app.vercel.app,https://alhraj.online")
+DEFAULT_CORS = ",".join([
+    "https://alhraj.online",
+    "https://www.alhraj.online",
+    "https://haraj-plus.web.app",
+    "https://haraj-plus.firebaseapp.com",
+    # Vercel preview + production (wildcards not supported by FastAPI CORS — match exact subdomains via regex below)
+    "https://haraj-plus.vercel.app",
+    "https://alhrajplus.vercel.app",
+    # Hostinger (when user moves there)
+    "https://alhrajplus.com",
+    "https://www.alhrajplus.com",
+    # Local dev
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+])
 cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", DEFAULT_CORS).split(",") if o.strip()]
+# Matches any *.vercel.app preview URL (e.g. haraj-plus-git-main-user.vercel.app)
+_CORS_REGEX = os.environ.get("CORS_ORIGIN_REGEX", r"https://.*\.vercel\.app$")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if "*" not in cors_origins else ["*"],
+    allow_origin_regex=_CORS_REGEX if "*" not in cors_origins else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
