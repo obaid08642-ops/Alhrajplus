@@ -110,6 +110,7 @@ api = APIRouter(prefix="/api")
 
 
 @api.get("/health", include_in_schema=False)
+@api.head("/health", include_in_schema=False)
 async def health_api():
     """DB-aware health check. Returns 200 even if DB is slow — frontend just needs proof the server is up."""
     db_ok = False
@@ -158,11 +159,13 @@ app.add_middleware(
 # Lightweight — no DB hit on the root endpoint so cold-start ping is fast.
 # ============================================================
 @app.get("/health", include_in_schema=False)
+@app.head("/health", include_in_schema=False)
 async def health_root():
     return {"status": "ok", "service": "haraj-plus-backend"}
 
 
 @app.get("/", include_in_schema=False)
+@app.head("/", include_in_schema=False)
 async def root_index():
     return {"status": "ok", "service": "haraj-plus-backend", "docs": "/docs"}
 
@@ -303,16 +306,19 @@ async def send_daily_digest_to(user_id: str) -> bool:
 
 # Public endpoint to trigger daily digest (called by Cloud Scheduler / cron at 8 PM)
 @api.post("/cron/daily-digest")
+@api.get("/cron/daily-digest")
 async def cron_daily_digest(request: Request):
     """
     Send daily digest to all active sellers. Protected by CRON_SECRET header.
-    Setup with Cloud Scheduler: HTTP POST every day at 20:00.
-    Header: X-Cron-Secret: <CRON_SECRET env var>
+    Setup with Cloud Scheduler / cron-job.org: HTTP GET or POST every day at 20:00.
+    Authentication: pass the secret via either:
+      - Header:  X-Cron-Secret: <CRON_SECRET>
+      - Query:   ?secret=<CRON_SECRET>   (handy for cron-job.org / UptimeRobot)
     """
-    secret_header = request.headers.get("X-Cron-Secret", "")
+    secret_header = request.headers.get("X-Cron-Secret", "") or request.query_params.get("secret", "")
     expected = os.environ.get("CRON_SECRET", "")
     if not expected or secret_header != expected:
-        raise HTTPException(403, "Forbidden")
+        raise HTTPException(403, "Forbidden — provide a valid X-Cron-Secret header or ?secret= query param")
     # Find all users who have at least one active listing
     pipeline = [
         {"$match": {"status": "active"}},
