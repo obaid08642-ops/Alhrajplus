@@ -2,38 +2,74 @@
     "expo": {
         "name": "الحراج بلس",
         "slug": "haraj-plus",
+        "owner": "harajplus",
         "version": "1.0.0",
         "orientation": "portrait",
         "icon": "./assets/icon.png",
         "userInterfaceStyle": "automatic",
+        "scheme": "harajplus",
         "splash": {
             "image": "./assets/splash.png",
             "resizeMode": "contain",
             "backgroundColor": "#0F1A35"
         },
         "assetBundlePatterns": ["**/*"],
+        "updates": {
+            "fallbackToCacheTimeout": 0
+        },
         "ios": {
             "supportsTablet": true,
             "bundleIdentifier": "com.harajplus.app",
+            "buildNumber": "1",
             "infoPlist": {
-                "NSLocationWhenInUseUsageDescription": "يستخدم التطبيق موقعك لعرض الإعلانات القريبة",
+                "NSLocationWhenInUseUsageDescription": "يستخدم التطبيق موقعك لعرض الإعلانات القريبة منك",
                 "NSCameraUsageDescription": "يستخدم التطبيق الكاميرا لإضافة صور للإعلانات",
-                "NSPhotoLibraryUsageDescription": "يستخدم التطبيق مكتبة الصور لإضافة صور للإعلانات"
+                "NSPhotoLibraryUsageDescription": "يستخدم التطبيق مكتبة الصور لإضافة صور للإعلانات",
+                "NSMicrophoneUsageDescription": "يستخدم التطبيق الميكروفون لتسجيل الرسائل الصوتية في الشات",
+                "NSFaceIDUsageDescription": "يستخدم التطبيق Face ID لتسجيل الدخول الآمن",
+                "ITSAppUsesNonExemptEncryption": false
             }
         },
         "android": {
             "package": "com.harajplus.app",
+            "versionCode": 1,
             "adaptiveIcon": {
                 "foregroundImage": "./assets/adaptive-icon.png",
                 "backgroundColor": "#4FB6E6"
             },
-            "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA", "READ_EXTERNAL_STORAGE"]
+            "permissions": [
+                "ACCESS_COARSE_LOCATION",
+                "ACCESS_FINE_LOCATION",
+                "CAMERA",
+                "RECORD_AUDIO",
+                "READ_EXTERNAL_STORAGE",
+                "WRITE_EXTERNAL_STORAGE",
+                "USE_BIOMETRIC",
+                "USE_FINGERPRINT",
+                "VIBRATE"
+            ],
+            "googleServicesFile": "./google-services.json"
         },
         "web": {
             "favicon": "./assets/favicon.png"
         },
+        "plugins": [
+            "expo-secure-store",
+            "expo-local-authentication",
+            "expo-notifications",
+            [
+                "expo-image-picker",
+                {
+                    "photosPermission": "يحتاج التطبيق إذنك للوصول إلى الصور لرفع إعلاناتك",
+                    "cameraPermission": "يحتاج التطبيق إذنك لاستخدام الكاميرا لإضافة صور للإعلانات"
+                }
+            ]
+        ],
         "extra": {
-            "backendUrl": "https://platform-inspect.preview.emergentagent.com"
+            "backendUrl": "https://alhrajplus.onrender.com",
+            "eas": {
+                "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
+            }
         }
     }
 }

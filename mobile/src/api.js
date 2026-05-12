@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const BACKEND_URL =
     Constants.expoConfig?.extra?.backendUrl ||
     Constants.manifest?.extra?.backendUrl ||
-    "https://platform-inspect.preview.emergentagent.com";
+    "https://alhrajplus.onrender.com";
 
 const api = axios.create({
     baseURL: `${BACKEND_URL}/api`,
