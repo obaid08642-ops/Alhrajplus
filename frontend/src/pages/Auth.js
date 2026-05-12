@@ -5,10 +5,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import api, { formatApiError } from "@/lib/api";
 
-// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-function startGoogleLogin() {
-    const redirectUrl = window.location.origin + "/";
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+// Direct Google OAuth — no third-party auth proxy.
+// Backend exposes /api/auth/google/start which returns a Google consent URL.
+async function startGoogleLogin() {
+    try {
+        const { data } = await api.get("/auth/google/start");
+        if (data?.auth_url) {
+            window.location.href = data.auth_url;
+        } else {
+            alert(tr("تعذر بدء تسجيل الدخول بـ Google"));
+        }
+    } catch (e) {
+        alert(tr("Google OAuth غير مُعد على الخادم. تواصل مع الدعم."));
+    }
 }
 
 function SocialLoginButtons() {

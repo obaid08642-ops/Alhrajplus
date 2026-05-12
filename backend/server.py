@@ -24,6 +24,7 @@ from typing import Optional, List
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, APIRouter
+from fastapi.responses import RedirectResponse, HTMLResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -76,10 +77,9 @@ if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
 # Emergent Auth
-EMERGENT_AUTH_URL = os.environ.get(
-    "EMERGENT_AUTH_URL",
-    "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
-).strip()
+# Emergent Auth — DEPRECATED (kept for backward compat only; not used).
+# Google OAuth is now handled directly — see /api/auth/google/start and /callback.
+EMERGENT_AUTH_URL = ""
 
 # Emergent LLM Key (for AI features)
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
@@ -1013,55 +1013,44 @@ async def expo_send_push(tokens: list, title: str, body: str, data: Optional[dic
 
 
 # ============================================================
-# Google OAuth (Emergent-managed)
+# Google OAuth — Direct (no third-party auth proxy)
+# Flow:
+#   1. Frontend → GET  /api/auth/google/start         → returns auth_url
+#   2. Browser  → Google consent screen
+#   3. Google   → GET  /api/auth/google/callback?code=... → backend exchanges code,
+#                  sets httpOnly cookies, then 302-redirects to FRONTEND_URL.
 # ============================================================
-class GoogleAuthIn(BaseModel):
-    session_id: str
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+GOOGLE_REDIRECT_URI = os.environ.get(
+    "GOOGLE_REDIRECT_URI",
+    "https://alhrajplus.onrender.com/api/auth/google/callback",
+).strip()
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
-@api.post("/auth/google")
-async def google_auth(body: GoogleAuthIn, response: Response):
-    """Exchange Emergent session_id for our JWT. Creates user if new, links if email exists."""
-    if not body.session_id:
-        raise HTTPException(400, "session_id required")
-    # Call Emergent backend to get user data
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client_http:
-            r = await client_http.get(
-                EMERGENT_AUTH_URL,
-                headers={"X-Session-ID": body.session_id},
-            )
-        if r.status_code != 200:
-            raise HTTPException(401, "فشل التحقق من Google")
-        info = r.json()
-    except httpx.HTTPError as e:
-        logger.error(f"[GoogleAuth] HTTP error: {e}")
-        raise HTTPException(502, "تعذر الاتصال بخدمة المصادقة")
 
-    g_email = (info.get("email") or "").lower().strip()
-    g_name = info.get("name") or "مستخدم"
-    g_picture = info.get("picture")
-    if not g_email:
-        raise HTTPException(400, "لا يوجد بريد إلكتروني من Google")
-
+async def _upsert_google_user(g_email: str, g_name: str, g_picture: Optional[str]) -> dict:
+    """Find or create the user record from a verified Google identity."""
+    g_email = g_email.lower().strip()
     user = await db.users.find_one({"email": g_email})
     if user:
-        # Link Google + update avatar if missing
         upd: dict = {"google_linked": True}
         if not user.get("avatar_url") and g_picture:
             upd["avatar_url"] = g_picture
         await db.users.update_one({"id": user["id"]}, {"$set": upd})
     else:
-        # Create new user from Google profile
         uid = str(uuid.uuid4())
         user = {
             "id": uid,
-            "name": g_name,
+            "name": g_name or "مستخدم",
             "email": g_email,
             "phone": "",
             "country_code": "SA",
             "phone_full": "",
             "city": None,
-            # placeholder unverifiable hash so password login is disabled until reset
+            # disabled-password placeholder — user must use Google or password-reset
             "password_hash": hash_password(secrets.token_urlsafe(24)),
             "role": "user",
             "verified": False,
@@ -1071,21 +1060,114 @@ async def google_auth(body: GoogleAuthIn, response: Response):
             "language": "ar",
             "banned": False,
             "google_linked": True,
-            "referral_code": gen_referral_code(g_name),
+            "referral_code": gen_referral_code(g_name or "USER"),
             "referred_by": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         await db.users.insert_one(user)
-
     if user.get("banned"):
         raise HTTPException(403, "تم حظر حسابك")
+    return user
 
+
+@api.get("/auth/google/start")
+async def google_oauth_start(request: Request):
+    """Return Google OAuth consent URL with a CSRF state token cookie."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(503, "Google OAuth غير مُعد على الخادم")
+    state = secrets.token_urlsafe(32)
+    # Store state in MongoDB (short TTL) so it survives across the auth redirect
+    await db.google_oauth_states.insert_one({
+        "state": state,
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+    })
+    from urllib.parse import urlencode
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "online",
+        "include_granted_scopes": "true",
+        "prompt": "select_account",
+        "state": state,
+    }
+    return {"auth_url": f"{GOOGLE_AUTH_URL}?{urlencode(params)}"}
+
+
+@app.get("/api/auth/google/callback", include_in_schema=False)
+async def google_oauth_callback(code: str = "", state: str = "", error: str = ""):
+    """
+    Google redirects here with ?code & ?state. We exchange the code for tokens,
+    fetch the user profile, upsert in DB, set JWT cookies, then 302 → FRONTEND_URL.
+    """
+    frontend = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    if error:
+        return RedirectResponse(f"{frontend}/login?error={error}")
+    if not code or not state:
+        return RedirectResponse(f"{frontend}/login?error=missing_code")
+    # CSRF check
+    found = await db.google_oauth_states.find_one_and_delete({"state": state})
+    if not found:
+        return RedirectResponse(f"{frontend}/login?error=invalid_state")
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return RedirectResponse(f"{frontend}/login?error=server_misconfigured")
+
+    # Exchange code → tokens
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client_http:
+            tok_res = await client_http.post(
+                GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": GOOGLE_REDIRECT_URI,
+                    "grant_type": "authorization_code",
+                },
+            )
+        if tok_res.status_code != 200:
+            logger.error(f"[GoogleOAuth] token exchange {tok_res.status_code}: {tok_res.text[:300]}")
+            return RedirectResponse(f"{frontend}/login?error=token_exchange")
+        tokens = tok_res.json()
+        access_token = tokens.get("access_token", "")
+        if not access_token:
+            return RedirectResponse(f"{frontend}/login?error=no_access_token")
+        # Fetch userinfo
+        async with httpx.AsyncClient(timeout=15.0) as client_http:
+            info_res = await client_http.get(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        if info_res.status_code != 200:
+            return RedirectResponse(f"{frontend}/login?error=userinfo_failed")
+        info = info_res.json()
+    except httpx.HTTPError as e:
+        logger.error(f"[GoogleOAuth] HTTP error: {e}")
+        return RedirectResponse(f"{frontend}/login?error=network")
+
+    g_email = info.get("email") or ""
+    if not g_email:
+        return RedirectResponse(f"{frontend}/login?error=no_email")
+
+    try:
+        user = await _upsert_google_user(g_email, info.get("name") or "", info.get("picture"))
+    except HTTPException:
+        return RedirectResponse(f"{frontend}/login?error=banned")
+
+    # Issue our JWTs as cookies, then redirect home
     access = create_access_token(user["id"], g_email, user.get("role", "user"))
     refresh = create_refresh_token(user["id"])
-    set_auth_cookies(response, access, refresh)
-    user.pop("password_hash", None)
-    user.pop("_id", None)
-    return {"user": user, "access_token": access}
+    resp = RedirectResponse(f"{frontend}/?login=google")
+    set_auth_cookies(resp, access, refresh)
+    return resp
+
+
+# Legacy endpoint kept temporarily so existing in-flight sessions don't break.
+# Returns 410 GONE so frontend code paths that still POST here surface a clear error.
+@api.post("/auth/google")
+async def google_auth_legacy():
+    raise HTTPException(410, "تم تحديث طريقة تسجيل الدخول. الرجاء تحديث الصفحة.")
 
 
 # ============================================================
@@ -2614,7 +2696,7 @@ async def admin_test_digest(user: dict = Depends(require_admin)):
 # In Emergent preview, only /api/* routes hit backend; in production (Firebase/Cloudflare),
 # we use rewrites to expose /sitemap.xml → /api/sitemap.xml at the root URL.
 # ============================================================
-from fastapi.responses import Response, HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import Response
 
 
 async def _build_sitemap_xml() -> str:
@@ -2819,6 +2901,8 @@ async def startup():
     await _safe_index(db.listings, [("country_code", 1), ("status", 1)])
     await _safe_index(db.listings, [("title", "text"), ("description", "text")])
     await _safe_index(db.listings, "search_blob")
+    await _safe_index(db.google_oauth_states, "state", unique=True)
+    await _safe_index(db.google_oauth_states, "expires_at", expireAfterSeconds=0)
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
     await db.conversations.create_index("id", unique=True)
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)

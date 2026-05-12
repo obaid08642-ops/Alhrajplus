@@ -19,12 +19,26 @@ export function AuthProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        // CRITICAL: If returning from OAuth callback, skip the /me check.
+        // CRITICAL: If returning from OAuth callback (legacy hash flow), skip the /me check.
         if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
             setLoading(false);
             return;
         }
         fetchMe();
+    }, [fetchMe]);
+
+    // On direct Google OAuth callback (server-side flow), backend sets cookies then 302s to
+    // /?login=google. Detect that and refresh the user once cookies are present.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("login") === "google") {
+            params.delete("login");
+            const cleaned = params.toString();
+            const newUrl = window.location.pathname + (cleaned ? `?${cleaned}` : "");
+            window.history.replaceState({}, "", newUrl);
+            fetchMe();
+        }
     }, [fetchMe]);
 
     const login = async (email, password) => {

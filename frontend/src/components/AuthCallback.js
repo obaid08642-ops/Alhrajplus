@@ -1,39 +1,41 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "@/lib/api";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
 
-// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+/**
+ * Direct Google OAuth callback handler.
+ *
+ * The new flow is fully server-side: Google → /api/auth/google/callback → cookies set →
+ * 302 redirect to FRONTEND_URL/?login=google. This page only runs if a browser hits
+ * /auth/callback for any reason (legacy bookmark, manual URL, etc.) and simply refreshes
+ * the auth context then routes home.
+ */
 export default function AuthCallback() {
     const nav = useNavigate();
     const { refresh } = useAuth();
+    const [searchParams] = useSearchParams();
     const processed = useRef(false);
 
     useEffect(() => {
         if (processed.current) return;
         processed.current = true;
 
-        const hash = window.location.hash || "";
-        const m = hash.match(/session_id=([^&]+)/);
-        const sid = m ? decodeURIComponent(m[1]) : null;
-        if (!sid) {
-            nav("/login", { replace: true });
+        const error = searchParams.get("error");
+        if (error) {
+            nav(`/login?error=${encodeURIComponent(error)}`, { replace: true });
             return;
         }
 
         (async () => {
             try {
-                await api.post("/auth/google", { session_id: sid });
                 await refresh();
-                // Clean hash and route to home
-                window.history.replaceState({}, "", window.location.pathname);
                 nav("/", { replace: true });
             } catch (_) {
-                nav("/login?error=google", { replace: true });
+                nav("/login?error=session", { replace: true });
             }
         })();
-    }, [nav, refresh]);
+    }, [nav, refresh, searchParams]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]" dir="rtl">
