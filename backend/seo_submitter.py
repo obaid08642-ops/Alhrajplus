@@ -23,6 +23,7 @@ succeeds anyway. Calls are non-blocking (background tasks) so they never slow do
 the user-facing API.
 """
 from __future__ import annotations
+import os
 import asyncio
 import secrets
 import logging
@@ -89,17 +90,26 @@ async def submit_urls(
 
 def submit_in_background(db, urls: List[str], host: str) -> None:
     """
-    Schedule submission without awaiting. Use this from request handlers so
-    listing-create/update endpoints return immediately to the user.
+    Schedule submission to ALL configured engines without awaiting.
+    - IndexNow (Bing, Yandex, Seznam, Naver) — always
+    - Google Indexing API — only if GOOGLE_INDEXING_SA_JSON env is set
     """
     try:
         asyncio.create_task(submit_urls(db, urls, host))
+        # Google Indexing — fan-out in parallel; no-op if not configured
+        asyncio.create_task(submit_google(urls, "URL_UPDATED"))
     except RuntimeError:
         # No running loop — happens during startup tasks; just skip
         pass
 
 
 async def ping_google_sitemap(sitemap_url: str, timeout: float = 5.0) -> None:
+    """Legacy Google sitemap ping (deprecated 2023, harmless if it fails)."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client_http:
+            await client_http.get("https://www.google.com/ping", params={"sitemap": sitemap_url})
+    except Exception:
+        pass
     """
     Legacy 'sitemap ping' to Google. Google deprecated this in 2023 but it still
     works for many sites and is harmless. Best-effort; ignores errors.
@@ -112,3 +122,71 @@ async def ping_google_sitemap(sitemap_url: str, timeout: float = 5.0) -> None:
             )
     except Exception:
         pass
+
+
+# ============================================================
+# Google Indexing API
+# ============================================================
+# Officially supports JobPosting + BroadcastEvent. In practice many sites use it
+# for general pages too. Requires a Google Cloud Service Account JSON file with
+# "Owner" permission in Search Console for the property.
+#
+# Setup steps (one-time, manual):
+#   1. https://console.cloud.google.com → enable "Indexing API"
+#   2. IAM → Service Accounts → Create → grant role "Service Account User"
+#   3. Keys → Add Key → JSON → download
+#   4. Search Console → Property → Settings → Users & permissions → add the
+#      service account email with "Owner" role
+#   5. Set env GOOGLE_INDEXING_SA_JSON to the JSON file contents (full string)
+# ============================================================
+_GOOGLE_INDEX_SCOPES = ["https://www.googleapis.com/auth/indexing"]
+_google_index_client = None  # lazy, cached
+
+
+def _build_google_indexing_client():
+    """Return a cached google-api client, or None if not configured."""
+    global _google_index_client
+    if _google_index_client is not None:
+        return _google_index_client
+    import json
+    sa_json = os.environ.get("GOOGLE_INDEXING_SA_JSON", "").strip()
+    if not sa_json:
+        return None
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+        info = json.loads(sa_json)
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=_GOOGLE_INDEX_SCOPES
+        )
+        _google_index_client = build("indexing", "v3", credentials=creds, cache_discovery=False)
+        return _google_index_client
+    except Exception as e:
+        logger.warning(f"[GoogleIndexing] client init failed: {e}")
+        return None
+
+
+async def submit_google(urls: List[str], action: str = "URL_UPDATED") -> Optional[dict]:
+    """
+    Submit URLs to Google Indexing API. action ∈ {"URL_UPDATED", "URL_DELETED"}.
+    Returns count of successes/failures or None when not configured.
+    """
+    cli = _build_google_indexing_client()
+    if cli is None or not urls:
+        return None
+    # google-api-python-client is sync; run in executor to keep loop free
+    def _do():
+        ok, fail = 0, 0
+        for u in urls:
+            try:
+                cli.urlNotifications().publish(body={"url": u, "type": action}).execute()
+                ok += 1
+            except Exception as e:
+                logger.warning(f"[GoogleIndexing] {u} → {e}")
+                fail += 1
+        return {"ok": ok, "fail": fail}
+    try:
+        return await asyncio.to_thread(_do)
+    except Exception as e:
+        logger.warning(f"[GoogleIndexing] batch failed: {e}")
+        return None
