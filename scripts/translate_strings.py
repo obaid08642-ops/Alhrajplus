@@ -6,7 +6,7 @@ Resumable: saves progress to JSON after each batch.
 import os, json, asyncio, sys, time
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY") or "sk-emergent-42c84Ff3fF59344C45"
+EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY") or ""
 INPUT = "/app/scripts/arabic_strings.json"
 OUTPUT = "/app/frontend/src/auto_translations.json"
 BATCH = 25  # strings per LLM call

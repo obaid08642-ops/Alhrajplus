@@ -59,8 +59,8 @@ https://alhrajplus.onrender.com/api/auth/google/callback
 ### Google OAuth
 | Key | Value |
 |---|---|
-| `GOOGLE_CLIENT_ID` | `1023779473075-nv3lkfjpa9ktlvj4a8njlmg08vevbknf.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | `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` |
+| `GOOGLE_CLIENT_ID` | `<your-google-oauth-client-id>` |
+| `GOOGLE_CLIENT_SECRET` | `<your-google-oauth-client-secret>` |
 | `GOOGLE_REDIRECT_URI` | `https://alhrajplus.onrender.com/api/auth/google/callback` |
 
 ### Cloudinary (media uploads — images, videos, voice messages)
