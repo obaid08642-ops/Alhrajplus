@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import api, { formatApiError } from "@/lib/api";
+import api, { formatApiError, tokenStore } from "@/lib/api";
 
 const AuthCtx = createContext(null);
 
@@ -19,40 +19,29 @@ export function AuthProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        // CRITICAL: If returning from OAuth callback (legacy hash flow), skip the /me check.
-        if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
+        // OAuth callback page handles its own token capture; skip /me here.
+        if (typeof window !== "undefined" && window.location.pathname.startsWith("/auth/callback")) {
             setLoading(false);
             return;
         }
         fetchMe();
     }, [fetchMe]);
 
-    // On direct Google OAuth callback (server-side flow), backend sets cookies then 302s to
-    // /?login=google. Detect that and refresh the user once cookies are present.
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("login") === "google") {
-            params.delete("login");
-            const cleaned = params.toString();
-            const newUrl = window.location.pathname + (cleaned ? `?${cleaned}` : "");
-            window.history.replaceState({}, "", newUrl);
-            fetchMe();
-        }
-    }, [fetchMe]);
-
     const login = async (email, password) => {
         const { data } = await api.post("/auth/login", { email, password });
+        if (data.access_token) tokenStore.save({ access_token: data.access_token, refresh_token: data.refresh_token });
         setUser(data.user);
         return data.user;
     };
     const register = async (payload) => {
         const { data } = await api.post("/auth/register", payload);
+        if (data.access_token) tokenStore.save({ access_token: data.access_token, refresh_token: data.refresh_token });
         setUser(data.user);
         return data.user;
     };
     const logout = async () => {
         try { await api.post("/auth/logout"); } catch (_) {}
+        tokenStore.clear();
         setUser(false);
     };
 

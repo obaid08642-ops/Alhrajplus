@@ -557,7 +557,7 @@ async def register(body: RegisterIn, request: Request, response: Response):
     access = create_access_token(uid, email, "user")
     refresh = create_refresh_token(uid)
     set_auth_cookies(response, access, refresh)
-    return {"user": user, "access_token": access}
+    return {"user": user, "access_token": access, "refresh_token": refresh}
 
 @api.post("/auth/login")
 async def login(body: LoginIn, request: Request, response: Response):
@@ -586,7 +586,7 @@ async def login(body: LoginIn, request: Request, response: Response):
     set_auth_cookies(response, access, refresh)
     user.pop("password_hash", None)
     user.pop("_id", None)
-    return {"user": user, "access_token": access}
+    return {"user": user, "access_token": access, "refresh_token": refresh}
 
 @api.post("/auth/logout")
 async def logout(response: Response):
@@ -638,7 +638,18 @@ async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
 
 @api.post("/auth/refresh")
 async def refresh_token(request: Request, response: Response):
-    token = request.cookies.get("refresh_token")
+    # Accept refresh from: (1) cookie, (2) JSON body { refresh_token }, (3) Authorization header
+    token = request.cookies.get("refresh_token", "")
+    if not token:
+        try:
+            body = await request.json()
+            token = (body or {}).get("refresh_token", "") or ""
+        except Exception:
+            token = ""
+    if not token:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:].strip()
     if not token:
         raise HTTPException(401, "No refresh token")
     try:
@@ -1155,10 +1166,15 @@ async def google_oauth_callback(code: str = "", state: str = "", error: str = ""
     except HTTPException:
         return RedirectResponse(f"{frontend}/login?error=banned")
 
-    # Issue our JWTs as cookies, then redirect home
+    # Issue our JWTs. Set cookies for browsers that allow third-party cookies,
+    # AND pass tokens via URL fragment (#) so the frontend can store them in
+    # localStorage for browsers that block cross-site cookies (Safari ITP, iOS,
+    # Brave). Fragment is never sent to the server, so it stays in browser only.
     access = create_access_token(user["id"], g_email, user.get("role", "user"))
     refresh = create_refresh_token(user["id"])
-    resp = RedirectResponse(f"{frontend}/?login=google")
+    import urllib.parse as _up
+    frag = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "google"})
+    resp = RedirectResponse(f"{frontend}/auth/callback#{frag}")
     set_auth_cookies(resp, access, refresh)
     return resp
 

@@ -284,8 +284,9 @@ export default function TopBar() {
                         )}
                     </div>
                 ) : (
-                    <Link to="/login" data-testid="login-cta" className="bg-[var(--secondary)] dark:bg-[var(--accent)] text-white dark:text-[#0A1128] px-3 sm:px-5 py-2 rounded-full font-bold text-xs sm:text-sm hover:scale-105 hover:shadow-lg transition-all font-arabic shrink-0 border border-white/15">
-                        {t("login")}
+                    <Link to="/login" data-testid="login-cta" className="bg-[var(--secondary)] dark:bg-[var(--accent)] text-white dark:text-[#0A1128] px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-full font-bold text-[11px] sm:text-sm hover:scale-105 hover:shadow-lg transition-all font-arabic shrink-0 border border-white/15 whitespace-nowrap">
+                        <span className="sm:hidden">{tr("دخول")}</span>
+                        <span className="hidden sm:inline">{t("login")}</span>
                     </Link>
                 )}
             </div>

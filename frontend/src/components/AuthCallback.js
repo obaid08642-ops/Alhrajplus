@@ -2,14 +2,19 @@ import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
+import { tokenStore } from "@/lib/api";
 
 /**
- * Direct Google OAuth callback handler.
+ * OAuth callback handler.
  *
- * The new flow is fully server-side: Google → /api/auth/google/callback → cookies set →
- * 302 redirect to FRONTEND_URL/?login=google. This page only runs if a browser hits
- * /auth/callback for any reason (legacy bookmark, manual URL, etc.) and simply refreshes
- * the auth context then routes home.
+ * Backend's Google callback redirects here with tokens in the URL fragment:
+ *   /auth/callback#access_token=...&refresh_token=...&login=google
+ *
+ * We:
+ *   1. Read the fragment (never sent to server)
+ *   2. Save tokens to localStorage (works in browsers that block 3rd-party cookies)
+ *   3. Replace URL with clean /  (so refresh button doesn't re-trigger)
+ *   4. Trigger AuthContext refresh to load the user
  */
 export default function AuthCallback() {
     const nav = useNavigate();
@@ -27,12 +32,34 @@ export default function AuthCallback() {
             return;
         }
 
+        // Extract tokens from URL fragment
+        let saved = false;
+        try {
+            const hash = (window.location.hash || "").replace(/^#/, "");
+            if (hash) {
+                const params = new URLSearchParams(hash);
+                const at = params.get("access_token");
+                const rt = params.get("refresh_token");
+                if (at) {
+                    tokenStore.save({ access_token: at, refresh_token: rt || undefined });
+                    saved = true;
+                }
+            }
+            // Clean the URL — remove fragment and query
+            window.history.replaceState({}, "", "/");
+        } catch (_) {}
+
         (async () => {
             try {
                 await refresh();
                 nav("/", { replace: true });
             } catch (_) {
-                nav("/login?error=session", { replace: true });
+                if (saved) {
+                    // Tokens saved but /me failed — likely cold-start. Stay home; UI will retry.
+                    nav("/", { replace: true });
+                } else {
+                    nav("/login?error=session", { replace: true });
+                }
             }
         })();
     }, [nav, refresh, searchParams]);

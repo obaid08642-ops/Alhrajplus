@@ -3,30 +3,87 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API_BASE = `${BACKEND_URL}/api`;
 
+const ACCESS_KEY = "hp_access";
+const REFRESH_KEY = "hp_refresh";
+
+export const tokenStore = {
+    getAccess: () => {
+        try { return localStorage.getItem(ACCESS_KEY) || ""; } catch (_) { return ""; }
+    },
+    getRefresh: () => {
+        try { return localStorage.getItem(REFRESH_KEY) || ""; } catch (_) { return ""; }
+    },
+    save: ({ access_token, refresh_token } = {}) => {
+        try {
+            if (access_token) localStorage.setItem(ACCESS_KEY, access_token);
+            if (refresh_token) localStorage.setItem(REFRESH_KEY, refresh_token);
+        } catch (_) {}
+    },
+    clear: () => {
+        try {
+            localStorage.removeItem(ACCESS_KEY);
+            localStorage.removeItem(REFRESH_KEY);
+        } catch (_) {}
+    },
+};
+
 const api = axios.create({
     baseURL: API_BASE,
-    withCredentials: true,
+    withCredentials: true,   // sends cookies when browser allows (first-party / same-site contexts)
     timeout: 30000,
 });
 
-// Auto refresh token on 401 once
+// Attach Bearer token to every request as a fallback for browsers that block
+// third-party cookies (Safari ITP, iOS, Brave, strict tracking protection).
+api.interceptors.request.use((config) => {
+    const t = tokenStore.getAccess();
+    if (t) {
+        config.headers = config.headers || {};
+        if (!config.headers.Authorization) config.headers.Authorization = `Bearer ${t}`;
+    }
+    return config;
+});
+
+// Auto refresh on 401 once. Try refresh via cookie + Bearer; persist new tokens.
 let isRefreshing = false;
+let refreshPromise = null;
 api.interceptors.response.use(
-    (res) => res,
+    (res) => {
+        // Opportunistically capture tokens from any response body (login, register, refresh, google callback redirect, etc.)
+        const data = res?.data;
+        if (data && typeof data === "object" && (data.access_token || data.refresh_token)) {
+            tokenStore.save({ access_token: data.access_token, refresh_token: data.refresh_token });
+        }
+        return res;
+    },
     async (err) => {
         const original = err.config;
-        if (err.response?.status === 401 && !original._retry && !original.url.includes("/auth/")) {
-            if (isRefreshing) return Promise.reject(err);
+        const status = err.response?.status;
+        const url = original?.url || "";
+
+        if (status === 401 && !original._retry && !url.includes("/auth/login") && !url.includes("/auth/register") && !url.includes("/auth/refresh")) {
             original._retry = true;
-            isRefreshing = true;
-            try {
-                await api.post("/auth/refresh");
-                isRefreshing = false;
-                return api(original);
-            } catch (_) {
-                isRefreshing = false;
-                return Promise.reject(err);
+            if (!refreshPromise) {
+                isRefreshing = true;
+                refreshPromise = (async () => {
+                    try {
+                        const rt = tokenStore.getRefresh();
+                        const body = rt ? { refresh_token: rt } : {};
+                        const r = await api.post("/auth/refresh", body);
+                        const at = r?.data?.access_token;
+                        if (at) tokenStore.save({ access_token: at });
+                        return true;
+                    } catch (e) {
+                        tokenStore.clear();
+                        return false;
+                    } finally {
+                        isRefreshing = false;
+                        refreshPromise = null;
+                    }
+                })();
             }
+            const ok = await refreshPromise;
+            if (ok) return api(original);
         }
         return Promise.reject(err);
     }
