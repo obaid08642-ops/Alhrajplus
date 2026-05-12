@@ -6,6 +6,11 @@
 
 html {
     direction: rtl;
+    /* Prevent horizontal scroll on mobile + clip edges */
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 body {
@@ -15,6 +20,17 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background: var(--bg);
     color: var(--text);
+    overflow-x: hidden;
+    /* Account for iPhone notch / Android system bars */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+/* iOS Safari auto-zooms when input font-size < 16px. Force >= 16px on mobile. */
+@media (max-width: 768px) {
+    input, select, textarea {
+        font-size: 16px !important;
+    }
 }
 
 code {
