@@ -9,6 +9,7 @@
     { "source": "/api/:path*", "destination": "https://alhrajplus.onrender.com/api/:path*" },
     { "source": "/sitemap.xml", "destination": "https://alhrajplus.onrender.com/sitemap.xml" },
     { "source": "/robots.txt",  "destination": "https://alhrajplus.onrender.com/robots.txt" },
+    { "source": "/:key([a-f0-9]{16,128}).txt", "destination": "https://alhrajplus.onrender.com/:key.txt" },
     { "source": "/((?!api|sitemap|robots|favicon|logo|assets|static).*)", "destination": "/index.html" }
   ],
   "headers": [

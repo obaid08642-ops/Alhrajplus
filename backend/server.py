@@ -36,6 +36,11 @@ from search_engine import (
     search_listings as _search_listings_engine,
     suggest as _search_suggest_engine,
 )
+from seo_submitter import (
+    submit_in_background as _seo_submit_bg,
+    get_or_create_indexnow_key as _get_indexnow_key,
+    ping_google_sitemap as _ping_google_sitemap,
+)
 
 logger = logging.getLogger("haraj_plus")
 
@@ -1415,6 +1420,17 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     doc["search_blob"] = build_search_blob(doc)
     await db.listings.insert_one(doc)
     doc.pop("_id", None)
+
+    # Instant search-engine submission (IndexNow → Bing, Yandex, Seznam, Naver).
+    # Fire-and-forget; never blocks listing creation.
+    try:
+        fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
+        from urllib.parse import urlparse as _up
+        host = _up(fe).hostname or "alhraj.online"
+        _seo_submit_bg(db, [f"{fe}/listing/{doc['id']}"], host)
+    except Exception as _e:
+        logger.warning(f"[IndexNow] enqueue failed: {_e}")
+
     return doc
 
 
@@ -2072,6 +2088,17 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         merged = {**item, **update_data}
         update_data["search_blob"] = build_search_blob(merged)
     await db.listings.update_one({"id": listing_id}, {"$set": update_data})
+
+    # Re-submit to IndexNow when meaningful content changes (so search engines re-crawl)
+    try:
+        if any(k in update_data for k in ("title", "description", "price", "media_urls")):
+            fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
+            from urllib.parse import urlparse as _up
+            host = _up(fe).hostname or "alhraj.online"
+            _seo_submit_bg(db, [f"{fe}/listing/{listing_id}"], host)
+    except Exception as _e:
+        logger.warning(f"[IndexNow] update enqueue failed: {_e}")
+
     # Price drop alert: notify watchers when price decreases by ≥1%
     try:
         if "price" in update_data and new_price and old_price and new_price < old_price * 0.99:
@@ -2791,6 +2818,51 @@ async def sitemap_xml_api():
 async def sitemap_xml_root():
     xml = await _build_sitemap_xml()
     return Response(content=xml, media_type="application/xml")
+
+
+# ============================================================
+# IndexNow — instant search-engine submission (Bing, Yandex, Seznam, Naver)
+# ============================================================
+@app.get("/{key}.txt", include_in_schema=False)
+async def indexnow_key_file(key: str):
+    """
+    IndexNow ownership verification.
+    Search engines fetch https://alhraj.online/{KEY}.txt — we return the key
+    only if it matches the one we registered. Anything else returns 404.
+    """
+    if not key or len(key) < 8 or not all(c in "0123456789abcdef" for c in key.lower()):
+        raise HTTPException(404, "Not Found")
+    our_key = await _get_indexnow_key(db)
+    if key.lower() != our_key.lower():
+        raise HTTPException(404, "Not Found")
+    return PlainTextResponse(our_key)
+
+
+@api.get("/seo/indexnow/key", include_in_schema=False)
+async def seo_indexnow_key_view(user: dict = Depends(require_admin)):
+    """Admin: view IndexNow key + verification URL (for manual checks)."""
+    key = await _get_indexnow_key(db)
+    fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
+    return {"key": key, "verification_url": f"{fe}/{key}.txt"}
+
+
+@api.post("/seo/indexnow/resubmit-all", include_in_schema=False)
+async def seo_resubmit_all_listings(user: dict = Depends(require_admin)):
+    """Admin: bulk re-submit all active listings to IndexNow (use sparingly)."""
+    from seo_submitter import submit_urls as _submit_urls
+    fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
+    from urllib.parse import urlparse as _up
+    host = _up(fe).hostname or "alhraj.online"
+    urls: List[str] = []
+    cursor = db.listings.find({"status": "active"}, {"_id": 0, "id": 1}).limit(10000)
+    async for it in cursor:
+        urls.append(f"{fe}/listing/{it['id']}")
+    # Also include sitemap + top static pages so engines re-crawl them
+    urls.extend([f"{fe}/", f"{fe}/sitemap.xml"])
+    res = await _submit_urls(db, urls, host)
+    # Best-effort Google sitemap ping
+    await _ping_google_sitemap(f"{fe}/sitemap.xml")
+    return {"total": len(urls), "indexnow": res}
 
 
 @api.get("/robots.txt", include_in_schema=False)
