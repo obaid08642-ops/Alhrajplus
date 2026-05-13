@@ -21,8 +21,21 @@ export default function CategoryPage() {
         min_price: searchParams.get("min") || "",
         max_price: searchParams.get("max") || "",
         sort: searchParams.get("sort") || "newest",
+        days: searchParams.get("days") || "",
     });
     const [showFilters, setShowFilters] = useState(false);
+    const [userLoc, setUserLoc] = useState(null);
+
+    // Cache geolocation once so nearest/farthest sort works
+    useEffect(() => {
+        if (navigator?.geolocation && (filters.sort === "nearest" || filters.sort === "farthest")) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                () => setUserLoc(null),
+                { timeout: 4000 }
+            );
+        }
+    }, [filters.sort]);
 
     useEffect(() => {
         api.get("/meta/categories").then(({ data }) => {
@@ -44,18 +57,27 @@ export default function CategoryPage() {
                 if (filters.min_price) params.min_price = filters.min_price;
                 if (filters.max_price) params.max_price = filters.max_price;
                 if (filters.sort) params.sort = filters.sort;
+                if (filters.days) params.days = filters.days;
+                if ((filters.sort === "nearest" || filters.sort === "farthest") && userLoc) {
+                    params.lat = userLoc.lat;
+                    params.lng = userLoc.lng;
+                }
                 const { data } = await api.get("/listings", { params });
                 setListings(data.items || []);
             } catch (_) {} finally { setLoading(false); }
         };
         load();
-    }, [categoryKey, user, filters]);
+    }, [categoryKey, user, filters, userLoc]);
 
     const updateFilter = (k, v) => {
         const newF = { ...filters, [k]: v };
         setFilters(newF);
         const params = {};
-        Object.entries(newF).forEach(([key, val]) => { if (val) params[key === "subcategory" ? "sub" : key === "min_price" ? "min" : key === "max_price" ? "max" : key] = val; });
+        Object.entries(newF).forEach(([key, val]) => {
+            if (!val) return;
+            const shortKey = key === "subcategory" ? "sub" : key === "min_price" ? "min" : key === "max_price" ? "max" : key;
+            params[shortKey] = val;
+        });
         setSearchParams(params);
     };
 
@@ -85,15 +107,24 @@ export default function CategoryPage() {
             </div>
 
             {showFilters && (
-                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 font-arabic-body">
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-3 font-arabic-body">
                     <input data-testid="filter-min-price" type="number" placeholder={tr("السعر من")} value={filters.min_price} onChange={(e) => updateFilter("min_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
                     <input data-testid="filter-max-price" type="number" placeholder={tr("السعر إلى")} value={filters.max_price} onChange={(e) => updateFilter("max_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
                     <input data-testid="filter-city" type="text" placeholder={tr("المدينة")} value={filters.city} onChange={(e) => updateFilter("city", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
                     <select data-testid="filter-sort" value={filters.sort} onChange={(e) => updateFilter("sort", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none">
                         <option value="newest">{tr("الأحدث")}</option>
+                        <option value="oldest">{tr("الأقدم")}</option>
                         <option value="price_asc">{tr("السعر: من الأقل")}</option>
                         <option value="price_desc">{tr("السعر: من الأعلى")}</option>
                         <option value="popular">{tr("الأكثر مشاهدة")}</option>
+                        <option value="nearest">{tr("الأقرب")}</option>
+                        <option value="farthest">{tr("الأبعد")}</option>
+                    </select>
+                    <select data-testid="filter-days" value={filters.days} onChange={(e) => updateFilter("days", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none">
+                        <option value="">{tr("كل الوقت")}</option>
+                        <option value="1">{tr("آخر يوم")}</option>
+                        <option value="7">{tr("آخر أسبوع")}</option>
+                        <option value="30">{tr("آخر شهر")}</option>
                     </select>
                 </div>
             )}

@@ -69,7 +69,8 @@ export default function BottomNav() {
                 to="/post"
                 data-testid="nav-post-fab"
                 aria-label={tr("نشر إعلان")}
-                className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[51] group"
+                className="fixed left-1/2 -translate-x-1/2 z-[51] group"
+                style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
             >
                 {/* Hologram pulse rings */}
                 <span className="absolute inset-0 rounded-full bg-[#4FB6E6]/40 animate-ping pointer-events-none"></span>
@@ -85,7 +86,7 @@ export default function BottomNav() {
                 </span>
             </Link>
 
-            <nav data-testid="bottom-nav-pill" className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1.5rem)] sm:w-auto" dir="rtl">
+            <nav data-testid="bottom-nav-pill" className="fixed left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1rem)] sm:w-auto" style={{ bottom: "env(safe-area-inset-bottom, 0px)" }} dir="rtl">
                 <div className="flex items-center justify-around bg-white/75 dark:bg-[#152244]/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(15,27,58,0.35)] border border-white/60 dark:border-white/10 px-2 py-2">
                     <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
                     <SideItem to="/reels" icon={Film} label={tr("ستوري")} navKey="reels" />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { telLink, whatsappLink, normalizePhone } from "@/lib/phone";
 import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw, Edit3, RefreshCw, CheckCircle2, Trash2, Bell } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -329,16 +330,21 @@ export default function ListingDetail() {
                             </button>
                         )}
                         <div className="space-y-2.5">
-                            {listing.show_phone !== false && listing.seller?.phone_full && (
-                                <>
-                                    <a href={`tel:${listing.seller.phone_full}`} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
-                                        <Phone className="w-4 h-4" /> {showPhone ? listing.seller.phone_full : "اتصال مباشر"}
-                                    </a>
-                                    <a href={`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`مرحباً، بخصوص إعلان: ${listing.title}`)}`} target="_blank" rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
-                                        <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
-                                    </a>
-                                </>
-                            )}
+                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && (() => {
+                                const ph = listing.contact_phone || listing.seller.phone_full;
+                                const norm = normalizePhone(ph);
+                                const waMsg = `مرحباً، بخصوص إعلان: ${listing.title}`;
+                                return (
+                                    <>
+                                        <a href={telLink(ph)} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                            <Phone className="w-4 h-4" /> {showPhone ? norm : "اتصال مباشر"}
+                                        </a>
+                                        <a href={whatsappLink(ph, waMsg)} rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
+                                            <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
+                                        </a>
+                                    </>
+                                );
+                            })()}
                             <button onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                 <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
                             </button>
@@ -393,19 +399,28 @@ export default function ListingDetail() {
 
                         {/* Contact actions */}
                         <div className="space-y-2.5">
-                            {listing.show_phone !== false && listing.seller?.phone_full ? (
+                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) ? (
                                 <>
-                                    <a data-testid="call-link" href={`tel:${listing.seller.phone_full}`} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
-                                        <Phone className="w-4 h-4" /> {showPhone ? listing.seller.phone_full : "اتصال مباشر"}
-                                    </a>
-                                    {!showPhone && (
-                                        <button data-testid="show-phone-btn" onClick={() => setShowPhone(true)} className="w-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 text-[var(--text)] rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic">
-                                            <Eye className="w-3.5 h-3.5" /> إظهار رقم الجوال
-                                        </button>
-                                    )}
-                                    <a data-testid="whatsapp-link" href={`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`مرحباً، بخصوص إعلان: ${listing.title}`)}`} target="_blank" rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
-                                        <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
-                                    </a>
+                                    {(() => {
+                                        const ph = listing.contact_phone || listing.seller.phone_full;
+                                        const norm = normalizePhone(ph);
+                                        const waMsg = `مرحباً، بخصوص إعلان: ${listing.title}`;
+                                        return (
+                                            <>
+                                                <a data-testid="call-link" href={telLink(ph)} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                                    <Phone className="w-4 h-4" /> {showPhone ? norm : "اتصال مباشر"}
+                                                </a>
+                                                {!showPhone && (
+                                                    <button data-testid="show-phone-btn" onClick={() => setShowPhone(true)} className="w-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/10 text-[var(--text)] rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic">
+                                                        <Eye className="w-3.5 h-3.5" /> إظهار رقم الجوال
+                                                    </button>
+                                                )}
+                                                <a data-testid="whatsapp-link" href={whatsappLink(ph, waMsg)} rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
+                                                    <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
+                                                </a>
+                                            </>
+                                        );
+                                    })()}
                                 </>
                             ) : null}
                             <button data-testid="chat-with-seller-btn" onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">

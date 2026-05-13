@@ -436,6 +436,7 @@ class ListingIn(BaseModel):
     lat: Optional[float] = None
     lng: Optional[float] = None
     show_phone: bool = True
+    contact_phone: Optional[str] = None  # optional override phone for this listing
     post_type: Optional[str] = None  # offer | request
 
 class ChatMessageIn(BaseModel):
@@ -1410,6 +1411,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "lat": body.lat,
         "lng": body.lng,
         "show_phone": body.show_phone,
+        "contact_phone": (body.contact_phone or "").strip() or None,
         "status": "active",
         "moderation": "pending" if is_banned else "approved",
         "views": 0,
@@ -1450,6 +1452,9 @@ async def list_listings(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     sort: str = "newest",
+    days: Optional[int] = None,  # 1=last 24h, 7=last week, 30=last month, None=all time
+    lat: Optional[float] = None,  # for nearest sorting
+    lng: Optional[float] = None,
     limit: int = 30,
     skip: int = 0,
 ):
@@ -1469,13 +1474,20 @@ async def list_listings(
         if max_price is not None:
             pq["$lte"] = max_price
         query["price"] = pq
+    if days is not None and days > 0:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        query["created_at"] = {"$gte": cutoff}
+
     sort_field = [("created_at", -1)]
-    if sort == "price_asc":
+    if sort == "oldest":
+        sort_field = [("created_at", 1)]
+    elif sort == "price_asc":
         sort_field = [("price", 1)]
     elif sort == "price_desc":
         sort_field = [("price", -1)]
     elif sort == "popular":
         sort_field = [("views", -1)]
+    # "nearest" / "farthest" are computed in Python after fetch (no geo index for now)
 
     # Smart search (Arabic-aware + typo-tolerant) when q is provided
     if q and q.strip():
@@ -1483,6 +1495,19 @@ async def list_listings(
             db, q.strip(), query, sort_field, limit=min(limit, 60), skip=skip
         )
         return {"total": total, "items": items, "fuzzy": fuzzy_used}
+
+    # Distance-based sort: fetch a wider pool then sort by haversine
+    if sort in ("nearest", "farthest") and lat is not None and lng is not None:
+        pool = await db.listings.find(query, {"_id": 0}).limit(500).to_list(length=500)
+        def _dist(it):
+            la, ln = it.get("lat"), it.get("lng")
+            if la is None or ln is None:
+                return float("inf")
+            # cheap squared-distance (good enough for sort, no sqrt needed)
+            return (la - lat) ** 2 + (ln - lng) ** 2
+        pool.sort(key=_dist, reverse=(sort == "farthest"))
+        items = pool[skip:skip + limit]
+        return {"total": len(pool), "items": items}
 
     total = await db.listings.count_documents(query)
     cursor = db.listings.find(query, {"_id": 0}).sort(sort_field).skip(skip).limit(min(limit, 60))
@@ -2065,6 +2090,7 @@ class ListingUpdateIn(BaseModel):
     lat: Optional[float] = None
     lng: Optional[float] = None
     show_phone: Optional[bool] = None
+    contact_phone: Optional[str] = None
 
 @api.put("/listings/{listing_id}")
 async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = Depends(get_current_user)):

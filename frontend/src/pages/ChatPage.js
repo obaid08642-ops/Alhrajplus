@@ -232,6 +232,15 @@ export default function ChatPage() {
                         </div>
                     ) : (
                         <>
+                            {/* Floating back button — always visible while scrolling on mobile */}
+                            <button
+                                data-testid="chat-back-floating"
+                                onClick={() => { setActiveConvoId(null); setActiveOther(null); }}
+                                className="md:hidden fixed top-3 right-3 z-50 w-11 h-11 rounded-full bg-[var(--surface)]/95 backdrop-blur border border-[var(--border)] shadow-lg flex items-center justify-center text-[var(--text)] hover:bg-[var(--primary)] hover:text-[var(--primary-fg)] transition-colors"
+                                aria-label={tr("رجوع")}
+                            >
+                                <ChevronRight className="w-5 h-5" />
+                            </button>
                             <div className="p-3 border-b border-[var(--border)] flex items-center gap-3">
                                 <button onClick={() => { setActiveConvoId(null); setActiveOther(null); }} className="md:hidden text-[var(--text-muted)]"><ChevronRight className="w-5 h-5" /></button>
                                 <div className="w-9 h-9 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center font-bold font-arabic text-sm">{activeOther.name?.[0]}</div>

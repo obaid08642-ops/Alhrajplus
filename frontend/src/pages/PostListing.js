@@ -34,6 +34,7 @@ export default function PostListing() {
         lat: null,
         lng: null,
         show_phone: true,
+        contact_phone: "",
     });
 
     useEffect(() => {
@@ -64,6 +65,7 @@ export default function PostListing() {
                 lat: data.lat || null,
                 lng: data.lng || null,
                 show_phone: data.show_phone !== false,
+                contact_phone: data.contact_phone || "",
             });
         }).catch(() => alert(tr("تعذر تحميل الإعلان")));
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -509,6 +511,28 @@ export default function PostListing() {
                         <input data-testid="show-phone-checkbox" type="checkbox" checked={form.show_phone} onChange={(e) => setForm({ ...form, show_phone: e.target.checked })} className="w-4 h-4 accent-[var(--primary)]" />
                         <span className="text-sm font-arabic-body text-[var(--text)]">{t("show_phone")}</span>
                     </label>
+
+                    {/* Optional override phone for this listing (different from account phone) */}
+                    {form.show_phone && (
+                        <div>
+                            <label className="block text-sm font-arabic-body text-[var(--text-muted)] mb-1">
+                                {tr("رقم تواصل خاص بهذا الإعلان (اختياري)")}
+                            </label>
+                            <input
+                                data-testid="contact-phone-input"
+                                type="tel"
+                                inputMode="tel"
+                                dir="ltr"
+                                placeholder="+966 5XX XXX XXX"
+                                value={form.contact_phone || ""}
+                                onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+                                className="w-full px-4 py-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] font-arabic-body text-sm"
+                            />
+                            <p className="text-xs text-[var(--text-muted)] mt-1 font-arabic-body">
+                                {tr("اتركه فارغاً لاستخدام رقم حسابك")}
+                            </p>
+                        </div>
+                    )}
 
                     <div className="bg-[var(--surface-elevated)] rounded-xl p-4 mt-4">
                         <h3 className="font-arabic font-bold text-sm text-[var(--text)] mb-2">{tr("ملخص الإعلان")}</h3>
