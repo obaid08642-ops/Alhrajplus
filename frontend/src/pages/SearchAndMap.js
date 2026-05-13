@@ -6,6 +6,7 @@ import L from "leaflet";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
+import { useCountry } from "@/contexts/CountryContext";
 import ListingCard from "@/components/listings/ListingCard";
 import { Search as SearchIcon, Mic } from "lucide-react";
 
@@ -52,6 +53,7 @@ function buildMyLocationIcon() {
 export function SearchPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
+    const { country } = useCountry();
     const { t, tr } = useI18n();
     const [q, setQ] = useState(searchParams.get("q") || "");
     const [results, setResults] = useState([]);
@@ -93,7 +95,7 @@ export function SearchPage() {
             } catch (_) {} finally { setLoading(false); }
         };
         search();
-    }, [q, user, sortBy, days, minPrice, maxPrice, userLoc]);
+    }, [q, user, sortBy, days, minPrice, maxPrice, userLoc, country]);
 
     const startVoice = () => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -182,14 +184,17 @@ export function SearchPage() {
 
 export function MapPage() {
     const { user } = useAuth();
+    const { country } = useCountry();
     const [items, setItems] = useState([]);
     const [myPos, setMyPos] = useState(null);
     const center = [24.7136, 46.6753];
 
     useEffect(() => {
-        api.get("/listings/map/nearby", { params: { country_code: user?.country_code, limit: 200 } })
+        const params = { limit: 200 };
+        if (country) params.country_code = country;
+        api.get("/listings/map/nearby", { params })
             .then(({ data }) => setItems(data));
-    }, [user]);
+    }, [country]);
 
     const locate = () => {
         if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }

@@ -1,0 +1,97 @@
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+
+/**
+ * Global country filter.
+ * - Persisted to localStorage under `hp_country` so it survives reloads.
+ * - Anyone (logged-in or anonymous) can choose a country to filter listings.
+ * - When a logged-in user changes it, we also PATCH /api/users/me so the
+ *   server-side preference matches (recommendations, push targeting, etc.).
+ * - When user logs in for the first time and has no localStorage value,
+ *   we seed from user.country_code; otherwise localStorage wins.
+ */
+
+const COUNTRIES = [
+    { code: "SA", flag: "🇸🇦", name_ar: "السعودية", dial: "+966" },
+    { code: "AE", flag: "🇦🇪", name_ar: "الإمارات", dial: "+971" },
+    { code: "KW", flag: "🇰🇼", name_ar: "الكويت", dial: "+965" },
+    { code: "QA", flag: "🇶🇦", name_ar: "قطر", dial: "+974" },
+    { code: "BH", flag: "🇧🇭", name_ar: "البحرين", dial: "+973" },
+    { code: "OM", flag: "🇴🇲", name_ar: "عُمان", dial: "+968" },
+    { code: "EG", flag: "🇪🇬", name_ar: "مصر", dial: "+20" },
+    { code: "JO", flag: "🇯🇴", name_ar: "الأردن", dial: "+962" },
+    { code: "IQ", flag: "🇮🇶", name_ar: "العراق", dial: "+964" },
+    { code: "YE", flag: "🇾🇪", name_ar: "اليمن", dial: "+967" },
+    { code: "MA", flag: "🇲🇦", name_ar: "المغرب", dial: "+212" },
+    { code: "DZ", flag: "🇩🇿", name_ar: "الجزائر", dial: "+213" },
+    { code: "TN", flag: "🇹🇳", name_ar: "تونس", dial: "+216" },
+    { code: "LY", flag: "🇱🇾", name_ar: "ليبيا", dial: "+218" },
+    { code: "SD", flag: "🇸🇩", name_ar: "السودان", dial: "+249" },
+    { code: "LB", flag: "🇱🇧", name_ar: "لبنان", dial: "+961" },
+    { code: "SY", flag: "🇸🇾", name_ar: "سوريا", dial: "+963" },
+    { code: "PS", flag: "🇵🇸", name_ar: "فلسطين", dial: "+970" },
+];
+
+const STORAGE_KEY = "hp_country";
+const SEEN_PICKER_KEY = "hp_country_picker_seen";
+
+const Ctx = createContext(null);
+
+export function CountryProvider({ children }) {
+    const { user } = useAuth();
+    const [country, setCountryState] = useState(() => {
+        try { return localStorage.getItem(STORAGE_KEY) || ""; } catch { return ""; }
+    });
+    const [showPicker, setShowPicker] = useState(false);
+
+    // Seed from user profile on first login if localStorage empty.
+    useEffect(() => {
+        if (!user || user === false) return;
+        if (country) return;
+        const fromUser = (user.country_code || "").toUpperCase();
+        if (fromUser && fromUser.length === 2) {
+            try { localStorage.setItem(STORAGE_KEY, fromUser); } catch (_) {}
+            setCountryState(fromUser);
+        }
+    }, [user, country]);
+
+    // Show first-visit picker once, if no country chosen and not previously dismissed.
+    useEffect(() => {
+        if (country) return;
+        let seen = "0";
+        try { seen = localStorage.getItem(SEEN_PICKER_KEY) || "0"; } catch (_) {}
+        if (seen !== "1") {
+            const t = setTimeout(() => setShowPicker(true), 600);
+            return () => clearTimeout(t);
+        }
+    }, [country]);
+
+    const setCountry = useCallback(async (code, opts = {}) => {
+        const c = (code || "").toUpperCase();
+        try { localStorage.setItem(STORAGE_KEY, c); } catch (_) {}
+        setCountryState(c);
+        try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
+        // Sync to backend if logged in (best-effort)
+        if (user && user !== false && !opts.skipServer) {
+            try { await api.put("/users/me", { country_code: c }); } catch (_) {}
+        }
+    }, [user]);
+
+    const dismissPicker = useCallback(() => {
+        try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
+        setShowPicker(false);
+    }, []);
+
+    const openPicker = useCallback(() => setShowPicker(true), []);
+
+    const current = COUNTRIES.find(c => c.code === country) || null;
+
+    return (
+        <Ctx.Provider value={{ country, setCountry, current, COUNTRIES, showPicker, dismissPicker, openPicker }}>
+            {children}
+        </Ctx.Provider>
+    );
+}
+
+export const useCountry = () => useContext(Ctx) || { country: "", COUNTRIES, current: null, setCountry: () => {}, showPicker: false, dismissPicker: () => {}, openPicker: () => {} };

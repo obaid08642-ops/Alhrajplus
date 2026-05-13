@@ -4,17 +4,21 @@ import api from "@/lib/api";
 import { Flame, TrendingDown, Sparkles, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
+import { useCountry } from "@/contexts/CountryContext";
 
 export default function DealsPage() {
     const { user } = useAuth();
+    const { country } = useCountry();
     const [deals, setDeals] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.get("/deals/today", { params: { country_code: user?.country_code, limit: 30 } })
+        const params = { limit: 30 };
+        if (country) params.country_code = country;
+        api.get("/deals/today", { params })
             .then(({ data }) => setDeals(data || []))
             .finally(() => setLoading(false));
-    }, [user]);
+    }, [country]);
 
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24">

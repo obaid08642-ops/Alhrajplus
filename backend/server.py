@@ -96,6 +96,17 @@ X_CLIENT_ID = os.environ.get("X_CLIENT_ID", "").strip()
 X_CLIENT_SECRET = os.environ.get("X_CLIENT_SECRET", "").strip()
 SNAPCHAT_CLIENT_ID = os.environ.get("SNAPCHAT_CLIENT_ID", "").strip()
 SNAPCHAT_CLIENT_SECRET = os.environ.get("SNAPCHAT_CLIENT_SECRET", "").strip()
+# Apple Sign In (web)
+# APPLE_CLIENT_ID = Services ID (com.alhrajplus.web), APPLE_TEAM_ID = Apple developer team id,
+# APPLE_KEY_ID = id of the .p8 private key, APPLE_PRIVATE_KEY = full .p8 contents (newlines as \n).
+APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "").strip()
+APPLE_TEAM_ID = os.environ.get("APPLE_TEAM_ID", "").strip()
+APPLE_KEY_ID = os.environ.get("APPLE_KEY_ID", "").strip()
+APPLE_PRIVATE_KEY = os.environ.get("APPLE_PRIVATE_KEY", "").replace("\\n", "\n").strip()
+APPLE_REDIRECT_URI = os.environ.get(
+    "APPLE_REDIRECT_URI",
+    "https://alhrajplus.onrender.com/api/auth/apple/callback",
+).strip()
 
 # DB
 client = AsyncIOMotorClient(
@@ -1190,6 +1201,238 @@ async def google_oauth_callback(code: str = "", state: str = "", error: str = ""
 @api.post("/auth/google")
 async def google_auth_legacy():
     raise HTTPException(410, "تم تحديث طريقة تسجيل الدخول. الرجاء تحديث الصفحة.")
+
+
+# ============================================================
+# Apple Sign In — Direct (web flow)
+#
+# Apple posts back to the callback as application/x-www-form-urlencoded
+# (response_mode=form_post). We:
+#   1. /api/auth/apple/start  → returns Apple consent URL.
+#   2. Apple → POST /api/auth/apple/callback with code, state, [user JSON on
+#      first consent only], [id_token].
+#   3. Backend builds a client_secret JWT (ES256), exchanges code → tokens,
+#      verifies id_token via Apple JWKS (RS256), upserts user, then redirects
+#      to FRONTEND_URL/auth/callback#access_token=...
+# ============================================================
+APPLE_AUTH_URL = "https://appleid.apple.com/auth/authorize"
+APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
+APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys"
+
+_apple_jwks_cache = {"keys": None, "fetched_at": 0.0}
+
+async def _apple_get_jwks() -> dict:
+    now = time.time()
+    if _apple_jwks_cache["keys"] and (now - _apple_jwks_cache["fetched_at"]) < 3600:
+        return _apple_jwks_cache["keys"]
+    async with httpx.AsyncClient(timeout=10.0) as cx:
+        r = await cx.get(APPLE_JWKS_URL)
+        r.raise_for_status()
+        data = r.json()
+    _apple_jwks_cache["keys"] = data
+    _apple_jwks_cache["fetched_at"] = now
+    return data
+
+
+def _apple_make_client_secret() -> str:
+    """Builds the ES256-signed JWT used as client_secret when exchanging the auth code."""
+    if not (APPLE_CLIENT_ID and APPLE_TEAM_ID and APPLE_KEY_ID and APPLE_PRIVATE_KEY):
+        raise HTTPException(503, "Apple Sign In غير مُعد على الخادم")
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": APPLE_TEAM_ID,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=5)).timestamp()),
+        "aud": "https://appleid.apple.com",
+        "sub": APPLE_CLIENT_ID,
+    }
+    return jwt.encode(
+        payload,
+        APPLE_PRIVATE_KEY,
+        algorithm="ES256",
+        headers={"kid": APPLE_KEY_ID},
+    )
+
+
+async def _upsert_apple_user(apple_sub: str, email: str, name: str, picture: Optional[str] = None) -> dict:
+    """Find by apple_id first, then by email; create if missing."""
+    email_norm = (email or "").lower().strip()
+    user = await db.users.find_one({"apple_id": apple_sub})
+    if not user and email_norm:
+        user = await db.users.find_one({"email": email_norm})
+    if user:
+        upd: dict = {"apple_linked": True, "apple_id": apple_sub}
+        if not user.get("avatar_url") and picture:
+            upd["avatar_url"] = picture
+        await db.users.update_one({"id": user["id"]}, {"$set": upd})
+    else:
+        uid = str(uuid.uuid4())
+        # Apple may not return an email if the user chose private relay; fall back to placeholder.
+        if not email_norm:
+            email_norm = f"apple_{apple_sub.split('.')[-1]}@apple.local"
+        user = {
+            "id": uid,
+            "name": name or "مستخدم Apple",
+            "email": email_norm,
+            "phone": "",
+            "country_code": "SA",
+            "phone_full": "",
+            "city": None,
+            "password_hash": hash_password(secrets.token_urlsafe(24)),
+            "role": "user",
+            "verified": False,
+            "trust_score": 60,
+            "avatar_url": picture,
+            "bio": "",
+            "language": "ar",
+            "banned": False,
+            "apple_linked": True,
+            "apple_id": apple_sub,
+            "referral_code": gen_referral_code(name or "USER"),
+            "referred_by": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    if user.get("banned"):
+        raise HTTPException(403, "تم حظر حسابك")
+    return user
+
+
+@api.get("/auth/apple/start")
+async def apple_oauth_start():
+    """Return Apple OAuth consent URL with a CSRF state token stored in DB."""
+    if not APPLE_CLIENT_ID:
+        raise HTTPException(503, "Apple Sign In غير مُعد على الخادم")
+    state = secrets.token_urlsafe(32)
+    await db.apple_oauth_states.insert_one({
+        "state": state,
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+        "created_at": datetime.now(timezone.utc),
+    })
+    from urllib.parse import urlencode
+    params = {
+        "client_id": APPLE_CLIENT_ID,
+        "redirect_uri": APPLE_REDIRECT_URI,
+        "response_type": "code id_token",
+        "response_mode": "form_post",
+        "scope": "name email",
+        "state": state,
+    }
+    return {"auth_url": f"{APPLE_AUTH_URL}?{urlencode(params)}"}
+
+
+@app.post("/api/auth/apple/callback", include_in_schema=False)
+async def apple_oauth_callback(request: Request):
+    """
+    Apple posts back with form-encoded: code, state, [user] (first time only), [id_token].
+    We verify the id_token via Apple's JWKS, upsert the user, and redirect to FRONTEND/auth/callback#token=...
+    """
+    frontend = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    form = await request.form()
+    code = (form.get("code") or "").strip()
+    state = (form.get("state") or "").strip()
+    user_blob = form.get("user") or ""
+    id_token_form = (form.get("id_token") or "").strip()
+    error = form.get("error")
+    if error:
+        return RedirectResponse(f"{frontend}/login?error={error}", status_code=303)
+    if not code or not state:
+        return RedirectResponse(f"{frontend}/login?error=missing_code", status_code=303)
+
+    found = await db.apple_oauth_states.find_one_and_delete({"state": state})
+    if not found:
+        return RedirectResponse(f"{frontend}/login?error=invalid_state", status_code=303)
+
+    # Build client_secret then exchange code for tokens (we still want a fresh id_token).
+    try:
+        client_secret = _apple_make_client_secret()
+    except HTTPException:
+        return RedirectResponse(f"{frontend}/login?error=server_misconfigured", status_code=303)
+    except Exception as e:
+        logger.error(f"[AppleOAuth] client_secret error: {e}")
+        return RedirectResponse(f"{frontend}/login?error=server_error", status_code=303)
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as cx:
+            tok_res = await cx.post(
+                APPLE_TOKEN_URL,
+                data={
+                    "client_id": APPLE_CLIENT_ID,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": APPLE_REDIRECT_URI,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+        if tok_res.status_code != 200:
+            logger.error(f"[AppleOAuth] token exchange {tok_res.status_code}: {tok_res.text[:300]}")
+            return RedirectResponse(f"{frontend}/login?error=token_exchange", status_code=303)
+        tokens = tok_res.json()
+    except httpx.HTTPError as e:
+        logger.error(f"[AppleOAuth] HTTP error: {e}")
+        return RedirectResponse(f"{frontend}/login?error=network", status_code=303)
+
+    id_token = tokens.get("id_token") or id_token_form
+    if not id_token:
+        return RedirectResponse(f"{frontend}/login?error=no_id_token", status_code=303)
+
+    # Verify id_token signature with Apple JWKS
+    try:
+        jwks = await _apple_get_jwks()
+        unverified_header = jwt.get_unverified_header(id_token)
+        kid = unverified_header.get("kid")
+        key_dict = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+        if not key_dict:
+            # one retry with fresh fetch
+            _apple_jwks_cache["fetched_at"] = 0.0
+            jwks = await _apple_get_jwks()
+            key_dict = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+        if not key_dict:
+            return RedirectResponse(f"{frontend}/login?error=invalid_kid", status_code=303)
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key_dict)
+        decoded = jwt.decode(
+            id_token,
+            public_key,
+            algorithms=["RS256"],
+            audience=APPLE_CLIENT_ID,
+            issuer="https://appleid.apple.com",
+        )
+    except jwt.InvalidTokenError as e:
+        logger.error(f"[AppleOAuth] invalid id_token: {e}")
+        return RedirectResponse(f"{frontend}/login?error=invalid_token", status_code=303)
+    except Exception as e:
+        logger.error(f"[AppleOAuth] verify error: {e}")
+        return RedirectResponse(f"{frontend}/login?error=verify_failed", status_code=303)
+
+    apple_sub = decoded.get("sub")
+    apple_email = decoded.get("email", "")
+    if not apple_sub:
+        return RedirectResponse(f"{frontend}/login?error=no_sub", status_code=303)
+
+    # First-time consent ships user name as JSON in the form ('user' field).
+    apple_name = ""
+    if user_blob:
+        try:
+            import json as _json
+            ub = _json.loads(user_blob)
+            n = ub.get("name") or {}
+            apple_name = (f"{n.get('firstName','')} {n.get('lastName','')}").strip()
+        except Exception:
+            pass
+
+    try:
+        user = await _upsert_apple_user(apple_sub, apple_email, apple_name)
+    except HTTPException:
+        return RedirectResponse(f"{frontend}/login?error=banned", status_code=303)
+
+    access = create_access_token(user["id"], user["email"], user.get("role", "user"))
+    refresh = create_refresh_token(user["id"])
+    import urllib.parse as _up
+    frag = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "apple"})
+    resp = RedirectResponse(f"{frontend}/auth/callback#{frag}", status_code=303)
+    set_auth_cookies(resp, access, refresh)
+    return resp
 
 
 # ============================================================

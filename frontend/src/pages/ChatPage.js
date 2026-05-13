@@ -21,6 +21,27 @@ export default function ChatPage() {
     const [translating, setTranslating] = useState(null); // msgId being translated
     const [imgPreview, setImgPreview] = useState(null);
     const endRef = useRef();
+    const scrollContainerRef = useRef();
+    // Tracks whether the user is at/near the bottom of the chat. While false,
+    // we do NOT auto-scroll on polling updates, so the user can read old
+    // messages without being yanked back down. Reset to true when the user
+    // scrolls back to the bottom or sends a new message themselves.
+    const isAtBottomRef = useRef(true);
+
+    const handleScroll = () => {
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+        isAtBottomRef.current = distanceFromBottom < 80; // px tolerance
+    };
+
+    const scrollToBottom = (smooth = true) => {
+        // Use scrollTop assignment (cheaper, no element-relative jump issues than scrollIntoView)
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+        else el.scrollTop = el.scrollHeight;
+    };
 
     // Hide BottomNav while a conversation is active (per user request — bottom-nav was overlapping input area)
     useEffect(() => {
@@ -82,10 +103,19 @@ export default function ChatPage() {
                     playPing();
                 }
             }
+            const wasFirstLoad = firstLoad;
             firstLoad = false;
             prevCount = data.length;
             setMessages(data);
-            setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+            // Auto-scroll ONLY on first load OR if the user was already near the
+            // bottom. Otherwise leave the scroll position alone so the user can
+            // freely browse old messages without being jerked downward every
+            // 4 seconds when the polling refresh fires.
+            if (wasFirstLoad) {
+                setTimeout(() => scrollToBottom(false), 50);
+            } else if (isAtBottomRef.current) {
+                setTimeout(() => scrollToBottom(true), 30);
+            }
         };
         fetchMsgs();
         const id = setInterval(fetchMsgs, 4000);
@@ -140,7 +170,8 @@ export default function ChatPage() {
             });
             setMessages((m) => [...m, msg]);
             setActiveConvoId(msg.convo_id);
-            setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+            isAtBottomRef.current = true; // user just sent → always scroll to show their own msg
+            setTimeout(() => scrollToBottom(true), 60);
         } catch (_) {}
     };
 
@@ -248,7 +279,7 @@ export default function ChatPage() {
                                     <div className="font-arabic font-bold text-sm text-[var(--text)]">{activeOther.name}</div>
                                 </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
+                            <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
                                 {messages.map((m) => {
                                     const mine = m.sender_id === user.id;
                                     const liveShare = m.location?.live_share_id;

@@ -6,11 +6,13 @@ import AdSlot from "@/components/listings/AdSlot";
 import { Filter, ChevronLeft } from "lucide-react";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCountry } from "@/contexts/CountryContext";
 
 export default function CategoryPage() {
     const { categoryKey } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
+    const { country } = useCountry();
     const { t, pickName, tr } = useI18n();
     const [category, setCategory] = useState(null);
     const [listings, setListings] = useState([]);
@@ -49,9 +51,9 @@ export default function CategoryPage() {
             try {
                 const params = {
                     category: categoryKey,
-                    country_code: user?.country_code,
                     limit: 30,
                 };
+                if (country) params.country_code = country;
                 if (filters.subcategory) params.subcategory = filters.subcategory;
                 if (filters.city) params.city = filters.city;
                 if (filters.min_price) params.min_price = filters.min_price;
@@ -67,7 +69,7 @@ export default function CategoryPage() {
             } catch (_) {} finally { setLoading(false); }
         };
         load();
-    }, [categoryKey, user, filters, userLoc]);
+    }, [categoryKey, user, filters, userLoc, country]);
 
     const updateFilter = (k, v) => {
         const newF = { ...filters, [k]: v };

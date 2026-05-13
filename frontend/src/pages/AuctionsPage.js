@@ -4,19 +4,23 @@ import api, { formatApiError } from "@/lib/api";
 import { Gavel, Clock, TrendingUp, Users, X, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
+import { useCountry } from "@/contexts/CountryContext";
 
 export default function AuctionsPage() {
     const { user } = useAuth();
+    const { country } = useCountry();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [active, setActive] = useState(null); // listing being bid on
     const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
-        api.get("/auctions/active", { params: { country_code: user?.country_code, limit: 30 } })
+        const params = { limit: 30 };
+        if (country) params.country_code = country;
+        api.get("/auctions/active", { params })
             .then(({ data }) => setItems(data || []))
             .finally(() => setLoading(false));
-    }, [user, refreshKey]);
+    }, [country, refreshKey]);
 
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24">

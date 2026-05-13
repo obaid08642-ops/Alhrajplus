@@ -5,6 +5,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider } from "@/contexts/I18nContext";
+import { CountryProvider } from "@/contexts/CountryContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import SplashScreen from "@/components/SplashScreen";
@@ -125,10 +126,12 @@ function App() {
             <I18nProvider>
                 <ThemeProvider>
                     <AuthProvider>
-                        {showSplash && <SplashScreen />}
-                        <BrowserRouter>
-                            <AppRouter />
-                        </BrowserRouter>
+                        <CountryProvider>
+                            {showSplash && <SplashScreen />}
+                            <BrowserRouter>
+                                <AppRouter />
+                            </BrowserRouter>
+                        </CountryProvider>
                     </AuthProvider>
                 </ThemeProvider>
             </I18nProvider>

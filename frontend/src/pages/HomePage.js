@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCountry } from "@/contexts/CountryContext";
 import * as Icons from "lucide-react";
 import { Plus, Sparkles, ChevronDown, Briefcase, Wrench } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
@@ -11,6 +12,7 @@ import AdSlot from "@/components/listings/AdSlot";
 export default function HomePage() {
     const { t, pickName, tr } = useI18n();
     const { user } = useAuth();
+    const { country } = useCountry();
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,17 +23,20 @@ export default function HomePage() {
 
     useEffect(() => {
         const load = async () => {
+            setLoading(true);
             try {
+                const params = { limit: 24 };
+                if (country) params.country_code = country;
                 const [cats, lists] = await Promise.all([
                     api.get("/meta/categories"),
-                    api.get("/listings", { params: { country_code: user?.country_code, limit: 24 } })
+                    api.get("/listings", { params })
                 ]);
                 setCategories(cats.data);
                 setListings(lists.data.items || []);
             } catch (_) {} finally { setLoading(false); }
         };
         load();
-    }, [user]);
+    }, [country]);
 
     return (
         <div className="space-y-5 sm:space-y-8 pb-6">

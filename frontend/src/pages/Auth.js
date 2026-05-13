@@ -37,6 +37,18 @@ function SocialLoginButtons() {
             alert(tr("تعذر بدء تسجيل الدخول بـ Snapchat. تأكد من إعدادات Snap Developer Portal."));
         }
     };
+    const startApple = async () => {
+        try {
+            const { data } = await api.get("/auth/apple/start");
+            if (data?.auth_url) {
+                window.location.href = data.auth_url;
+            } else {
+                alert(tr("تعذر بدء تسجيل الدخول بـ Apple"));
+            }
+        } catch (e) {
+            alert(tr("Apple Sign In غير مُعد على الخادم. تواصل مع الدعم."));
+        }
+    };
     return (
         <div className="space-y-2">
             <div className="flex items-center gap-2 my-3">
@@ -57,6 +69,17 @@ function SocialLoginButtons() {
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
                 {tr("متابعة بحساب Google")}
+            </button>
+            <button
+                type="button"
+                data-testid="apple-login-btn"
+                onClick={startApple}
+                className="w-full bg-black hover:bg-gray-900 text-white border border-black py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all font-arabic"
+            >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M17.04 12.65c-.02-2.18 1.78-3.23 1.86-3.28-1.02-1.49-2.6-1.69-3.16-1.71-1.34-.14-2.62.79-3.31.79-.68 0-1.74-.77-2.86-.75-1.47.02-2.83.85-3.59 2.17-1.53 2.65-.39 6.58 1.1 8.73.73 1.05 1.59 2.24 2.72 2.2 1.09-.04 1.51-.71 2.83-.71 1.32 0 1.69.71 2.85.69 1.18-.02 1.92-1.07 2.63-2.13.83-1.22 1.18-2.4 1.2-2.46-.03-.01-2.3-.88-2.32-3.5zM14.97 6.16c.6-.73 1-1.74.89-2.74-.86.04-1.9.57-2.52 1.29-.56.64-1.05 1.67-.92 2.65.96.08 1.94-.49 2.55-1.2z" />
+                </svg>
+                {tr("متابعة بحساب Apple")}
             </button>
             <div className="grid grid-cols-2 gap-2">
                 <button
