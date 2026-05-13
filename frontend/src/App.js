@@ -56,11 +56,15 @@ function Layout({ children, hideNav = false }) {
     );
 }
 
-// Detects #session_id= in URL and processes Emergent Google Auth
-// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+// AppRouter: handles OAuth callback fragment detection + main routes
 function AppRouter() {
     const location = useLocation();
-    if (location.hash?.includes("session_id=")) return <AuthCallback />;
+    // Detect any OAuth callback hash (legacy Emergent #session_id= AND new Google #access_token=)
+    // This catch-all is critical: even if the URL is "/" or "/foo", if hash contains tokens,
+    // we route to AuthCallback so they get captured before being lost.
+    if (location.hash?.includes("access_token=") || location.hash?.includes("session_id=")) {
+        return <AuthCallback />;
+    }
     return (
         <Suspense fallback={<PageFallback />}>
         <Routes>
@@ -69,6 +73,8 @@ function AppRouter() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/google/callback" element={<AuthCallback />} />
             <Route path="/auth/x/callback" element={<XAuthCallback />} />
             <Route path="/auth/snapchat/callback" element={<SnapAuthCallback />} />
             <Route path="/" element={<Layout><HomePage /></Layout>} />
@@ -95,7 +101,13 @@ function AppRouter() {
 }
 
 function App() {
-    const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem("hp_splash_shown"));
+    // Skip splash for OAuth callbacks, error redirects from /login, and direct deep links
+    const skipSplash = typeof window !== "undefined" && (
+        window.location.pathname.startsWith("/auth/") ||
+        window.location.hash?.includes("access_token=") ||
+        window.location.hash?.includes("session_id=")
+    );
+    const [showSplash, setShowSplash] = useState(() => !skipSplash && !sessionStorage.getItem("hp_splash_shown"));
     useEffect(() => {
         if (showSplash) {
             const t = setTimeout(() => {

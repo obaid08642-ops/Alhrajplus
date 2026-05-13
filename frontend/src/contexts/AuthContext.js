@@ -20,9 +20,14 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         // OAuth callback page handles its own token capture; skip /me here.
-        if (typeof window !== "undefined" && window.location.pathname.startsWith("/auth/callback")) {
-            setLoading(false);
-            return;
+        if (typeof window !== "undefined") {
+            const p = window.location.pathname || "";
+            const h = window.location.hash || "";
+            if (p.startsWith("/auth/callback") || p.startsWith("/auth/google/callback") ||
+                h.includes("access_token=") || h.includes("session_id=")) {
+                setLoading(false);
+                return;
+            }
         }
         fetchMe();
     }, [fetchMe]);
