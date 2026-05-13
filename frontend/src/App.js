@@ -10,6 +10,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import SplashScreen from "@/components/SplashScreen";
 import SmartAppBanner from "@/components/SmartAppBanner";
 import AuthCallback from "@/components/AuthCallback";
+import CountryPicker from "@/components/CountryPicker";
 import HomePage from "@/pages/HomePage";
 import { LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "@/pages/Auth";
 import CategoryPage from "@/pages/CategoryPage";
@@ -52,6 +53,7 @@ function Layout({ children, hideNav = false }) {
             {!hideNav && <TopBar />}
             {children}
             {!hideNav && <BottomNav />}
+            <CountryPicker />
         </div>
     );
 }

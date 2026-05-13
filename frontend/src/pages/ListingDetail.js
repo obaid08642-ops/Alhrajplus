@@ -332,14 +332,15 @@ export default function ListingDetail() {
                         <div className="space-y-2.5">
                             {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && (() => {
                                 const ph = listing.contact_phone || listing.seller.phone_full;
-                                const norm = normalizePhone(ph);
+                                const cc = listing.country_code || listing.seller?.country_code || "";
+                                const norm = normalizePhone(ph, cc);
                                 const waMsg = `مرحباً، بخصوص إعلان: ${listing.title}`;
                                 return (
                                     <>
-                                        <a href={telLink(ph)} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                        <a href={telLink(ph, cc)} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                             <Phone className="w-4 h-4" /> {showPhone ? norm : "اتصال مباشر"}
                                         </a>
-                                        <a href={whatsappLink(ph, waMsg)} rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
+                                        <a href={whatsappLink(ph, waMsg, cc)} rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
                                             <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
                                         </a>
                                     </>
@@ -403,11 +404,12 @@ export default function ListingDetail() {
                                 <>
                                     {(() => {
                                         const ph = listing.contact_phone || listing.seller.phone_full;
-                                        const norm = normalizePhone(ph);
+                                        const cc = listing.country_code || listing.seller?.country_code || "";
+                                        const norm = normalizePhone(ph, cc);
                                         const waMsg = `مرحباً، بخصوص إعلان: ${listing.title}`;
                                         return (
                                             <>
-                                                <a data-testid="call-link" href={telLink(ph)} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                                <a data-testid="call-link" href={telLink(ph, cc)} className="w-full bg-[var(--success)] hover:opacity-90 text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                                     <Phone className="w-4 h-4" /> {showPhone ? norm : "اتصال مباشر"}
                                                 </a>
                                                 {!showPhone && (
@@ -415,7 +417,7 @@ export default function ListingDetail() {
                                                         <Eye className="w-3.5 h-3.5" /> إظهار رقم الجوال
                                                     </button>
                                                 )}
-                                                <a data-testid="whatsapp-link" href={whatsappLink(ph, waMsg)} rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
+                                                <a data-testid="whatsapp-link" href={whatsappLink(ph, waMsg, cc)} rel="noopener noreferrer" className="w-full bg-[#25D366] text-white rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic hover:opacity-90">
                                                     <MessageCircle className="w-4 h-4" /> {t("whatsapp")}
                                                 </a>
                                             </>

@@ -1521,7 +1521,7 @@ async def get_listing(listing_id: str):
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": listing_id}, {"$inc": {"views": 1}})
     # fetch seller minimal info
-    seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
+    seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     item["seller"] = seller
     return item
 

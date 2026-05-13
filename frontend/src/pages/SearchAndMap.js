@@ -58,19 +58,42 @@ export function SearchPage() {
     const [fuzzy, setFuzzy] = useState(false);
     const [loading, setLoading] = useState(false);
     const [voiceActive, setVoiceActive] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [sortBy, setSortBy] = useState(searchParams.get("sort") || "newest");
+    const [days, setDays] = useState(searchParams.get("days") || "");
+    const [minPrice, setMinPrice] = useState(searchParams.get("min") || "");
+    const [maxPrice, setMaxPrice] = useState(searchParams.get("max") || "");
+    const [userLoc, setUserLoc] = useState(null);
+
+    useEffect(() => {
+        if ((sortBy === "nearest" || sortBy === "farthest") && navigator?.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                () => setUserLoc(null),
+                { timeout: 4000 }
+            );
+        }
+    }, [sortBy]);
 
     useEffect(() => {
         const search = async () => {
             setLoading(true);
             try {
-                const params = { q: q || undefined, country_code: user?.country_code, limit: 30 };
+                const params = { q: q || undefined, country_code: user?.country_code, limit: 30, sort: sortBy };
+                if (days) params.days = days;
+                if (minPrice) params.min_price = minPrice;
+                if (maxPrice) params.max_price = maxPrice;
+                if ((sortBy === "nearest" || sortBy === "farthest") && userLoc) {
+                    params.lat = userLoc.lat;
+                    params.lng = userLoc.lng;
+                }
                 const { data } = await api.get("/listings", { params });
                 setResults(data.items);
                 setFuzzy(Boolean(data.fuzzy));
             } catch (_) {} finally { setLoading(false); }
         };
         search();
-    }, [q, user]);
+    }, [q, user, sortBy, days, minPrice, maxPrice, userLoc]);
 
     const startVoice = () => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -102,6 +125,33 @@ export function SearchPage() {
                     <input data-testid="search-page-input" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && setSearchParams({ q })} placeholder={t("search_placeholder")} className="bg-transparent flex-1 mx-3 outline-none text-sm text-[var(--text)] font-arabic-body" />
                     <button data-testid="voice-search-btn-page" onClick={startVoice} className={`text-[var(--text-muted)] hover:text-[var(--primary)] ${voiceActive ? "animate-pulse text-[var(--danger)]" : ""}`}><Mic className="w-4 h-4" /></button>
                 </div>
+                {/* Filter pills */}
+                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                    <button data-testid="toggle-filters-btn" onClick={() => setShowFilters(s => !s)} className="px-3 py-1.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] text-xs font-bold font-arabic hover:bg-[var(--primary)]/25">
+                        {showFilters ? tr("إخفاء الفلاتر") : tr("الفلاتر")}
+                    </button>
+                    <select data-testid="search-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-1.5 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--text)] font-arabic">
+                        <option value="newest">{tr("الأحدث")}</option>
+                        <option value="oldest">{tr("الأقدم")}</option>
+                        <option value="price_asc">{tr("الأرخص")}</option>
+                        <option value="price_desc">{tr("الأغلى")}</option>
+                        <option value="popular">{tr("الأكثر مشاهدة")}</option>
+                        <option value="nearest">{tr("الأقرب")}</option>
+                        <option value="farthest">{tr("الأبعد")}</option>
+                    </select>
+                    <select data-testid="search-days" value={days} onChange={(e) => setDays(e.target.value)} className="px-3 py-1.5 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--text)] font-arabic">
+                        <option value="">{tr("كل الوقت")}</option>
+                        <option value="1">{tr("آخر يوم")}</option>
+                        <option value="7">{tr("آخر أسبوع")}</option>
+                        <option value="30">{tr("آخر شهر")}</option>
+                    </select>
+                </div>
+                {showFilters && (
+                    <div data-testid="filter-panel" className="mt-3 grid grid-cols-2 gap-2">
+                        <input data-testid="filter-min" type="number" placeholder={tr("السعر من")} value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                        <input data-testid="filter-max" type="number" placeholder={tr("السعر إلى")} value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                    </div>
+                )}
             </div>
 
             <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{q ? `نتائج: "${q}"` : "كل الإعلانات"} <span className="text-sm text-[var(--text-muted)]">({results.length})</span></h2>
