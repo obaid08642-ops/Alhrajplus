@@ -3606,7 +3606,18 @@ async def startup():
     await db.notifications.create_index([("user_id", 1), ("ts", -1)])
     await db.x_oauth_states.create_index("expires_at", expireAfterSeconds=0)
     await db.snap_oauth_states.create_index("expires_at", expireAfterSeconds=0)
-    await db.push_tokens.create_index("expo_token", unique=True)
+    # Push tokens — older deployments used a plain unique index on expo_token
+    # which conflicts with web push entries that have no expo_token at all.
+    # Drop and re-create as a partial index so both kinds coexist.
+    try:
+        for ix in await db.push_tokens.list_indexes().to_list(length=50):
+            if ix.get("name") == "expo_token_1" and "partialFilterExpression" not in ix:
+                await db.push_tokens.drop_index("expo_token_1")
+                break
+    except Exception:
+        pass
+    await db.push_tokens.create_index("expo_token", unique=True, partialFilterExpression={"expo_token": {"$type": "string"}})
+    await db.push_tokens.create_index("web_subscription.endpoint", unique=True, partialFilterExpression={"web_subscription.endpoint": {"$type": "string"}})
     await db.push_tokens.create_index("user_id")
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
     await db.reports.create_index("status")
