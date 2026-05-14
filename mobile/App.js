@@ -63,10 +63,30 @@ function TabsNavigator() {
 
 function Navigation() {
     const { user, loading } = useAuth();
+    const navRef = useRef(null);
 
     useEffect(() => {
         if (user) registerForNotifications();
     }, [user]);
+
+    // Deep-link config so notifications/URLs route to the right screen.
+    const linking = {
+        prefixes: [Linking.createURL("/"), "harajplus://", "https://alhraj.online", "https://alhrajplus.com"],
+        config: {
+            screens: {
+                Main: {
+                    screens: {
+                        HomeTab: "",
+                        ChatTab: "chat",
+                        ProfileTab: "profile",
+                    },
+                },
+                ListingDetail: "listing/:id",
+                Chat: "chat-thread",
+                Login: "login",
+            },
+        },
+    };
 
     if (loading) {
         return (
@@ -77,7 +97,11 @@ function Navigation() {
     }
 
     return (
-        <NavigationContainer>
+        <NavigationContainer
+            ref={navRef}
+            linking={linking}
+            onReady={() => setNotificationNavigationRef(navRef.current)}
+        >
             <Stack.Navigator
                 screenOptions={{
                     headerStyle: { backgroundColor: theme.colors.surface },

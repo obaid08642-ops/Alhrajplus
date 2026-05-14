@@ -1142,11 +1142,30 @@ async def snap_oauth_callback_mobile(request: Request, code: str = "", state: st
 
 
 # ============================================================
-# Push Notifications (Expo Push Service)
+# Push Notifications (Expo + Web Push / VAPID)
 # ============================================================
+from push_service import send_push_to_users as _send_push, VAPID_PUBLIC_KEY
+
+
 class PushTokenIn(BaseModel):
     expo_token: str = Field(min_length=10)
     platform: Optional[str] = None  # ios|android|web
+
+
+class WebPushSubscriptionIn(BaseModel):
+    endpoint: str = Field(min_length=10)
+    keys: dict  # {"p256dh": "...", "auth": "..."}
+    user_agent: Optional[str] = None
+
+
+class NotificationPrefsIn(BaseModel):
+    messages: Optional[bool] = None
+    listing_status: Optional[bool] = None
+    deals: Optional[bool] = None
+    watchlist: Optional[bool] = None
+    broadcasts: Optional[bool] = None
+    comments: Optional[bool] = None
+
 
 @api.post("/push/register")
 async def register_push_token(body: PushTokenIn, user: dict = Depends(get_current_user)):
@@ -1154,6 +1173,7 @@ async def register_push_token(body: PushTokenIn, user: dict = Depends(get_curren
         {"expo_token": body.expo_token},
         {"$set": {
             "user_id": user["id"],
+            "kind": "expo",
             "expo_token": body.expo_token,
             "platform": body.platform,
             "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -1162,17 +1182,91 @@ async def register_push_token(body: PushTokenIn, user: dict = Depends(get_curren
     )
     return {"success": True}
 
+
 @api.delete("/push/unregister")
 async def unregister_push_token(expo_token: str, user: dict = Depends(get_current_user)):
     await db.push_tokens.delete_one({"expo_token": expo_token, "user_id": user["id"]})
     return {"success": True}
 
+
+@api.get("/push/web/vapid-public-key")
+async def get_vapid_public_key():
+    """Public VAPID key — required by the browser's PushManager.subscribe()."""
+    return {"public_key": VAPID_PUBLIC_KEY}
+
+
+@api.post("/push/web/subscribe")
+async def web_push_subscribe(body: WebPushSubscriptionIn, user: dict = Depends(get_current_user)):
+    sub = {"endpoint": body.endpoint, "keys": body.keys}
+    await db.push_tokens.update_one(
+        {"web_subscription.endpoint": body.endpoint},
+        {"$set": {
+            "user_id": user["id"],
+            "kind": "web",
+            "web_subscription": sub,
+            "platform": "web",
+            "user_agent": body.user_agent,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"success": True}
+
+
+@api.post("/push/web/unsubscribe")
+async def web_push_unsubscribe(body: WebPushSubscriptionIn, user: dict = Depends(get_current_user)):
+    await db.push_tokens.delete_one({"kind": "web", "web_subscription.endpoint": body.endpoint, "user_id": user["id"]})
+    return {"success": True}
+
+
+@api.get("/push/preferences")
+async def get_notification_prefs(user: dict = Depends(get_current_user)):
+    prefs = user.get("notification_prefs") or {}
+    # Defaults: everything on
+    return {
+        "messages": prefs.get("messages", True),
+        "listing_status": prefs.get("listing_status", True),
+        "deals": prefs.get("deals", True),
+        "watchlist": prefs.get("watchlist", True),
+        "broadcasts": prefs.get("broadcasts", True),
+        "comments": prefs.get("comments", True),
+    }
+
+
+@api.put("/push/preferences")
+async def set_notification_prefs(body: NotificationPrefsIn, user: dict = Depends(get_current_user)):
+    update = {}
+    for k, v in body.dict(exclude_unset=True).items():
+        if v is not None:
+            update[f"notification_prefs.{k}"] = bool(v)
+    if update:
+        await db.users.update_one({"id": user["id"]}, {"$set": update})
+    return {"success": True}
+
+
+# Test push — useful for users to verify their device receives notifications
+@api.post("/push/test")
+async def test_push(user: dict = Depends(get_current_user)):
+    res = await _send_push(
+        db, [user["id"]],
+        title="🔔 إشعار تجريبي",
+        body="تم تفعيل الإشعارات على هذا الجهاز بنجاح",
+        url="/profile",
+        data={"type": "test"},
+    )
+    return {"success": True, "delivered": res}
+
+
 async def expo_send_push(tokens: list, title: str, body: str, data: Optional[dict] = None):
-    """Send via Expo Push Service. Free, no FCM setup needed for Expo Go testing."""
+    """Backward-compat shim used by older call sites that pass raw Expo tokens.
+
+    Prefer `_send_push(db, user_ids, ...)` for new code so the user's web
+    subscription is also notified.
+    """
     if not tokens:
         return {"sent": 0}
     messages = [
-        {"to": t, "sound": "default", "title": title, "body": body, "data": data or {}, "priority": "high"}
+        {"to": t, "sound": "default", "title": title, "body": body, "data": data or {}, "priority": "high", "channelId": "default"}
         for t in tokens
     ]
     try:
@@ -2191,6 +2285,26 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         }, "$inc": {f"unread_{body.receiver_id}": 1}},
         upsert=True
     )
+    # In-app notification + push (respects user's `messages` pref)
+    preview = (body.text or "[وسائط]")[:80]
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": body.receiver_id,
+        "type": "new_message",
+        "title": f"رسالة جديدة من {user.get('name', 'مستخدم')}",
+        "body": preview,
+        "data": {"convo_id": convo_id, "sender_id": user["id"]},
+        "read": False,
+        "created_at": msg["ts"],
+    })
+    asyncio.create_task(_send_push(
+        db, [body.receiver_id],
+        title=f"💬 {user.get('name', 'رسالة جديدة')}",
+        body=preview,
+        url=f"/chat?to={user['id']}",
+        data={"type": "new_message", "convo_id": convo_id, "sender_id": user["id"]},
+        pref_key="messages",
+    ))
     msg.pop("_id", None)
     return msg
 
@@ -2556,14 +2670,18 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
                     "read": False,
                     "created_at": now_iso,
                 })
-            # Push to expo if any
+            # Push (unified Expo + Web)
             try:
                 watcher_ids = [w["user_id"] for w in watchers if w["user_id"] != item["user_id"]]
                 if watcher_ids:
-                    push_tokens = await db.push_tokens.find({"user_id": {"$in": watcher_ids}}, {"_id": 0, "expo_token": 1}).to_list(length=10000)
-                    tokens = [p["expo_token"] for p in push_tokens if p.get("expo_token")]
-                    if tokens:
-                        asyncio.create_task(expo_send_push(tokens, f"تخفيض سعر -{pct}%", f"«{title}» الآن بـ {new_price:,.0f}", {"type": "price_drop", "listing_id": listing_id}))
+                    asyncio.create_task(_send_push(
+                        db, watcher_ids,
+                        title=f"💸 تخفيض سعر -{pct}%",
+                        body=f"«{title}» الآن بـ {new_price:,.0f}",
+                        url=f"/listing/{listing_id}",
+                        data={"type": "price_drop", "listing_id": listing_id},
+                        pref_key="watchlist",
+                    ))
             except Exception:
                 pass
     except Exception as e:
@@ -2717,11 +2835,56 @@ async def admin_pending():
 @admin_router.post("/listings/{lid}/approve")
 async def admin_approve(lid: str):
     r = await db.listings.update_one({"id": lid}, {"$set": {"moderation": "approved"}})
+    if r.modified_count:
+        item = await db.listings.find_one({"id": lid}, {"_id": 0, "user_id": 1, "title": 1})
+        if item and item.get("user_id"):
+            title = item.get("title", "إعلانك")
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": item["user_id"],
+                "type": "listing_approved",
+                "title": "✅ تمت الموافقة على إعلانك",
+                "body": f"«{title}» متاح الآن للجميع",
+                "data": {"listing_id": lid},
+                "read": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            asyncio.create_task(_send_push(
+                db, [item["user_id"]],
+                title="✅ تمت الموافقة على إعلانك",
+                body=f"«{title}» متاح الآن للجميع",
+                url=f"/listing/{lid}",
+                data={"type": "listing_approved", "listing_id": lid},
+                pref_key="listing_status",
+            ))
     return {"updated": r.modified_count}
+
 
 @admin_router.post("/listings/{lid}/reject")
 async def admin_reject(lid: str):
     r = await db.listings.update_one({"id": lid}, {"$set": {"moderation": "rejected", "status": "rejected"}})
+    if r.modified_count:
+        item = await db.listings.find_one({"id": lid}, {"_id": 0, "user_id": 1, "title": 1})
+        if item and item.get("user_id"):
+            title = item.get("title", "إعلانك")
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": item["user_id"],
+                "type": "listing_rejected",
+                "title": "❌ تم رفض إعلانك",
+                "body": f"«{title}» — يرجى مراجعة الشروط وإعادة النشر",
+                "data": {"listing_id": lid},
+                "read": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            asyncio.create_task(_send_push(
+                db, [item["user_id"]],
+                title="❌ تم رفض إعلانك",
+                body=f"«{title}» — راجع الشروط وأعد النشر",
+                url=f"/listing/{lid}",
+                data={"type": "listing_rejected", "listing_id": lid},
+                pref_key="listing_status",
+            ))
     return {"updated": r.modified_count}
 
 @admin_router.get("/users")
@@ -2862,11 +3025,16 @@ async def broadcast_notification(body: BroadcastIn):
     ]
     if docs:
         await db.notifications.insert_many(docs)
-    # Also send Expo Push to registered devices
+    # Push (Expo + Web), respects user broadcasts preference
     if user_ids:
-        tokens = [t["expo_token"] async for t in db.push_tokens.find({"user_id": {"$in": user_ids}}, {"_id": 0, "expo_token": 1})]
-        if tokens:
-            asyncio.create_task(expo_send_push(tokens, body.title, body.body, {"type": "admin_broadcast"}))
+        asyncio.create_task(_send_push(
+            db, user_ids,
+            title=body.title,
+            body=body.body,
+            url="/",
+            data={"type": "admin_broadcast"},
+            pref_key="broadcasts",
+        ))
     return {"sent": len(docs), "target": body.target, "push_devices": await db.push_tokens.count_documents({"user_id": {"$in": user_ids}}) if user_ids else 0}
 
 @admin_router.get("/notifications/ai-suggest")

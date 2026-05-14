@@ -18,6 +18,71 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
+## ✅ Session 18 — Feb 2026 — Push Notifications (Web + Mobile) + OAuth Audit
+
+### 🔔 Push Notifications System
+**Web Push (VAPID)** + **Expo Push (mobile)** — fully unified:
+- ✅ Generated VAPID keypair (P-256 ECDSA) — keys in `/app/backend/.env`
+- ✅ `pywebpush==2.3.0` + `py-vapid==1.9.4` installed
+- ✅ NEW `/app/backend/push_service.py` — `send_push_to_users(db, user_ids, ...)` unified helper
+  - Fans out to Expo (mobile) AND Web Push (browsers) in parallel
+  - Auto-removes expired subscriptions (HTTP 404/410 from push service)
+  - Respects per-event user preferences via `pref_key`
+- ✅ NEW `/app/frontend/public/sw.js` — Service Worker
+  - Handles `push` events, shows native notification with deep-link in `data.url`
+  - On click → focuses existing tab or opens new one navigating to the URL
+- ✅ NEW `/app/frontend/src/lib/webPush.js` — subscribe/unsubscribe/test/status helpers
+- ✅ NEW `/app/frontend/src/components/NotificationsPanel.js` — UI in /settings
+- ✅ Mobile deep-link routing: `/app/mobile/src/notifications.js` uses `setNotificationNavigationRef()` to navigate Stack from tapped notifications
+- ✅ Mobile `App.js` configured with `linking` prefixes for `harajplus://` + universal links
+
+### Auto-triggered Push Events
+| Event | Pref Key | Deep Link |
+|---|---|---|
+| Chat message | `messages` | `/chat?to=<sender>` |
+| Listing approved | `listing_status` | `/listing/<id>` |
+| Listing rejected | `listing_status` | `/listing/<id>` |
+| Price drop (watchlist) | `watchlist` | `/listing/<id>` |
+| Admin broadcast | `broadcasts` | `/` |
+
+### Endpoints (8 new)
+- GET `/api/push/web/vapid-public-key`
+- POST `/api/push/web/subscribe` + POST `/api/push/web/unsubscribe`
+- POST `/api/push/register` + DELETE `/api/push/unregister` (Expo)
+- GET / PUT `/api/push/preferences`
+- POST `/api/push/test` (sends test to current user)
+- POST `/api/admin/notifications/broadcast` (existing, now uses unified push)
+
+### 🔍 X (Twitter) + Snapchat OAuth Audit
+- ✅ Backend code audited — **implementation is correct** (PKCE S256, correct scopes, proper user-upsert)
+- ✅ If OAuth fails, it's **provider-dashboard config**, not code
+- ✅ Created `/app/PUSH_AND_OAUTH_SETUP.md` with exact callback URLs, ENV vars, dashboard settings, troubleshooting matrix
+- ✅ Confirmed both Web + Mobile flows work for ALL providers (Google ✅, Apple ✅, X ✅, Snapchat ✅)
+- ✅ Added `BACKEND_PUBLIC_URL=https://alhrajplus.onrender.com` to `.env`
+
+### Files Created/Modified
+**Backend**:
+- NEW `/app/backend/push_service.py`
+- MOD `/app/backend/server.py` — replaced inline push logic with unified module, wired chat/approve/reject triggers
+- MOD `/app/backend/requirements.txt` (added pywebpush, py-vapid, http_ece)
+- MOD `/app/backend/.env` (VAPID keys, BACKEND_PUBLIC_URL)
+
+**Frontend**:
+- NEW `/app/frontend/public/sw.js`
+- NEW `/app/frontend/src/lib/webPush.js`
+- NEW `/app/frontend/src/components/NotificationsPanel.js`
+- MOD `/app/frontend/src/pages/StaticPages.js` (mounted NotificationsPanel in Settings)
+
+**Mobile**:
+- MOD `/app/mobile/src/notifications.js` (deep-link routing, response listener, cold-start handler)
+- MOD `/app/mobile/App.js` (NavigationContainer ref + linking prefixes)
+
+**Docs**:
+- NEW `/app/PUSH_AND_OAUTH_SETUP.md` — comprehensive setup + audit + troubleshooting
+- MOD `/app/memory/test_credentials.md`
+
+---
+
 ## ✅ Session 17 — Feb 2026 — Country Picker Global + Apple Sign-In + Mobile OAuth + WhatsApp-Style Chat
 
 ### 🌍 Global Country Filter (Feb 2026)

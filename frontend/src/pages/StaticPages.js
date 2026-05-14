@@ -5,6 +5,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useState } from "react";
 import api from "@/lib/api";
+import NotificationsPanel from "@/components/NotificationsPanel";
 
 export function SettingsPage() {
     const { user, logout } = useAuth();
@@ -13,7 +14,6 @@ export function SettingsPage() {
     const nav = useNavigate();
 
     const items = [
-        { icon: Bell, label: "الإشعارات", to: "#", desc: "تخصيص رنين وأنواع الإشعارات" },
         { icon: Lock, label: "الأمان والخصوصية", to: "#", desc: "كلمة المرور، حذف الحساب، البيانات" },
         { icon: HelpCircle, label: "المساعدة والدعم", to: "/contact", desc: "تواصل معنا، الأسئلة الشائعة" },
         { icon: FileText, label: "الشروط والأحكام", to: "/terms" },
@@ -73,6 +73,8 @@ export function SettingsPage() {
                     </Link>
                 ))}
             </div>
+
+            {user && <NotificationsPanel />}
 
             <button data-testid="delete-account-btn" onClick={deleteAccount} className="w-full bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl p-4 font-arabic font-bold text-sm flex items-center justify-center gap-2">
                 <Trash2 className="w-4 h-4" /> طلب حذف الحساب
