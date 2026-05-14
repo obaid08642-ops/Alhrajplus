@@ -157,19 +157,54 @@ export default function ChatPage() {
         return () => document.body.classList.remove("chat-active");
     }, [activeConvoId]);
 
-    // ----------- Notification ping -----------
+    // ----------- iOS keyboard-safe height -----------
+    // Reads window.visualViewport.height (shrinks when the on-screen keyboard
+    // opens) and writes it to --hp-vh so the fixed chat shell stays clamped
+    // to the visible area — no input hidden behind the keyboard or Safari
+    // bottom toolbar.
+    useEffect(() => {
+        if (!activeConvoId) return;
+        const setVh = () => {
+            const h = window.visualViewport?.height || window.innerHeight;
+            document.documentElement.style.setProperty("--hp-vh", `${h}px`);
+        };
+        setVh();
+        const vv = window.visualViewport;
+        if (vv) {
+            vv.addEventListener("resize", setVh);
+            vv.addEventListener("scroll", setVh);
+        }
+        window.addEventListener("resize", setVh);
+        return () => {
+            if (vv) {
+                vv.removeEventListener("resize", setVh);
+                vv.removeEventListener("scroll", setVh);
+            }
+            window.removeEventListener("resize", setVh);
+            document.documentElement.style.removeProperty("--hp-vh");
+        };
+    }, [activeConvoId]);
+
+    // ----------- Notification ping + vibration -----------
     const audioCtxRef = useRef(null);
     const playPing = () => {
         try {
             if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
             const ctx = audioCtxRef.current;
-            const o = ctx.createOscillator(); const g = ctx.createGain();
-            o.type = "sine"; o.frequency.setValueAtTime(880, ctx.currentTime);
-            o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.18);
-            g.gain.setValueAtTime(0.15, ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-            o.connect(g); g.connect(ctx.destination);
-            o.start(); o.stop(ctx.currentTime + 0.25);
+            // Two-tone "ding" — softer than single beep, matches WhatsApp feel
+            [880, 660].forEach((freq, i) => {
+                const o = ctx.createOscillator(); const g = ctx.createGain();
+                o.type = "sine"; o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+                g.gain.setValueAtTime(0.12, ctx.currentTime + i * 0.08);
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.08 + 0.20);
+                o.connect(g); g.connect(ctx.destination);
+                o.start(ctx.currentTime + i * 0.08);
+                o.stop(ctx.currentTime + i * 0.08 + 0.22);
+            });
+        } catch (_) {}
+        try {
+            // Subtle haptic on mobile (Android Chrome, Brave). iOS Safari ignores.
+            if (navigator.vibrate && document.visibilityState === "visible") navigator.vibrate(40);
         } catch (_) {}
     };
 

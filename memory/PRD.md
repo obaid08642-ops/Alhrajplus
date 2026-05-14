@@ -18,6 +18,27 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
+## ✅ Session 20 — Feb 2026 — iOS Safari Chat Layout Fixes + Production Checklist
+
+### 🔥 Critical Mobile Fixes
+- ✅ Chat shell uses `position: fixed` on mobile (≤767px) with `inset: 0` — fully isolates from any TopBar/BottomNav layout shifts
+- ✅ `--hp-vh` CSS variable driven by `window.visualViewport.height` listener — input bar stays above keyboard, never hidden behind Safari toolbar
+- ✅ Header is now `flex: 0 0 auto` with `z-index: 2` — pinned at top regardless of content scroll
+- ✅ Input bar has `padding-bottom: calc(6px + env(safe-area-inset-bottom))` for iPhone notch/home-indicator
+- ✅ `--hp-vh` cleaned up on unmount so non-chat pages restore normal viewport
+- ✅ Two-tone "ding" + 40ms vibration on incoming message (foreground)
+- ✅ Service Worker push: longer vibration pattern for chat messages [80,40,80], badge for icon
+
+### 📝 Comprehensive Production Doc
+- ✅ NEW `/app/FINAL_PRODUCTION_CHECKLIST.md` — every ENV variable, every step, every callback URL, every dashboard setting needed for App Store / Google Play / Render / Vercel
+
+### Files Modified (Session 20)
+- MOD `/app/frontend/src/styles/chat.css` — position:fixed shell, env(safe-area-inset-bottom), --hp-vh
+- MOD `/app/frontend/src/pages/ChatPage.js` — visualViewport listener + vibration + 2-tone ping
+- MOD `/app/frontend/public/sw.js` — vibration pattern + sound + requireInteraction false
+
+---
+
 ## ✅ Session 19 — Feb 2026 — WhatsApp-style Chat (WebSockets) + In-App Notification Center + Render Deploy Fix
 
 ### 💬 Real-Time Chat (WebSocket-based)

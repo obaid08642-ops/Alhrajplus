@@ -20,9 +20,14 @@ self.addEventListener("push", (event) => {
         dir: "rtl",
         lang: "ar",
         data: { url: payload.url || "/", ...(payload.data || {}) },
-        vibrate: [60, 30, 60],
+        // Native vibration pattern — Android only (iOS Safari ignores).
+        vibrate: payload.data?.type === "new_message" ? [80, 40, 80] : [40, 20, 40],
         tag: payload.data?.type || "haraj-plus",
         renotify: true,
+        // sound: only honoured on a few Chromium platforms; native channels
+        // (Android channel "default") drive sound on most installs.
+        sound: "/notif.mp3",
+        requireInteraction: false,
     };
     event.waitUntil(self.registration.showNotification(title, options));
 });
