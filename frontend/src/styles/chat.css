@@ -1,0 +1,206 @@
+/* WhatsApp-style chat bubbles, fixed input bar, tiled marketplace background.
+ * Production rules:
+ *   - Scroll container uses `overscroll-behavior-y: contain` to block the
+ *     entire-page pull-to-refresh on iOS/Android Chrome while the user is
+ *     swiping inside the chat.
+ *   - Bubble tails are rendered with pseudo-elements so we don't ship images.
+ *   - Background uses a single inline SVG → no extra HTTP request, no flicker.
+ */
+
+.hp-chat-shell {
+    height: 100dvh; /* fills viewport — auto-shrinks when iOS keyboard opens */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.hp-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    /* Marketplace icons tiled at ~4% opacity — keys, car, home, phone, watch, sofa, tag */
+    background-color: var(--bg);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'><g fill='none' stroke='%234FB6E6' stroke-opacity='0.10' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M30 60h30l5-10h20l5 10h30v25H30z'/><circle cx='45' cy='90' r='6'/><circle cx='105' cy='90' r='6'/><path d='M140 30h40l8 12v25h-56V42z'/><circle cx='154' cy='73' r='5'/><circle cx='180' cy='73' r='5'/><path d='M40 130l25-22 25 22v25H40z'/><path d='M55 155v-15h20v15'/><rect x='130' y='115' width='30' height='45' rx='3'/><circle cx='145' cy='150' r='2'/><path d='M165 130l15-15 6 6-15 15zm-3 8l8 8'/><path d='M75 175h35l-3 18H78z'/><circle cx='195' cy='180' r='8'/><path d='M195 175v-4M195 184v3M188 180h4M199 180h4'/></g></svg>");
+    background-repeat: repeat;
+    background-size: 220px 220px;
+}
+
+/* Date separator pill (sticky-ish) */
+.hp-chat-date {
+    align-self: center;
+    margin: 14px auto 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    backdrop-filter: blur(2px);
+}
+.dark .hp-chat-date { background: rgba(255, 255, 255, 0.08); }
+
+/* Bubbles ----------------------------------------------------------------- */
+.hp-bubble {
+    position: relative;
+    max-width: 78%;
+    padding: 6px 10px 4px 10px;
+    margin: 1px 6px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.35;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+    will-change: transform;
+}
+@media (min-width: 768px) { .hp-bubble { max-width: 60%; font-size: 14px; } }
+
+.hp-bubble.mine {
+    align-self: flex-end;
+    background: var(--bubble-out, #d2f4ff);
+    color: var(--text);
+    border-bottom-right-radius: 2px;
+}
+.hp-bubble.theirs {
+    align-self: flex-start;
+    background: var(--bubble-in, #ffffff);
+    color: var(--text);
+    border-bottom-left-radius: 2px;
+}
+.dark .hp-bubble.mine { background: #02575b; color: #e8fafe; }
+.dark .hp-bubble.theirs { background: #1f2c33; color: #e9edef; }
+
+/* WhatsApp-style tail (bottom corner) */
+.hp-bubble.mine.first-of-run::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: -6px;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+    border-bottom-color: var(--bubble-out, #d2f4ff);
+    border-right: 0;
+    transform: rotate(180deg);
+}
+.hp-bubble.theirs.first-of-run::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: -6px;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+    border-bottom-color: var(--bubble-in, #ffffff);
+    border-left: 0;
+    transform: rotate(180deg);
+}
+.dark .hp-bubble.mine.first-of-run::after { border-bottom-color: #02575b; }
+.dark .hp-bubble.theirs.first-of-run::after { border-bottom-color: #1f2c33; }
+
+/* Meta line: time + ticks */
+.hp-bubble .meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: rgba(0,0,0,0.45);
+    margin-inline-start: 8px;
+    float: inline-end;
+    margin-top: 2px;
+    user-select: none;
+}
+.dark .hp-bubble .meta { color: rgba(255,255,255,0.45); }
+.hp-bubble.failed { outline: 1px solid #ef4444; }
+
+/* Reply quoted preview INSIDE a bubble */
+.hp-bubble .reply-quote {
+    border-inline-start: 3px solid var(--primary);
+    background: rgba(0,0,0,0.04);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+}
+.dark .hp-bubble .reply-quote { background: rgba(255,255,255,0.06); }
+
+/* Fixed input bar — sits below messages, fully reactive to keyboard */
+.hp-chat-input-bar {
+    flex: 0 0 auto;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 6px 8px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+}
+.hp-chat-input-bar textarea {
+    flex: 1;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 9px 14px;
+    font-size: 16px; /* prevents iOS auto-zoom */
+    color: var(--text);
+    outline: none;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.4;
+}
+.hp-chat-input-bar textarea:focus {
+    border-color: var(--primary);
+}
+
+/* Reply preview banner above input */
+.hp-reply-banner {
+    background: var(--surface-elevated);
+    border-top: 1px solid var(--border);
+    border-inline-start: 3px solid var(--primary);
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+/* Typing indicator (3 bouncing dots) */
+.hp-typing { display: inline-flex; gap: 3px; padding: 6px 10px; }
+.hp-typing span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-muted);
+    animation: hp-bounce 1.2s infinite ease-in-out;
+}
+.hp-typing span:nth-child(2) { animation-delay: 0.15s; }
+.hp-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes hp-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Floating scroll-to-bottom */
+.hp-scroll-down {
+    position: absolute;
+    bottom: 80px;
+    inset-inline-end: 14px;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text);
+    z-index: 5;
+}
+.hp-scroll-down:hover { background: var(--primary); color: var(--primary-fg); }
+
+/* Swipe-to-reply gesture hint */
+.hp-bubble.swiping {
+    transform: translateX(var(--hp-swipe, 0));
+    transition: transform 0s;
+}

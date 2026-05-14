@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Bell, Globe, Moon, Sun, User, LogOut, Mic, Camera, Shield, Settings as SettingsIcon, Info, FileText, Mail, Clock, TrendingUp, X } from "lucide-react";
+import { Search, Globe, Moon, Sun, User, LogOut, Mic, Camera, Shield, Settings as SettingsIcon, Info, FileText, Mail, Clock, TrendingUp, X } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import CountrySwitcher from "@/components/CountrySwitcher";
+import NotificationBell from "@/components/NotificationBell";
 import { useState, useRef, useEffect } from "react";
 import api from "@/lib/api";
 
@@ -219,6 +220,12 @@ export default function TopBar() {
                         </div>
                     )}
                 </div>
+
+                {/* Country switcher */}
+                <CountrySwitcher />
+
+                {/* Notifications bell */}
+                <NotificationBell />
 
                 {/* Language */}
                 <div className="relative">

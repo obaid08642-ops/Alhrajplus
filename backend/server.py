@@ -9,6 +9,7 @@ import os
 import uuid
 import time
 import asyncio
+import json
 import logging
 import secrets
 import bcrypt
@@ -23,7 +24,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, APIRouter
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse, HTMLResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
@@ -457,6 +458,7 @@ class ChatMessageIn(BaseModel):
     image: Optional[str] = None
     voice: Optional[str] = None
     location: Optional[dict] = None  # {lat, lng}
+    reply_to: Optional[dict] = None  # snapshot {id, text, image, sender_name}
 
 class ReportIn(BaseModel):
     target_type: str  # listing | user | message
@@ -2251,6 +2253,105 @@ async def list_favorites(user: dict = Depends(get_current_user)):
 # ============================================================
 # Chat
 # ============================================================
+from chat_hub import hub as _chat_hub
+
+
+@app.websocket("/api/ws/chat")
+async def chat_websocket(websocket: WebSocket, token: str = Query("")):
+    """Single per-user real-time chat channel.
+
+    Authenticates via JWT supplied as query string (browsers can't set custom
+    headers on WebSocket handshakes). Falls back to httpOnly cookie if the
+    query token is missing.
+    """
+    # Decode token (query first, then cookie)
+    user_id: Optional[str] = None
+    try:
+        if token:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            user_id = payload.get("sub")
+        else:
+            cookie_token = websocket.cookies.get("access_token")
+            if cookie_token:
+                payload = jwt.decode(cookie_token, JWT_SECRET, algorithms=["HS256"])
+                user_id = payload.get("sub")
+    except jwt.InvalidTokenError:
+        user_id = None
+
+    if not user_id:
+        await websocket.close(code=4401)
+        return
+
+    await websocket.accept()
+    await _chat_hub.connect(user_id, websocket)
+    # Clear last_seen "offline" flag — best-effort
+    try:
+        await db.users.update_one({"id": user_id}, {"$set": {"last_seen": None}})
+    except Exception:
+        pass
+
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            try:
+                event = json.loads(raw)
+            except Exception:
+                continue
+            etype = event.get("type")
+            if etype == "ping":
+                await websocket.send_text(json.dumps({"type": "pong"}))
+                continue
+            if etype == "typing":
+                to = event.get("to")
+                if to and isinstance(to, str):
+                    await _chat_hub.send_to_user(to, {
+                        "type": "typing",
+                        "from": user_id,
+                        "is_typing": bool(event.get("is_typing")),
+                    })
+                continue
+            if etype == "read":
+                convo_id = event.get("convo_id")
+                if convo_id and isinstance(convo_id, str):
+                    # Mark all unread messages in this conversation as read
+                    now = datetime.now(timezone.utc).isoformat()
+                    await db.messages.update_many(
+                        {"convo_id": convo_id, "receiver_id": user_id, "read": False},
+                        {"$set": {"read": True, "read_at": now}},
+                    )
+                    # Reset unread counter on conversation
+                    await db.conversations.update_one(
+                        {"id": convo_id},
+                        {"$set": {f"unread_{user_id}": 0}},
+                    )
+                    # Notify the other participant
+                    parts = convo_id.split("_")
+                    other = next((p for p in parts if p != user_id), None)
+                    if other:
+                        await _chat_hub.send_to_user(other, {
+                            "type": "read",
+                            "convo_id": convo_id,
+                            "by": user_id,
+                            "ts": now,
+                        })
+                continue
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.warning(f"[ws/chat] {e}")
+    finally:
+        await _chat_hub.disconnect(user_id, websocket, db)
+
+
+@api.get("/chat/presence/{user_id}")
+async def get_presence(user_id: str, _: dict = Depends(get_current_user)):
+    """Online/last-seen status for a single user."""
+    if _chat_hub.is_online(user_id):
+        return {"user_id": user_id, "online": True}
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "last_seen": 1})
+    return {"user_id": user_id, "online": False, "last_seen": (u or {}).get("last_seen")}
+
+
 @api.post("/chat/send")
 async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_user)):
     if body.receiver_id == user["id"]:
@@ -2269,6 +2370,7 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         "image": body.image,
         "voice": body.voice,
         "location": body.location,
+        "reply_to": body.reply_to,
         "read": False,
         "ts": datetime.now(timezone.utc).isoformat(),
     }
@@ -2285,28 +2387,48 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         }, "$inc": {f"unread_{body.receiver_id}": 1}},
         upsert=True
     )
-    # In-app notification + push (respects user's `messages` pref)
-    preview = (body.text or "[وسائط]")[:80]
-    await db.notifications.insert_one({
-        "id": str(uuid.uuid4()),
-        "user_id": body.receiver_id,
-        "type": "new_message",
-        "title": f"رسالة جديدة من {user.get('name', 'مستخدم')}",
-        "body": preview,
-        "data": {"convo_id": convo_id, "sender_id": user["id"]},
-        "read": False,
-        "created_at": msg["ts"],
-    })
-    asyncio.create_task(_send_push(
-        db, [body.receiver_id],
-        title=f"💬 {user.get('name', 'رسالة جديدة')}",
-        body=preview,
-        url=f"/chat?to={user['id']}",
-        data={"type": "new_message", "convo_id": convo_id, "sender_id": user["id"]},
-        pref_key="messages",
-    ))
     msg.pop("_id", None)
-    return msg
+    # Real-time fan-out via WebSocket (instant). Both receiver AND sender's
+    # other devices/tabs get the message so they all stay in sync.
+    sender_meta = {"id": user["id"], "name": user.get("name"), "avatar_url": user.get("avatar_url")}
+    msg_payload = {**msg, "sender": sender_meta}
+    delivered = await _chat_hub.send_to_user(body.receiver_id, {"type": "message", "data": msg_payload})
+    await _chat_hub.send_to_user(user["id"], {"type": "message", "data": msg_payload})
+    # If receiver is online, instantly mark as delivered and inform sender
+    if delivered > 0:
+        try:
+            await db.messages.update_one({"id": msg["id"]}, {"$set": {"delivered": True, "delivered_at": datetime.now(timezone.utc).isoformat()}})
+        except Exception:
+            pass
+        await _chat_hub.send_to_user(user["id"], {
+            "type": "delivered",
+            "convo_id": convo_id,
+            "message_id": msg["id"],
+            "by": body.receiver_id,
+        })
+    # In-app notification + push (respects user's `messages` pref) — only if
+    # receiver is NOT actively connected (saves on no-op push).
+    if delivered == 0:
+        preview = (body.text or "[وسائط]")[:80]
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": body.receiver_id,
+            "type": "new_message",
+            "title": f"رسالة جديدة من {user.get('name', 'مستخدم')}",
+            "body": preview,
+            "data": {"convo_id": convo_id, "sender_id": user["id"]},
+            "read": False,
+            "created_at": msg["ts"],
+        })
+        asyncio.create_task(_send_push(
+            db, [body.receiver_id],
+            title=f"💬 {user.get('name', 'رسالة جديدة')}",
+            body=preview,
+            url=f"/chat?to={user['id']}",
+            data={"type": "new_message", "convo_id": convo_id, "sender_id": user["id"]},
+            pref_key="messages",
+        ))
+    return msg_payload
 
 @api.get("/chat/conversations")
 async def list_conversations(user: dict = Depends(get_current_user)):
@@ -3078,7 +3200,15 @@ async def ai_suggest_notifications():
 # ============================================================
 @api.get("/notifications")
 async def my_notifications(user: dict = Depends(get_current_user), limit: int = 50):
-    items = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
+    # Some legacy docs use `ts`, newer use `created_at`. Sort by both via aggregation.
+    pipeline = [
+        {"$match": {"user_id": user["id"]}},
+        {"$addFields": {"_when": {"$ifNull": ["$created_at", "$ts"]}}},
+        {"$sort": {"_when": -1}},
+        {"$limit": limit},
+        {"$project": {"_id": 0, "_when": 0}},
+    ]
+    items = await db.notifications.aggregate(pipeline).to_list(length=limit)
     return items
 
 @api.post("/notifications/{nid}/read")

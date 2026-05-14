@@ -300,3 +300,9 @@ body.chat-active [data-testid="bottom-nav-pill"],
 body.chat-active [data-testid="nav-post-fab"] {
     display: none !important;
 }
+
+/* On mobile, when in active chat, drop body padding so the chat shell fills the screen */
+@media (max-width: 767px) {
+    body.chat-active { padding-bottom: 0 !important; }
+    body.chat-active .hp-chat-shell { height: 100dvh; }
+}
