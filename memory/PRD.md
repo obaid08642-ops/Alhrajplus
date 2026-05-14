@@ -18,6 +18,67 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
+## ✅ Session 19 — Feb 2026 — WhatsApp-style Chat (WebSockets) + In-App Notification Center + Render Deploy Fix
+
+### 💬 Real-Time Chat (WebSocket-based)
+- ✅ NEW `/app/backend/chat_hub.py` — in-memory connection registry + presence broadcast
+- ✅ Backend: `WS /api/ws/chat?token=<jwt>` — auth via query param, ping/pong, typing, presence, delivered/read receipts
+- ✅ Backend: GET `/api/chat/presence/{user_id}` for offline last-seen
+- ✅ chat/send now broadcasts via WS to receiver + sender's other devices/tabs; auto-marks delivered when peer online
+- ✅ Push notification fires ONLY when receiver is offline (no double-buzz)
+- ✅ NEW `/app/frontend/src/lib/useChatSocket.js` — auto-reconnect (exp backoff 2→30s), ping 25s, multi-tab safe
+- ✅ NEW `/app/mobile/src/useChatSocket.js` — same API for React Native
+
+### 📱 WhatsApp-style UI
+- ✅ NEW `/app/frontend/src/styles/chat.css` — bubble tails, tiled marketplace SVG bg (4% opacity), fixed input bar, typing dots
+- ✅ FULL refactor `/app/frontend/src/pages/ChatPage.js` — memoized rendering, date separators, reply quote preview, swipe-to-reply, presence in header, online dot in convo list, status icons (✓ pending, ✓ sent, ✓✓ delivered, blue ✓✓ read)
+- ✅ `100dvh` shell + `overscroll-behavior: contain` → input bar always fixed, no page refresh on hard scroll
+- ✅ font-size 16px on textarea → prevents iOS auto-zoom
+
+### 🔔 In-App Notification Center
+- ✅ NEW `/app/frontend/src/components/NotificationBell.js` — bell in TopBar with unread badge
+- ✅ Dropdown shows latest 20 with type-specific icons (message/listing/price/auction/broadcast)
+- ✅ Deep-links to /chat?to=, /listing/<id>, etc.
+- ✅ Real-time refresh on WS message events + 60s polling fallback
+- ✅ Backend: GET `/api/notifications` rewritten with aggregation $ifNull[created_at, ts] sort
+
+### 🚀 Deployment Fix
+- ✅ Added `--extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/` to top of `requirements.txt`
+- ✅ Verified install of `emergentintegrations==0.1.0` in isolated venv → works
+- ✅ Documented in `/app/CHAT_AND_NOTIFICATIONS_FINAL.md`
+
+### 🧪 Testing — 13/13 PASS (100%)
+- WS connect+pong, auth rejection 4401, ping/pong
+- chat/send broadcasts to peer + self, delivered receipt
+- typing event fan-out
+- read receipt persists in DB + notifies sender
+- presence online/offline + last_seen on disconnect
+- Notification API: list/read-one/read-all
+- Regression: listings, auth/me, vapid pubkey
+
+### Files Created/Modified (Session 19)
+**Backend**:
+- NEW `/app/backend/chat_hub.py`
+- MOD `/app/backend/server.py` — WS endpoint, presence, chat/send WS broadcast, notification sort, reply_to schema, json/WebSocket imports
+- MOD `/app/backend/requirements.txt` — --extra-index-url header
+- MOD `/app/backend/.env` — VAPID keys + BACKEND_PUBLIC_URL
+
+**Frontend**:
+- NEW `/app/frontend/src/lib/useChatSocket.js`
+- NEW `/app/frontend/src/styles/chat.css`
+- NEW `/app/frontend/src/components/NotificationBell.js`
+- REWRITE `/app/frontend/src/pages/ChatPage.js`
+- MOD `/app/frontend/src/components/layout/TopBar.js` (added NotificationBell, removed Bell import)
+- MOD `/app/frontend/src/index.css` (chat-active body class)
+
+**Mobile**:
+- NEW `/app/mobile/src/useChatSocket.js`
+
+**Docs**:
+- NEW `/app/CHAT_AND_NOTIFICATIONS_FINAL.md` — full ENV + Render checklist
+
+---
+
 ## ✅ Session 18 — Feb 2026 — Push Notifications (Web + Mobile) + OAuth Audit
 
 ### 🔔 Push Notifications System
