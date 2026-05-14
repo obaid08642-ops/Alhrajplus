@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
-import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon, Languages } from "lucide-react";
+import { Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square, MapPin, Video as VideoIcon, Languages, Check, CheckCheck, ChevronDown, Radio } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import ImageViewer from "@/components/ImageViewer";
@@ -22,6 +22,8 @@ export default function ChatPage() {
     const [imgPreview, setImgPreview] = useState(null);
     const endRef = useRef();
     const scrollContainerRef = useRef();
+    const inputRef = useRef();
+    const [showScrollDown, setShowScrollDown] = useState(false);
     // Tracks whether the user is at/near the bottom of the chat. While false,
     // we do NOT auto-scroll on polling updates, so the user can read old
     // messages without being yanked back down. Reset to true when the user
@@ -32,15 +34,18 @@ export default function ChatPage() {
         const el = scrollContainerRef.current;
         if (!el) return;
         const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-        isAtBottomRef.current = distanceFromBottom < 80; // px tolerance
+        const nearBottom = distanceFromBottom < 80;
+        isAtBottomRef.current = nearBottom;
+        setShowScrollDown(!nearBottom && el.scrollHeight > el.clientHeight + 200);
     };
 
     const scrollToBottom = (smooth = true) => {
-        // Use scrollTop assignment (cheaper, no element-relative jump issues than scrollIntoView)
         const el = scrollContainerRef.current;
         if (!el) return;
         if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
         else el.scrollTop = el.scrollHeight;
+        isAtBottomRef.current = true;
+        setShowScrollDown(false);
     };
 
     // Hide BottomNav while a conversation is active (per user request — bottom-nav was overlapping input area)
@@ -94,32 +99,41 @@ export default function ChatPage() {
         if (!activeConvoId) return;
         let prevCount = 0;
         let firstLoad = true;
+        let cancelled = false;
         const fetchMsgs = async () => {
-            const { data } = await api.get(`/chat/messages/${activeConvoId}`);
-            // Detect new incoming message → play subtle ping
-            if (!firstLoad && data.length > prevCount) {
-                const last = data[data.length - 1];
-                if (last && last.sender_id !== user?.id) {
-                    playPing();
+            if (cancelled) return;
+            try {
+                const { data } = await api.get(`/chat/messages/${activeConvoId}`);
+                if (cancelled) return;
+                // Detect new incoming message → play subtle ping
+                if (!firstLoad && data.length > prevCount) {
+                    const last = data[data.length - 1];
+                    if (last && last.sender_id !== user?.id) playPing();
                 }
-            }
-            const wasFirstLoad = firstLoad;
-            firstLoad = false;
-            prevCount = data.length;
-            setMessages(data);
-            // Auto-scroll ONLY on first load OR if the user was already near the
-            // bottom. Otherwise leave the scroll position alone so the user can
-            // freely browse old messages without being jerked downward every
-            // 4 seconds when the polling refresh fires.
-            if (wasFirstLoad) {
-                setTimeout(() => scrollToBottom(false), 50);
-            } else if (isAtBottomRef.current) {
-                setTimeout(() => scrollToBottom(true), 30);
-            }
+                const wasFirstLoad = firstLoad;
+                firstLoad = false;
+                prevCount = data.length;
+                // Merge: keep optimistic messages (id starts with "tmp_") whose server
+                // counterpart hasn't arrived yet so they don't flicker.
+                setMessages((prev) => {
+                    const serverIds = new Set(data.map(m => m.id));
+                    const pendingOptimistic = prev.filter(m => String(m.id).startsWith("tmp_") && !serverIds.has(m._serverId));
+                    return [...data, ...pendingOptimistic];
+                });
+                if (wasFirstLoad) {
+                    setTimeout(() => scrollToBottom(false), 30);
+                    setTimeout(() => inputRef.current?.focus(), 100);
+                } else if (isAtBottomRef.current) {
+                    setTimeout(() => scrollToBottom(true), 20);
+                }
+            } catch (_) { /* network blip — keep polling */ }
         };
         fetchMsgs();
-        const id = setInterval(fetchMsgs, 4000);
-        return () => clearInterval(id);
+        const id = setInterval(fetchMsgs, 2000); // 2s — WhatsApp-like liveness
+        // Pause polling when tab is hidden (saves bandwidth & battery)
+        const onVis = () => { if (document.visibilityState === "visible") fetchMsgs(); };
+        document.addEventListener("visibilitychange", onVis);
+        return () => { cancelled = true; clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
     }, [activeConvoId, user?.id]);
 
     const sendLocation = () => {
@@ -159,6 +173,25 @@ export default function ChatPage() {
         const text = (extra.text ?? input).trim();
         if (!text && !extra.image && !extra.voice && !extra.location) return;
         if (!extra.image && !extra.voice && !extra.location) setInput("");
+
+        // Optimistic message — render instantly with a "sending" status so the
+        // user gets WhatsApp-level immediate feedback. Replace on server ACK.
+        const tmpId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const optimistic = {
+            id: tmpId,
+            sender_id: user.id,
+            receiver_id: activeOther.id,
+            text: text || null,
+            image: extra.image || null,
+            voice: extra.voice || null,
+            location: extra.location || null,
+            ts: new Date().toISOString(),
+            pending: true,
+        };
+        setMessages((m) => [...m, optimistic]);
+        isAtBottomRef.current = true;
+        setTimeout(() => scrollToBottom(true), 20);
+
         try {
             const { data: msg } = await api.post("/chat/send", {
                 receiver_id: activeOther.id,
@@ -168,11 +201,13 @@ export default function ChatPage() {
                 voice: extra.voice || null,
                 location: extra.location || null,
             });
-            setMessages((m) => [...m, msg]);
+            // Replace the optimistic entry with the server one
+            setMessages((m) => m.map((x) => x.id === tmpId ? { ...msg, _serverId: msg.id } : x));
             setActiveConvoId(msg.convo_id);
-            isAtBottomRef.current = true; // user just sent → always scroll to show their own msg
-            setTimeout(() => scrollToBottom(true), 60);
-        } catch (_) {}
+        } catch (_) {
+            // Mark as failed
+            setMessages((m) => m.map((x) => x.id === tmpId ? { ...x, pending: false, failed: true } : x));
+        }
     };
 
     const uploadAndSend = async (file, type) => {
@@ -272,20 +307,38 @@ export default function ChatPage() {
                             >
                                 <ChevronRight className="w-5 h-5" />
                             </button>
-                            <div className="p-3 border-b border-[var(--border)] flex items-center gap-3">
-                                <button onClick={() => { setActiveConvoId(null); setActiveOther(null); }} className="md:hidden text-[var(--text-muted)]"><ChevronRight className="w-5 h-5" /></button>
-                                <div className="w-9 h-9 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center font-bold font-arabic text-sm">{activeOther.name?.[0]}</div>
-                                <div className="flex-1">
-                                    <div className="font-arabic font-bold text-sm text-[var(--text)]">{activeOther.name}</div>
+                            <div className="p-3 border-b border-[var(--border)] flex items-center gap-3 bg-[var(--surface)]/95 backdrop-blur-md sticky top-0 z-10">
+                                <button onClick={() => { setActiveConvoId(null); setActiveOther(null); }} className="md:hidden text-[var(--text-muted)] hover:text-[var(--primary)]"><ChevronRight className="w-5 h-5" /></button>
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-hover)] text-[var(--primary-fg)] flex items-center justify-center font-bold font-arabic text-sm shadow">{activeOther.name?.[0]}</div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{activeOther.name}</div>
+                                    <div className="text-[10px] text-emerald-500 font-arabic-body flex items-center gap-1">
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        {tr("متصل الآن")}
+                                    </div>
                                 </div>
                             </div>
-                            <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
-                                {messages.map((m) => {
+                            <div
+                                ref={scrollContainerRef}
+                                onScroll={handleScroll}
+                                className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5 relative chat-bg"
+                                style={{
+                                    backgroundImage: `radial-gradient(circle at 1px 1px, rgba(79,182,230,0.06) 1px, transparent 0)`,
+                                    backgroundSize: "16px 16px",
+                                }}
+                            >
+                                {messages.map((m, idx) => {
                                     const mine = m.sender_id === user.id;
                                     const liveShare = m.location?.live_share_id;
+                                    const prev = messages[idx - 1];
+                                    const grouped = prev && prev.sender_id === m.sender_id && (new Date(m.ts) - new Date(prev.ts)) < 60_000;
                                     return (
-                                        <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`} data-testid={`msg-${m.id}`}>
-                                            <div className={`max-w-[75%] rounded-2xl ${m.image || m.voice ? "p-1" : "px-3 py-2"} text-sm font-arabic-body ${mine ? "bg-[var(--primary)] text-[var(--primary-fg)] rounded-br-md" : "bg-[var(--surface-elevated)] text-[var(--text)] rounded-bl-md border border-[var(--border)]"}`}>
+                                        <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"} ${grouped ? "mt-0.5" : "mt-2"}`} data-testid={`msg-${m.id}`}>
+                                            <div className={`max-w-[78%] sm:max-w-[65%] ${m.image || m.voice ? "p-1" : "px-3 py-2"} text-sm font-arabic-body shadow-sm ${
+                                                mine
+                                                    ? `bg-[var(--primary)] text-[var(--primary-fg)] ${grouped ? "rounded-2xl" : "rounded-2xl rounded-br-md"} ${m.pending ? "opacity-70" : ""} ${m.failed ? "ring-1 ring-red-400" : ""}`
+                                                    : `bg-[var(--surface)] text-[var(--text)] ${grouped ? "rounded-2xl" : "rounded-2xl rounded-bl-md"} border border-[var(--border)]`
+                                            }`}>
                                                 {m.image && <img src={m.image} alt="" onClick={() => setImgPreview(m.image)} className="rounded-xl max-w-full max-h-64 object-cover cursor-zoom-in" />}
                                                 {m.voice && <audio controls src={m.voice} className="max-w-full" />}
                                                 {m.location && !liveShare && (
@@ -302,18 +355,25 @@ export default function ChatPage() {
                                                         </div>
                                                     </a>
                                                 )}
-                                                {m.text && <div>{m.text}</div>}
+                                                {m.text && <div className="whitespace-pre-wrap break-words">{m.text}</div>}
                                                 {translations[m.id] && (
                                                     <div className={`mt-1.5 pt-1.5 border-t ${mine ? "border-white/20" : "border-[var(--border)]"} text-[12px] italic flex items-start gap-1`}>
                                                         <Languages className="w-3 h-3 mt-0.5 shrink-0" /> {translations[m.id]}
                                                     </div>
                                                 )}
-                                                <div className={`text-[10px] mt-1 px-1 flex items-center gap-2 ${mine ? "text-[var(--primary-fg)]/60" : "text-[var(--text-muted)]"}`}>
-                                                    <span>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>
+                                                <div className={`text-[10px] mt-0.5 flex items-center gap-1 ${mine ? "justify-end text-[var(--primary-fg)]/70" : "text-[var(--text-muted)]"}`}>
                                                     {m.text && !mine && !translations[m.id] && (
-                                                        <button data-testid={`translate-btn-${m.id}`} onClick={() => translateMsg(m)} disabled={translating === m.id} className="hover:underline flex items-center gap-0.5 text-[10px] font-bold">
-                                                            <Languages className="w-3 h-3" /> {translating === m.id ? "..." : "ترجم"}
+                                                        <button data-testid={`translate-btn-${m.id}`} onClick={() => translateMsg(m)} disabled={translating === m.id} className="hover:underline flex items-center gap-0.5 text-[10px] font-bold me-1">
+                                                            <Languages className="w-3 h-3" /> {translating === m.id ? "..." : tr("ترجم")}
                                                         </button>
+                                                    )}
+                                                    <span>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>
+                                                    {mine && (
+                                                        m.failed
+                                                            ? <span className="text-red-300 font-bold text-[10px]" title={tr("فشل الإرسال")}>!</span>
+                                                            : m.pending
+                                                                ? <Check className="w-3 h-3 opacity-60" />
+                                                                : (m.read_at ? <CheckCheck className="w-3 h-3" /> : <CheckCheck className="w-3 h-3 opacity-60" />)
                                                     )}
                                                 </div>
                                             </div>
@@ -321,8 +381,19 @@ export default function ChatPage() {
                                     );
                                 })}
                                 <div ref={endRef}></div>
+                                {/* Floating scroll-to-bottom button — appears when user has scrolled up */}
+                                {showScrollDown && (
+                                    <button
+                                        data-testid="chat-scroll-down"
+                                        onClick={() => scrollToBottom(true)}
+                                        className="sticky bottom-2 ms-auto mr-2 w-10 h-10 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-lg flex items-center justify-center text-[var(--text)] hover:bg-[var(--primary)] hover:text-[var(--primary-fg)] transition-colors float-left"
+                                        aria-label={tr("النزول لآخر الرسائل")}
+                                    >
+                                        <ChevronDown className="w-5 h-5" />
+                                    </button>
+                                )}
                             </div>
-                            <div className="p-3 border-t border-[var(--border)] flex items-center gap-1.5">
+                            <div className="p-2 sm:p-3 border-t border-[var(--border)] bg-[var(--surface)] flex items-end gap-1.5">
                                 <label data-testid="chat-image-btn" className="cursor-pointer w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title={tr("صورة")}>
                                     <ImageIcon className="w-4 h-4" />
                                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && uploadAndSend(e.target.files[0], "image")} />
@@ -333,8 +404,30 @@ export default function ChatPage() {
                                 ) : (
                                     <button data-testid="chat-mic" onClick={startRecord} className="w-9 h-9 rounded-full bg-[var(--surface-elevated)] hover:bg-[var(--primary)]/15 text-[var(--text-muted)] flex items-center justify-center shrink-0" title={tr("رسالة صوتية")}><Mic className="w-4 h-4" /></button>
                                 )}
-                                <input data-testid="chat-input" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder={tr("اكتب رسالتك...")} className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-full px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
-                                <button data-testid="chat-send" onClick={() => send()} className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center hover:bg-[var(--primary-hover)] shrink-0">
+                                <textarea
+                                    ref={inputRef}
+                                    data-testid="chat-input"
+                                    value={input}
+                                    onChange={(e) => {
+                                        setInput(e.target.value);
+                                        // Auto-grow up to max-h-32
+                                        e.target.style.height = "auto";
+                                        e.target.style.height = Math.min(e.target.scrollHeight, 128) + "px";
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                            e.preventDefault();
+                                            send();
+                                            // reset height after send
+                                            setTimeout(() => { if (inputRef.current) inputRef.current.style.height = "auto"; }, 0);
+                                        }
+                                    }}
+                                    rows={1}
+                                    placeholder={tr("اكتب رسالتك...")}
+                                    className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-2xl px-3.5 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body resize-none max-h-32 leading-snug"
+                                    style={{ fontSize: "16px" }}
+                                />
+                                <button data-testid="chat-send" onClick={() => send()} className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--primary-fg)] flex items-center justify-center hover:bg-[var(--primary-hover)] shrink-0 transition-transform active:scale-95">
                                     <Send className="w-4 h-4" />
                                 </button>
                             </div>

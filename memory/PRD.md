@@ -18,6 +18,76 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
+## ✅ Session 17 — Feb 2026 — Country Picker Global + Apple Sign-In + Mobile OAuth + WhatsApp-Style Chat
+
+### 🌍 Global Country Filter (Feb 2026)
+- ✅ New `CountryContext.js` — global country state in localStorage `hp_country`, available to ALL users (anonymous + authenticated)
+- ✅ Limited to GCC + Egypt: SA, AE, KW, QA, BH, OM, EG (7 countries, per user request)
+- ✅ First-visit auto-opens picker; can dismiss/skip; can reopen anytime via `CountrySwitcher` in TopBar
+- ✅ Wired into HomePage, CategoryPage, SearchPage, MapPage, DealsPage, AuctionsPage — all filter by selected country
+- ✅ Backend-side: when logged in, choice syncs to `users.country_code` via PUT `/users/me`
+- ✅ CountryPicker now globally mounted (works on /login + every route, not just authenticated Layout)
+
+### 🍎 Apple Sign-In (Web + Mobile)
+- ✅ Backend: `/api/auth/apple/start` + POST `/api/auth/apple/callback` (form_post)
+- ✅ ES256 client_secret JWT signing + RS256 id_token verification via Apple JWKS (cached 1h)
+- ✅ Auto-creates user with `apple_id`, handles "Hide My Email" private relay addresses
+- ✅ Frontend: black "متابعة بحساب Apple" button on Login + Register
+- ✅ Mobile: `signInWithApple()` in `mobile/src/socialAuth.js` + button in `AuthScreens.js`
+- ✅ ENV variables documented in `/app/APPLE_SIGNIN_SETUP.md`: APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY
+
+### 📱 Mobile OAuth (Production-Ready)
+- ✅ New `mobile/src/socialAuth.js` — universal `runOAuth(provider)` helper for Google/Apple/X/Snapchat
+- ✅ Uses `expo-web-browser` `openAuthSessionAsync()` with `mobile_redirect=harajplus://auth/callback`
+- ✅ Backend accepts `mobile_redirect` query param on all `/auth/<provider>/start` endpoints
+- ✅ Backend GET handlers `/api/auth/x/callback-redirect` + `/api/auth/snapchat/callback-redirect` for mobile flow
+- ✅ Tokens stored in `expo-secure-store` (keychain/EncryptedSharedPreferences) — persist on app restart
+- ✅ `AuthContext.js` listens to `Linking` events for cold-start deep-link auth (Android resume case)
+- ✅ `app.json`: added iOS `CFBundleURLTypes` + Android `intentFilters` for `harajplus://auth/callback` + `applinks` for universal links
+
+### 🌐 Language Switcher on Auth Pages
+- ✅ New `LangButton` component on Login + Register pages (top-right) — same 6 languages as TopBar
+
+### 💬 WhatsApp-Style Chat Upgrade
+- ✅ Optimistic UI — messages render INSTANTLY with `pending` flag, server ACK replaces tmp entry
+- ✅ Poll interval reduced 4s → 2s for live feel + paused when tab hidden
+- ✅ Status icons: single check (pending), double check (sent), red `!` (failed)
+- ✅ Auto-focus input on convo open + textarea with auto-grow (max-h 32) + Shift+Enter for new line
+- ✅ Scroll-up free browsing: smart auto-scroll ONLY when user is near bottom (<80px) or just sent
+- ✅ Floating "scroll to bottom" button appears when scrolled up
+- ✅ Subtle dot-pattern background (WhatsApp-like)
+- ✅ Message grouping — consecutive same-sender messages within 60s get tighter spacing
+- ✅ Online indicator (green dot pulse) in conversation header
+- ✅ font-size: 16px on input prevents iOS auto-zoom
+- ✅ Fixed missing `Radio` icon import (was crashing on live-share messages)
+
+### 📂 New/Modified Files
+**Frontend**:
+- NEW `/app/frontend/src/contexts/CountryContext.js`
+- NEW `/app/frontend/src/components/CountrySwitcher.js`
+- MOD `/app/frontend/src/components/CountryPicker.js` (rewritten — global selector)
+- MOD `/app/frontend/src/components/layout/TopBar.js` (added CountrySwitcher)
+- MOD `/app/frontend/src/pages/Auth.js` (LangButton + Apple button)
+- MOD `/app/frontend/src/pages/ChatPage.js` (WhatsApp-style upgrades)
+- MOD `/app/frontend/src/App.js` (CountryProvider + global picker)
+- MOD HomePage / CategoryPage / SearchAndMap / DealsPage / AuctionsPage (use country context)
+
+**Backend**:
+- MOD `/app/backend/server.py` — Apple endpoints, mobile_redirect support, X+Snap mobile GET callbacks
+
+**Mobile**:
+- NEW `/app/mobile/src/socialAuth.js`
+- MOD `/app/mobile/src/AuthContext.js` (Linking listener + SecureStore)
+- MOD `/app/mobile/src/api.js` (SecureStore wrapper for tokens)
+- MOD `/app/mobile/src/screens/AuthScreens.js` (4 social buttons)
+- MOD `/app/mobile/app.json` (intent filters + URL types)
+- MOD `/app/mobile/src/googleAuth.js` (now shim → socialAuth.js)
+
+**Docs**:
+- NEW `/app/APPLE_SIGNIN_SETUP.md` — complete Apple Developer Portal walkthrough + ENV instructions
+
+---
+
 ## ✅ Session 16 — Feb 2026 — Trip.com Image Ads + Smart Similar + Phone Editor + Email Digest
 
 ### 🔍 Smart Search Engine (Elasticsearch alternative — Feb 2026)

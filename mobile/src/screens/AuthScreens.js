@@ -3,25 +3,41 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useAuth } from "../AuthContext";
 import { theme } from "../theme";
 import { formatApiError } from "../api";
-import { signInWithGoogleEmergent } from "../googleAuth";
+import { signInWithGoogle, signInWithApple, signInWithX, signInWithSnapchat } from "../socialAuth";
 import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
 
-function GoogleBtn({ onSuccess }) {
-    const [busy, setBusy] = useState(false);
-    const run = async () => {
-        setBusy(true);
+function SocialButtons({ onSuccess }) {
+    const [busy, setBusy] = useState(null); // provider key or null
+    const run = (provider, fn) => async () => {
+        setBusy(provider);
         try {
-            const user = await signInWithGoogleEmergent();
-            onSuccess?.(user);
+            await fn();
+            onSuccess?.();
         } catch (e) {
-            Alert.alert("خطأ", e.message || "فشل تسجيل الدخول بـ Google");
-        } finally { setBusy(false); }
+            if (!String(e?.message || "").includes("إلغاء")) {
+                Alert.alert("خطأ", e.message || `فشل تسجيل الدخول بـ ${provider}`);
+            }
+        } finally { setBusy(null); }
     };
     return (
-        <TouchableOpacity onPress={run} disabled={busy} style={[styles.googleBtn, busy && styles.btnDisabled]} testID="mobile-google-btn">
-            <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.googleText}>{busy ? "..." : "متابعة بحساب Google"}</Text>
-        </TouchableOpacity>
+        <View style={{ gap: 8 }}>
+            <TouchableOpacity onPress={run("google", signInWithGoogle)} disabled={!!busy} style={[styles.googleBtn, busy && styles.btnDisabled]} testID="mobile-google-btn">
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleText}>{busy === "google" ? "..." : "متابعة بحساب Google"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={run("apple", signInWithApple)} disabled={!!busy} style={[styles.appleBtn, busy && styles.btnDisabled]} testID="mobile-apple-btn">
+                <Text style={styles.appleIcon}></Text>
+                <Text style={styles.appleText}>{busy === "apple" ? "..." : "متابعة بحساب Apple"}</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+                <TouchableOpacity onPress={run("x", signInWithX)} disabled={!!busy} style={[styles.xBtn, busy && styles.btnDisabled]} testID="mobile-x-btn">
+                    <Text style={styles.xText}>{busy === "x" ? "..." : "X"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={run("snapchat", signInWithSnapchat)} disabled={!!busy} style={[styles.snapBtn, busy && styles.btnDisabled]} testID="mobile-snap-btn">
+                    <Text style={styles.snapText}>{busy === "snapchat" ? "..." : "Snapchat"}</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
     );
 }
 
@@ -153,7 +169,7 @@ export function LoginScreen({ navigation }) {
                     )}
 
                     <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>أو</Text><View style={styles.line} /></View>
-                    <GoogleBtn onSuccess={() => refresh()} />
+                    <SocialButtons onSuccess={() => refresh()} />
 
                     <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>ليس لديك حساب؟ <Text style={styles.linkStrong}>إنشاء حساب</Text></Text>
@@ -201,7 +217,7 @@ export function RegisterScreen({ navigation }) {
                     </TouchableOpacity>
 
                     <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>أو</Text><View style={styles.line} /></View>
-                    <GoogleBtn onSuccess={() => refresh()} />
+                    <SocialButtons onSuccess={() => refresh()} />
 
                     <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>لديك حساب؟ <Text style={styles.linkStrong}>تسجيل الدخول</Text></Text>
@@ -272,4 +288,21 @@ const styles = StyleSheet.create({
         fontWeight: "900", fontSize: 14,
     },
     googleText: { color: "#222", fontWeight: "800", fontSize: 14 },
+    appleBtn: {
+        flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+        backgroundColor: "#000",
+        paddingVertical: 12, borderRadius: theme.radius.md,
+    },
+    appleIcon: { color: "#fff", fontSize: 16 },
+    appleText: { color: "#fff", fontWeight: "800", fontSize: 14 },
+    xBtn: {
+        flex: 1, backgroundColor: "#000",
+        paddingVertical: 11, borderRadius: theme.radius.md, alignItems: "center",
+    },
+    xText: { color: "#fff", fontWeight: "900", fontSize: 14 },
+    snapBtn: {
+        flex: 1, backgroundColor: "#FFFC00",
+        paddingVertical: 11, borderRadius: theme.radius.md, alignItems: "center",
+    },
+    snapText: { color: "#000", fontWeight: "900", fontSize: 14 },
 });

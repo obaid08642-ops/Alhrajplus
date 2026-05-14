@@ -5,6 +5,42 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import api, { formatApiError } from "@/lib/api";
 
+// Floating language switcher for the unauthenticated screens. Placed at the top-
+// left of every Auth card so visitors can pick their language before signing in.
+function LangButton() {
+    const { lang, setLang, available } = useI18n();
+    const [open, setOpen] = useState(false);
+    const labels = { ar: "🇸🇦 العربية", en: "🇬🇧 English", ur: "🇵🇰 اردو", hi: "🇮🇳 हिन्दी", bn: "🇧🇩 বাংলা", fr: "🇫🇷 Français" };
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                data-testid="auth-lang-btn"
+                onClick={() => setOpen(o => !o)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--text)] font-arabic-body hover:border-[var(--primary)]"
+            >
+                <Globe className="w-3.5 h-3.5" />
+                <span>{labels[lang] || lang}</span>
+            </button>
+            {open && (
+                <div data-testid="auth-lang-menu" className="absolute top-10 start-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-1.5 min-w-[150px] z-50">
+                    {available.map((l) => (
+                        <button
+                            key={l}
+                            type="button"
+                            data-testid={`auth-lang-opt-${l}`}
+                            onClick={() => { setLang(l); setOpen(false); }}
+                            className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${lang === l ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}
+                        >
+                            {labels[l]}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // Direct Google OAuth — no third-party auth proxy.
 // Backend exposes /api/auth/google/start which returns a Google consent URL.
 async function startGoogleLogin() {
@@ -129,7 +165,10 @@ export function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-10">
             <div className="w-full max-w-md bg-[var(--surface)] rounded-3xl border border-[var(--border)] p-6 sm:p-8 shadow-2xl">
-                <Link to="/" className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body inline-flex items-center gap-1 mb-3"><ArrowLeft className="w-4 h-4" />{tr(" الرئيسية")}</Link>
+                <div className="flex items-center justify-between mb-3">
+                    <Link to="/" className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" />{tr(" الرئيسية")}</Link>
+                    <LangButton />
+                </div>
                 <div className="flex items-baseline gap-1.5 justify-center mb-2 select-none">
                     <span className="font-arabic font-black text-3xl tracking-tight text-[var(--secondary)] dark:text-white">{tr("الحراج")}</span>
                     <span className="font-arabic font-bold text-base text-[var(--primary)]">{tr("بلس")}</span>
@@ -218,7 +257,10 @@ export function RegisterPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-10">
             <div className="w-full max-w-md bg-[var(--surface)] rounded-3xl border border-[var(--border)] p-6 sm:p-8 shadow-2xl">
-                <Link to="/" className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body inline-flex items-center gap-1 mb-3"><ArrowLeft className="w-4 h-4" />{tr(" الرئيسية")}</Link>
+                <div className="flex items-center justify-between mb-3">
+                    <Link to="/" className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" />{tr(" الرئيسية")}</Link>
+                    <LangButton />
+                </div>
                 <div className="flex items-baseline gap-1.5 justify-center mb-2 select-none">
                     <span className="font-arabic font-black text-3xl tracking-tight text-[var(--secondary)] dark:text-white">{tr("الحراج")}</span>
                     <span className="font-arabic font-bold text-base text-[var(--primary)]">{tr("بلس")}</span>

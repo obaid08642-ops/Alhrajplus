@@ -54,7 +54,6 @@ function Layout({ children, hideNav = false }) {
             {!hideNav && <TopBar />}
             {children}
             {!hideNav && <BottomNav />}
-            <CountryPicker />
         </div>
     );
 }
@@ -70,6 +69,7 @@ function AppRouter() {
     }
     return (
         <Suspense fallback={<PageFallback />}>
+        <CountryPicker />
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

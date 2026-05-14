@@ -772,19 +772,28 @@ def _b64url(b: bytes) -> str:
     return _b64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
 
 @api.get("/auth/x/start")
-async def x_oauth_start(request: Request):
+async def x_oauth_start(request: Request, mobile_redirect: Optional[str] = None):
     if not X_CLIENT_ID:
         raise HTTPException(503, "X login غير مفعّل")
     state = secrets.token_urlsafe(16)
     code_verifier = secrets.token_urlsafe(64)[:96]
     code_challenge = _b64url(_hashlib.sha256(code_verifier.encode()).digest())
+    mob = (mobile_redirect or "").strip() or None
     await db.x_oauth_states.insert_one({
         "state": state, "code_verifier": code_verifier,
+        "mobile_redirect": mob,
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
         "created_at": datetime.now(timezone.utc),
     })
-    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
-    redirect_uri = f"{origin}/auth/x/callback"
+    # For mobile flow, X redirects directly to the BACKEND GET handler (so
+    # we control the deep-link redirect server-side and the mobile app
+    # never has to round-trip through a web frontend).
+    if mob:
+        backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", "")
+        redirect_uri = f"{backend}/api/auth/x/callback-redirect"
+    else:
+        origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+        redirect_uri = f"{origin}/auth/x/callback"
     auth_url = (
         "https://twitter.com/i/oauth2/authorize"
         f"?response_type=code&client_id={X_CLIENT_ID}"
@@ -883,23 +892,93 @@ async def x_oauth_callback(body: XCallbackIn, request: Request, response: Respon
     return {"user": user, "access_token": access}
 
 
-# ============================================================
-# Snapchat Login Kit (OAuth 2.0 PKCE)
-# ============================================================
+# Mobile deep-link callback for X — Twitter redirects here (server-to-server),
+# we exchange the code, issue our JWT, and finally redirect to the custom
+# scheme so the Expo app receives the token via Linking.
+@app.get("/api/auth/x/callback-redirect", include_in_schema=False)
+async def x_oauth_callback_mobile(request: Request, code: str = "", state: str = "", error: str = ""):
+    if error:
+        return RedirectResponse(f"harajplus://auth/callback?error={error}")
+    if not code or not state:
+        return RedirectResponse("harajplus://auth/callback?error=missing_code")
+    rec = await db.x_oauth_states.find_one_and_delete({"state": state})
+    if not rec:
+        return RedirectResponse("harajplus://auth/callback?error=invalid_state")
+    mob = (rec.get("mobile_redirect") or "harajplus://auth/callback").strip()
+    if not X_CLIENT_ID or not X_CLIENT_SECRET:
+        return RedirectResponse(f"{mob}?error=not_configured")
+    backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", "")
+    redirect_uri = f"{backend}/api/auth/x/callback-redirect"
+    basic = _b64.b64encode(f"{X_CLIENT_ID}:{X_CLIENT_SECRET}".encode()).decode()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as cx:
+            tok = await cx.post(
+                "https://api.twitter.com/2/oauth2/token",
+                headers={"Authorization": f"Basic {basic}", "Content-Type": "application/x-www-form-urlencoded"},
+                data={"code": code, "grant_type": "authorization_code", "client_id": X_CLIENT_ID, "redirect_uri": redirect_uri, "code_verifier": rec["code_verifier"]},
+            )
+            if tok.status_code != 200:
+                logger.error(f"[X mobile token] {tok.status_code} {tok.text[:200]}")
+                return RedirectResponse(f"{mob}?error=token_exchange")
+            access_x = tok.json().get("access_token")
+            me = await cx.get("https://api.twitter.com/2/users/me?user.fields=name,username,profile_image_url",
+                              headers={"Authorization": f"Bearer {access_x}"})
+            if me.status_code != 200:
+                return RedirectResponse(f"{mob}?error=userinfo")
+            x_user = me.json().get("data", {})
+    except httpx.HTTPError as e:
+        logger.error(f"[X mobile HTTP] {e}")
+        return RedirectResponse(f"{mob}?error=network")
+    x_id = x_user.get("id")
+    if not x_id:
+        return RedirectResponse(f"{mob}?error=no_id")
+    placeholder_email = f"x_{x_id}@x.local"
+    user = await db.users.find_one({"$or": [{"x_id": x_id}, {"email": placeholder_email}]})
+    x_username = x_user.get("username") or "x_user"
+    x_name = x_user.get("name") or x_username
+    x_avatar = x_user.get("profile_image_url")
+    if not user:
+        uid = str(uuid.uuid4())
+        user = {
+            "id": uid, "name": x_name, "email": placeholder_email,
+            "phone": "", "country_code": "SA", "phone_full": "", "city": None,
+            "password_hash": hash_password(secrets.token_urlsafe(24)),
+            "role": "user", "verified": False, "trust_score": 60,
+            "avatar_url": x_avatar, "bio": "", "language": "ar",
+            "banned": False, "x_id": x_id, "x_username": x_username,
+            "referral_code": gen_referral_code(x_name), "referred_by": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    else:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"x_id": x_id, "x_username": x_username}})
+    if user.get("banned"):
+        return RedirectResponse(f"{mob}?error=banned")
+    access = create_access_token(user["id"], user["email"], user.get("role", "user"))
+    refresh = create_refresh_token(user["id"])
+    import urllib.parse as _up
+    frag = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "x"})
+    return RedirectResponse(f"{mob}#{frag}")
 @api.get("/auth/snapchat/start")
-async def snap_oauth_start(request: Request):
+async def snap_oauth_start(request: Request, mobile_redirect: Optional[str] = None):
     if not SNAPCHAT_CLIENT_ID:
         raise HTTPException(503, "Snapchat login غير مفعّل")
     state = secrets.token_urlsafe(16)
     code_verifier = secrets.token_urlsafe(64)[:96]
     code_challenge = _b64url(_hashlib.sha256(code_verifier.encode()).digest())
+    mob = (mobile_redirect or "").strip() or None
     await db.snap_oauth_states.insert_one({
         "state": state, "code_verifier": code_verifier,
+        "mobile_redirect": mob,
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
         "created_at": datetime.now(timezone.utc),
     })
-    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
-    redirect_uri = f"{origin}/auth/snapchat/callback"
+    if mob:
+        backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", "")
+        redirect_uri = f"{backend}/api/auth/snapchat/callback-redirect"
+    else:
+        origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+        redirect_uri = f"{origin}/auth/snapchat/callback"
     scope = "https://auth.snapchat.com/oauth2/api/user.display_name https://auth.snapchat.com/oauth2/api/user.bitmoji.avatar https://auth.snapchat.com/oauth2/api/user.external_id"
     auth_url = (
         "https://accounts.snapchat.com/accounts/oauth2/auth"
@@ -991,6 +1070,75 @@ async def snap_oauth_callback(body: SnapCallbackIn, request: Request, response: 
     user.pop("password_hash", None)
     user.pop("_id", None)
     return {"user": user, "access_token": access}
+
+
+# Mobile deep-link callback for Snapchat (server-side exchange + scheme redirect)
+@app.get("/api/auth/snapchat/callback-redirect", include_in_schema=False)
+async def snap_oauth_callback_mobile(request: Request, code: str = "", state: str = "", error: str = ""):
+    if error:
+        return RedirectResponse(f"harajplus://auth/callback?error={error}")
+    if not code or not state:
+        return RedirectResponse("harajplus://auth/callback?error=missing_code")
+    rec = await db.snap_oauth_states.find_one_and_delete({"state": state})
+    if not rec:
+        return RedirectResponse("harajplus://auth/callback?error=invalid_state")
+    mob = (rec.get("mobile_redirect") or "harajplus://auth/callback").strip()
+    if not SNAPCHAT_CLIENT_ID or not SNAPCHAT_CLIENT_SECRET:
+        return RedirectResponse(f"{mob}?error=not_configured")
+    backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", "")
+    redirect_uri = f"{backend}/api/auth/snapchat/callback-redirect"
+    basic = _b64.b64encode(f"{SNAPCHAT_CLIENT_ID}:{SNAPCHAT_CLIENT_SECRET}".encode()).decode()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as cx:
+            tok = await cx.post(
+                "https://accounts.snapchat.com/login/oauth2/access_token",
+                headers={"Authorization": f"Basic {basic}", "Content-Type": "application/x-www-form-urlencoded"},
+                data={"code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri, "code_verifier": rec["code_verifier"]},
+            )
+            if tok.status_code != 200:
+                logger.error(f"[Snap mobile token] {tok.status_code} {tok.text[:200]}")
+                return RedirectResponse(f"{mob}?error=token_exchange")
+            access_snap = tok.json().get("access_token")
+            me = await cx.post(
+                "https://kit.snapchat.com/v1/me",
+                headers={"Authorization": f"Bearer {access_snap}", "Content-Type": "application/json"},
+                json={"query": "{me{externalId displayName bitmoji{avatar}}}"},
+            )
+            if me.status_code != 200:
+                return RedirectResponse(f"{mob}?error=userinfo")
+            data = (me.json() or {}).get("data", {}).get("me", {})
+    except httpx.HTTPError as e:
+        logger.error(f"[Snap mobile HTTP] {e}")
+        return RedirectResponse(f"{mob}?error=network")
+    snap_id = data.get("externalId")
+    if not snap_id:
+        return RedirectResponse(f"{mob}?error=no_id")
+    snap_name = data.get("displayName") or "مستخدم Snapchat"
+    snap_avatar = (data.get("bitmoji") or {}).get("avatar")
+    placeholder_email = f"snap_{snap_id}@snapchat.local"
+    user = await db.users.find_one({"$or": [{"snap_id": snap_id}, {"email": placeholder_email}]})
+    if not user:
+        uid = str(uuid.uuid4())
+        user = {
+            "id": uid, "name": snap_name, "email": placeholder_email,
+            "phone": "", "country_code": "SA", "phone_full": "", "city": None,
+            "password_hash": hash_password(secrets.token_urlsafe(24)),
+            "role": "user", "verified": False, "trust_score": 60,
+            "avatar_url": snap_avatar, "bio": "", "language": "ar",
+            "banned": False, "snap_id": snap_id,
+            "referral_code": gen_referral_code(snap_name), "referred_by": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.users.insert_one(user)
+    else:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"snap_id": snap_id}})
+    if user.get("banned"):
+        return RedirectResponse(f"{mob}?error=banned")
+    access = create_access_token(user["id"], user["email"], user.get("role", "user"))
+    refresh = create_refresh_token(user["id"])
+    import urllib.parse as _up
+    frag = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "snapchat"})
+    return RedirectResponse(f"{mob}#{frag}")
 
 
 # ============================================================
@@ -1099,14 +1247,20 @@ async def _upsert_google_user(g_email: str, g_name: str, g_picture: Optional[str
 
 
 @api.get("/auth/google/start")
-async def google_oauth_start(request: Request):
-    """Return Google OAuth consent URL with a CSRF state token cookie."""
+async def google_oauth_start(request: Request, mobile_redirect: Optional[str] = None):
+    """Return Google OAuth consent URL with a CSRF state token cookie.
+
+    When `mobile_redirect` (a custom URI scheme like `harajplus://auth/callback`)
+    is provided, the final callback will redirect to that scheme instead of the
+    web FRONTEND_URL — enabling deep-link return into the native Expo app.
+    """
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(503, "Google OAuth غير مُعد على الخادم")
     state = secrets.token_urlsafe(32)
     # Store state in MongoDB (short TTL) so it survives across the auth redirect
     await db.google_oauth_states.insert_one({
         "state": state,
+        "mobile_redirect": (mobile_redirect or "").strip() or None,
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
     })
     from urllib.parse import urlencode
@@ -1191,6 +1345,10 @@ async def google_oauth_callback(code: str = "", state: str = "", error: str = ""
     refresh = create_refresh_token(user["id"])
     import urllib.parse as _up
     frag = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "google"})
+    # Mobile deep-link return path takes priority when set on the state record.
+    mobile_redirect = (found.get("mobile_redirect") or "").strip()
+    if mobile_redirect:
+        return RedirectResponse(f"{mobile_redirect}#{frag}")
     resp = RedirectResponse(f"{frontend}/auth/callback#{frag}")
     set_auth_cookies(resp, access, refresh)
     return resp
@@ -1299,13 +1457,19 @@ async def _upsert_apple_user(apple_sub: str, email: str, name: str, picture: Opt
 
 
 @api.get("/auth/apple/start")
-async def apple_oauth_start():
-    """Return Apple OAuth consent URL with a CSRF state token stored in DB."""
+async def apple_oauth_start(mobile_redirect: Optional[str] = None):
+    """Return Apple OAuth consent URL with a CSRF state token stored in DB.
+
+    If `mobile_redirect` is set (custom URI scheme), the callback will redirect
+    to that scheme instead of the web frontend — enabling Apple sign-in inside
+    the Expo mobile app.
+    """
     if not APPLE_CLIENT_ID:
         raise HTTPException(503, "Apple Sign In غير مُعد على الخادم")
     state = secrets.token_urlsafe(32)
     await db.apple_oauth_states.insert_one({
         "state": state,
+        "mobile_redirect": (mobile_redirect or "").strip() or None,
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
         "created_at": datetime.now(timezone.utc),
     })
@@ -1430,6 +1594,10 @@ async def apple_oauth_callback(request: Request):
     refresh = create_refresh_token(user["id"])
     import urllib.parse as _up
     frag = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "apple"})
+    # Mobile deep-link path: redirect to scheme (e.g. harajplus://auth/callback)
+    mobile_redirect = (found.get("mobile_redirect") or "").strip()
+    if mobile_redirect:
+        return RedirectResponse(f"{mobile_redirect}#{frag}", status_code=303)
     resp = RedirectResponse(f"{frontend}/auth/callback#{frag}", status_code=303)
     set_auth_cookies(resp, access, refresh)
     return resp

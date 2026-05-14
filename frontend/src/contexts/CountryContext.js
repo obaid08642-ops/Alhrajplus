@@ -20,17 +20,6 @@ const COUNTRIES = [
     { code: "BH", flag: "🇧🇭", name_ar: "البحرين", dial: "+973" },
     { code: "OM", flag: "🇴🇲", name_ar: "عُمان", dial: "+968" },
     { code: "EG", flag: "🇪🇬", name_ar: "مصر", dial: "+20" },
-    { code: "JO", flag: "🇯🇴", name_ar: "الأردن", dial: "+962" },
-    { code: "IQ", flag: "🇮🇶", name_ar: "العراق", dial: "+964" },
-    { code: "YE", flag: "🇾🇪", name_ar: "اليمن", dial: "+967" },
-    { code: "MA", flag: "🇲🇦", name_ar: "المغرب", dial: "+212" },
-    { code: "DZ", flag: "🇩🇿", name_ar: "الجزائر", dial: "+213" },
-    { code: "TN", flag: "🇹🇳", name_ar: "تونس", dial: "+216" },
-    { code: "LY", flag: "🇱🇾", name_ar: "ليبيا", dial: "+218" },
-    { code: "SD", flag: "🇸🇩", name_ar: "السودان", dial: "+249" },
-    { code: "LB", flag: "🇱🇧", name_ar: "لبنان", dial: "+961" },
-    { code: "SY", flag: "🇸🇾", name_ar: "سوريا", dial: "+963" },
-    { code: "PS", flag: "🇵🇸", name_ar: "فلسطين", dial: "+970" },
 ];
 
 const STORAGE_KEY = "hp_country";

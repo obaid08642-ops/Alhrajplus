@@ -21,13 +21,20 @@
             "supportsTablet": true,
             "bundleIdentifier": "com.harajplus.app",
             "buildNumber": "1",
+            "associatedDomains": ["applinks:alhraj.online", "applinks:alhrajplus.com"],
             "infoPlist": {
                 "NSLocationWhenInUseUsageDescription": "يستخدم التطبيق موقعك لعرض الإعلانات القريبة منك",
                 "NSCameraUsageDescription": "يستخدم التطبيق الكاميرا لإضافة صور للإعلانات",
                 "NSPhotoLibraryUsageDescription": "يستخدم التطبيق مكتبة الصور لإضافة صور للإعلانات",
                 "NSMicrophoneUsageDescription": "يستخدم التطبيق الميكروفون لتسجيل الرسائل الصوتية في الشات",
                 "NSFaceIDUsageDescription": "يستخدم التطبيق Face ID لتسجيل الدخول الآمن",
-                "ITSAppUsesNonExemptEncryption": false
+                "ITSAppUsesNonExemptEncryption": false,
+                "CFBundleURLTypes": [
+                    {
+                        "CFBundleURLName": "com.harajplus.app",
+                        "CFBundleURLSchemes": ["harajplus"]
+                    }
+                ]
             }
         },
         "android": {
@@ -47,6 +54,23 @@
                 "USE_BIOMETRIC",
                 "USE_FINGERPRINT",
                 "VIBRATE"
+            ],
+            "intentFilters": [
+                {
+                    "action": "VIEW",
+                    "autoVerify": false,
+                    "category": ["BROWSABLE", "DEFAULT"],
+                    "data": [{ "scheme": "harajplus", "host": "auth", "pathPrefix": "/callback" }]
+                },
+                {
+                    "action": "VIEW",
+                    "autoVerify": true,
+                    "category": ["BROWSABLE", "DEFAULT"],
+                    "data": [
+                        { "scheme": "https", "host": "alhraj.online" },
+                        { "scheme": "https", "host": "alhrajplus.com" }
+                    ]
+                }
             ],
             "googleServicesFile": "./google-services.json"
         },

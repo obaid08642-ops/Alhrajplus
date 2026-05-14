@@ -1,6 +1,7 @@
 import axios from "axios";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const BACKEND_URL =
     Constants.expoConfig?.extra?.backendUrl ||
@@ -12,18 +13,48 @@ const api = axios.create({
     timeout: 20000,
 });
 
-// Attach bearer token from AsyncStorage on every request (mobile has no cookies)
+const TOKEN_KEY = "hp_access_token";
+
+// Secure-first storage: keychain on iOS, EncryptedSharedPreferences on Android.
+// Fall back to AsyncStorage when SecureStore isn't available (web / older sims).
+async function getStored(key) {
+    try {
+        if (SecureStore.isAvailableAsync && await SecureStore.isAvailableAsync()) {
+            const v = await SecureStore.getItemAsync(key);
+            if (v) return v;
+        }
+    } catch (_) {}
+    return AsyncStorage.getItem(key);
+}
+async function setStored(key, value) {
+    try {
+        if (SecureStore.isAvailableAsync && await SecureStore.isAvailableAsync()) {
+            await SecureStore.setItemAsync(key, value);
+        }
+    } catch (_) {}
+    return AsyncStorage.setItem(key, value);
+}
+async function delStored(key) {
+    try {
+        if (SecureStore.isAvailableAsync && await SecureStore.isAvailableAsync()) {
+            await SecureStore.deleteItemAsync(key);
+        }
+    } catch (_) {}
+    return AsyncStorage.removeItem(key);
+}
+
+// Attach bearer token on every request (mobile has no cookies)
 api.interceptors.request.use(async (config) => {
-    const token = await AsyncStorage.getItem("hp_access_token");
+    const token = await getStored(TOKEN_KEY);
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
 
 export async function saveToken(token) {
-    await AsyncStorage.setItem("hp_access_token", token);
+    return setStored(TOKEN_KEY, token);
 }
 export async function clearToken() {
-    await AsyncStorage.removeItem("hp_access_token");
+    return delStored(TOKEN_KEY);
 }
 
 export function formatApiError(err) {
