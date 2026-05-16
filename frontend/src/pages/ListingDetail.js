@@ -39,7 +39,7 @@ export default function ListingDetail() {
     const { id } = useParams();
     const nav = useNavigate();
     const { user } = useAuth();
-    const { t, pickName, pickLabel, tr } = useI18n();
+    const { t, pickName, pickLabel, tr, lang } = useI18n();
     const [listing, setListing] = useState(null);
     const [similar, setSimilar] = useState([]);
     const [activeImg, setActiveImg] = useState(0);
@@ -56,7 +56,7 @@ export default function ListingDetail() {
                 const [l, s, c] = await Promise.all([
                     api.get(`/listings/${id}`),
                     api.get(`/listings/${id}/similar`),
-                    api.get("/meta/categories"),
+                    api.get("/meta/categories", { params: { lang } }),
                 ]);
                 setListing(l.data);
                 setSimilar(s.data);
@@ -68,7 +68,7 @@ export default function ListingDetail() {
             } catch (_) { nav("/"); }
         };
         load();
-    }, [id, nav, user]);
+    }, [id, nav, user, lang]);
 
     const toggleFollow = async () => {
         if (!user) return nav("/login");
@@ -252,12 +252,20 @@ export default function ListingDetail() {
                         <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
                             <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{tr("المواصفات")}</h2>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-arabic-body">
-                                {cat?.fields?.filter((f) => listing.custom_fields[f.key]).map((f) => (
-                                    <div key={f.key} className="bg-[var(--surface-elevated)] rounded-xl p-3 border border-[var(--border)]">
-                                        <div className="text-xs text-[var(--text-muted)] mb-1">{pickLabel(f)}</div>
-                                        <div className="text-sm font-bold text-[var(--text)]">{listing.custom_fields[f.key]}</div>
-                                    </div>
-                                ))}
+                                {cat?.fields?.filter((f) => listing.custom_fields[f.key]).map((f) => {
+                                    const rawVal = listing.custom_fields[f.key];
+                                    let displayVal = rawVal;
+                                    if (Array.isArray(f.options_ar) && Array.isArray(f.options)) {
+                                        const idx = f.options_ar.indexOf(rawVal);
+                                        if (idx >= 0 && f.options[idx]) displayVal = f.options[idx];
+                                    }
+                                    return (
+                                        <div key={f.key} className="bg-[var(--surface-elevated)] rounded-xl p-3 border border-[var(--border)]">
+                                            <div className="text-xs text-[var(--text-muted)] mb-1">{pickLabel(f)}</div>
+                                            <div className="text-sm font-bold text-[var(--text)]">{displayVal}</div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

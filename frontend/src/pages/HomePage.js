@@ -10,7 +10,7 @@ import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 
 export default function HomePage() {
-    const { t, pickName, tr } = useI18n();
+    const { t, pickName, tr, lang } = useI18n();
     const { user } = useAuth();
     const { country } = useCountry();
     const [categories, setCategories] = useState([]);
@@ -28,7 +28,7 @@ export default function HomePage() {
                 const params = { limit: 24 };
                 if (country) params.country_code = country;
                 const [cats, lists] = await Promise.all([
-                    api.get("/meta/categories"),
+                    api.get("/meta/categories", { params: { lang } }),
                     api.get("/listings", { params })
                 ]);
                 setCategories(cats.data);
@@ -36,7 +36,7 @@ export default function HomePage() {
             } catch (_) {} finally { setLoading(false); }
         };
         load();
-    }, [country]);
+    }, [country, lang]);
 
     return (
         <div className="space-y-5 sm:space-y-8 pb-6">

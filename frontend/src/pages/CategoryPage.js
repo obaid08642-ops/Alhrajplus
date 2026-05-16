@@ -13,7 +13,7 @@ export default function CategoryPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { country } = useCountry();
-    const { t, pickName, tr } = useI18n();
+    const { t, pickName, tr, lang } = useI18n();
     const [category, setCategory] = useState(null);
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -40,10 +40,10 @@ export default function CategoryPage() {
     }, [filters.sort]);
 
     useEffect(() => {
-        api.get("/meta/categories").then(({ data }) => {
+        api.get("/meta/categories", { params: { lang } }).then(({ data }) => {
             setCategory(data.find((c) => c.key === categoryKey));
         });
-    }, [categoryKey]);
+    }, [categoryKey, lang]);
 
     useEffect(() => {
         const load = async () => {

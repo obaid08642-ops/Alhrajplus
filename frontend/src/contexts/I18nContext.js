@@ -267,14 +267,17 @@ export function I18nProvider({ children }) {
     }, [lang]);
     const t = (key) => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.ar[key] || key;
     const isRTL = RTL_LANGS.includes(lang);
-    // helper: pick best name from object {name_ar, name_en}
+    // helper: pick best name from object {name, name_ar, name_en}
+    // Backend now returns a pre-translated `name` field when ?lang= is passed
     const pickName = (obj) => {
         if (!obj) return "";
+        if (obj.name) return obj.name; // pre-translated by backend
         if (lang === "ar") return obj.name_ar || obj.name_en || "";
         return obj.name_en || obj.name_ar || "";
     };
     const pickLabel = (field) => {
         if (!field) return "";
+        if (field.label) return field.label; // pre-translated by backend
         if (lang === "ar") return field.label_ar || field.label_en || field.key;
         return field.label_en || field.label_ar || field.key;
     };

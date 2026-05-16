@@ -350,10 +350,86 @@ def t_option(text: str, lang: str) -> str:
 
 
 def t_category(text: str, lang: str) -> str:
-    """Translate a category/subcategory name."""
+    """Translate a category/subcategory name. Falls back to OPTIONS_I18N for
+    subcategory names that overlap with common option strings (like 'عرض وظيفة')."""
     if not text or lang == "ar":
         return text
-    entry = CATEGORY_I18N.get(text)
+    entry = CATEGORY_I18N.get(text) or OPTIONS_I18N.get(text)
+    if not entry:
+        return text
+    return entry.get(lang) or entry.get("en") or text
+
+
+# --- Field labels (translated separately so we can keep label_en as last fallback)
+FIELDS_I18N: Dict[str, Dict[str, str]] = {
+    "الماركة": {"en": "Make", "ur": "میک", "hi": "मेक", "bn": "মেক", "fr": "Marque"},
+    "الموديل": {"en": "Model", "ur": "ماڈل", "hi": "मॉडल", "bn": "মডেল", "fr": "Modèle"},
+    "سنة الصنع": {"en": "Year", "ur": "سن تیاری", "hi": "वर्ष", "bn": "বছর", "fr": "Année"},
+    "الكيلومترات": {"en": "Kilometers", "ur": "کلومیٹر", "hi": "किलोमीटर", "bn": "কিলোমিটার", "fr": "Kilomètres"},
+    "ناقل الحركة": {"en": "Transmission", "ur": "ٹرانسمیشن", "hi": "ट्रांसमिशन", "bn": "ট্রান্সমিশন", "fr": "Transmission"},
+    "نوع الوقود": {"en": "Fuel", "ur": "ایندھن", "hi": "ईंधन", "bn": "জ্বালানি", "fr": "Carburant"},
+    "الحالة": {"en": "Condition", "ur": "حالت", "hi": "स्थिति", "bn": "অবস্থা", "fr": "État"},
+    "الفئة": {"en": "Body Type", "ur": "باڈی ٹائپ", "hi": "बॉडी टाइप", "bn": "বডি টাইপ", "fr": "Carrosserie"},
+    "اللون": {"en": "Color", "ur": "رنگ", "hi": "रंग", "bn": "রঙ", "fr": "Couleur"},
+    "البائع": {"en": "Seller", "ur": "بیچنے والا", "hi": "विक्रेता", "bn": "বিক্রেতা", "fr": "Vendeur"},
+    "حالة الجمرك": {"en": "Customs Status", "ur": "کسٹم اسٹیٹس", "hi": "कस्टम स्थिति", "bn": "কাস্টমস", "fr": "Statut douanier"},
+    "نوع الإعلان": {"en": "Listing Type", "ur": "اشتہار کی قسم", "hi": "विज्ञापन प्रकार", "bn": "বিজ্ঞাপনের ধরন", "fr": "Type d'annonce"},
+    "نوع العقار": {"en": "Property Type", "ur": "جائیداد کی قسم", "hi": "संपत्ति प्रकार", "bn": "সম্পত্তির ধরন", "fr": "Type de bien"},
+    "المساحة (م²)": {"en": "Area (m²)", "ur": "رقبہ (م²)", "hi": "क्षेत्रफल (m²)", "bn": "আয়তন (m²)", "fr": "Surface (m²)"},
+    "عدد الغرف": {"en": "Rooms", "ur": "کمروں کی تعداد", "hi": "कमरों की संख्या", "bn": "কক্ষ সংখ্যা", "fr": "Nombre de pièces"},
+    "عدد الحمامات": {"en": "Bathrooms", "ur": "باتھ روم", "hi": "बाथरूम", "bn": "বাথরুম", "fr": "Salles de bain"},
+    "الدور": {"en": "Floor", "ur": "منزل", "hi": "मंज़िल", "bn": "তলা", "fr": "Étage"},
+    "عمر العقار": {"en": "Property Age", "ur": "جائیداد کی عمر", "hi": "संपत्ति की आयु", "bn": "সম্পত্তির বয়স", "fr": "Âge du bien"},
+    "الواجهة": {"en": "Facade", "ur": "اطراف", "hi": "मुख", "bn": "দিক", "fr": "Façade"},
+    "عرض الشارع (م)": {"en": "Street Width (m)", "ur": "گلی کی چوڑائی (م)", "hi": "सड़क की चौड़ाई (m)", "bn": "রাস্তার প্রস্থ (m)", "fr": "Largeur de rue (m)"},
+    "مفروشة": {"en": "Furnished", "ur": "فرنشڈ", "hi": "सुसज्जित", "bn": "সজ্জিত", "fr": "Meublé"},
+    "فترة الإيجار": {"en": "Rent Period", "ur": "کرایہ کی مدت", "hi": "किराये की अवधि", "bn": "ভাড়ার সময়কাল", "fr": "Durée de location"},
+    "السعة": {"en": "Storage", "ur": "اسٹوریج", "hi": "स्टोरेज", "bn": "স্টোরেজ", "fr": "Stockage"},
+    "الذاكرة العشوائية (RAM)": {"en": "RAM", "ur": "ریم", "hi": "रैम", "bn": "র‍্যাম", "fr": "RAM"},
+    "الضمان": {"en": "Warranty", "ur": "وارنٹی", "hi": "वारंटी", "bn": "ওয়ারেন্টি", "fr": "Garantie"},
+    "المسمى الوظيفي": {"en": "Job Title", "ur": "عہدہ", "hi": "पदनाम", "bn": "পদবি", "fr": "Intitulé du poste"},
+    "المجال": {"en": "Industry", "ur": "شعبہ", "hi": "क्षेत्र", "bn": "শিল্প", "fr": "Secteur"},
+    "سنوات الخبرة": {"en": "Years of Experience", "ur": "تجربہ", "hi": "अनुभव", "bn": "অভিজ্ঞতা", "fr": "Expérience"},
+    "المؤهل": {"en": "Education", "ur": "تعلیم", "hi": "योग्यता", "bn": "যোগ্যতা", "fr": "Diplôme"},
+    "نوع الدوام": {"en": "Employment Type", "ur": "ملازمت کی قسم", "hi": "रोजगार प्रकार", "bn": "চাকরির ধরন", "fr": "Type d'emploi"},
+    "الراتب من": {"en": "Salary from", "ur": "تنخواہ سے", "hi": "वेतन से", "bn": "বেতন থেকে", "fr": "Salaire min"},
+    "الراتب إلى": {"en": "Salary to", "ur": "تنخواہ تک", "hi": "वेतन तक", "bn": "বেতন পর্যন্ত", "fr": "Salaire max"},
+    "المهارات": {"en": "Skills", "ur": "مہارتیں", "hi": "कौशल", "bn": "দক্ষতা", "fr": "Compétences"},
+    "اللغات": {"en": "Languages", "ur": "زبانیں", "hi": "भाषाएँ", "bn": "ভাষা", "fr": "Langues"},
+    "الجنس": {"en": "Gender", "ur": "جنس", "hi": "लिंग", "bn": "লিঙ্গ", "fr": "Sexe"},
+    "الجنسية": {"en": "Nationality", "ur": "قومیت", "hi": "राष्ट्रीयता", "bn": "জাতীয়তা", "fr": "Nationalité"},
+    "المزايا": {"en": "Benefits", "ur": "مراعات", "hi": "लाभ", "bn": "সুবিধা", "fr": "Avantages"},
+    "ساعات العمل": {"en": "Work Hours", "ur": "اوقات کار", "hi": "कार्य घंटे", "bn": "কর্ম ঘণ্টা", "fr": "Heures de travail"},
+    "اسم الشركة/الجهة": {"en": "Company/Entity", "ur": "کمپنی", "hi": "कंपनी", "bn": "কোম্পানি", "fr": "Entreprise"},
+    "نوع الخدمة": {"en": "Service Type", "ur": "سروس کی قسم", "hi": "सेवा प्रकार", "bn": "সেবার ধরন", "fr": "Type de service"},
+    "وتيرة العمل": {"en": "Frequency", "ur": "تعدد", "hi": "आवृत्ति", "bn": "ফ্রিকোয়েন্সি", "fr": "Fréquence"},
+    "أوقات التوفر": {"en": "Schedule", "ur": "اوقات دستیابی", "hi": "उपलब्धता", "bn": "সময়সূচি", "fr": "Disponibilités"},
+    "خدمة الاصطحاب": {"en": "Pickup", "ur": "پک اپ", "hi": "पिकअप", "bn": "পিকআপ", "fr": "Service de récupération"},
+    "خدمة التوصيل": {"en": "Dropoff", "ur": "ڈراپ آف", "hi": "ड्रॉपऑफ", "bn": "ড্রপ-অফ", "fr": "Service de livraison"},
+    "نوع التسعير": {"en": "Pricing Type", "ur": "قیمت کی قسم", "hi": "मूल्य निर्धारण", "bn": "মূল্য ধরন", "fr": "Type de tarification"},
+    "السعر/الأجر": {"en": "Rate", "ur": "نرخ", "hi": "दर", "bn": "মূল্য", "fr": "Tarif"},
+    "الخبرة": {"en": "Experience", "ur": "تجربہ", "hi": "अनुभव", "bn": "অভিজ্ঞতা", "fr": "Expérience"},
+    "موثّق/مرخّص": {"en": "Certified", "ur": "تصدیق شدہ", "hi": "प्रमाणित", "bn": "প্রত্যয়িত", "fr": "Certifié"},
+    "متاح 24/7": {"en": "24/7 Available", "ur": "24/7 دستیاب", "hi": "24/7 उपलब्ध", "bn": "২৪/৭ লভ্য", "fr": "Disponible 24/7"},
+    "النوع": {"en": "Type", "ur": "قسم", "hi": "प्रकार", "bn": "ধরন", "fr": "Type"},
+    "المقاس": {"en": "Size", "ur": "سائز", "hi": "साइज़", "bn": "মাপ", "fr": "Taille"},
+    "العمر": {"en": "Age", "ur": "عمر", "hi": "उम्र", "bn": "বয়স", "fr": "Âge"},
+    "المادة": {"en": "Material", "ur": "میٹریل", "hi": "सामग्री", "bn": "উপাদান", "fr": "Matériau"},
+    "اللغة": {"en": "Language", "ur": "زبان", "hi": "भाषा", "bn": "ভাষা", "fr": "Langue"},
+    "المؤلف": {"en": "Author", "ur": "مصنف", "hi": "लेखक", "bn": "লেখক", "fr": "Auteur"},
+    "المنصة": {"en": "Platform", "ur": "پلیٹ فارم", "hi": "प्लेटफ़ॉर्म", "bn": "প্ল্যাটফর্ম", "fr": "Plateforme"},
+    "السلالة": {"en": "Breed", "ur": "نسل", "hi": "नस्ल", "bn": "প্রজাতি", "fr": "Race"},
+    "الكمية": {"en": "Quantity", "ur": "مقدار", "hi": "मात्रा", "bn": "পরিমাণ", "fr": "Quantité"},
+}
+
+
+def t_label(text: str, lang: str) -> str:
+    """Translate a field label."""
+    if not text:
+        return text
+    if lang == "ar":
+        return text
+    entry = FIELDS_I18N.get(text) or OPTIONS_I18N.get(text)
     if not entry:
         return text
     return entry.get(lang) or entry.get("en") or text
@@ -380,10 +456,14 @@ def localize_categories(categories: list, lang: str) -> list:
         nc["fields"] = []
         for f in c.get("fields", []):
             nf = {**f}
-            # Label
+            # Label — try FIELDS_I18N first, then OPTIONS_I18N, finally fall back to label_en or Arabic
             ar_label = f.get("label_ar", "")
             en_label = f.get("label_en", "")
-            nf["label"] = t_option(ar_label, lang) if ar_label in OPTIONS_I18N else (en_label or ar_label)
+            translated_label = t_label(ar_label, lang) if ar_label else ""
+            if translated_label and translated_label != ar_label:
+                nf["label"] = translated_label
+            else:
+                nf["label"] = en_label or ar_label
             # Options
             if isinstance(f.get("options"), list):
                 nf["options"] = [t_option(opt, lang) for opt in f["options"]]

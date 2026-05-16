@@ -57,6 +57,13 @@ async function startGoogleLogin() {
 }
 
 function SocialLoginButtons() {
+    // Fetch which OAuth providers are configured on the backend so we can hide buttons
+    // that would otherwise show a misleading "غير مُعد على الخادم" error.
+    const [providers, setProviders] = useState({ google: true, apple: true, x: true, snapchat: true });
+    useEffect(() => {
+        api.get("/auth/providers").then(({ data }) => setProviders(data)).catch(() => {});
+    }, []);
+
     const startX = async () => {
         try {
             const { data } = await api.get("/auth/x/start");
@@ -96,6 +103,7 @@ function SocialLoginButtons() {
                 type="button"
                 data-testid="google-login-btn"
                 onClick={startGoogleLogin}
+                style={{ display: providers.google ? undefined : "none" }}
                 className="w-full bg-white hover:bg-gray-50 text-gray-800 border border-[var(--border)] py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all font-arabic"
             >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -110,6 +118,7 @@ function SocialLoginButtons() {
                 type="button"
                 data-testid="apple-login-btn"
                 onClick={startApple}
+                style={{ display: providers.apple ? undefined : "none" }}
                 className="w-full bg-black hover:bg-gray-900 text-white border border-black py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all font-arabic"
             >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -117,11 +126,12 @@ function SocialLoginButtons() {
                 </svg>
                 {tr("متابعة بحساب Apple")}
             </button>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2" style={{ display: (providers.x || providers.snapchat) ? undefined : "none" }}>
                 <button
                     type="button"
                     data-testid="x-login-btn"
                     onClick={startX}
+                    style={{ display: providers.x ? undefined : "none" }}
                     className="bg-black hover:bg-gray-900 text-white py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all font-arabic"
                 >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2H21.5l-7.55 8.625L23 22h-6.844l-5.36-7.005L4.62 22H1.36l8.07-9.225L1 2h7l4.846 6.405L18.244 2zm-1.197 18h1.86L7.04 4H5.07l11.977 16z"/></svg>
@@ -131,6 +141,7 @@ function SocialLoginButtons() {
                     type="button"
                     data-testid="snapchat-login-btn"
                     onClick={startSnap}
+                    style={{ display: providers.snapchat ? undefined : "none" }}
                     className="bg-yellow-400 hover:bg-yellow-500 text-black py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all font-arabic"
                 >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.166.34c2.853-.04 5.49 1.92 6.34 4.6.31 1.05.21 2.18.21 3.27 0 .85-.21 1.7-.07 2.55.31 0 .61-.07.92-.13.21-.04.42-.07.62-.04.42.07.85.21.92.71.07.55-.42.85-.85.99-.42.21-.92.28-1.34.42-.42.21-.71.55-.85.99-.07.21-.07.42 0 .62.42 1.27 1.34 2.4 2.55 3.06.42.21.92.42 1.41.42.21 0 .42-.07.62.07.21.21.21.55 0 .78-.34.42-.85.71-1.34.99-.71.34-1.55.42-2.33.42-.42 0-.85.13-1.2.42-.42.34-.62.85-.92 1.27-.34.42-.78.55-1.27.55-.42 0-.85-.13-1.27-.21-.42-.07-.85-.07-1.27 0-.55.07-1.06.34-1.55.42-.21.07-.42.07-.62 0-.42-.13-.71-.42-.92-.78-.34-.42-.62-.85-1.06-1.13-.42-.28-.99-.34-1.48-.42-.71-.07-1.41-.13-2.05-.42-.55-.21-.99-.55-1.34-.99-.21-.21-.21-.55-.07-.78.21-.21.42-.13.62-.13.42 0 .85-.13 1.27-.34 1.27-.62 2.26-1.84 2.69-3.21.07-.21 0-.42-.07-.62-.21-.42-.55-.78-.99-.92-.42-.13-.85-.21-1.27-.42-.42-.13-.92-.42-.85-.99 0-.42.42-.62.85-.71.21-.07.42 0 .62.04.34.07.62.13.92.13.13-.85-.07-1.7-.07-2.55 0-1.06-.07-2.18.21-3.21C6.747 2.18 9.319.3 12.166.34z"/></svg>

@@ -31,6 +31,7 @@ from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from seed_data import COUNTRIES, CATEGORIES, DEFAULT_THEME
+from i18n_data import localize_categories, t_option, t_category
 from search_engine import (
     normalize_arabic,
     build_search_blob,
@@ -497,8 +498,24 @@ async def root():
     return {"app": "haraj_plus", "status": "ok", "version": "1.0"}
 
 @api.get("/meta/categories")
-async def get_categories():
-    return CATEGORIES
+async def get_categories(lang: str = "ar"):
+    lang = (lang or "ar").lower().strip()
+    if lang not in ("ar", "en", "ur", "hi", "bn", "fr"):
+        lang = "ar"
+    return localize_categories(CATEGORIES, lang)
+
+@api.get("/auth/providers")
+async def get_auth_providers():
+    """Returns which OAuth providers are configured on the server.
+    The frontend uses this to hide buttons for providers that lack credentials,
+    so users don't see misleading "غير مُعد على الخادم" alerts.
+    """
+    return {
+        "google": bool(os.environ.get("GOOGLE_CLIENT_ID", "").strip()),
+        "apple": bool(APPLE_CLIENT_ID and APPLE_TEAM_ID and APPLE_KEY_ID and APPLE_PRIVATE_KEY),
+        "x": bool(X_CLIENT_ID and X_CLIENT_SECRET),
+        "snapchat": bool(SNAPCHAT_CLIENT_ID and SNAPCHAT_CLIENT_SECRET),
+    }
 
 @api.get("/meta/countries")
 async def get_countries():
