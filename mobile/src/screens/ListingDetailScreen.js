@@ -3,11 +3,13 @@ import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, A
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
+import { useI18n } from "../I18nContext";
 import ListingCard from "../components/ListingCard";
 
 export default function ListingDetailScreen({ route, navigation }) {
     const { id } = route.params;
     const { user } = useAuth();
+    const { t } = useI18n();
     const [listing, setListing] = useState(null);
     const [similar, setSimilar] = useState([]);
     const [badge, setBadge] = useState(null);
@@ -25,37 +27,37 @@ export default function ListingDetailScreen({ route, navigation }) {
                 setSimilar(s.data);
                 setBadge(b.data);
             } catch {
-                Alert.alert("خطأ", "تعذر تحميل الإعلان");
+                Alert.alert(t("خطأ"), t("تعذر تحميل الإعلان"));
                 navigation.goBack();
             }
         })();
     }, [id]);
 
-    if (!listing) return <View style={styles.center}><Text>جاري التحميل...</Text></View>;
+    if (!listing) return <View style={styles.center}><Text>{t("جاري التحميل...")}</Text></View>;
 
     const isOwner = user && user.id === listing.user_id;
 
     const call = () => listing.seller?.phone_full && Linking.openURL(`tel:${listing.seller.phone_full}`);
-    const wa = () => listing.seller?.phone_full && Linking.openURL(`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`مرحباً بخصوص: ${listing.title}`)}`);
+    const wa = () => listing.seller?.phone_full && Linking.openURL(`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`${t("مرحباً بخصوص:")} ${listing.title}`)}`);
 
     const republish = async () => {
         try {
             const { data } = await api.post(`/listings/${id}/republish`);
-            Alert.alert("تم", data.message || "تم التجديد");
+            Alert.alert(t("تم"), data.message || t("تم التجديد"));
         } catch (e) {
-            Alert.alert("خطأ", e.response?.data?.detail || "تعذر التجديد");
+            Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر التجديد"));
         }
     };
     const markSold = () => {
-        Alert.alert("تأكيد", "هل تم بيع المنتج؟", [
-            { text: "إلغاء", style: "cancel" },
+        Alert.alert(t("تأكيد"), t("هل تم بيع المنتج؟"), [
+            { text: t("إلغاء"), style: "cancel" },
             {
-                text: "نعم، تم البيع", onPress: async () => {
+                text: t("نعم، تم البيع"), onPress: async () => {
                     try {
                         await api.post(`/listings/${id}/mark-sold`);
-                        Alert.alert("✅", "شكراً لك! نتمنى لك بيعاً موفقاً دائماً");
+                        Alert.alert("✅", t("شكراً لك! نتمنى لك بيعاً موفقاً دائماً"));
                         navigation.goBack();
-                    } catch (e) { Alert.alert("خطأ", "تعذر التحديث"); }
+                    } catch (e) { Alert.alert(t("خطأ"), t("تعذر التحديث")); }
                 }
             },
         ]);
@@ -67,7 +69,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                 {listing.images?.[activeImg] ? (
                     <Image source={{ uri: listing.images[activeImg] }} style={styles.mainImage} resizeMode="cover" />
                 ) : (
-                    <View style={[styles.mainImage, styles.ph]}><Text style={styles.phText}>لا توجد صور</Text></View>
+                    <View style={[styles.mainImage, styles.ph]}><Text style={styles.phText}>{t("لا توجد صور")}</Text></View>
                 )}
             </View>
 
@@ -84,24 +86,24 @@ export default function ListingDetailScreen({ route, navigation }) {
             {isOwner && (
                 <View style={styles.ownerBar}>
                     <TouchableOpacity onPress={() => navigation.navigate("Post", { editId: id })} style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}>
-                        <Text style={styles.smallBtnText}>تعديل</Text>
+                        <Text style={styles.smallBtnText}>{t("تعديل")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={republish} style={[styles.smallBtn, { backgroundColor: theme.colors.success }]}>
-                        <Text style={styles.smallBtnText}>تجديد</Text>
+                        <Text style={styles.smallBtnText}>{t("تجديد")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={markSold} style={[styles.smallBtn, { backgroundColor: theme.colors.accent }]}>
-                        <Text style={[styles.smallBtnText, { color: theme.colors.secondary }]}>تم البيع</Text>
+                        <Text style={[styles.smallBtnText, { color: theme.colors.secondary }]}>{t("تم البيع")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
-                        Alert.alert("تأكيد الحذف", "هل تريد حذف هذا الإعلان نهائياً؟", [
-                            { text: "إلغاء", style: "cancel" },
-                            { text: "حذف", style: "destructive", onPress: async () => {
-                                try { await api.delete(`/listings/${id}`); Alert.alert("تم الحذف"); navigation.goBack(); }
-                                catch (e) { Alert.alert("خطأ", "تعذر الحذف"); }
+                        Alert.alert(t("تأكيد الحذف"), t("هل تريد حذف هذا الإعلان نهائياً؟"), [
+                            { text: t("إلغاء"), style: "cancel" },
+                            { text: t("حذف"), style: "destructive", onPress: async () => {
+                                try { await api.delete(`/listings/${id}`); Alert.alert(t("تم الحذف")); navigation.goBack(); }
+                                catch (e) { Alert.alert(t("خطأ"), t("تعذر الحذف")); }
                             }},
                         ]);
                     }} style={[styles.smallBtn, { backgroundColor: theme.colors.danger }]}>
-                        <Text style={styles.smallBtnText}>حذف</Text>
+                        <Text style={styles.smallBtnText}>{t("حذف")}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -112,7 +114,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                     {listing.price ? (
                         <Text style={styles.price}>{Number(listing.price).toLocaleString()} <Text style={styles.currency}>{listing.currency}</Text></Text>
                     ) : (
-                        <Text style={styles.priceMuted}>على السوم</Text>
+                        <Text style={styles.priceMuted}>{t("على السوم")}</Text>
                     )}
                 </View>
                 {badge?.badge && (
@@ -125,10 +127,10 @@ export default function ListingDetailScreen({ route, navigation }) {
                     </View>
                 )}
 
-                <Text style={styles.sectionTitle}>الوصف</Text>
+                <Text style={styles.sectionTitle}>{t("الوصف")}</Text>
                 <Text style={styles.desc}>{listing.description}</Text>
 
-                <Text style={styles.sectionTitle}>معلومات البائع</Text>
+                <Text style={styles.sectionTitle}>{t("معلومات البائع")}</Text>
                 <View style={styles.sellerCard}>
                     <View style={styles.avatar}><Text style={styles.avatarText}>{listing.seller?.name?.[0] || "U"}</Text></View>
                     <View style={{ flex: 1 }}>
@@ -140,17 +142,17 @@ export default function ListingDetailScreen({ route, navigation }) {
                 {listing.show_phone !== false && listing.seller?.phone_full && (
                     <View style={{ marginTop: 12 }}>
                         <TouchableOpacity onPress={call} style={[styles.cta, { backgroundColor: theme.colors.success }]} testID="mobile-call-btn">
-                            <Text style={styles.ctaText}>📞 اتصال مباشر</Text>
+                            <Text style={styles.ctaText}>{t("📞 اتصال مباشر")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={wa} style={[styles.cta, { backgroundColor: "#25D366" }]} testID="mobile-wa-btn">
-                            <Text style={styles.ctaText}>💬 واتساب</Text>
+                            <Text style={styles.ctaText}>{t("💬 واتساب")}</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
                 {similar.length > 0 && (
                     <>
-                        <Text style={styles.sectionTitle}>إعلانات مماثلة</Text>
+                        <Text style={styles.sectionTitle}>{t("أحدث الإعلانات")}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             {similar.slice(0, 8).map((s) => (
                                 <View key={s.id} style={{ width: 160, marginEnd: 8 }}>

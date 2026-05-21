@@ -5,8 +5,10 @@ import { theme } from "../theme";
 import { formatApiError } from "../api";
 import { signInWithGoogle, signInWithApple, signInWithX, signInWithSnapchat } from "../socialAuth";
 import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
+import { useI18n } from "../I18nContext";
 
 function SocialButtons({ onSuccess }) {
+    const { t } = useI18n();
     const [busy, setBusy] = useState(null); // provider key or null
     const run = (provider, fn) => async () => {
         setBusy(provider);
@@ -14,8 +16,8 @@ function SocialButtons({ onSuccess }) {
             await fn();
             onSuccess?.();
         } catch (e) {
-            if (!String(e?.message || "").includes("إلغاء")) {
-                Alert.alert("خطأ", e.message || `فشل تسجيل الدخول بـ ${provider}`);
+            if (!String(e?.message || "").includes("إلغاء") && !String(e?.message || "").toLowerCase().includes("cancel")) {
+                Alert.alert(t("خطأ"), e.message || `${t("حدث خطأ. حاول مرة أخرى.")} (${provider})`);
             }
         } finally { setBusy(null); }
     };
@@ -23,11 +25,11 @@ function SocialButtons({ onSuccess }) {
         <View style={{ gap: 8 }}>
             <TouchableOpacity onPress={run("google", signInWithGoogle)} disabled={!!busy} style={[styles.googleBtn, busy && styles.btnDisabled]} testID="mobile-google-btn">
                 <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleText}>{busy === "google" ? "..." : "متابعة بحساب Google"}</Text>
+                <Text style={styles.googleText}>{busy === "google" ? "..." : t("متابعة بحساب Google")}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={run("apple", signInWithApple)} disabled={!!busy} style={[styles.appleBtn, busy && styles.btnDisabled]} testID="mobile-apple-btn">
                 <Text style={styles.appleIcon}></Text>
-                <Text style={styles.appleText}>{busy === "apple" ? "..." : "متابعة بحساب Apple"}</Text>
+                <Text style={styles.appleText}>{busy === "apple" ? "..." : t("متابعة بحساب Apple")}</Text>
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: 8 }}>
                 <TouchableOpacity onPress={run("x", signInWithX)} disabled={!!busy} style={[styles.xBtn, busy && styles.btnDisabled]} testID="mobile-x-btn">
@@ -43,13 +45,14 @@ function SocialButtons({ onSuccess }) {
 
 export function LoginScreen({ navigation }) {
     const { login, refresh } = useAuth();
+    const { t } = useI18n();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
     const [bioAvailable, setBioAvailable] = useState(false);
     const [bioEnabled, setBioEnabled] = useState(false);
-    const [bioLabel, setBioLabel] = useState("البصمة");
+    const [bioLabel, setBioLabel] = useState(t("البصمة"));
     const [askEnable, setAskEnable] = useState(false);
 
     useEffect(() => {
@@ -59,7 +62,7 @@ export function LoginScreen({ navigation }) {
             if (info.types) {
                 // 1=Fingerprint, 2=Facial, 3=Iris
                 if (info.types.includes(2)) setBioLabel("FaceID");
-                else if (info.types.includes(1)) setBioLabel("بصمة الإصبع");
+                else if (info.types.includes(1)) setBioLabel(t("بصمة الإصبع"));
             }
             const enabled = await isBiometricEnabled();
             setBioEnabled(enabled);
@@ -84,7 +87,7 @@ export function LoginScreen({ navigation }) {
                 setAskEnable(true);
             }
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || "فشل تسجيل الدخول");
+            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
         } finally { setBusy(false); }
     };
 
@@ -92,7 +95,7 @@ export function LoginScreen({ navigation }) {
         const ok = await enableBiometric(email, password);
         if (ok) {
             setBioEnabled(true);
-            Alert.alert("✅ تم", `تم تفعيل الدخول بـ${bioLabel}. استخدمه في المرة القادمة.`);
+            Alert.alert("✅", `${t("تفعيل الدخول بـ")}${bioLabel}.`);
         }
         setAskEnable(false);
     };
@@ -104,10 +107,10 @@ export function LoginScreen({ navigation }) {
             if (creds?.email && creds?.password) {
                 await login(creds.email, creds.password);
             } else {
-                setErr("فشل الدخول بالبصمة. استخدم كلمة المرور.");
+                setErr(t("حدث خطأ. حاول مرة أخرى."));
             }
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || "فشل الدخول");
+            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
         } finally { setBusy(false); }
     };
 
@@ -119,12 +122,12 @@ export function LoginScreen({ navigation }) {
                         <Text style={styles.logoMain}>الحراج</Text>
                         <Text style={styles.logoSub}>بلس</Text>
                     </View>
-                    <Text style={styles.title}>تسجيل الدخول</Text>
+                    <Text style={styles.title}>{t("تسجيل الدخول")}</Text>
 
                     {err ? <View style={styles.errorBox}><Text style={styles.errorText}>{err}</Text></View> : null}
 
                     <TextInput
-                        placeholder="البريد الإلكتروني"
+                        placeholder={t("البريد الإلكتروني")}
                         placeholderTextColor={theme.colors.textMuted}
                         value={email}
                         onChangeText={setEmail}
@@ -134,7 +137,7 @@ export function LoginScreen({ navigation }) {
                         testID="mobile-login-email"
                     />
                     <TextInput
-                        placeholder="كلمة المرور"
+                        placeholder={t("كلمة المرور")}
                         placeholderTextColor={theme.colors.textMuted}
                         value={password}
                         onChangeText={setPassword}
@@ -144,38 +147,38 @@ export function LoginScreen({ navigation }) {
                     />
 
                     <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]} testID="mobile-login-submit">
-                        <Text style={styles.btnText}>{busy ? "..." : "دخول"}</Text>
+                        <Text style={styles.btnText}>{busy ? "..." : t("تسجيل الدخول")}</Text>
                     </TouchableOpacity>
 
                     {bioEnabled && bioAvailable && (
                         <TouchableOpacity onPress={doBiometricLogin} disabled={busy} style={[styles.bioBtn]} testID="mobile-biometric-btn">
                             <Text style={styles.bioIcon}>🔐</Text>
-                            <Text style={styles.bioText}>الدخول بـ{bioLabel}</Text>
+                            <Text style={styles.bioText}>{t("الدخول بـ")}{bioLabel}</Text>
                         </TouchableOpacity>
                     )}
 
                     {askEnable && (
                         <View style={styles.enableBioBox}>
-                            <Text style={styles.enableBioText}>تفعيل الدخول بـ{bioLabel} في المرات القادمة؟</Text>
+                            <Text style={styles.enableBioText}>{t("تفعيل الدخول بـ")}{bioLabel}{t("في المرات القادمة؟")}</Text>
                             <View style={styles.enableBioRow}>
                                 <TouchableOpacity onPress={doEnableBio} style={styles.enableBioYes} testID="mobile-enable-bio-yes">
-                                    <Text style={styles.enableBioYesText}>تفعيل</Text>
+                                    <Text style={styles.enableBioYesText}>{t("تفعيل")}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={() => setAskEnable(false)} style={styles.enableBioNo}>
-                                    <Text style={styles.enableBioNoText}>ليس الآن</Text>
+                                    <Text style={styles.enableBioNoText}>{t("ليس الآن")}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
                     )}
 
-                    <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>أو</Text><View style={styles.line} /></View>
+                    <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>{t("أو")}</Text><View style={styles.line} /></View>
                     <SocialButtons onSuccess={() => refresh()} />
 
                     <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.linkWrap}>
-                        <Text style={styles.linkText}>ليس لديك حساب؟ <Text style={styles.linkStrong}>إنشاء حساب</Text></Text>
+                        <Text style={styles.linkText}>{t("ليس لديك حساب؟")} <Text style={styles.linkStrong}>{t("إنشاء حساب")}</Text></Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={{ marginTop: 6, alignItems: "center" }} testID="mobile-forgot-link">
-                        <Text style={[styles.linkStrong, { fontSize: 12 }]}>نسيت كلمة المرور؟</Text>
+                        <Text style={[styles.linkStrong, { fontSize: 12 }]}>{t("نسيت كلمة المرور؟")}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -185,6 +188,7 @@ export function LoginScreen({ navigation }) {
 
 export function RegisterScreen({ navigation }) {
     const { register, refresh } = useAuth();
+    const { t } = useI18n();
     const [form, setForm] = useState({ name: "", email: "", password: "", phone: "", country_code: "SA" });
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
@@ -194,7 +198,7 @@ export function RegisterScreen({ navigation }) {
         try {
             await register(form);
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || "فشل إنشاء الحساب");
+            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
         } finally { setBusy(false); }
     };
 
@@ -206,24 +210,24 @@ export function RegisterScreen({ navigation }) {
                         <Text style={styles.logoMain}>الحراج</Text>
                         <Text style={styles.logoSub}>بلس</Text>
                     </View>
-                    <Text style={styles.title}>إنشاء حساب جديد</Text>
+                    <Text style={styles.title}>{t("إنشاء حساب")}</Text>
 
                     {err ? <View style={styles.errorBox}><Text style={styles.errorText}>{err}</Text></View> : null}
 
-                    <TextInput placeholder="الاسم" placeholderTextColor={theme.colors.textMuted} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.input} />
-                    <TextInput placeholder="البريد الإلكتروني" placeholderTextColor={theme.colors.textMuted} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
-                    <TextInput placeholder="كلمة المرور (8+ أحرف)" placeholderTextColor={theme.colors.textMuted} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} secureTextEntry style={styles.input} />
-                    <TextInput placeholder="رقم الجوال (بدون رمز الدولة)" placeholderTextColor={theme.colors.textMuted} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, "") })} keyboardType="phone-pad" style={styles.input} />
+                    <TextInput placeholder={t("الاسم الكامل")} placeholderTextColor={theme.colors.textMuted} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.input} />
+                    <TextInput placeholder={t("البريد الإلكتروني")} placeholderTextColor={theme.colors.textMuted} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+                    <TextInput placeholder={t("كلمة المرور")} placeholderTextColor={theme.colors.textMuted} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} secureTextEntry style={styles.input} />
+                    <TextInput placeholder={t("رقم الجوال")} placeholderTextColor={theme.colors.textMuted} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, "") })} keyboardType="phone-pad" style={styles.input} />
 
                     <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]}>
-                        <Text style={styles.btnText}>{busy ? "..." : "إنشاء حساب"}</Text>
+                        <Text style={styles.btnText}>{busy ? "..." : t("إنشاء حساب")}</Text>
                     </TouchableOpacity>
 
-                    <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>أو</Text><View style={styles.line} /></View>
+                    <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>{t("أو")}</Text><View style={styles.line} /></View>
                     <SocialButtons onSuccess={() => refresh()} />
 
                     <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.linkWrap}>
-                        <Text style={styles.linkText}>لديك حساب؟ <Text style={styles.linkStrong}>تسجيل الدخول</Text></Text>
+                        <Text style={styles.linkText}>{t("لديك حساب بالفعل؟")} <Text style={styles.linkStrong}>{t("تسجيل الدخول")}</Text></Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

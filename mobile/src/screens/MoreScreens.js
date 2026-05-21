@@ -49,7 +49,7 @@ export function SearchScreen({ navigation }) {
                     value={q}
                     onChangeText={setQ}
                     onSubmitEditing={() => runSearch()}
-                    placeholder={t("search")}
+                    placeholder={t("ابحث عن إعلان...")}
                     placeholderTextColor={theme.colors.textMuted}
                     style={s.input}
                     testID="mobile-search-input"
@@ -84,7 +84,7 @@ export function SearchScreen({ navigation }) {
                             <ListingCard listing={item} onPress={() => navigation.navigate("ListingDetail", { id: item.id })} />
                         </View>
                     )}
-                    ListEmptyComponent={!loading && q ? <Text style={s.muted}>{t("no_results")}</Text> : null}
+                    ListEmptyComponent={!loading && q ? <Text style={s.muted}>{t("لا توجد نتائج")}</Text> : null}
                 />
             )}
         </View>
@@ -120,7 +120,7 @@ export function CategoriesScreen({ navigation }) {
                 >
                     <Text style={s.catName}>{item.name || item.name_ar}</Text>
                     {item.subcategories?.length > 0 && (
-                        <Text style={s.catSubs}>{item.subcategories.length} {t("subcategories")}</Text>
+                        <Text style={s.catSubs}>{item.subcategories.length} {t("تصنيف فرعي")}</Text>
                     )}
                 </TouchableOpacity>
             )}
@@ -157,7 +157,7 @@ export function CategoryListingsScreen({ route, navigation }) {
                             <ListingCard listing={item} onPress={() => navigation.navigate("ListingDetail", { id: item.id })} />
                         </View>
                     )}
-                    ListEmptyComponent={<Text style={s.muted}>{t("no_data")}</Text>}
+                    ListEmptyComponent={<Text style={s.muted}>{t("لا توجد بيانات")}</Text>}
                 />
             )}
         </View>
@@ -187,7 +187,7 @@ export function NotificationsScreen({ navigation }) {
         }
     };
 
-    if (!user) return <View style={s.center}><Text style={s.muted}>{t("login_required")}</Text></View>;
+    if (!user) return <View style={s.center}><Text style={s.muted}>{t("يجب تسجيل الدخول أولاً")}</Text></View>;
     if (loading) return <View style={s.center}><ActivityIndicator color={theme.colors.primary} /></View>;
 
     return (
@@ -200,35 +200,40 @@ export function NotificationsScreen({ navigation }) {
                     {item.body ? <Text style={s.notifBody} numberOfLines={2}>{item.body}</Text> : null}
                 </TouchableOpacity>
             )}
-            ListEmptyComponent={<Text style={s.muted}>{t("no_notifications")}</Text>}
+            ListEmptyComponent={<Text style={s.muted}>{t("لا توجد إشعارات")}</Text>}
         />
     );
 }
 
 // ---------- SETTINGS + STATIC PAGES ----------
 export function SettingsScreen({ navigation }) {
-    const { t, lang, setLang } = useI18n();
+    const { t, lang, setLang, supported } = useI18n();
+    const LANG_LABELS = { ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳", ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷" };
+    const nextLang = () => {
+        const i = supported.indexOf(lang);
+        return supported[(i + 1) % supported.length];
+    };
     return (
         <ScrollView style={s.wrap}>
-            <Text style={s.pageTitle}>{t("settings")}</Text>
+            <Text style={s.pageTitle}>{t("الإعدادات")}</Text>
             <View style={s.menu}>
-                <TouchableOpacity style={s.menuItem} onPress={() => setLang(lang === "ar" ? "en" : "ar")}>
-                    <Text style={s.menuLabel}>{t("language")}: {lang === "ar" ? "العربية 🇸🇦" : "English 🇬🇧"}</Text>
+                <TouchableOpacity style={s.menuItem} onPress={() => setLang(nextLang())} testID="mobile-lang-switcher">
+                    <Text style={s.menuLabel}>{t("اللغة")}: {LANG_LABELS[lang]}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Notifications")}>
-                    <Text style={s.menuLabel}>{t("notifications")}</Text>
+                    <Text style={s.menuLabel}>{t("الإشعارات")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", { key: "terms" })}>
-                    <Text style={s.menuLabel}>{t("terms")}</Text>
+                    <Text style={s.menuLabel}>{t("الشروط والأحكام")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", { key: "privacy" })}>
-                    <Text style={s.menuLabel}>{t("privacy")}</Text>
+                    <Text style={s.menuLabel}>{t("سياسة الخصوصية")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", { key: "about" })}>
-                    <Text style={s.menuLabel}>{t("about")}</Text>
+                    <Text style={s.menuLabel}>{t("عن التطبيق")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", { key: "contact" })}>
-                    <Text style={s.menuLabel}>{t("contact")}</Text>
+                    <Text style={s.menuLabel}>{t("تواصل معنا")}</Text>
                 </TouchableOpacity>
             </View>
         </ScrollView>

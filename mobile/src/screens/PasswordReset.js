@@ -18,29 +18,29 @@ export function ForgotPasswordScreen({ navigation }) {
             setDone(true);
             // When email service isn't configured, backend returns dev_reset_link
             if (data?.dev_reset_link) {
-                Alert.alert(t("token"), data.dev_reset_link);
+                Alert.alert(t("رمز التحقق"), data.dev_reset_link);
             }
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || t("error_generic"));
+            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
         } finally { setBusy(false); }
     };
 
     return (
         <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.card}>
-                <Text style={styles.title}>{t("forgot_password")}</Text>
+                <Text style={styles.title}>{t("نسيت كلمة المرور؟")}</Text>
                 {err ? <Text style={styles.err}>{err}</Text> : null}
                 {done ? (
                     <>
-                        <Text style={styles.success}>{t("check_email_for_reset")}</Text>
+                        <Text style={styles.success}>{t("تحقق من بريدك الإلكتروني للرابط")}</Text>
                         <TouchableOpacity onPress={() => navigation.navigate("ResetPassword")} style={styles.btn}>
-                            <Text style={styles.btnText}>{t("reset_password")}</Text>
+                            <Text style={styles.btnText}>{t("إعادة تعيين كلمة المرور")}</Text>
                         </TouchableOpacity>
                     </>
                 ) : (
                     <>
                         <TextInput
-                            placeholder={t("email")}
+                            placeholder={t("البريد الإلكتروني")}
                             placeholderTextColor={theme.colors.textMuted}
                             value={email}
                             onChangeText={setEmail}
@@ -50,12 +50,12 @@ export function ForgotPasswordScreen({ navigation }) {
                             testID="mobile-forgot-email"
                         />
                         <TouchableOpacity onPress={submit} disabled={busy || !email} style={[styles.btn, (busy || !email) && styles.btnDisabled]} testID="mobile-forgot-submit">
-                            <Text style={styles.btnText}>{busy ? "..." : t("send_link")}</Text>
+                            <Text style={styles.btnText}>{busy ? "..." : t("إرسال رابط الاستعادة")}</Text>
                         </TouchableOpacity>
                     </>
                 )}
                 <TouchableOpacity onPress={() => navigation.navigate("Login")} style={{ marginTop: 12, alignItems: "center" }}>
-                    <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>{t("login")}</Text>
+                    <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>{t("تسجيل الدخول")}</Text>
                 </TouchableOpacity>
             </View>
         </ScrollView>
@@ -73,20 +73,20 @@ export function ResetPasswordScreen({ navigation }) {
         setErr(""); setBusy(true);
         try {
             await api.post("/auth/reset-password", { token, new_password: pw });
-            Alert.alert(t("password_changed"));
+            Alert.alert(t("تم تغيير كلمة المرور بنجاح"));
             navigation.navigate("Login");
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || t("error_generic"));
+            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
         } finally { setBusy(false); }
     };
 
     return (
         <ScrollView contentContainerStyle={styles.scroll}>
             <View style={styles.card}>
-                <Text style={styles.title}>{t("reset_password")}</Text>
+                <Text style={styles.title}>{t("إعادة تعيين كلمة المرور")}</Text>
                 {err ? <Text style={styles.err}>{err}</Text> : null}
                 <TextInput
-                    placeholder={t("token")}
+                    placeholder={t("رمز التحقق")}
                     placeholderTextColor={theme.colors.textMuted}
                     value={token}
                     onChangeText={setToken}
@@ -95,7 +95,7 @@ export function ResetPasswordScreen({ navigation }) {
                     testID="mobile-reset-token"
                 />
                 <TextInput
-                    placeholder={t("new_password")}
+                    placeholder={t("كلمة المرور الجديدة")}
                     placeholderTextColor={theme.colors.textMuted}
                     value={pw}
                     onChangeText={setPw}
@@ -104,7 +104,7 @@ export function ResetPasswordScreen({ navigation }) {
                     testID="mobile-reset-password"
                 />
                 <TouchableOpacity onPress={submit} disabled={busy || !token || pw.length < 8} style={[styles.btn, (busy || !token || pw.length < 8) && styles.btnDisabled]} testID="mobile-reset-submit">
-                    <Text style={styles.btnText}>{busy ? "..." : t("save")}</Text>
+                    <Text style={styles.btnText}>{busy ? "..." : t("حفظ")}</Text>
                 </TouchableOpacity>
             </View>
         </ScrollView>

@@ -4,9 +4,11 @@ import api from "../api";
 import { theme } from "../theme";
 import ListingCard from "../components/ListingCard";
 import { useAuth } from "../AuthContext";
+import { useI18n } from "../I18nContext";
 
 export default function HomeScreen({ navigation }) {
     const { user } = useAuth();
+    const { t, lang } = useI18n();
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
     const [q, setQ] = useState("");
@@ -16,7 +18,7 @@ export default function HomeScreen({ navigation }) {
     const load = async () => {
         try {
             const [cats, lists] = await Promise.all([
-                api.get("/meta/categories"),
+                api.get("/meta/categories", { params: { lang } }),
                 api.get("/listings", { params: { country_code: user?.country_code, limit: 30 } }),
             ]);
             setCategories(cats.data);
@@ -27,7 +29,7 @@ export default function HomeScreen({ navigation }) {
         }
     };
 
-    useEffect(() => { load(); }, [user]);
+    useEffect(() => { load(); }, [user, lang]);
 
     const onSearch = () => {
         if (q.trim()) navigation.navigate("Search", { q: q.trim() });
@@ -49,7 +51,7 @@ export default function HomeScreen({ navigation }) {
                 <TextInput
                     value={q}
                     onChangeText={setQ}
-                    placeholder="ابحث عن أي شيء..."
+                    placeholder={t("ابحث عن إعلان...")}
                     placeholderTextColor={theme.colors.textMuted}
                     onSubmitEditing={onSearch}
                     style={styles.searchInput}
@@ -64,7 +66,7 @@ export default function HomeScreen({ navigation }) {
                         onPress={() => navigation.navigate("Category", { categoryKey: c.key })}
                         style={styles.catChip}
                     >
-                        <Text style={styles.catText}>{c.name_ar || c.key}</Text>
+                        <Text style={styles.catText}>{c.name || c.name_ar || c.key}</Text>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
@@ -77,7 +79,7 @@ export default function HomeScreen({ navigation }) {
                 contentContainerStyle={{ padding: 8, paddingBottom: 80 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
                 ListEmptyComponent={
-                    !loading && <View style={styles.empty}><Text style={styles.emptyText}>لا توجد إعلانات حالياً</Text></View>
+                    !loading && <View style={styles.empty}><Text style={styles.emptyText}>{t("لا توجد بيانات")}</Text></View>
                 }
             />
 

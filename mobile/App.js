@@ -21,6 +21,7 @@ import ReelsScreen from "./src/screens/ReelsScreen";
 import { FavoritesScreen, MyListingsScreen, DealsScreen } from "./src/screens/OtherScreens";
 import { theme } from "./src/theme";
 import { registerForNotifications, setNotificationNavigationRef } from "./src/notifications";
+import { useI18n } from "./src/I18nContext";
 
 try {
     if (!I18nManager.isRTL) {
@@ -39,6 +40,7 @@ function TabIcon({ icon, focused }) {
 }
 
 function TabsNavigator() {
+    const { t } = useI18n();
     return (
         <Tab.Navigator
             screenOptions={{
@@ -50,23 +52,24 @@ function TabsNavigator() {
             }}
         >
             <Tab.Screen name="HomeTab" component={HomeScreen}
-                options={{ title: "الرئيسية", tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} /> }} />
+                options={{ title: t("الرئيسية"), tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} /> }} />
             <Tab.Screen name="DealsTab" component={DealsScreen}
-                options={{ title: "صفقات", tabBarIcon: ({ focused }) => <TabIcon icon="🔥" focused={focused} /> }} />
+                options={{ title: t("صفقات"), tabBarIcon: ({ focused }) => <TabIcon icon="🔥" focused={focused} /> }} />
             <Tab.Screen name="ReelsTab" component={ReelsScreen}
-                options={{ title: "قصص", tabBarIcon: ({ focused }) => <TabIcon icon="🎬" focused={focused} /> }} />
+                options={{ title: t("قصص"), tabBarIcon: ({ focused }) => <TabIcon icon="🎬" focused={focused} /> }} />
             <Tab.Screen name="MapTab" component={MapScreen}
-                options={{ title: "خريطة", tabBarIcon: ({ focused }) => <TabIcon icon="🗺️" focused={focused} /> }} />
+                options={{ title: t("خريطة"), tabBarIcon: ({ focused }) => <TabIcon icon="🗺️" focused={focused} /> }} />
             <Tab.Screen name="ChatTab" component={ChatScreen}
-                options={{ title: "رسائل", tabBarIcon: ({ focused }) => <TabIcon icon="💬" focused={focused} /> }} />
+                options={{ title: t("رسائل"), tabBarIcon: ({ focused }) => <TabIcon icon="💬" focused={focused} /> }} />
             <Tab.Screen name="ProfileTab" component={ProfileScreen}
-                options={{ title: "حسابي", tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} /> }} />
+                options={{ title: t("حسابي"), tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} /> }} />
         </Tab.Navigator>
     );
 }
 
 function Navigation() {
     const { user, loading } = useAuth();
+    const { t } = useI18n();
     const navRef = useRef(null);
 
     useEffect(() => {
@@ -117,24 +120,24 @@ function Navigation() {
                 {user ? (
                     <>
                         <Stack.Screen name="Main" component={TabsNavigator} options={{ headerShown: false }} />
-                        <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "تفاصيل الإعلان" }} />
-                        <Stack.Screen name="Post" component={PostScreen} options={{ title: "إضافة إعلان" }} />
-                        <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: "المفضلة" }} />
-                        <Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "إعلاناتي" }} />
-                        <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "الرسائل" }} />
-                        <Stack.Screen name="Search" component={SearchScreen} options={{ title: "بحث" }} />
-                        <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: "التصنيفات" }} />
-                        <Stack.Screen name="CategoryListings" component={CategoryListingsScreen} options={{ title: "" }} />
-                        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "الإشعارات" }} />
-                        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "الإعدادات" }} />
+                        <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: t("تفاصيل الإعلان") }} />
+                        <Stack.Screen name="Post" component={PostScreen} options={{ title: t("إضافة إعلان") }} />
+                        <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: t("المفضلة") }} />
+                        <Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: t("إعلاناتي") }} />
+                        <Stack.Screen name="Chat" component={ChatScreen} options={{ title: t("الرسائل") }} />
+                        <Stack.Screen name="Search" component={SearchScreen} options={{ title: t("بحث") }} />
+                        <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: t("التصنيفات") }} />
+                        <Stack.Screen name="CategoryListings" component={CategoryListingsScreen} options={({ route }) => ({ title: route.params?.name || "" })} />
+                        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: t("الإشعارات") }} />
+                        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("الإعدادات") }} />
                         <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
                     </>
                 ) : (
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-                        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "إنشاء حساب" }} />
-                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: "نسيت كلمة المرور" }} />
-                        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: "إعادة تعيين كلمة المرور" }} />
+                        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: t("إنشاء حساب") }} />
+                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: t("نسيت كلمة المرور؟") }} />
+                        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: t("إعادة تعيين كلمة المرور") }} />
                     </>
                 )}
             </Stack.Navigator>

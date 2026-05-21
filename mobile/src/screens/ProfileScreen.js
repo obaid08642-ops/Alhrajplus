@@ -11,9 +11,9 @@ export default function ProfileScreen({ navigation }) {
         return (
             <SafeAreaView style={styles.wrap}>
                 <View style={styles.guestBox}>
-                    <Text style={styles.guestTitle}>لم تسجل دخولك بعد</Text>
+                    <Text style={styles.guestTitle}>{t("لم تسجل دخولك بعد")}</Text>
                     <TouchableOpacity onPress={() => navigation.navigate("Auth")} style={styles.btn}>
-                        <Text style={styles.btnText}>تسجيل الدخول</Text>
+                        <Text style={styles.btnText}>{t("تسجيل الدخول")}</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -21,9 +21,9 @@ export default function ProfileScreen({ navigation }) {
     }
 
     const doLogout = () => {
-        Alert.alert("تأكيد", "هل تريد تسجيل الخروج؟", [
-            { text: "إلغاء", style: "cancel" },
-            { text: "نعم", onPress: logout },
+        Alert.alert(t("تأكيد"), t("هل تريد تسجيل الخروج؟"), [
+            { text: t("إلغاء"), style: "cancel" },
+            { text: t("نعم"), onPress: logout },
         ]);
     };
 
@@ -35,28 +35,24 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.email}>{user.email}</Text>
                 {user.referral_code && (
                     <View style={styles.refBox}>
-                        <Text style={styles.refLabel}>كود الإحالة الخاص بك</Text>
+                        <Text style={styles.refLabel}>{t("كود الإحالة الخاص بك")}</Text>
                         <Text style={styles.refCode}>{user.referral_code}</Text>
                     </View>
                 )}
             </View>
 
             <View style={styles.menu}>
-                <MenuItem label="إعلاناتي" onPress={() => navigation.navigate("MyListings")} />
-                <MenuItem label="المفضلة" onPress={() => navigation.navigate("Favorites")} />
-                <MenuItem label="المحادثات" onPress={() => navigation.navigate("Chat")} />
-                <MenuItem label={t("notifications")} onPress={() => navigation.navigate("Notifications")} />
-                <MenuItem label={t("search")} onPress={() => navigation.navigate("Search")} />
-                <MenuItem label={t("categories")} onPress={() => navigation.navigate("Categories")} />
-                <MenuItem
-                    label={`${t("language")}: ${lang === "ar" ? "العربية 🇸🇦" : "English 🇬🇧"}`}
-                    onPress={() => setLang(lang === "ar" ? "en" : "ar")}
-                />
-                <MenuItem label={t("settings")} onPress={() => navigation.navigate("Settings")} />
+                <MenuItem label={t("إعلاناتي")} onPress={() => navigation.navigate("MyListings")} />
+                <MenuItem label={t("المفضلة")} onPress={() => navigation.navigate("Favorites")} />
+                <MenuItem label={t("المحادثات")} onPress={() => navigation.navigate("Chat")} />
+                <MenuItem label={t("الإشعارات")} onPress={() => navigation.navigate("Notifications")} />
+                <MenuItem label={t("بحث")} onPress={() => navigation.navigate("Search")} />
+                <MenuItem label={t("التصنيفات")} onPress={() => navigation.navigate("Categories")} />
+                <MenuItem label={t("الإعدادات")} onPress={() => navigation.navigate("Settings")} />
                 {user.role === "admin" && (
-                    <MenuItem label="⚙️ لوحة الإدارة" onPress={() => {}} accent />
+                    <MenuItem label={t("⚙️ لوحة الإدارة")} onPress={() => {}} accent />
                 )}
-                <MenuItem label="تسجيل الخروج" onPress={doLogout} danger />
+                <MenuItem label={t("تسجيل الخروج")} onPress={doLogout} danger />
             </View>
         </SafeAreaView>
     );

@@ -3,10 +3,12 @@ import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, S
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
+import { useI18n } from "../I18nContext";
 import { useChatSocket } from "../useChatSocket";
 
 export default function ChatScreen({ navigation, route }) {
     const { user } = useAuth();
+    const { t } = useI18n();
     const toId = route.params?.to;
     const listingId = route.params?.listing;
     const [convos, setConvos] = useState([]);
@@ -28,7 +30,7 @@ export default function ChatScreen({ navigation, route }) {
                 const cid = [user.id, toId].sort().join("_");
                 setActiveConvoId(cid);
                 const found = data.find((c) => c.id === cid);
-                setActiveOther(found?.other || { id: toId, name: "البائع" });
+                setActiveOther(found?.other || { id: toId, name: t("البائع") });
             }
         })();
     }, [user, toId]);
@@ -144,7 +146,7 @@ export default function ChatScreen({ navigation, route }) {
                                     {translations[item.id] ? <Text style={[styles.translation, mine && { color: "#fff", opacity: 0.8 }]}>🌐 {translations[item.id]}</Text> : null}
                                     {!mine && item.text && !translations[item.id] && (
                                         <TouchableOpacity onPress={() => translate(item)}>
-                                            <Text style={styles.translateBtn}>{translating === item.id ? "..." : "ترجم"}</Text>
+                                            <Text style={styles.translateBtn}>{translating === item.id ? "..." : t("ترجم")}</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>
@@ -153,7 +155,7 @@ export default function ChatScreen({ navigation, route }) {
                     }}
                 />
                 <View style={styles.inputBar}>
-                    <TextInput value={input} onChangeText={setInput} placeholder="اكتب رسالة..." placeholderTextColor={theme.colors.textMuted} style={styles.inputBox} />
+                    <TextInput value={input} onChangeText={setInput} placeholder={t("اكتب رسالة...")} placeholderTextColor={theme.colors.textMuted} style={styles.inputBox} />
                     <TouchableOpacity onPress={send} style={styles.sendBtn}>
                         <Text style={styles.sendText}>⇦</Text>
                     </TouchableOpacity>

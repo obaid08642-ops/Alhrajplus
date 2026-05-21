@@ -34,7 +34,7 @@ export default function PostScreen({ navigation, route }) {
 
     const pickImage = async () => {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) { Alert.alert("إذن", "نحتاج صلاحية الوصول للصور"); return; }
+        if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الوصول للصور")); return; }
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.8,
@@ -46,7 +46,7 @@ export default function PostScreen({ navigation, route }) {
 
     const takePhoto = async () => {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert("إذن", "نحتاج صلاحية الكاميرا"); return; }
+        if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الكاميرا")); return; }
         const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
         if (result.canceled) return;
         await uploadAssets(result.assets);
@@ -70,16 +70,16 @@ export default function PostScreen({ navigation, route }) {
             }
             setForm((f) => ({ ...f, images: [...f.images, ...urls] }));
         } catch (e) {
-            Alert.alert("خطأ", "فشل رفع الصورة");
+            Alert.alert(t("خطأ"), t("فشل رفع الصورة"));
         } finally { setUploadingImg(false); }
     };
 
     const useMyLocation = async () => {
         const perm = await Location.requestForegroundPermissionsAsync();
-        if (!perm.granted) { Alert.alert("إذن", "نحتاج صلاحية الموقع"); return; }
+        if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الموقع")); return; }
         const loc = await Location.getCurrentPositionAsync({});
         setForm((f) => ({ ...f, lat: loc.coords.latitude, lng: loc.coords.longitude }));
-        Alert.alert("✅", "تم تحديد موقعك");
+        Alert.alert("✅", t("تم تحديد موقعك"));
     };
 
     const submit = async () => {
@@ -94,18 +94,18 @@ export default function PostScreen({ navigation, route }) {
                 navigation.replace("ListingDetail", { id: data.id });
             }
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || "تعذر النشر");
+            setErr(formatApiError(e.response?.data?.detail) || t("تعذر النشر"));
         } finally { setBusy(false); }
     };
 
     return (
         <SafeAreaView style={styles.wrap}>
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
-                <Text style={styles.header}>{editId ? "تعديل الإعلان" : "إضافة إعلان جديد"}</Text>
+                <Text style={styles.header}>{editId ? t("تعديل") : t("إضافة إعلان")}</Text>
 
                 {step === 1 && (
                     <>
-                        <Text style={styles.label}>اختر الفئة</Text>
+                        <Text style={styles.label}>{t("اختر التصنيف")}</Text>
                         <View style={styles.catGrid}>
                             {categories.map((c) => (
                                 <TouchableOpacity
@@ -113,7 +113,7 @@ export default function PostScreen({ navigation, route }) {
                                     onPress={() => { setForm({ ...form, category: c.key }); setStep(2); }}
                                     style={[styles.catBtn, form.category === c.key && styles.catActive]}
                                 >
-                                    <Text style={styles.catText}>{c.name_ar}</Text>
+                                    <Text style={styles.catText}>{c.name || c.name_ar}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -122,27 +122,27 @@ export default function PostScreen({ navigation, route }) {
 
                 {step === 2 && (
                     <>
-                        <Text style={styles.label}>العنوان</Text>
-                        <TextInput value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} style={styles.input} placeholder="عنوان جذاب" placeholderTextColor={theme.colors.textMuted} />
+                        <Text style={styles.label}>{t("العنوان")}</Text>
+                        <TextInput value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} style={styles.input} placeholder={t("العنوان")} placeholderTextColor={theme.colors.textMuted} />
 
-                        <Text style={styles.label}>الوصف</Text>
-                        <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={[styles.input, { height: 100, textAlignVertical: "top" }]} placeholder="وصف تفصيلي..." placeholderTextColor={theme.colors.textMuted} multiline />
+                        <Text style={styles.label}>{t("الوصف")}</Text>
+                        <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={[styles.input, { height: 100, textAlignVertical: "top" }]} placeholder={t("الوصف")} placeholderTextColor={theme.colors.textMuted} multiline />
 
-                        <Text style={styles.label}>السعر</Text>
-                        <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v.replace(/[^0-9.]/g, "") })} style={styles.input} placeholder="اتركه فارغاً للسوم" placeholderTextColor={theme.colors.textMuted} keyboardType="numeric" />
+                        <Text style={styles.label}>{t("السعر")}</Text>
+                        <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v.replace(/[^0-9.]/g, "") })} style={styles.input} placeholder={t("على السوم")} placeholderTextColor={theme.colors.textMuted} keyboardType="numeric" />
 
-                        <Text style={styles.label}>المدينة</Text>
-                        <TextInput value={form.city} onChangeText={(v) => setForm({ ...form, city: v })} style={styles.input} placeholder="الرياض، جدة..." placeholderTextColor={theme.colors.textMuted} />
+                        <Text style={styles.label}>{t("المدينة")}</Text>
+                        <TextInput value={form.city} onChangeText={(v) => setForm({ ...form, city: v })} style={styles.input} placeholder={t("المدينة")} placeholderTextColor={theme.colors.textMuted} />
 
-                        <Text style={styles.label}>الصور</Text>
+                        <Text style={styles.label}>{t("الصور")}</Text>
                         <View style={styles.imageRow}>
                             <TouchableOpacity onPress={takePhoto} style={styles.imageBtn}>
                                 <Text style={styles.imageBtnIcon}>📷</Text>
-                                <Text style={styles.imageBtnText}>كاميرا</Text>
+                                <Text style={styles.imageBtnText}>{t("التقط صورة")}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity onPress={pickImage} style={styles.imageBtn}>
                                 <Text style={styles.imageBtnIcon}>🖼️</Text>
-                                <Text style={styles.imageBtnText}>من المعرض</Text>
+                                <Text style={styles.imageBtnText}>{t("اختر من المعرض")}</Text>
                             </TouchableOpacity>
                         </View>
                         {uploadingImg && <ActivityIndicator color={theme.colors.primary} style={{ marginVertical: 10 }} />}
@@ -160,13 +160,13 @@ export default function PostScreen({ navigation, route }) {
                         )}
 
                         <TouchableOpacity onPress={useMyLocation} style={[styles.locBtn, form.lat && { borderColor: theme.colors.success }]}>
-                            <Text style={styles.locBtnText}>📍 {form.lat ? "تم تحديد الموقع" : "استخدم موقعي"}</Text>
+                            <Text style={styles.locBtnText}>📍 {form.lat ? t("تم") : t("الخطوة 4: حدد الموقع وأكّد النشر")}</Text>
                         </TouchableOpacity>
 
                         {err ? <Text style={styles.error}>{err}</Text> : null}
 
                         <TouchableOpacity onPress={submit} disabled={busy || !form.title || !form.description || !form.city} style={[styles.submit, (busy || !form.title) && styles.disabled]}>
-                            <Text style={styles.submitText}>{busy ? "جاري النشر..." : (editId ? "حفظ التعديلات" : "نشر الإعلان")}</Text>
+                            <Text style={styles.submitText}>{busy ? t("جاري الرفع...") : (editId ? t("حفظ") : t("نشر الإعلان"))}</Text>
                         </TouchableOpacity>
                     </>
                 )}
