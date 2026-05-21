@@ -12,7 +12,7 @@ export default function ProfileScreen({ navigation }) {
             <SafeAreaView style={styles.wrap}>
                 <View style={styles.guestBox}>
                     <Text style={styles.guestTitle}>{t("لم تسجل دخولك بعد")}</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate("Auth")} style={styles.btn}>
+                    <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.btn}>
                         <Text style={styles.btnText}>{t("تسجيل الدخول")}</Text>
                     </TouchableOpacity>
                 </View>

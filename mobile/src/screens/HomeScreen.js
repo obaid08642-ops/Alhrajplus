@@ -42,7 +42,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.logoMain}>الحراج</Text>
                     <Text style={styles.logoSub}>بلس</Text>
                 </View>
-                <TouchableOpacity onPress={() => navigation.navigate("Profile")} style={styles.avatar}>
+                <TouchableOpacity onPress={() => navigation.navigate("ProfileTab")} style={styles.avatar}>
                     <Text style={styles.avatarText}>{user?.name?.[0] || "?"}</Text>
                 </TouchableOpacity>
             </View>
@@ -63,7 +63,7 @@ export default function HomeScreen({ navigation }) {
                 {categories.slice(0, 12).map((c) => (
                     <TouchableOpacity
                         key={c.key}
-                        onPress={() => navigation.navigate("Category", { categoryKey: c.key })}
+                        onPress={() => navigation.navigate("CategoryListings", { key: c.key, name: c.name || c.name_ar || c.key })}
                         style={styles.catChip}
                     >
                         <Text style={styles.catText}>{c.name || c.name_ar || c.key}</Text>
