@@ -14,11 +14,11 @@ export function SettingsPage() {
     const nav = useNavigate();
 
     const items = [
-        { icon: Lock, label: "الأمان والخصوصية", to: "#", desc: "كلمة المرور، حذف الحساب، البيانات" },
-        { icon: HelpCircle, label: "المساعدة والدعم", to: "/contact", desc: "تواصل معنا، الأسئلة الشائعة" },
-        { icon: FileText, label: "الشروط والأحكام", to: "/terms" },
-        { icon: Shield, label: "سياسة الخصوصية", to: "/privacy" },
-        { icon: Info, label: "عن التطبيق", to: "/about" },
+        { icon: Lock, label: tr("الأمان والخصوصية"), to: "#", desc: tr("كلمة المرور، حذف الحساب، البيانات") },
+        { icon: HelpCircle, label: tr("المساعدة والدعم"), to: "/contact", desc: tr("تواصل معنا، الأسئلة الشائعة") },
+        { icon: FileText, label: tr("الشروط والأحكام"), to: "/terms" },
+        { icon: Shield, label: tr("سياسة الخصوصية"), to: "/privacy" },
+        { icon: Info, label: tr("عن التطبيق"), to: "/about" },
     ];
 
     const deleteAccount = async () => {
@@ -77,7 +77,7 @@ export function SettingsPage() {
             {user && <NotificationsPanel />}
 
             <button data-testid="delete-account-btn" onClick={deleteAccount} className="w-full bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl p-4 font-arabic font-bold text-sm flex items-center justify-center gap-2">
-                <Trash2 className="w-4 h-4" /> طلب حذف الحساب
+                <Trash2 className="w-4 h-4" /> {tr("طلب حذف الحساب")}
             </button>
         </div>
     );

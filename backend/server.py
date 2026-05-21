@@ -993,11 +993,11 @@ async def snap_oauth_start(request: Request, mobile_redirect: Optional[str] = No
         "created_at": datetime.now(timezone.utc),
     })
     if mob:
-        backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", "")
-        redirect_uri = f"{backend}/api/auth/snapchat/callback-redirect"
+        backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+        redirect_uri = f"{backend}/api/auth/snapchat/callback"
     else:
-        origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
-        redirect_uri = f"{origin}/auth/snapchat/callback"
+        backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+        redirect_uri = f"{backend}/api/auth/snapchat/callback"
     scope = "https://auth.snapchat.com/oauth2/api/user.display_name https://auth.snapchat.com/oauth2/api/user.bitmoji.avatar https://auth.snapchat.com/oauth2/api/user.external_id"
     auth_url = (
         "https://accounts.snapchat.com/accounts/oauth2/auth"
@@ -1028,8 +1028,9 @@ async def snap_oauth_callback(body: SnapCallbackIn, request: Request, response: 
         raise HTTPException(400, "انتهت صلاحية الجلسة")
     await db.snap_oauth_states.delete_one({"state": body.state})
 
-    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
-    redirect_uri = f"{origin}/auth/snapchat/callback"
+    origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")  # noqa: F841 (kept for parity)
+    backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+    redirect_uri = f"{backend}/api/auth/snapchat/callback"
     basic = _b64.b64encode(f"{SNAPCHAT_CLIENT_ID}:{SNAPCHAT_CLIENT_SECRET}".encode()).decode()
     try:
         async with httpx.AsyncClient(timeout=15.0) as cx:
@@ -1091,21 +1092,28 @@ async def snap_oauth_callback(body: SnapCallbackIn, request: Request, response: 
     return {"user": user, "access_token": access}
 
 
-# Mobile deep-link callback for Snapchat (server-side exchange + scheme redirect)
-@app.get("/api/auth/snapchat/callback-redirect", include_in_schema=False)
-async def snap_oauth_callback_mobile(request: Request, code: str = "", state: str = "", error: str = ""):
+# GET callback hit DIRECTLY by Snapchat OAuth (web + mobile use the same URL).
+# This is the single source of truth callback per Snap Developer Portal:
+#   https://alhrajplus.onrender.com/api/auth/snapchat/callback
+@app.get("/api/auth/snapchat/callback", include_in_schema=False)
+async def snap_oauth_callback_get(request: Request, code: str = "", state: str = "", error: str = ""):
+    # Decide where to send the final tokens — mobile deep-link or web frontend
+    rec = await db.snap_oauth_states.find_one_and_delete({"state": state}) if state else None
+    mob = (rec or {}).get("mobile_redirect")
+    is_mobile = bool(mob)
+    final_target = mob or (
+        (os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", ""))
+        + "/auth/snapchat/callback"
+    )
+    sep = "?" if "?" not in final_target else "&"
     if error:
-        return RedirectResponse(f"harajplus://auth/callback?error={error}")
-    if not code or not state:
-        return RedirectResponse("harajplus://auth/callback?error=missing_code")
-    rec = await db.snap_oauth_states.find_one_and_delete({"state": state})
-    if not rec:
-        return RedirectResponse("harajplus://auth/callback?error=invalid_state")
-    mob = (rec.get("mobile_redirect") or "harajplus://auth/callback").strip()
+        return RedirectResponse(f"{final_target}{sep}error={error}")
+    if not code or not state or not rec:
+        return RedirectResponse(f"{final_target}{sep}error=invalid_state")
     if not SNAPCHAT_CLIENT_ID or not SNAPCHAT_CLIENT_SECRET:
-        return RedirectResponse(f"{mob}?error=not_configured")
-    backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", "")
-    redirect_uri = f"{backend}/api/auth/snapchat/callback-redirect"
+        return RedirectResponse(f"{final_target}{sep}error=not_configured")
+    backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+    redirect_uri = f"{backend}/api/auth/snapchat/callback"
     basic = _b64.b64encode(f"{SNAPCHAT_CLIENT_ID}:{SNAPCHAT_CLIENT_SECRET}".encode()).decode()
     try:
         async with httpx.AsyncClient(timeout=15.0) as cx:
@@ -1115,8 +1123,8 @@ async def snap_oauth_callback_mobile(request: Request, code: str = "", state: st
                 data={"code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri, "code_verifier": rec["code_verifier"]},
             )
             if tok.status_code != 200:
-                logger.error(f"[Snap mobile token] {tok.status_code} {tok.text[:200]}")
-                return RedirectResponse(f"{mob}?error=token_exchange")
+                logger.error(f"[Snap callback token] {tok.status_code} {tok.text[:200]}")
+                return RedirectResponse(f"{final_target}{sep}error=token_exchange")
             access_snap = tok.json().get("access_token")
             me = await cx.post(
                 "https://kit.snapchat.com/v1/me",
@@ -1124,14 +1132,14 @@ async def snap_oauth_callback_mobile(request: Request, code: str = "", state: st
                 json={"query": "{me{externalId displayName bitmoji{avatar}}}"},
             )
             if me.status_code != 200:
-                return RedirectResponse(f"{mob}?error=userinfo")
+                return RedirectResponse(f"{final_target}{sep}error=userinfo")
             data = (me.json() or {}).get("data", {}).get("me", {})
     except httpx.HTTPError as e:
-        logger.error(f"[Snap mobile HTTP] {e}")
-        return RedirectResponse(f"{mob}?error=network")
+        logger.error(f"[Snap callback HTTP] {e}")
+        return RedirectResponse(f"{final_target}{sep}error=network")
     snap_id = data.get("externalId")
     if not snap_id:
-        return RedirectResponse(f"{mob}?error=no_id")
+        return RedirectResponse(f"{final_target}{sep}error=no_id")
     snap_name = data.get("displayName") or "مستخدم Snapchat"
     snap_avatar = (data.get("bitmoji") or {}).get("avatar")
     placeholder_email = f"snap_{snap_id}@snapchat.local"
@@ -1152,12 +1160,21 @@ async def snap_oauth_callback_mobile(request: Request, code: str = "", state: st
     else:
         await db.users.update_one({"id": user["id"]}, {"$set": {"snap_id": snap_id}})
     if user.get("banned"):
-        return RedirectResponse(f"{mob}?error=banned")
+        return RedirectResponse(f"{final_target}{sep}error=banned")
     access = create_access_token(user["id"], user["email"], user.get("role", "user"))
     refresh = create_refresh_token(user["id"])
     import urllib.parse as _up
-    frag = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "snapchat"})
-    return RedirectResponse(f"{mob}#{frag}")
+    payload = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "snapchat"})
+    # Mobile deep-links use fragment so the URL handler can read it; web uses ?token=...
+    if is_mobile:
+        return RedirectResponse(f"{final_target}#{payload}")
+    return RedirectResponse(f"{final_target}{sep}{payload}")
+
+
+# Backwards-compat alias (older builds may still hit /callback-redirect)
+@app.get("/api/auth/snapchat/callback-redirect", include_in_schema=False)
+async def snap_oauth_callback_mobile(request: Request, code: str = "", state: str = "", error: str = ""):
+    return await snap_oauth_callback_get(request, code=code, state=state, error=error)
 
 
 # ============================================================
