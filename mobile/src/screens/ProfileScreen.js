@@ -45,11 +45,14 @@ export default function ProfileScreen({ navigation }) {
                 <MenuItem label="إعلاناتي" onPress={() => navigation.navigate("MyListings")} />
                 <MenuItem label="المفضلة" onPress={() => navigation.navigate("Favorites")} />
                 <MenuItem label="المحادثات" onPress={() => navigation.navigate("Chat")} />
+                <MenuItem label={t("notifications")} onPress={() => navigation.navigate("Notifications")} />
+                <MenuItem label={t("search")} onPress={() => navigation.navigate("Search")} />
+                <MenuItem label={t("categories")} onPress={() => navigation.navigate("Categories")} />
                 <MenuItem
                     label={`${t("language")}: ${lang === "ar" ? "العربية 🇸🇦" : "English 🇬🇧"}`}
                     onPress={() => setLang(lang === "ar" ? "en" : "ar")}
                 />
-                <MenuItem label="الإعدادات" onPress={() => {}} />
+                <MenuItem label={t("settings")} onPress={() => navigation.navigate("Settings")} />
                 {user.role === "admin" && (
                     <MenuItem label="⚙️ لوحة الإدارة" onPress={() => {}} accent />
                 )}

@@ -83,11 +83,25 @@ export default function ListingDetailScreen({ route, navigation }) {
 
             {isOwner && (
                 <View style={styles.ownerBar}>
+                    <TouchableOpacity onPress={() => navigation.navigate("Post", { editId: id })} style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}>
+                        <Text style={styles.smallBtnText}>تعديل</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={republish} style={[styles.smallBtn, { backgroundColor: theme.colors.success }]}>
                         <Text style={styles.smallBtnText}>تجديد</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={markSold} style={[styles.smallBtn, { backgroundColor: theme.colors.accent }]}>
                         <Text style={[styles.smallBtnText, { color: theme.colors.secondary }]}>تم البيع</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                        Alert.alert("تأكيد الحذف", "هل تريد حذف هذا الإعلان نهائياً؟", [
+                            { text: "إلغاء", style: "cancel" },
+                            { text: "حذف", style: "destructive", onPress: async () => {
+                                try { await api.delete(`/listings/${id}`); Alert.alert("تم الحذف"); navigation.goBack(); }
+                                catch (e) { Alert.alert("خطأ", "تعذر الحذف"); }
+                            }},
+                        ]);
+                    }} style={[styles.smallBtn, { backgroundColor: theme.colors.danger }]}>
+                        <Text style={styles.smallBtnText}>حذف</Text>
                     </TouchableOpacity>
                 </View>
             )}

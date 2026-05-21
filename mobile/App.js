@@ -11,6 +11,7 @@ import { I18nProvider } from "./src/I18nContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
 import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/PasswordReset";
+import { SearchScreen, CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen } from "./src/screens/MoreScreens";
 import ListingDetailScreen from "./src/screens/ListingDetailScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import PostScreen from "./src/screens/PostScreen";
@@ -121,6 +122,12 @@ function Navigation() {
                         <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: "المفضلة" }} />
                         <Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "إعلاناتي" }} />
                         <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "الرسائل" }} />
+                        <Stack.Screen name="Search" component={SearchScreen} options={{ title: "بحث" }} />
+                        <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: "التصنيفات" }} />
+                        <Stack.Screen name="CategoryListings" component={CategoryListingsScreen} options={{ title: "" }} />
+                        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "الإشعارات" }} />
+                        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "الإعدادات" }} />
+                        <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
                     </>
                 ) : (
                     <>
