@@ -1,10 +1,11 @@
 import "react-native-gesture-handler";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View, I18nManager, Text } from "react-native";
+import * as Linking from "expo-linking";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
@@ -16,7 +17,7 @@ import MapScreen from "./src/screens/MapScreen";
 import ReelsScreen from "./src/screens/ReelsScreen";
 import { FavoritesScreen, MyListingsScreen, DealsScreen } from "./src/screens/OtherScreens";
 import { theme } from "./src/theme";
-import { registerForNotifications } from "./src/notifications";
+import { registerForNotifications, setNotificationNavigationRef } from "./src/notifications";
 
 try {
     if (!I18nManager.isRTL) {
