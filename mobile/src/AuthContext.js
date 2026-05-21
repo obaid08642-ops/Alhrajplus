@@ -32,8 +32,9 @@ export function AuthProvider({ children }) {
             if (hashIdx < 0) return;
             const frag = new URLSearchParams(url.slice(hashIdx + 1));
             const token = frag.get("access_token");
+            const refresh = frag.get("refresh_token");
             if (token) {
-                await saveToken(token);
+                await saveToken(token, refresh);
                 fetchMe();
             }
         };
@@ -44,13 +45,13 @@ export function AuthProvider({ children }) {
 
     const login = async (email, password) => {
         const { data } = await api.post("/auth/login", { email, password });
-        if (data.access_token) await saveToken(data.access_token);
+        if (data.access_token) await saveToken(data.access_token, data.refresh_token);
         setUser(data.user);
         return data.user;
     };
     const register = async (payload) => {
         const { data } = await api.post("/auth/register", payload);
-        if (data.access_token) await saveToken(data.access_token);
+        if (data.access_token) await saveToken(data.access_token, data.refresh_token);
         setUser(data.user);
         return data.user;
     };

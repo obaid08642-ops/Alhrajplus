@@ -50,7 +50,7 @@ async function runOAuth(provider) {
     const refreshToken = frag.get("refresh_token");
     if (!accessToken) throw new Error("لم نتلق رمز الوصول");
 
-    await saveToken(accessToken);
+    await saveToken(accessToken, refreshToken);
     return { access_token: accessToken, refresh_token: refreshToken };
 }
 

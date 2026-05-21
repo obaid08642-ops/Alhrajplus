@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
+import { useChatSocket } from "../useChatSocket";
 
 export default function ChatScreen({ navigation, route }) {
     const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function ChatScreen({ navigation, route }) {
     const [translations, setTranslations] = useState({});
     const [translating, setTranslating] = useState(null);
     const listRef = useRef();
+    const { subscribe, connected } = useChatSocket();
 
     useEffect(() => {
         if (!user) return;
@@ -31,18 +33,32 @@ export default function ChatScreen({ navigation, route }) {
         })();
     }, [user, toId]);
 
+    // Initial fetch when convo opens
     useEffect(() => {
         if (!activeConvoId) return;
-        const fetchMsgs = async () => {
+        let cancelled = false;
+        (async () => {
             try {
                 const { data } = await api.get(`/chat/messages/${activeConvoId}`);
-                setMessages(data);
+                if (!cancelled) setMessages(data);
             } catch (_) {}
-        };
-        fetchMsgs();
-        const id = setInterval(fetchMsgs, 4000);
-        return () => clearInterval(id);
+        })();
+        return () => { cancelled = true; };
     }, [activeConvoId]);
+
+    // Real-time updates via WebSocket — replaces 4s polling
+    useEffect(() => {
+        if (!activeConvoId) return;
+        const unsub = subscribe("chat_message", (ev) => {
+            const m = ev?.message;
+            if (!m || m.convo_id !== activeConvoId) return;
+            setMessages((prev) => {
+                if (prev.some((x) => x.id === m.id)) return prev;
+                return [...prev, m];
+            });
+        });
+        return unsub;
+    }, [activeConvoId, subscribe]);
 
     const send = async () => {
         if (!input.trim() || !activeOther) return;

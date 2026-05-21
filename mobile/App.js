@@ -7,8 +7,10 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View, I18nManager, Text } from "react-native";
 import * as Linking from "expo-linking";
 import { AuthProvider, useAuth } from "./src/AuthContext";
+import { I18nProvider } from "./src/I18nContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
+import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/PasswordReset";
 import ListingDetailScreen from "./src/screens/ListingDetailScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import PostScreen from "./src/screens/PostScreen";
@@ -124,6 +126,8 @@ function Navigation() {
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "إنشاء حساب" }} />
+                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: "نسيت كلمة المرور" }} />
+                        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: "إعادة تعيين كلمة المرور" }} />
                     </>
                 )}
             </Stack.Navigator>
@@ -133,9 +137,11 @@ function Navigation() {
 
 export default function App() {
     return (
-        <AuthProvider>
-            <Navigation />
-            <StatusBar style="auto" />
-        </AuthProvider>
+        <I18nProvider>
+            <AuthProvider>
+                <Navigation />
+                <StatusBar style="auto" />
+            </AuthProvider>
+        </I18nProvider>
     );
 }

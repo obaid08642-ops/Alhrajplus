@@ -174,6 +174,9 @@ export function LoginScreen({ navigation }) {
                     <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>ليس لديك حساب؟ <Text style={styles.linkStrong}>إنشاء حساب</Text></Text>
                     </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={{ marginTop: 6, alignItems: "center" }} testID="mobile-forgot-link">
+                        <Text style={[styles.linkStrong, { fontSize: 12 }]}>نسيت كلمة المرور؟</Text>
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>

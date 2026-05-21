@@ -14,6 +14,7 @@ const api = axios.create({
 });
 
 const TOKEN_KEY = "hp_access_token";
+const REFRESH_KEY = "hp_refresh_token";
 
 // Secure-first storage: keychain on iOS, EncryptedSharedPreferences on Android.
 // Fall back to AsyncStorage when SecureStore isn't available (web / older sims).
@@ -27,6 +28,7 @@ async function getStored(key) {
     return AsyncStorage.getItem(key);
 }
 async function setStored(key, value) {
+    if (value == null) return;
     try {
         if (SecureStore.isAvailableAsync && await SecureStore.isAvailableAsync()) {
             await SecureStore.setItemAsync(key, value);
@@ -50,11 +52,57 @@ api.interceptors.request.use(async (config) => {
     return config;
 });
 
-export async function saveToken(token) {
-    return setStored(TOKEN_KEY, token);
+// Auto-refresh on 401 (once). Mobile mirrors web logic so the user stays
+// logged in indefinitely as long as the 30-day refresh token is valid.
+let refreshPromise = null;
+api.interceptors.response.use(
+    (res) => {
+        // Opportunistically save tokens from any successful response (login/register/oauth/refresh).
+        const d = res?.data;
+        if (d && typeof d === "object") {
+            if (d.access_token) setStored(TOKEN_KEY, d.access_token);
+            if (d.refresh_token) setStored(REFRESH_KEY, d.refresh_token);
+        }
+        return res;
+    },
+    async (err) => {
+        const original = err.config || {};
+        const status = err.response?.status;
+        const url = original.url || "";
+        if (status === 401 && !original._retry && !url.includes("/auth/login") && !url.includes("/auth/register") && !url.includes("/auth/refresh")) {
+            original._retry = true;
+            if (!refreshPromise) {
+                refreshPromise = (async () => {
+                    try {
+                        const rt = await getStored(REFRESH_KEY);
+                        const body = rt ? { refresh_token: rt } : {};
+                        const r = await api.post("/auth/refresh", body);
+                        const at = r?.data?.access_token;
+                        if (at) await setStored(TOKEN_KEY, at);
+                        return !!at;
+                    } catch (_) {
+                        await delStored(TOKEN_KEY);
+                        await delStored(REFRESH_KEY);
+                        return false;
+                    } finally {
+                        refreshPromise = null;
+                    }
+                })();
+            }
+            const ok = await refreshPromise;
+            if (ok) return api(original);
+        }
+        return Promise.reject(err);
+    }
+);
+
+export async function saveToken(token, refreshToken) {
+    await setStored(TOKEN_KEY, token);
+    if (refreshToken) await setStored(REFRESH_KEY, refreshToken);
 }
 export async function clearToken() {
-    return delStored(TOKEN_KEY);
+    await delStored(TOKEN_KEY);
+    await delStored(REFRESH_KEY);
 }
 
 export function formatApiError(err) {

@@ -4,8 +4,10 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import api, { formatApiError, BACKEND_URL } from "../api";
 import { theme } from "../theme";
+import { useI18n } from "../I18nContext";
 
 export default function PostScreen({ navigation, route }) {
+    const { lang } = useI18n();
     const editId = route.params?.editId;
     const [step, setStep] = useState(1);
     const [categories, setCategories] = useState([]);
@@ -19,8 +21,8 @@ export default function PostScreen({ navigation, route }) {
     const [err, setErr] = useState("");
 
     useEffect(() => {
-        api.get("/meta/categories").then(({ data }) => setCategories(data));
-    }, []);
+        api.get("/meta/categories", { params: { lang } }).then(({ data }) => setCategories(data));
+    }, [lang]);
 
     useEffect(() => {
         if (!editId) return;

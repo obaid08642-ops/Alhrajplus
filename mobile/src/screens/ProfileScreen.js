@@ -1,9 +1,11 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert, SafeAreaView } from "react-native";
 import { useAuth } from "../AuthContext";
 import { theme } from "../theme";
+import { useI18n } from "../I18nContext";
 
 export default function ProfileScreen({ navigation }) {
     const { user, logout } = useAuth();
+    const { lang, setLang, t } = useI18n();
 
     if (!user) {
         return (
@@ -43,6 +45,10 @@ export default function ProfileScreen({ navigation }) {
                 <MenuItem label="إعلاناتي" onPress={() => navigation.navigate("MyListings")} />
                 <MenuItem label="المفضلة" onPress={() => navigation.navigate("Favorites")} />
                 <MenuItem label="المحادثات" onPress={() => navigation.navigate("Chat")} />
+                <MenuItem
+                    label={`${t("language")}: ${lang === "ar" ? "العربية 🇸🇦" : "English 🇬🇧"}`}
+                    onPress={() => setLang(lang === "ar" ? "en" : "ar")}
+                />
                 <MenuItem label="الإعدادات" onPress={() => {}} />
                 {user.role === "admin" && (
                     <MenuItem label="⚙️ لوحة الإدارة" onPress={() => {}} accent />
