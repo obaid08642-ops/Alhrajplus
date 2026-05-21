@@ -1101,10 +1101,11 @@ async def snap_oauth_callback_get(request: Request, code: str = "", state: str =
     rec = await db.snap_oauth_states.find_one_and_delete({"state": state}) if state else None
     mob = (rec or {}).get("mobile_redirect")
     is_mobile = bool(mob)
-    final_target = mob or (
-        (os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/").replace("/api", ""))
-        + "/auth/snapchat/callback"
-    )
+    # IMPORTANT: For web, always send users back to the FRONTEND domain (alhraj.online),
+    # NOT to the backend onrender.com. The generic /auth/callback page on the frontend
+    # captures tokens from the URL fragment and logs the user in via localStorage.
+    frontend_url = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    final_target = mob or f"{frontend_url}/auth/callback"
     sep = "?" if "?" not in final_target else "&"
     if error:
         return RedirectResponse(f"{final_target}{sep}error={error}")
@@ -1165,10 +1166,9 @@ async def snap_oauth_callback_get(request: Request, code: str = "", state: str =
     refresh = create_refresh_token(user["id"])
     import urllib.parse as _up
     payload = _up.urlencode({"access_token": access, "refresh_token": refresh, "login": "snapchat"})
-    # Mobile deep-links use fragment so the URL handler can read it; web uses ?token=...
-    if is_mobile:
-        return RedirectResponse(f"{final_target}#{payload}")
-    return RedirectResponse(f"{final_target}{sep}{payload}")
+    # Tokens go in URL fragment for BOTH web and mobile — fragments are not sent to servers
+    # (safer than query string) and the frontend /auth/callback page reads them from window.location.hash.
+    return RedirectResponse(f"{final_target}#{payload}")
 
 
 # Backwards-compat alias (older builds may still hit /callback-redirect)
