@@ -71,8 +71,7 @@
                         { "scheme": "https", "host": "alhrajplus.com" }
                     ]
                 }
-            ],
-            "googleServicesFile": "./google-services.json"
+            ]
         },
         "web": {
             "favicon": "./assets/favicon.png"
