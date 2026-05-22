@@ -237,17 +237,48 @@ app.add_middleware(
 
 # Lightweight perf monitor: logs request duration + 5xx errors only.
 # No external services, no overhead beyond a time.perf_counter() pair.
+# Also keeps rolling counters for /api/_metrics so ops can grep p95 + error rate.
+_METRICS = {
+    "requests_total": 0,
+    "errors_total": 0,
+    "slow_total": 0,  # > 500ms
+    "durations_ms": [],  # rolling window, max 500 entries
+    "by_path": {},  # { path: {"n": int, "errs": int, "sum_ms": float, "max_ms": float} }
+}
+
+def _track_metric(path: str, status: int, dur_ms: float):
+    _METRICS["requests_total"] += 1
+    if status >= 500:
+        _METRICS["errors_total"] += 1
+    if dur_ms > 500:
+        _METRICS["slow_total"] += 1
+    dl = _METRICS["durations_ms"]
+    dl.append(dur_ms)
+    if len(dl) > 500:
+        del dl[: len(dl) - 500]
+    p = _METRICS["by_path"].setdefault(path, {"n": 0, "errs": 0, "sum_ms": 0.0, "max_ms": 0.0})
+    p["n"] += 1
+    p["sum_ms"] += dur_ms
+    if dur_ms > p["max_ms"]:
+        p["max_ms"] = dur_ms
+    if status >= 500:
+        p["errs"] += 1
+
 @app.middleware("http")
 async def _perf_logger(request, call_next):
     import time as _t
     start = _t.perf_counter()
+    status = 500
     try:
         response = await call_next(request)
+        status = response.status_code
     except Exception as e:
         dur_ms = (_t.perf_counter() - start) * 1000
+        _track_metric(request.url.path, 500, dur_ms)
         logger.error(f"[perf] {request.method} {request.url.path} 500 {dur_ms:.0f}ms err={e}")
         raise
     dur_ms = (_t.perf_counter() - start) * 1000
+    _track_metric(request.url.path, status, dur_ms)
     # Only log slow (>500ms) or error responses to keep stdout clean
     if dur_ms > 500 or response.status_code >= 500:
         logger.warning(f"[perf] {request.method} {request.url.path} {response.status_code} {dur_ms:.0f}ms")
@@ -272,6 +303,52 @@ async def health_root():
 @app.head("/", include_in_schema=False)
 async def root_index():
     return {"status": "ok", "service": "haraj-plus-backend", "docs": "/docs"}
+
+
+# Lightweight metrics endpoint — no Prometheus, just enough to grep latency/errors
+# from the live container. Numbers reset on restart, which is fine for a single
+# process; switch to Redis/Prom if you scale horizontally.
+@app.get("/api/_metrics", include_in_schema=False)
+async def _metrics_endpoint():
+    dl = list(_METRICS["durations_ms"])
+    dl_sorted = sorted(dl)
+    n = len(dl_sorted)
+    def _pct(p):
+        if not n:
+            return 0
+        idx = min(n - 1, int(n * p))
+        return round(dl_sorted[idx], 1)
+    top_paths = sorted(
+        [
+            {
+                "path": k,
+                "n": v["n"],
+                "errs": v["errs"],
+                "avg_ms": round(v["sum_ms"] / max(1, v["n"]), 1),
+                "max_ms": round(v["max_ms"], 1),
+            }
+            for k, v in _METRICS["by_path"].items()
+        ],
+        key=lambda x: x["n"],
+        reverse=True,
+    )[:20]
+    return {
+        "requests_total": _METRICS["requests_total"],
+        "errors_total": _METRICS["errors_total"],
+        "slow_total_gt_500ms": _METRICS["slow_total"],
+        "error_rate": round(_METRICS["errors_total"] / max(1, _METRICS["requests_total"]), 4),
+        "latency_ms": {
+            "p50": _pct(0.50),
+            "p90": _pct(0.90),
+            "p95": _pct(0.95),
+            "p99": _pct(0.99),
+            "samples": n,
+        },
+        "cache": {
+            "listings_entries": len(_LISTINGS_CACHE) if "_LISTINGS_CACHE" in globals() else 0,
+        },
+        "top_paths": top_paths,
+    }
 
 
 # ============================================================
@@ -2091,6 +2168,7 @@ async def list_listings(
     limit: int = 20,
     skip: int = 0,
     page: Optional[int] = None,
+    cursor: Optional[str] = None,  # ISO created_at of last item — O(1) deep pagination
     fields: str = "slim",  # "slim" = list-card fields only; "full" = legacy full doc
 ):
     # Production hard cap: never return more than 20 per request — keeps payload
@@ -2132,6 +2210,18 @@ async def list_listings(
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         query["created_at"] = {"$gte": cutoff}
 
+    # Cursor pagination: when client passes ?cursor=<last_created_at>, we filter
+    # by created_at < cursor instead of using skip(). This stays O(log n) even
+    # at page 10,000 — critical for Haraj/OLX scale.
+    using_cursor = bool(cursor)
+    if using_cursor and sort in ("newest", "oldest"):
+        op = "$lt" if sort != "oldest" else "$gt"
+        existing = query.get("created_at")
+        if isinstance(existing, dict):
+            existing[op] = cursor
+        else:
+            query["created_at"] = {op: cursor}
+
     sort_field = [("created_at", -1)]
     if sort == "oldest":
         sort_field = [("created_at", 1)]
@@ -2171,10 +2261,14 @@ async def list_listings(
         items = pool[skip:skip + limit]
         return {"total": len(pool), "items": items, "page": page or (skip // limit + 1), "limit": limit}
 
-    total = await db.listings.count_documents(query)
-    cursor = db.listings.find(query, projection).sort(sort_field).skip(skip).limit(limit)
-    items = await cursor.to_list(length=limit)
-    body = {"total": total, "items": items, "page": page or (skip // limit + 1), "limit": limit}
+    # Skip the expensive count when paginating by cursor — Mongo can't short-circuit
+    # count() on large filtered collections, so it dominates request time.
+    total = None if using_cursor else await db.listings.count_documents(query)
+    effective_skip = 0 if using_cursor else skip
+    cursor_q = db.listings.find(query, projection).sort(sort_field).skip(effective_skip).limit(limit)
+    items = await cursor_q.to_list(length=limit)
+    next_cursor = items[-1].get("created_at") if (using_cursor and items and len(items) == limit) else None
+    body = {"total": total, "items": items, "page": page or (skip // limit + 1), "limit": limit, "next_cursor": next_cursor}
     # Edge-cacheable for 60s; ETag lets browsers skip the body when nothing changed.
     import hashlib as _hl
     payload_str = jsonable_encoder(body)

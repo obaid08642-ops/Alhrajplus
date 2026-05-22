@@ -14,6 +14,7 @@ import ImageViewer from "@/components/ImageViewer";
 import { ListingSEO } from "@/components/SEO";
 import Spin360Viewer from "@/components/Spin360Viewer";
 import PriceBadge from "@/components/PriceBadge";
+import { optimizeImage, buildSrcSet } from "@/lib/imageOptimizer";
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -176,7 +177,7 @@ export default function ListingDetail() {
                     <div className="bg-[var(--surface)] rounded-3xl overflow-hidden border border-[var(--border)]">
                         <div className="relative aspect-[16/10] bg-[var(--surface-elevated)] cursor-zoom-in" onClick={() => listing.images?.length && setShowViewer(true)}>
                             {listing.images?.length ? (
-                                <img src={listing.images[activeImg]} alt={listing.title} className="w-full h-full object-cover" />
+                                <img src={optimizeImage(listing.images[activeImg], { w: 1024 })} srcSet={buildSrcSet(listing.images[activeImg], [480, 768, 1024, 1280])} sizes="(max-width: 1024px) 100vw, 1024px" alt={listing.title} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] font-arabic">{tr("لا توجد صور")}</div>
                             )}
@@ -199,7 +200,7 @@ export default function ListingDetail() {
                             <div className="flex gap-2 p-3 overflow-x-auto no-scrollbar">
                                 {listing.images.map((img, i) => (
                                     <button key={i} data-testid={`img-thumb-${i}`} onClick={() => setActiveImg(i)} className={`shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 ${activeImg === i ? "border-[var(--primary)]" : "border-transparent"}`}>
-                                        <img src={img} alt="" className="w-full h-full object-cover" />
+                                        <img src={optimizeImage(img, { w: 160 })} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                     </button>
                                 ))}
                             </div>

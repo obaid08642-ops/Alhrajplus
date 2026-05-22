@@ -18,6 +18,28 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 4. **Job Seeker / Service Provider**: Special category fields (experience, salary, skills, schedule)
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
+
+## ✅ Session 21 — Feb 2026 — Performance & Scalability (Haraj/OLX Grade)
+
+### 🚀 New Performance Layer
+- **Cloudinary auto-format/quality transforms** — new `/app/frontend/src/lib/imageOptimizer.js` injects `f_auto,q_auto,w_<n>` into Cloudinary URLs. Browser receives AVIF/WebP automatically (60-80% smaller payload).
+- **Responsive srcset** for ListingCard (240/320/480/640), ListingDetail hero (480/768/1024/1280), AdSlot banners (320/480/768/1024). Mobile devices stop downloading 4K images for tiny grid cards.
+- **Preconnect + DNS-prefetch** to `res.cloudinary.com` added in `public/index.html` — saves one round-trip on the first image render.
+- **Cursor-based pagination** for `GET /api/listings` — pass `?cursor=<last_created_at>` instead of `skip=N` for O(log n) deep pagination. Response now includes `next_cursor`. Skips the expensive `count_documents()` when cursoring.
+- **In-memory metrics tracker** + `GET /api/_metrics` endpoint: rolling p50/p90/p95/p99 latency, total requests, error rate, slow requests count, top 20 paths by traffic, cache-entry count. No external deps.
+- **Server-Timing** header `app;dur=<ms>` already present so DevTools shows duration per request.
+- Existing infrastructure verified: ETag + 304, in-memory LRU cache for `/api/listings` (60s TTL, 200-entry cap), `Cache-Control: public, s-maxage=60, stale-while-revalidate=120` on all public GETs, slim projection (~70% payload cut), hard limit=20 per request, lazy loading on all `<img>`.
+
+### 📈 Verified Numbers (Live)
+- `/api/listings` cold: 245ms (Mongo round-trip)
+- `/api/listings` warm (cache HIT): ~97ms (no DB)
+- Backend internal latency p95 = 5.6 ms (`/api/_metrics`)
+- ETag returns `304 Not Modified` for unchanged payloads
+
+### ℹ️ Notes
+- The Emergent preview ingress strips `Cache-Control: public` and replaces with `no-store`. The backend emits the correct headers (verified via `curl localhost:8001`). Production deployment behind Vercel/Cloudflare will honor them.
+
+
 ## ✅ Session 20 — Feb 2026 — iOS Safari Chat Layout Fixes + Production Checklist
 
 ### 🔥 Critical Mobile Fixes

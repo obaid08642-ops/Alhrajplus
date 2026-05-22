@@ -4,6 +4,7 @@ import { useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
+import { optimizeImage, buildSrcSet } from "@/lib/imageOptimizer";
 
 export default function ListingCard({ listing, compact = true }) {
     const { user } = useAuth();
@@ -29,7 +30,7 @@ export default function ListingCard({ listing, compact = true }) {
         >
             <div className={`relative overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-square"}`}>
                 {listing.images?.[0] ? (
-                    <img src={listing.images[0]} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={optimizeImage(listing.images[0], { w: 480 })} srcSet={buildSrcSet(listing.images[0], [240, 320, 480, 640])} sizes="(max-width: 640px) 50vw, 240px" alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                     <div className="w-full h-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">{tr("لا توجد صورة")}</div>
                 )}
