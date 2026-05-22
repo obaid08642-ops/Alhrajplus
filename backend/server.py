@@ -3594,6 +3594,13 @@ async def admin_test_digest(user: dict = Depends(require_admin)):
     return {"sent": ok}
 
 
+@api.delete("/admin/demo-listings")
+async def admin_delete_demo_listings(user: dict = Depends(require_admin)):
+    """Bulk-remove all listings flagged `is_demo: true`. Demo seller is preserved."""
+    res = await db.listings.delete_many({"is_demo": True})
+    return {"deleted": res.deleted_count}
+
+
 # ============================================================
 # SEO: Dynamic Sitemap.xml + Robots.txt + Bot prerender
 # In Emergent preview, only /api/* routes hit backend; in production (Firebase/Cloudflare),

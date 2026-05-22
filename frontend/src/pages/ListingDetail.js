@@ -364,6 +364,11 @@ export default function ListingDetail() {
                                     ⚠️ {listing.demo_label || tr("إعلان تجريبي")}
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Sponsored ad — between contact info and similar listings (per user request) */}
+                    <AdSlot placement="listing_bottom" />
 
                     {/* Similar listings — placed AFTER seller info as requested */}
                     {similar.length > 0 && (
@@ -435,7 +440,7 @@ export default function ListingDetail() {
                                     })()}
                                 </>
                             ) : null}
-                            <button data-testid="chat-with-seller-btn" onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                            <button data-testid="chat-with-seller-btn" onClick={startChat} disabled={!!listing.is_demo} style={listing.is_demo ? { display: "none" } : undefined} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                 <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
                             </button>
                             <button data-testid="report-btn" className="w-full bg-[var(--surface-elevated)] hover:bg-red-50 dark:hover:bg-red-900/20 text-[var(--text-muted)] hover:text-red-600 rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic transition-colors">
