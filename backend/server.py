@@ -43,6 +43,10 @@ from seo_submitter import (
     get_or_create_indexnow_key as _get_indexnow_key,
     ping_google_sitemap as _ping_google_sitemap,
 )
+from google_indexing import (
+    enqueue_updated as _google_idx_updated,
+    enqueue_deleted as _google_idx_deleted,
+)
 
 
 # ============================================================
@@ -2025,6 +2029,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         from urllib.parse import urlparse as _up
         host = _up(fe).hostname or "alhraj.online"
         _seo_submit_bg(db, [f"{fe}/listing/{doc['slug']}", f"{fe}/listing/{doc['id']}"], host)
+        _google_idx_updated(f"{fe}/listing/{doc['slug']}")
     except Exception as _e:
         logger.warning(f"[IndexNow] enqueue failed: {_e}")
 
@@ -2238,6 +2243,15 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
     if item["user_id"] != user["id"] and user.get("role") != "admin":
         raise HTTPException(403)
     await db.listings.delete_one({"id": listing_id})
+    # Tell Google to deindex — best-effort, never blocks the response.
+    try:
+        fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
+        slug = item.get("slug")
+        if slug:
+            _google_idx_deleted(f"{fe}/listing/{slug}")
+        _google_idx_deleted(f"{fe}/listing/{listing_id}")
+    except Exception as _e:
+        logger.warning(f"[google_indexing] delete enqueue failed: {_e}")
     return {"success": True}
 
 @api.get("/listings/me/mine")
@@ -2878,6 +2892,8 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
             if new_slug:
                 urls.append(f"{fe}/listing/{new_slug}")
             _seo_submit_bg(db, urls, host)
+            if new_slug:
+                _google_idx_updated(f"{fe}/listing/{new_slug}")
     except Exception as _e:
         logger.warning(f"[IndexNow] update enqueue failed: {_e}")
 
