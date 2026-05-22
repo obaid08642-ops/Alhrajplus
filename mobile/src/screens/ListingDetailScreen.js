@@ -47,6 +47,15 @@ export default function ListingDetailScreen({ route, navigation }) {
         } catch (_) {}
     };
 
+    const submitReport = async (reason) => {
+        try {
+            await api.post("/reports", { target_type: "listing", target_id: id, reason });
+            Alert.alert("✅", t("تم استلام بلاغك"));
+        } catch (_) {
+            Alert.alert(t("خطأ"), t("تعذر إرسال البلاغ"));
+        }
+    };
+
     const republish = async () => {
         try {
             const { data } = await api.post(`/listings/${id}/republish`);
@@ -138,13 +147,18 @@ export default function ListingDetailScreen({ route, navigation }) {
                 <Text style={styles.desc}>{listing.description}</Text>
 
                 <Text style={styles.sectionTitle}>{t("معلومات البائع")}</Text>
-                <View style={styles.sellerCard}>
+                <TouchableOpacity
+                    onPress={() => listing.seller?.id && navigation.navigate("SellerProfile", { sellerId: listing.seller.id })}
+                    style={styles.sellerCard}
+                    testID="mobile-seller-card"
+                >
                     <View style={styles.avatar}><Text style={styles.avatarText}>{listing.seller?.name?.[0] || "U"}</Text></View>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.sellerName}>{listing.seller?.name}</Text>
                         <Text style={styles.sellerCity}>{listing.city}</Text>
                     </View>
-                </View>
+                    <Text style={{ color: theme.colors.primary, fontSize: 18 }}>›</Text>
+                </TouchableOpacity>
 
                 {listing.show_phone !== false && listing.seller?.phone_full && !listing.is_demo && (
                     <View style={{ marginTop: 12 }}>
@@ -167,6 +181,23 @@ export default function ListingDetailScreen({ route, navigation }) {
                     <Text style={styles.shareIcon}>↗</Text>
                     <Text style={styles.shareText}>{t("مشاركة الإعلان")}</Text>
                 </TouchableOpacity>
+
+                {!isOwner && !listing.is_demo && user && (
+                    <TouchableOpacity
+                        onPress={() => {
+                            Alert.alert(t("الإبلاغ عن الإعلان"), t("اختر سبب الإبلاغ"), [
+                                { text: t("احتيال"), onPress: () => submitReport("fraud") },
+                                { text: t("محتوى غير لائق"), onPress: () => submitReport("inappropriate") },
+                                { text: t("مكرر"), onPress: () => submitReport("duplicate") },
+                                { text: t("إلغاء"), style: "cancel" },
+                            ]);
+                        }}
+                        style={styles.reportBtn}
+                        testID="mobile-report-btn"
+                    >
+                        <Text style={styles.reportText}>⚠️ {t("الإبلاغ")}</Text>
+                    </TouchableOpacity>
+                )}
 
                 {similar.length > 0 && (
                     <>
@@ -220,6 +251,8 @@ const styles = StyleSheet.create({
     shareBtn: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border },
     shareIcon: { fontSize: 16, color: theme.colors.primary, fontWeight: "900" },
     shareText: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
+    reportBtn: { marginTop: 8, padding: 10, borderRadius: theme.radius.md, borderWidth: 1, borderColor: "#fca5a5", alignItems: "center", backgroundColor: "#fee2e2" },
+    reportText: { color: "#b91c1c", fontWeight: "800", fontSize: 13 },
     demoBadge: { marginTop: 12, padding: 10, borderRadius: theme.radius.md, backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#F59E0B", alignItems: "center" },
     demoBadgeText: { color: "#92400E", fontWeight: "900", fontSize: 13 },
 });

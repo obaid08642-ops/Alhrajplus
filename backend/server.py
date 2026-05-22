@@ -182,17 +182,27 @@ app = FastAPI(title="Haraj Plus API", version="1.0")
 api = APIRouter(prefix="/api")
 
 
+_APP_START_TIME = None
+
 @api.get("/health", include_in_schema=False)
 @api.head("/health", include_in_schema=False)
 async def health_api():
     """DB-aware health check. Returns 200 even if DB is slow — frontend just needs proof the server is up."""
+    global _APP_START_TIME
+    import time as _t
+    if _APP_START_TIME is None:
+        _APP_START_TIME = _t.time()
     db_ok = False
     try:
         await asyncio.wait_for(client.admin.command("ping"), timeout=2.0)
         db_ok = True
     except Exception:
         db_ok = False
-    return {"status": "ok", "db": "up" if db_ok else "down"}
+    return {
+        "status": "ok",
+        "db": "connected" if db_ok else "down",
+        "uptime": int(_t.time() - _APP_START_TIME),
+    }
 
 # Default CORS origins (production domains pre-wired so it works after migration without code edits)
 # Render allows the backend to receive requests from any of these by default.
@@ -2043,6 +2053,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     doc["slug"] = f"{base_slug}-{listing_id.replace('-', '')[:6]}" if base_slug else f"listing-{listing_id.replace('-', '')[:8]}"
     await db.listings.insert_one(doc)
     doc.pop("_id", None)
+    _cache_invalidate()
 
     # Instant search-engine submission (IndexNow → Bing, Yandex, Seznam, Naver).
     # Fire-and-forget; never blocks listing creation.
@@ -2089,6 +2100,17 @@ async def list_listings(
     if page and page > 0:
         skip = (page - 1) * limit
     skip = max(0, skip)
+
+    # Check in-memory cache before hitting Mongo. Honors If-None-Match.
+    cache_key = f"{request.url.path}?{request.url.query}" if request else None
+    if cache_key and not (q and q.strip()):
+        cached = _cache_get(cache_key)
+        if cached:
+            payload_cached, etag_cached = cached
+            inm_c = request.headers.get("if-none-match") if request else None
+            if inm_c and inm_c.strip('"') == etag_cached:
+                return Response(status_code=304, headers={"ETag": f'"{etag_cached}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120"})
+            return JSONResponse(content=payload_cached, headers={"ETag": f'"{etag_cached}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120", "X-Cache": "HIT"})
 
     query: dict = {"status": "active", "moderation": "approved"}
     if country_code:
@@ -2159,11 +2181,47 @@ async def list_listings(
     etag = _hl.md5(str(payload_str).encode("utf-8")).hexdigest()
     inm = request.headers.get("if-none-match") if request else None
     if inm and inm.strip('"') == etag:
-        return Response(status_code=304, headers={"ETag": f'"{etag}"', "Cache-Control": "public, max-age=60"})
-    return JSONResponse(content=payload_str, headers={"ETag": f'"{etag}"', "Cache-Control": "public, max-age=60"})
+        return Response(status_code=304, headers={"ETag": f'"{etag}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120"})
+    # Stash in memory for the next 60s so repeated identical requests skip the DB
+    cache_key = f"{request.url.path}?{request.url.query}" if request else None
+    if cache_key:
+        _cache_set(cache_key, (payload_str, etag))
+    return JSONResponse(content=payload_str, headers={"ETag": f'"{etag}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120"})
+
+
+# ============================================================
+# In-memory listings cache (lightweight, single-process). Invalidated on
+# create/update/delete. Safe for low/medium scale; replace with Redis later.
+# ============================================================
+_LISTINGS_CACHE: dict = {}
+_LISTINGS_CACHE_TTL = 60  # seconds
+
+def _cache_get(key: str):
+    import time as _t
+    item = _LISTINGS_CACHE.get(key)
+    if not item:
+        return None
+    if _t.time() - item[1] > _LISTINGS_CACHE_TTL:
+        _LISTINGS_CACHE.pop(key, None)
+        return None
+    return item[0]
+
+def _cache_set(key: str, value):
+    import time as _t
+    # Cap cache at 200 entries (LRU-ish — oldest gets evicted)
+    if len(_LISTINGS_CACHE) > 200:
+        try:
+            oldest = min(_LISTINGS_CACHE.items(), key=lambda kv: kv[1][1])[0]
+            _LISTINGS_CACHE.pop(oldest, None)
+        except Exception:
+            _LISTINGS_CACHE.clear()
+    _LISTINGS_CACHE[key] = (value, _t.time())
+
+def _cache_invalidate():
+    _LISTINGS_CACHE.clear()
 
 @api.get("/listings/by-slug/{slug}")
-async def get_listing_by_slug(slug: str):
+async def get_listing_by_slug(slug: str, request: Request):
     """Resolve a listing by its SEO slug. Used by /listing/:slug URLs."""
     item = await db.listings.find_one({"slug": slug}, {"_id": 0})
     if not item:
@@ -2171,20 +2229,19 @@ async def get_listing_by_slug(slug: str):
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     item["seller"] = seller
-    return item
+    return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600"})
 
 
 @api.get("/listings/{listing_id}")
-async def get_listing(listing_id: str):
+async def get_listing(listing_id: str, request: Request):
     # Accept either UUID or slug for legacy/SEO URL compatibility
     item = await db.listings.find_one({"$or": [{"id": listing_id}, {"slug": listing_id}]}, {"_id": 0})
     if not item:
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
-    # fetch seller minimal info
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     item["seller"] = seller
-    return item
+    return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600"})
 
 @api.get("/listings/{listing_id}/similar")
 async def similar_listings(listing_id: str, limit: int = 12):
@@ -2291,6 +2348,7 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
     if item["user_id"] != user["id"] and user.get("role") != "admin":
         raise HTTPException(403)
     await db.listings.delete_one({"id": listing_id})
+    _cache_invalidate()
     # Tell Google to deindex — best-effort, never blocks the response.
     try:
         fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
@@ -2928,6 +2986,7 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         base_slug = _slugify(update_data["title"])
         update_data["slug"] = f"{base_slug}-{listing_id.replace('-', '')[:6]}" if base_slug else item.get("slug") or f"listing-{listing_id.replace('-', '')[:8]}"
     await db.listings.update_one({"id": listing_id}, {"$set": update_data})
+    _cache_invalidate()
 
     # Re-submit to IndexNow when meaningful content changes (so search engines re-crawl)
     try:
@@ -3538,6 +3597,98 @@ async def follow_status(seller_id: str, user: dict = Depends(get_current_user)):
 
 
 # ============================================================
+# Public seller profile + listings + ratings (used by mobile + web)
+# ============================================================
+@api.get("/sellers/{seller_id}")
+async def get_seller_profile(seller_id: str):
+    """Public seller profile (safe fields only)."""
+    s = await db.users.find_one(
+        {"id": seller_id},
+        {"_id": 0, "id": 1, "name": 1, "avatar_url": 1, "bio": 1, "verified": 1,
+         "trust_score": 1, "city": 1, "country_code": 1, "created_at": 1}
+    )
+    if not s:
+        raise HTTPException(404, "Seller not found")
+    # Aggregate rating stats
+    pipeline = [
+        {"$match": {"seller_id": seller_id}},
+        {"$group": {"_id": "$seller_id", "avg": {"$avg": "$stars"}, "count": {"$sum": 1}}},
+    ]
+    agg = await db.ratings.aggregate(pipeline).to_list(length=1)
+    if agg:
+        s["rating_avg"] = round(agg[0]["avg"], 1)
+        s["rating_count"] = agg[0]["count"]
+    else:
+        s["rating_avg"] = 0
+        s["rating_count"] = 0
+    s["followers"] = await db.follows.count_documents({"seller_id": seller_id})
+    return s
+
+
+@api.get("/sellers/{seller_id}/listings")
+async def get_seller_listings(seller_id: str, limit: int = 20, skip: int = 0):
+    limit = max(1, min(limit, 20))
+    cursor = db.listings.find(
+        {"user_id": seller_id, "status": "active"},
+        {"_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
+         "category": 1, "city": 1, "images": {"$slice": 1}, "created_at": 1, "views": 1}
+    ).sort("created_at", -1).skip(skip).limit(limit)
+    items = await cursor.to_list(length=limit)
+    total = await db.listings.count_documents({"user_id": seller_id, "status": "active"})
+    return {"items": items, "total": total}
+
+
+@api.get("/sellers/{seller_id}/ratings")
+async def get_seller_ratings(seller_id: str, limit: int = 20):
+    limit = max(1, min(limit, 20))
+    ratings = await db.ratings.find(
+        {"seller_id": seller_id}, {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(length=limit)
+    # Hydrate author names
+    author_ids = list({r.get("author_id") for r in ratings if r.get("author_id")})
+    authors = {}
+    if author_ids:
+        async for u in db.users.find({"id": {"$in": author_ids}}, {"_id": 0, "id": 1, "name": 1, "avatar_url": 1}):
+            authors[u["id"]] = u
+    for r in ratings:
+        r["author"] = authors.get(r.get("author_id"), {"name": "مستخدم"})
+    return ratings
+
+
+class RatingIn(BaseModel):
+    stars: int  # 1-5
+    comment: str = ""
+
+
+@api.post("/sellers/{seller_id}/ratings")
+async def rate_seller(seller_id: str, body: RatingIn, user: dict = Depends(get_current_user)):
+    if seller_id == user["id"]:
+        raise HTTPException(400, "لا يمكنك تقييم نفسك")
+    if not (1 <= body.stars <= 5):
+        raise HTTPException(400, "stars must be between 1 and 5")
+    seller = await db.users.find_one({"id": seller_id}, {"_id": 0, "id": 1})
+    if not seller:
+        raise HTTPException(404, "Seller not found")
+    # Requires at least one chat or one completed listing interaction (basic anti-spam).
+    has_chat = await db.chat_messages.find_one({"$or": [
+        {"from_user": user["id"], "to_user": seller_id},
+        {"from_user": seller_id, "to_user": user["id"]},
+    ]})
+    if not has_chat:
+        raise HTTPException(403, "يجب التعامل مع البائع أولاً قبل التقييم")
+    now = datetime.now(timezone.utc).isoformat()
+    # Upsert — one rating per (author, seller) pair, latest wins
+    await db.ratings.update_one(
+        {"author_id": user["id"], "seller_id": seller_id},
+        {"$set": {"stars": body.stars, "comment": body.comment[:500], "updated_at": now},
+         "$setOnInsert": {"id": str(uuid.uuid4()), "author_id": user["id"],
+                          "seller_id": seller_id, "created_at": now}},
+        upsert=True,
+    )
+    return {"success": True}
+
+
+# ============================================================
 # Search Suggestions: Trending + User History
 # ============================================================
 class SearchLogIn(BaseModel):
@@ -3972,6 +4123,8 @@ async def startup():
     await db.watches.create_index([("listing_id", 1)])
     await db.follows.create_index([("follower_id", 1)])
     await db.follows.create_index([("seller_id", 1)])
+    await _safe_index(db.ratings, [("seller_id", 1), ("created_at", -1)])
+    await _safe_index(db.ratings, [("author_id", 1), ("seller_id", 1)], unique=False)
 
     # Backfill SEO slugs for any listings that don't have one yet. Runs in the
     # background so startup isn't blocked. Idempotent — each listing's slug gets
