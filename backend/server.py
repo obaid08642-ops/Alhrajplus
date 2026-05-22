@@ -44,6 +44,56 @@ from seo_submitter import (
     ping_google_sitemap as _ping_google_sitemap,
 )
 
+
+# ============================================================
+# Slug generation — SEO-friendly URLs for listings
+# Converts "مرسيدس C200 2022" → "mercedes-c200-2022"
+# Falls back to UUID prefix if title yields nothing latin.
+# ============================================================
+import re as _re_slug
+import unicodedata as _ud_slug
+
+# Light Arabic → Latin transliteration (just enough to get readable slugs).
+_AR_MAP = {
+    "ا": "a", "أ": "a", "إ": "i", "آ": "a", "ب": "b", "ت": "t", "ث": "th",
+    "ج": "j", "ح": "h", "خ": "kh", "د": "d", "ذ": "th", "ر": "r", "ز": "z",
+    "س": "s", "ش": "sh", "ص": "s", "ض": "d", "ط": "t", "ظ": "z", "ع": "a",
+    "غ": "gh", "ف": "f", "ق": "q", "ك": "k", "ل": "l", "م": "m", "ن": "n",
+    "ه": "h", "و": "w", "ي": "y", "ى": "a", "ة": "h", "ء": "", "ؤ": "w",
+    "ئ": "y", "َ": "", "ُ": "", "ِ": "", "ّ": "", "ْ": "", "ً": "", "ٌ": "", "ٍ": "",
+}
+
+
+def _slugify(text: str, max_len: int = 80) -> str:
+    if not text:
+        return ""
+    # Arabic transliteration
+    out = []
+    for ch in text:
+        if ch in _AR_MAP:
+            out.append(_AR_MAP[ch])
+        else:
+            out.append(ch)
+    s = "".join(out)
+    # Unicode normalize → strip non-ascii diacritics for Latin scripts
+    s = _ud_slug.normalize("NFKD", s)
+    s = s.encode("ascii", "ignore").decode("ascii")
+    s = s.lower()
+    s = _re_slug.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    s = _re_slug.sub(r"-{2,}", "-", s)
+    return s[:max_len].strip("-")
+
+
+async def _unique_slug(base: str, listing_id: str) -> str:
+    """Append short suffix from listing_id if base is empty or already taken."""
+    base = base or "listing"
+    suffix = listing_id.replace("-", "")[:6]
+    candidate = base
+    existing = await db.listings.find_one({"slug": candidate, "id": {"$ne": listing_id}}, {"_id": 0, "id": 1})
+    if existing:
+        candidate = f"{base}-{suffix}"
+    return candidate
+
 logger = logging.getLogger("haraj_plus")
 
 # ============================================================
@@ -1961,6 +2011,10 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     doc["search_blob"] = build_search_blob(doc)
+    # Generate SEO-friendly slug. Always include short suffix for uniqueness so
+    # parallel creates with similar titles never collide.
+    base_slug = _slugify(body.title)
+    doc["slug"] = f"{base_slug}-{listing_id.replace('-', '')[:6]}" if base_slug else f"listing-{listing_id.replace('-', '')[:8]}"
     await db.listings.insert_one(doc)
     doc.pop("_id", None)
 
@@ -1970,7 +2024,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
         from urllib.parse import urlparse as _up
         host = _up(fe).hostname or "alhraj.online"
-        _seo_submit_bg(db, [f"{fe}/listing/{doc['id']}"], host)
+        _seo_submit_bg(db, [f"{fe}/listing/{doc['slug']}", f"{fe}/listing/{doc['id']}"], host)
     except Exception as _e:
         logger.warning(f"[IndexNow] enqueue failed: {_e}")
 
@@ -2055,12 +2109,25 @@ async def list_listings(
     items = await cursor.to_list(length=limit)
     return {"total": total, "items": items}
 
-@api.get("/listings/{listing_id}")
-async def get_listing(listing_id: str):
-    item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+@api.get("/listings/by-slug/{slug}")
+async def get_listing_by_slug(slug: str):
+    """Resolve a listing by its SEO slug. Used by /listing/:slug URLs."""
+    item = await db.listings.find_one({"slug": slug}, {"_id": 0})
     if not item:
         raise HTTPException(404, "Listing not found")
-    await db.listings.update_one({"id": listing_id}, {"$inc": {"views": 1}})
+    await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
+    seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
+    item["seller"] = seller
+    return item
+
+
+@api.get("/listings/{listing_id}")
+async def get_listing(listing_id: str):
+    # Accept either UUID or slug for legacy/SEO URL compatibility
+    item = await db.listings.find_one({"$or": [{"id": listing_id}, {"slug": listing_id}]}, {"_id": 0})
+    if not item:
+        raise HTTPException(404, "Listing not found")
+    await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
     # fetch seller minimal info
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     item["seller"] = seller
@@ -2794,6 +2861,10 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     if any(k in update_data for k in ("title", "description", "category", "subcategory", "city", "district", "custom_fields")):
         merged = {**item, **update_data}
         update_data["search_blob"] = build_search_blob(merged)
+    # Refresh slug when title changes (preserves SEO short suffix for uniqueness)
+    if "title" in update_data:
+        base_slug = _slugify(update_data["title"])
+        update_data["slug"] = f"{base_slug}-{listing_id.replace('-', '')[:6]}" if base_slug else item.get("slug") or f"listing-{listing_id.replace('-', '')[:8]}"
     await db.listings.update_one({"id": listing_id}, {"$set": update_data})
 
     # Re-submit to IndexNow when meaningful content changes (so search engines re-crawl)
@@ -2802,7 +2873,11 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
             fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
             from urllib.parse import urlparse as _up
             host = _up(fe).hostname or "alhraj.online"
-            _seo_submit_bg(db, [f"{fe}/listing/{listing_id}"], host)
+            urls = [f"{fe}/listing/{listing_id}"]
+            new_slug = update_data.get("slug") or item.get("slug")
+            if new_slug:
+                urls.append(f"{fe}/listing/{new_slug}")
+            _seo_submit_bg(db, urls, host)
     except Exception as _e:
         logger.warning(f"[IndexNow] update enqueue failed: {_e}")
 
@@ -3527,23 +3602,30 @@ async def _build_sitemap_xml() -> str:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
     listings = await db.listings.find(
         {"status": "active", "created_at": {"$gte": cutoff}},
-        {"_id": 0, "id": 1, "title": 1, "updated_at": 1, "created_at": 1, "images": 1}
+        {"_id": 0, "id": 1, "slug": 1, "title": 1, "updated_at": 1, "created_at": 1, "images": 1}
     ).sort("created_at", -1).limit(50000).to_list(length=50000)
 
     parts = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:xhtml="http://www.w3.org/1999/xhtml">']
     for path, prio, freq in static_pages:
         parts.append(f"<url><loc>{site}{path}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>")
+    LANGS = ["ar", "en", "hi", "ur", "bn", "fr"]
     for l in listings:
         lastmod = (l.get("updated_at") or l.get("created_at") or "").split("T")[0] or ""
         img = (l.get("images") or [None])[0]
         title_safe = (l.get("title", "") or "").replace("]]>", "")
         img_part = f"<image:image><image:loc>{img}</image:loc><image:title><![CDATA[{title_safe}]]></image:title></image:image>" if img else ""
+        # Prefer SEO slug; fall back to id for older listings
+        ref = l.get("slug") or l["id"]
+        loc = f"{site}/listing/{ref}"
+        # hreflang alternates so Google can serve the right language version
+        alt = "".join(f'<xhtml:link rel="alternate" hreflang="{lng}" href="{loc}?lang={lng}"/>' for lng in LANGS)
+        alt += f'<xhtml:link rel="alternate" hreflang="x-default" href="{loc}"/>'
         parts.append(
-            f"<url><loc>{site}/listing/{l['id']}</loc>"
+            f"<url><loc>{loc}</loc>"
             + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
             + "<changefreq>weekly</changefreq><priority>0.7</priority>"
-            + img_part + "</url>"
+            + alt + img_part + "</url>"
         )
     parts.append('</urlset>')
     return "\n".join(parts)
@@ -3577,16 +3659,32 @@ async def _build_robots_txt() -> str:
 
 
 # Both /api/sitemap.xml and /sitemap.xml work (frontend rewrites for the latter in production)
+# In-memory cache (1 hour TTL) so we don't rebuild XML on every crawler hit.
+_SITEMAP_CACHE = {"xml": None, "ts": 0.0}
+_SITEMAP_TTL_SECONDS = 3600
+
+
+async def _cached_sitemap_xml() -> str:
+    import time as _t
+    now = _t.time()
+    if _SITEMAP_CACHE["xml"] and (now - _SITEMAP_CACHE["ts"]) < _SITEMAP_TTL_SECONDS:
+        return _SITEMAP_CACHE["xml"]
+    xml = await _build_sitemap_xml()
+    _SITEMAP_CACHE["xml"] = xml
+    _SITEMAP_CACHE["ts"] = now
+    return xml
+
+
 @api.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml_api():
-    xml = await _build_sitemap_xml()
-    return Response(content=xml, media_type="application/xml")
+    xml = await _cached_sitemap_xml()
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml_root():
-    xml = await _build_sitemap_xml()
-    return Response(content=xml, media_type="application/xml")
+    xml = await _cached_sitemap_xml()
+    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
 # ============================================================
@@ -3599,6 +3697,10 @@ async def indexnow_key_file(key: str):
     Search engines fetch https://alhraj.online/{KEY}.txt — we return the key
     only if it matches the one we registered. Anything else returns 404.
     """
+    # Special case: this catch-all otherwise shadows /robots.txt
+    if key.lower() == "robots":
+        text = await _build_robots_txt()
+        return PlainTextResponse(text)
     if not key or len(key) < 8 or not all(c in "0123456789abcdef" for c in key.lower()):
         raise HTTPException(404, "Not Found")
     our_key = await _get_indexnow_key(db)
@@ -3754,6 +3856,7 @@ async def startup():
     await _safe_index(db.users, "phone_full")
     await _safe_index(db.users, "id", unique=True)
     await _safe_index(db.listings, "id", unique=True)
+    await _safe_index(db.listings, "slug")  # NEW: fast lookup by SEO slug
     await _safe_index(db.listings, [("category", 1), ("city", 1), ("created_at", -1)])
     await _safe_index(db.listings, [("country_code", 1), ("status", 1)])
     await _safe_index(db.listings, [("title", "text"), ("description", "text")])
@@ -3797,6 +3900,21 @@ async def startup():
     await db.watches.create_index([("listing_id", 1)])
     await db.follows.create_index([("follower_id", 1)])
     await db.follows.create_index([("seller_id", 1)])
+
+    # Backfill SEO slugs for any listings that don't have one yet. Runs in the
+    # background so startup isn't blocked. Idempotent — each listing's slug gets
+    # set exactly once.
+    async def _backfill_slugs():
+        try:
+            cursor = db.listings.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"slug": ""}]}, {"_id": 0, "id": 1, "title": 1}).limit(5000)
+            async for l in cursor:
+                base = _slugify(l.get("title") or "")
+                slug = f"{base}-{l['id'].replace('-', '')[:6]}" if base else f"listing-{l['id'].replace('-', '')[:8]}"
+                await db.listings.update_one({"id": l["id"]}, {"$set": {"slug": slug}})
+        except Exception as e:
+            logger.warning(f"[startup] slug backfill failed: {e}")
+    asyncio.create_task(_backfill_slugs())
+
     # Seed admin (idempotent)
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if existing is None:

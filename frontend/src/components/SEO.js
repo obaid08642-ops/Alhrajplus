@@ -8,12 +8,16 @@ import { Helmet } from "react-helmet-async";
 export function ListingSEO({ listing }) {
     if (!listing) return null;
     const SITE = "https://alhraj.online";
-    const url = `${SITE}/listing/${listing.id}`;
+    // Prefer SEO-friendly slug; fall back to id for older listings.
+    const ref = listing.slug || listing.id;
+    const url = `${SITE}/listing/${ref}`;
     const title = `${listing.title} ${listing.price ? `بسعر ${listing.price.toLocaleString()} ${listing.currency || "ر.س"}` : ""} | ${listing.city || ""} - الحراج بلس`.slice(0, 200);
     const description = (listing.description || listing.title).slice(0, 300);
     const image = listing.images?.[0] || `${SITE}/og-image.png`;
     const tokens = (listing.title + " " + (listing.description || "")).split(/\s+/).filter(w => w.length > 2).slice(0, 30);
     const keywords = [...new Set([listing.title, listing.category, listing.city, ...tokens, "حراج", "بيع", "شراء"])].filter(Boolean).join(", ");
+    const LANGS = ["ar", "en", "hi", "ur", "bn", "fr"];
+    const LANG_LOCALE = { ar: "ar_SA", en: "en_US", hi: "hi_IN", ur: "ur_PK", bn: "bn_BD", fr: "fr_FR" };
 
     // Schema.org Product JSON-LD (for Google rich snippets + AI agents)
     const schema = {
@@ -53,12 +57,28 @@ export function ListingSEO({ listing }) {
             <meta name="keywords" content={keywords} />
             <link rel="canonical" href={url} />
 
+            {/* hreflang alternates — tells Google which URL serves which language */}
+            {LANGS.map((lng) => (
+                <link key={lng} rel="alternate" hrefLang={lng} href={`${url}?lang=${lng}`} />
+            ))}
+            <link rel="alternate" hrefLang="x-default" href={url} />
+
+            {/* Mobile app deep-link — iOS Smart Banner + Android App Link hints */}
+            <meta name="apple-itunes-app" content={`app-id=000000000, app-argument=${url}`} />
+            <link rel="alternate" href={`harajplus://listing/${ref}`} />
+
             <meta property="og:type" content="product" />
             <meta property="og:url" content={url} />
             <meta property="og:title" content={title} />
             <meta property="og:description" content={description} />
             <meta property="og:image" content={image} />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
+            <meta property="og:site_name" content="الحراج بلس" />
             <meta property="og:locale" content="ar_SA" />
+            {LANGS.filter(l => l !== "ar").map((lng) => (
+                <meta key={`alt-${lng}`} property="og:locale:alternate" content={LANG_LOCALE[lng]} />
+            ))}
 
             <meta name="twitter:card" content="summary_large_image" />
             <meta name="twitter:title" content={title} />
