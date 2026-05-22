@@ -29,29 +29,17 @@ DEMO_USER_EMAIL = "demo@harajplus.local"
 DEMO_USER_NAME = "حساب تجريبي"
 DEMO_LABEL = "إعلان تجريبي"
 
-# Shared pool of 20 stock photos — reused across all 250-ish listings so we
-# don't generate per-category images and waste credit.
+# Lightweight pool: 8 small thumbnails (Unsplash auto-resizes via ?w=400)
+# Reuse across all 150 listings — keeps DB payload tiny and CDN cache hot.
 STOCK_IMAGES = [
-    "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800",
-    "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
-    "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800",
-    "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800",
-    "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800",
-    "https://images.unsplash.com/photo-1493238792000-8113da705763?w=800",
-    "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800",
-    "https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=800",
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
-    "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=800",
-    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800",
-    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800",
-    "https://images.unsplash.com/photo-1564466809058-bf4114d55352?w=800",
-    "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800",
-    "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800",
-    "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800",
-    "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800",
-    "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=800",
-    "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800",
-    "https://images.unsplash.com/photo-1551434678-e076c223a692?w=800",
+    "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=400&q=70",
+    "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400&q=70",
+    "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400&q=70",
+    "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=400&q=70",
+    "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&q=70",
+    "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=70",
+    "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&q=70",
+    "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&q=70",
 ]
 
 # A few Arabic title fragments per category key. Fallback uses the category
@@ -74,7 +62,7 @@ TITLE_FRAGMENTS = {
 
 
 def _short_desc(title: str) -> str:
-    return f"{title}. للجادين فقط — السوم على الخاص. {random.choice(['متوفر', 'يقبل التفاوض', 'بحالة ممتازة', 'استعمال نظيف'])}."
+    return f"{title} — {random.choice(['متوفر للتواصل', 'يقبل التفاوض', 'بحالة ممتازة'])}."
 
 
 def _gen_listing(user_id: str, cat_key: str, idx: int) -> dict:
@@ -84,11 +72,10 @@ def _gen_listing(user_id: str, cat_key: str, idx: int) -> dict:
     price = round(random.uniform(500, 250000), -2)
     country = random.choice(COUNTRIES)
     city = random.choice(country.get("cities", [{"name_ar": "المدينة"}]))
-    images = random.sample(STOCK_IMAGES, k=min(3, len(STOCK_IMAGES)))
+    # ONE image only — production rule for fast lists.
+    one_image = random.choice(STOCK_IMAGES)
     now = datetime.now(timezone.utc).isoformat()
     lid = str(uuid.uuid4())
-    # Slug similar to server.py logic (Arabic transliteration) — but for demos
-    # we just use a deterministic prefix because we don't need indexability.
     slug = f"demo-{cat_key}-{idx}-{lid.replace('-', '')[:6]}"
     return {
         "id": lid,
@@ -102,13 +89,8 @@ def _gen_listing(user_id: str, cat_key: str, idx: int) -> dict:
         "currency_code": country.get("currency_code", "SAR"),
         "country_code": country["code"],
         "city": city.get("name_ar") if isinstance(city, dict) else str(city),
-        "district": "",
-        "lat": None,
-        "lng": None,
-        "images": images,
-        "media_urls": images,
-        "videos": [],
-        "custom_fields": {},
+        "images": [one_image],
+        "media_urls": [one_image],
         "show_phone": False,
         "status": "active",
         "moderation": "approved",
@@ -118,7 +100,7 @@ def _gen_listing(user_id: str, cat_key: str, idx: int) -> dict:
         "views": random.randint(10, 5000),
         "favorites": random.randint(0, 200),
         "slug": slug,
-        "search_blob": f"{title} {desc} {cat_key} {city.get('name_ar') if isinstance(city, dict) else city}".lower(),
+        "search_blob": f"{title} {cat_key}".lower(),
         "created_at": now,
         "updated_at": now,
     }

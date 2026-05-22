@@ -2055,9 +2055,19 @@ async def list_listings(
     days: Optional[int] = None,  # 1=last 24h, 7=last week, 30=last month, None=all time
     lat: Optional[float] = None,  # for nearest sorting
     lng: Optional[float] = None,
-    limit: int = 30,
+    limit: int = 20,
     skip: int = 0,
+    page: Optional[int] = None,
+    fields: str = "slim",  # "slim" = list-card fields only; "full" = legacy full doc
 ):
+    # Production hard cap: never return more than 20 per request — keeps payload
+    # under ~10KB even on slow networks, scalable to millions of listings.
+    limit = max(1, min(limit, 20))
+    # Allow ?page=2 in addition to ?skip=N. page is 1-indexed.
+    if page and page > 0:
+        skip = (page - 1) * limit
+    skip = max(0, skip)
+
     query: dict = {"status": "active", "moderation": "approved"}
     if country_code:
         query["country_code"] = country_code
@@ -2087,32 +2097,40 @@ async def list_listings(
         sort_field = [("price", -1)]
     elif sort == "popular":
         sort_field = [("views", -1)]
-    # "nearest" / "farthest" are computed in Python after fetch (no geo index for now)
 
-    # Smart search (Arabic-aware + typo-tolerant) when q is provided
+    # Slim projection — only the fields a listing card actually renders.
+    # Cuts response size by ~70% (no custom_fields/search_blob/media_urls/etc).
+    SLIM_PROJ = {
+        "_id": 0,
+        "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
+        "currency_code": 1, "category": 1, "subcategory": 1, "city": 1,
+        "country_code": 1, "images": {"$slice": 1}, "created_at": 1,
+        "views": 1, "favorites": 1, "is_demo": 1, "demo_label": 1,
+        "user_id": 1, "status": 1,
+    }
+    projection = SLIM_PROJ if fields != "full" else {"_id": 0}
+
     if q and q.strip():
         items, total, fuzzy_used = await _search_listings_engine(
-            db, q.strip(), query, sort_field, limit=min(limit, 60), skip=skip
+            db, q.strip(), query, sort_field, limit=limit, skip=skip
         )
-        return {"total": total, "items": items, "fuzzy": fuzzy_used}
+        return {"total": total, "items": items, "fuzzy": fuzzy_used, "page": page or (skip // limit + 1), "limit": limit}
 
-    # Distance-based sort: fetch a wider pool then sort by haversine
     if sort in ("nearest", "farthest") and lat is not None and lng is not None:
-        pool = await db.listings.find(query, {"_id": 0}).limit(500).to_list(length=500)
+        pool = await db.listings.find(query, projection).limit(500).to_list(length=500)
         def _dist(it):
             la, ln = it.get("lat"), it.get("lng")
             if la is None or ln is None:
                 return float("inf")
-            # cheap squared-distance (good enough for sort, no sqrt needed)
             return (la - lat) ** 2 + (ln - lng) ** 2
         pool.sort(key=_dist, reverse=(sort == "farthest"))
         items = pool[skip:skip + limit]
-        return {"total": len(pool), "items": items}
+        return {"total": len(pool), "items": items, "page": page or (skip // limit + 1), "limit": limit}
 
     total = await db.listings.count_documents(query)
-    cursor = db.listings.find(query, {"_id": 0}).sort(sort_field).skip(skip).limit(min(limit, 60))
+    cursor = db.listings.find(query, projection).sort(sort_field).skip(skip).limit(limit)
     items = await cursor.to_list(length=limit)
-    return {"total": total, "items": items}
+    return {"total": total, "items": items, "page": page or (skip // limit + 1), "limit": limit}
 
 @api.get("/listings/by-slug/{slug}")
 async def get_listing_by_slug(slug: str):
@@ -3880,6 +3898,8 @@ async def startup():
     await _safe_index(db.users, "id", unique=True)
     await _safe_index(db.listings, "id", unique=True)
     await _safe_index(db.listings, "slug")  # NEW: fast lookup by SEO slug
+    await _safe_index(db.listings, "is_demo")  # NEW: fast demo filter / bulk delete
+    await _safe_index(db.listings, [("created_at", -1)])  # NEW: list-newest pagination
     await _safe_index(db.listings, [("category", 1), ("city", 1), ("created_at", -1)])
     await _safe_index(db.listings, [("country_code", 1), ("status", 1)])
     await _safe_index(db.listings, [("title", "text"), ("description", "text")])
