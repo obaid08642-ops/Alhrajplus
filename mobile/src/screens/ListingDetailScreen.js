@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -39,6 +39,13 @@ export default function ListingDetailScreen({ route, navigation }) {
 
     const call = () => listing.seller?.phone_full && Linking.openURL(`tel:${listing.seller.phone_full}`);
     const wa = () => listing.seller?.phone_full && Linking.openURL(`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`${t("مرحباً بخصوص:")} ${listing.title}`)}`);
+
+    const shareAd = async () => {
+        try {
+            const url = `https://alhraj.online/listing/${listing.slug || listing.id}`;
+            await Share.share({ title: listing.title, message: `${listing.title}\n${url}`, url });
+        } catch (_) {}
+    };
 
     const republish = async () => {
         try {
@@ -139,7 +146,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                     </View>
                 </View>
 
-                {listing.show_phone !== false && listing.seller?.phone_full && (
+                {listing.show_phone !== false && listing.seller?.phone_full && !listing.is_demo && (
                     <View style={{ marginTop: 12 }}>
                         <TouchableOpacity onPress={call} style={[styles.cta, { backgroundColor: theme.colors.success }]} testID="mobile-call-btn">
                             <Text style={styles.ctaText}>{t("📞 اتصال مباشر")}</Text>
@@ -149,6 +156,17 @@ export default function ListingDetailScreen({ route, navigation }) {
                         </TouchableOpacity>
                     </View>
                 )}
+
+                {listing.is_demo && (
+                    <View style={styles.demoBadge}>
+                        <Text style={styles.demoBadgeText}>{listing.demo_label || t("إعلان تجريبي")}</Text>
+                    </View>
+                )}
+
+                <TouchableOpacity onPress={shareAd} style={styles.shareBtn} testID="mobile-share-btn">
+                    <Text style={styles.shareIcon}>↗</Text>
+                    <Text style={styles.shareText}>{t("مشاركة الإعلان")}</Text>
+                </TouchableOpacity>
 
                 {similar.length > 0 && (
                     <>
@@ -199,4 +217,9 @@ const styles = StyleSheet.create({
     sellerCity: { color: theme.colors.textMuted, fontSize: 12, textAlign: "right" },
     cta: { padding: 14, borderRadius: theme.radius.md, alignItems: "center", marginTop: 8 },
     ctaText: { color: "#fff", fontWeight: "900", fontSize: 14 },
+    shareBtn: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border },
+    shareIcon: { fontSize: 16, color: theme.colors.primary, fontWeight: "900" },
+    shareText: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
+    demoBadge: { marginTop: 12, padding: 10, borderRadius: theme.radius.md, backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#F59E0B", alignItems: "center" },
+    demoBadgeText: { color: "#92400E", fontWeight: "900", fontSize: 13 },
 });

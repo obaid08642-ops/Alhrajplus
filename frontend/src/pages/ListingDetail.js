@@ -221,7 +221,7 @@ export default function ListingDetail() {
                                         alert(tr("✅ تم نسخ رابط الإعلان"));
                                     }
                                 } catch (_) {}
-                            }} className="w-10 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--primary)]" title={tr("مشاركة")}><Share2 className="w-4 h-4" /></button>
+                            }} className="px-3 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center gap-2 text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body text-sm font-bold whitespace-nowrap" title={tr("مشاركة الإعلان")}><Share2 className="w-4 h-4" /><span>{tr("مشاركة الإعلان")}</span></button>
                         </div>
                         <div className="flex items-baseline gap-2 mb-4 flex-wrap">
                             {listing.price ? (
@@ -338,7 +338,7 @@ export default function ListingDetail() {
                             </button>
                         )}
                         <div className="space-y-2.5">
-                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && (() => {
+                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && !listing.is_demo && (() => {
                                 const ph = listing.contact_phone || listing.seller.phone_full;
                                 const cc = listing.country_code || listing.seller?.country_code || "";
                                 const norm = normalizePhone(ph, cc);
@@ -354,14 +354,16 @@ export default function ListingDetail() {
                                     </>
                                 );
                             })()}
-                            <button onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
-                                <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Sponsored ad — between contact info and similar listings (per user request) */}
-                    <AdSlot placement="listing_bottom" />
+                            {!listing.is_demo && (
+                                <button onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                    <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
+                                </button>
+                            )}
+                            {listing.is_demo && (
+                                <div className="w-full px-4 py-3 rounded-xl border border-amber-400 bg-amber-50 text-amber-800 font-arabic font-black text-sm text-center">
+                                    ⚠️ {listing.demo_label || tr("إعلان تجريبي")}
+                                </div>
+                            )}
 
                     {/* Similar listings — placed AFTER seller info as requested */}
                     {similar.length > 0 && (
@@ -408,7 +410,7 @@ export default function ListingDetail() {
 
                         {/* Contact actions */}
                         <div className="space-y-2.5">
-                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) ? (
+                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && !listing.is_demo ? (
                                 <>
                                     {(() => {
                                         const ph = listing.contact_phone || listing.seller.phone_full;
