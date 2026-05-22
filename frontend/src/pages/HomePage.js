@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment } from "react";
+import { useEffect, useState, Fragment, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useI18n, tr } from "@/contexts/I18nContext";
@@ -18,32 +18,67 @@ export default function HomePage() {
     const [loading, setLoading] = useState(true);
     const [layout, setLayout] = useState(localStorage.getItem("hp_layout") || "grid");
     const [showAllCats, setShowAllCats] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const sentinelRef = useRef(null);
 
     useEffect(() => { localStorage.setItem("hp_layout", layout); }, [layout]);
 
+    // Initial load — categories + page 1 of listings
     useEffect(() => {
         const load = async () => {
             setLoading(true);
+            setPage(1);
+            setHasMore(true);
             try {
-                const params = { limit: 24 };
+                const params = { limit: 20, page: 1 };
                 if (country) params.country_code = country;
                 const [cats, lists] = await Promise.all([
                     api.get("/meta/categories", { params: { lang } }),
                     api.get("/listings", { params })
                 ]);
                 setCategories(cats.data);
-                setListings(lists.data.items || []);
+                const items = lists.data.items || [];
+                setListings(items);
+                if (items.length < 20 || items.length >= (lists.data.total || 0)) setHasMore(false);
             } catch (_) {} finally { setLoading(false); }
         };
         load();
     }, [country, lang]);
+
+    // Infinite scroll — fetches the next 20 when the sentinel scrolls into view
+    const loadMore = useCallback(async () => {
+        if (loadingMore || loading || !hasMore) return;
+        setLoadingMore(true);
+        try {
+            const params = { limit: 20, page: page + 1 };
+            if (country) params.country_code = country;
+            const { data } = await api.get("/listings", { params });
+            const next = data.items || [];
+            setListings((prev) => [...prev, ...next]);
+            setPage(page + 1);
+            if (next.length < 20) setHasMore(false);
+        } catch (_) { setHasMore(false); }
+        finally { setLoadingMore(false); }
+    }, [country, page, hasMore, loadingMore, loading]);
+
+    useEffect(() => {
+        if (!sentinelRef.current || !hasMore) return;
+        const io = new IntersectionObserver(
+            (entries) => { if (entries[0].isIntersecting) loadMore(); },
+            { rootMargin: "400px" }
+        );
+        io.observe(sentinelRef.current);
+        return () => io.disconnect();
+    }, [loadMore, hasMore]);
 
     return (
         <div className="space-y-5 sm:space-y-8 pb-6">
             <Hero t={t} />
             <QuickActions />
             <CategoriesStrip categories={categories} t={t} pickName={pickName} expanded={showAllCats} onToggle={() => setShowAllCats(!showAllCats)} />
-            <NearbySection listings={listings} loading={loading} t={t} layout={layout} setLayout={setLayout} />
+            <NearbySection listings={listings} loading={loading} t={t} layout={layout} setLayout={setLayout} loadingMore={loadingMore} hasMore={hasMore} sentinelRef={sentinelRef} />
             <CTASection t={t} user={user} />
         </div>
     );
@@ -132,7 +167,7 @@ function CategoriesStrip({ categories, t, pickName, expanded, onToggle }) {
     );
 }
 
-function NearbySection({ listings, loading, t, layout, setLayout }) {
+function NearbySection({ listings, loading, t, layout, setLayout, loadingMore, hasMore, sentinelRef }) {
     return (
         <section className="max-w-7xl mx-auto px-3 sm:px-6">
             <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
@@ -172,6 +207,19 @@ function NearbySection({ listings, loading, t, layout, setLayout }) {
                             {(i === 7 || i === 15) && <AdSlotInline />}
                         </Fragment>
                     ))}
+                </div>
+            )}
+
+            {/* Infinite-scroll sentinel + skeleton row for next page */}
+            {!loading && hasMore && (
+                <div ref={sentinelRef} className="mt-4">
+                    {loadingMore && (
+                        <div className={layout === "wide" ? "space-y-3" : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"}>
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className={`${layout === "wide" ? "h-28" : "aspect-[4/3]"} rounded-2xl bg-[var(--surface-elevated)] animate-pulse`}></div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </section>

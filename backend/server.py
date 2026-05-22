@@ -25,7 +25,8 @@ from typing import Optional, List
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.responses import RedirectResponse, HTMLResponse, PlainTextResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, PlainTextResponse, JSONResponse, Response
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -222,6 +223,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Lightweight perf monitor: logs request duration + 5xx errors only.
+# No external services, no overhead beyond a time.perf_counter() pair.
+@app.middleware("http")
+async def _perf_logger(request, call_next):
+    import time as _t
+    start = _t.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        dur_ms = (_t.perf_counter() - start) * 1000
+        logger.error(f"[perf] {request.method} {request.url.path} 500 {dur_ms:.0f}ms err={e}")
+        raise
+    dur_ms = (_t.perf_counter() - start) * 1000
+    # Only log slow (>500ms) or error responses to keep stdout clean
+    if dur_ms > 500 or response.status_code >= 500:
+        logger.warning(f"[perf] {request.method} {request.url.path} {response.status_code} {dur_ms:.0f}ms")
+    # Add Server-Timing so the browser DevTools shows duration
+    response.headers["Server-Timing"] = f"app;dur={dur_ms:.0f}"
+    return response
 
 
 # ============================================================
@@ -2130,7 +2152,15 @@ async def list_listings(
     total = await db.listings.count_documents(query)
     cursor = db.listings.find(query, projection).sort(sort_field).skip(skip).limit(limit)
     items = await cursor.to_list(length=limit)
-    return {"total": total, "items": items, "page": page or (skip // limit + 1), "limit": limit}
+    body = {"total": total, "items": items, "page": page or (skip // limit + 1), "limit": limit}
+    # Edge-cacheable for 60s; ETag lets browsers skip the body when nothing changed.
+    import hashlib as _hl
+    payload_str = jsonable_encoder(body)
+    etag = _hl.md5(str(payload_str).encode("utf-8")).hexdigest()
+    inm = request.headers.get("if-none-match") if request else None
+    if inm and inm.strip('"') == etag:
+        return Response(status_code=304, headers={"ETag": f'"{etag}"', "Cache-Control": "public, max-age=60"})
+    return JSONResponse(content=payload_str, headers={"ETag": f'"{etag}"', "Cache-Control": "public, max-age=60"})
 
 @api.get("/listings/by-slug/{slug}")
 async def get_listing_by_slug(slug: str):
@@ -3624,7 +3654,6 @@ async def admin_delete_demo_listings(user: dict = Depends(require_admin)):
 # In Emergent preview, only /api/* routes hit backend; in production (Firebase/Cloudflare),
 # we use rewrites to expose /sitemap.xml → /api/sitemap.xml at the root URL.
 # ============================================================
-from fastapi.responses import Response
 
 
 async def _build_sitemap_xml() -> str:
