@@ -13,6 +13,7 @@ export default function HomeScreen({ navigation }) {
     const [listings, setListings] = useState([]);
     const [trending, setTrending] = useState([]);
     const [recommended, setRecommended] = useState([]);
+    const [recent, setRecent] = useState([]);
     const [error, setError] = useState(false);
     const [q, setQ] = useState("");
     const [refreshing, setRefreshing] = useState(false);
@@ -21,16 +22,18 @@ export default function HomeScreen({ navigation }) {
     const load = async () => {
         setError(false);
         try {
-            const [cats, lists, tr, rec] = await Promise.all([
+            const [cats, lists, tr, rec, rv] = await Promise.all([
                 api.get("/meta/categories", { params: { lang } }),
                 api.get("/listings", { params: { country_code: user?.country_code, limit: 30 } }),
                 api.get("/listings/trending", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
                 api.get("/listings/recommended", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
+                user ? api.get("/listings/recent", { params: { limit: 10 } }).catch(() => ({ data: { items: [] } })) : Promise.resolve({ data: { items: [] } }),
             ]);
             setCategories(cats.data);
             setListings(lists.data.items || []);
             setTrending(tr.data?.items || []);
             setRecommended(rec.data?.items || []);
+            setRecent(rv.data?.items || []);
         } catch (_) {
             setError(true);
         } finally {
@@ -88,6 +91,18 @@ export default function HomeScreen({ navigation }) {
                 renderItem={({ item }) => <ListingCard listing={item} />}
                 ListHeaderComponent={
                     <>
+                        {recent.length > 0 && (
+                            <View style={{ marginBottom: 8 }}>
+                                <Text style={styles.sectionTitle}>🕒 {t("شُوهدت مؤخراً")}</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
+                                    {recent.map((it) => (
+                                        <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
+                                            <ListingCard listing={it} />
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
                         {trending.length > 0 && (
                             <View style={{ marginBottom: 8 }}>
                                 <Text style={styles.sectionTitle}>🔥 {t("الأكثر مشاهدة")}</Text>

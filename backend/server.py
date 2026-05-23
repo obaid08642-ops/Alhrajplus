@@ -2242,6 +2242,10 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     except Exception as _e:
         logger.warning(f"[IndexNow] enqueue failed: {_e}")
 
+    # Smart notification: tell users who recently viewed the same category.
+    if doc.get("moderation") == "approved":
+        asyncio.create_task(_notify_category_watchers(doc))
+
     return doc
 
 
@@ -2411,7 +2415,7 @@ _CATEGORIES_CACHE_TTL = 300  # categories/search — 300s
 _REDIS = None
 _REDIS_URL = os.environ.get("REDIS_URL", "").strip()
 if not _REDIS_URL:
-    logger.warning("[cache] REDIS DISABLED IN PRODUCTION — set REDIS_URL to a managed Redis (Upstash/Redis Cloud/ElastiCache) for multi-instance safety.")
+    logger.error("[cache] REDIS REQUIRED FOR PRODUCTION — set REDIS_URL to a managed Redis (Upstash/Redis Cloud/ElastiCache). Falling back to in-memory cache (NOT multi-instance safe).")
 if _REDIS_URL:
     # Production-safety guard: warn loudly when someone points at a local Redis.
     # External managed Redis (Upstash / Redis Cloud / ElastiCache) is required.
@@ -2429,7 +2433,7 @@ if _REDIS_URL:
 
 def _redis_status() -> str:
     if not _REDIS_URL:
-        return "off"
+        return "missing"  # critical for production
     if _REDIS is None:
         return "fallback"
     try:
@@ -2586,6 +2590,126 @@ async def track_click(listing_id: str):
     """Lightweight click tracking — anonymous, fire-and-forget."""
     await db.listings.update_one({"id": listing_id}, {"$inc": {"clicks": 1}})
     return {"ok": True}
+
+
+# ============================================================
+# Personalization: recently-viewed history + saved searches.
+# Uses Redis when available, falls back to Mongo. Per-user, capped at 20.
+# ============================================================
+@api.post("/listings/{listing_id}/view")
+async def track_view(listing_id: str, request: Request):
+    """Record that the current user viewed this listing (for /listings/recent)."""
+    user = await _get_user_from_cookie(request)
+    if not user:
+        return {"ok": True, "tracked": False}
+    now_iso = datetime.now(timezone.utc).isoformat()
+    # Upsert into Mongo so we survive Redis flushes / multi-instance restarts.
+    await db.recently_viewed.update_one(
+        {"user_id": user["id"], "listing_id": listing_id},
+        {"$set": {"user_id": user["id"], "listing_id": listing_id, "ts": now_iso}},
+        upsert=True,
+    )
+    # Cap to last 20 per user — delete oldest if needed.
+    count = await db.recently_viewed.count_documents({"user_id": user["id"]})
+    if count > 20:
+        # Drop the (count-20) oldest entries.
+        olds = await db.recently_viewed.find({"user_id": user["id"]}, {"_id": 1, "ts": 1}).sort("ts", 1).limit(count - 20).to_list(length=50)
+        if olds:
+            await db.recently_viewed.delete_many({"_id": {"$in": [o["_id"] for o in olds]}})
+    return {"ok": True, "tracked": True}
+
+
+@api.get("/listings/recent")
+async def recent_listings(user: dict = Depends(get_current_user), limit: int = 20):
+    """Recently viewed listings for the authenticated user, newest first."""
+    limit = max(1, min(limit, 20))
+    rv = await db.recently_viewed.find({"user_id": user["id"]}, {"_id": 0, "listing_id": 1, "ts": 1}).sort("ts", -1).limit(limit).to_list(length=limit)
+    ids = [r["listing_id"] for r in rv]
+    if not ids:
+        return {"items": [], "total": 0}
+    SLIM = {
+        "_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
+        "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
+        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+    }
+    docs = await db.listings.find({"id": {"$in": ids}, "status": "active"}, SLIM).to_list(length=limit)
+    # Preserve recently-viewed order.
+    by_id = {d["id"]: d for d in docs}
+    items = [by_id[i] for i in ids if i in by_id]
+    return {"items": items, "total": len(items)}
+
+
+class SavedSearchIn(BaseModel):
+    q: str = Field(min_length=1, max_length=200)
+    category: Optional[str] = None
+    country_code: Optional[str] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+
+
+@api.post("/search/save")
+async def save_search(body: SavedSearchIn, user: dict = Depends(get_current_user)):
+    """Persist a search so we can notify the user when matching new listings appear."""
+    sid = uuid.uuid4().hex
+    doc = {
+        "id": sid,
+        "user_id": user["id"],
+        "q": body.q.strip(),
+        "q_lower": body.q.strip().lower(),
+        "category": body.category,
+        "country_code": body.country_code,
+        "min_price": body.min_price,
+        "max_price": body.max_price,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    # Upsert so saving the same query twice doesn't duplicate.
+    await db.saved_searches.update_one(
+        {"user_id": user["id"], "q_lower": doc["q_lower"]},
+        {"$set": doc},
+        upsert=True,
+    )
+    return {"ok": True, "id": sid}
+
+
+@api.get("/search/saved")
+async def list_saved_searches(user: dict = Depends(get_current_user)):
+    items = await db.saved_searches.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(length=50)
+    return items
+
+
+@api.delete("/search/saved/{sid}")
+async def delete_saved_search(sid: str, user: dict = Depends(get_current_user)):
+    await db.saved_searches.delete_one({"id": sid, "user_id": user["id"]})
+    return {"ok": True}
+
+
+async def _notify_category_watchers(listing: dict):
+    """When a new listing is approved, push to users who recently viewed the same
+    category. Caps at 200 recipients per listing to keep the burst bounded."""
+    cat = listing.get("category")
+    if not cat:
+        return
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        # Distinct users who recently viewed any listing in the same category.
+        cat_listing_ids = await db.listings.distinct("id", {"category": cat})
+        if not cat_listing_ids:
+            return
+        watchers = await db.recently_viewed.distinct(
+            "user_id",
+            {"listing_id": {"$in": cat_listing_ids[:500]}, "ts": {"$gte": cutoff}},
+        )
+        owner = listing.get("user_id")
+        watchers = [w for w in watchers if w != owner][:200]
+        for uid in watchers:
+            asyncio.create_task(_send_push(
+                uid,
+                "🆕 إعلان جديد في تصنيفك",
+                listing.get("title") or "",
+                {"type": "category_new", "listing_id": listing.get("id"), "category": cat},
+            ))
+    except Exception as _e:
+        logger.warning(f"[notify] category-watchers failed: {_e}")
 
 
 @api.get("/listings/trending")
@@ -3655,6 +3779,17 @@ async def admin_stats():
         {"$group": {"_id": None, "views": {"$sum": "$views"}, "clicks": {"$sum": "$clicks"}}}
     ]).to_list(length=1)
     totals = agg[0] if agg else {"views": 0, "clicks": 0}
+    # Top 5 categories by active-listing count.
+    top_cats = await db.listings.aggregate([
+        {"$match": {"status": "active"}},
+        {"$group": {"_id": "$category", "n": {"$sum": 1}}},
+        {"$sort": {"n": -1}},
+        {"$limit": 5},
+    ]).to_list(length=5)
+    top_categories = [{"category": c["_id"], "count": c["n"]} for c in top_cats if c.get("_id")]
+    # Top 5 searched keywords (from search_terms collection — already maintained).
+    top_kw = await db.search_terms.find({}, {"_id": 0, "q_lower": 1, "count": 1}).sort("count", -1).limit(5).to_list(length=5)
+    top_keywords = [{"q": k.get("q_lower"), "count": k.get("count", 0)} for k in top_kw if k.get("q_lower")]
     return {
         "users": await db.users.count_documents({}),
         "listings": await db.listings.count_documents({}),
@@ -3666,6 +3801,8 @@ async def admin_stats():
         "ads": await db.ads.count_documents({"active": True}),
         "total_views": int(totals.get("views") or 0),
         "total_clicks": int(totals.get("clicks") or 0),
+        "top_categories": top_categories,
+        "top_keywords": top_keywords,
     }
 
 @admin_router.get("/listings/pending")
@@ -4615,6 +4752,11 @@ async def startup():
     await _safe_index(db.price_alerts, "listing_id")
     # Block user
     await _safe_index(db.blocks, [("blocker_id", 1), ("blocked_id", 1)], unique=True)
+    # Personalization
+    await _safe_index(db.recently_viewed, [("user_id", 1), ("ts", -1)])
+    await _safe_index(db.recently_viewed, [("user_id", 1), ("listing_id", 1)], unique=True)
+    await _safe_index(db.saved_searches, [("user_id", 1), ("q_lower", 1)], unique=True)
+    await _safe_index(db.saved_searches, [("user_id", 1), ("created_at", -1)])
     await _safe_index(db.ratings, [("author_id", 1), ("seller_id", 1)], unique=False)
 
     # Backfill SEO slugs for any listings that don't have one yet. Runs in the

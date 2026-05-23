@@ -29,6 +29,8 @@ export default function ListingDetailScreen({ route, navigation }) {
                 setListing(l.data);
                 setSimilar(s.data);
                 setBadge(b.data);
+                // Fire-and-forget: log to "recently viewed" so /listings/recent works.
+                api.post(`/listings/${id}/view`).catch(() => {});
             } catch {
                 Alert.alert(t("خطأ"), t("تعذر تحميل الإعلان"));
                 navigation.goBack();
