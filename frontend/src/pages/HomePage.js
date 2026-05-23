@@ -44,6 +44,8 @@ export default function HomePage() {
                 ]);
                 setCategories(cats.data);
                 const items = lists.data.items || [];
+                // eslint-disable-next-line no-console
+                console.info("[HomePage] /listings →", { total: lists.data.total, items: items.length, sample: items[0]?.title });
                 setListings(items);
                 // Preload the first 2 listing images so LCP fires immediately.
                 // We inject <link rel="preload"> tags into <head> (one-shot, no React).
@@ -61,7 +63,12 @@ export default function HomePage() {
                     });
                 } catch (_) {}
                 if (items.length < 20 || items.length >= (lists.data.total || 0)) setHasMore(false);
-            } catch (_) {} finally { setLoading(false); }
+            } catch (e) {
+                // Surface fetch failures in the console so we can tell apart
+                // "API returned []" from "request failed entirely".
+                // eslint-disable-next-line no-console
+                console.error("[HomePage] load failed:", e?.message || e, "BACKEND_URL=", process.env.REACT_APP_BACKEND_URL);
+            } finally { setLoading(false); }
         };
         load();
     }, [country, lang]);

@@ -278,6 +278,18 @@ def _track_metric(path: str, status: int, dur_ms: float):
     if status >= 500:
         p["errs"] += 1
 
+# Force UTF-8 charset on all JSON responses so Arabic / RTL text renders
+# correctly even when intermediaries (CDN, browser) misinterpret the
+# default `application/json` as ISO-8859-1.
+@app.middleware("http")
+async def _utf8_json_charset(request, call_next):
+    response = await call_next(request)
+    ct = response.headers.get("content-type", "")
+    if ct.startswith("application/json") and "charset" not in ct.lower():
+        response.headers["content-type"] = "application/json; charset=utf-8"
+    return response
+
+
 @app.middleware("http")
 async def _perf_logger(request, call_next):
     import time as _t

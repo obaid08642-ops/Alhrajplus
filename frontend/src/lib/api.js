@@ -1,7 +1,20 @@
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Backend URL resolution order:
+//   1. Runtime override (window.__APP_CONFIG__.BACKEND_URL) — set by
+//      /public/config.js so ops can change the host WITHOUT rebuilding.
+//   2. Build-time REACT_APP_BACKEND_URL (default).
+// Allows the same bundle to point at staging vs production by swapping one
+// static file on the host (CDN cache-busted via ?v=timestamp).
+const RUNTIME_BACKEND = (typeof window !== "undefined" && window.__APP_CONFIG__ && window.__APP_CONFIG__.BACKEND_URL) || "";
+const BACKEND_URL = RUNTIME_BACKEND || process.env.REACT_APP_BACKEND_URL || "";
 export const API_BASE = `${BACKEND_URL}/api`;
+
+// Surface in console so misconfig is obvious during smoke-test.
+if (typeof window !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.info("[api] BACKEND_URL =", BACKEND_URL || "(empty!)");
+}
 
 const ACCESS_KEY = "hp_access";
 const REFRESH_KEY = "hp_refresh";
