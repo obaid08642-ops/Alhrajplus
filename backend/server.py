@@ -424,6 +424,17 @@ async def _debug_db_check():
         "listings_visible": await db.listings.count_documents({"status": "active", "moderation": "approved"}) if counts.get("listings", 0) else 0,
     }
     note = "categories & cities are SERVED FROM CODE (i18n_data.py), not from DB collections — empty DB collections are expected."
+    # Sample one document + distinct field values — helps spot data shape drift
+    # (e.g. status saved as "Active" vs "active", moderation as bool vs string).
+    sample = None
+    distinct_status: list = []
+    distinct_mod: list = []
+    try:
+        sample = await db.listings.find_one({}, {"_id": 0, "id": 1, "title": 1, "status": 1, "moderation": 1, "country_code": 1, "category": 1, "is_demo": 1, "created_at": 1})
+        distinct_status = sorted([x for x in await db.listings.distinct("status") if x is not None])
+        distinct_mod = sorted([x for x in await db.listings.distinct("moderation") if x is not None])
+    except Exception:
+        pass
     return {
         "ok": True,
         "mongo_url_masked": _mask_mongo_url(MONGO_URL),
@@ -432,8 +443,20 @@ async def _debug_db_check():
         "collections": cols,
         "counts": counts,
         "filters": filters,
+        "distinct_status_values": distinct_status,
+        "distinct_moderation_values": distinct_mod,
+        "sample_listing": sample,
         "note": note,
     }
+
+
+# Debug-only: raw listings (no status/moderation filter). Use to confirm whether
+# the issue is "no data in DB" vs "filters hiding visible data".
+@app.get("/api/debug/listings-raw", include_in_schema=False)
+async def _debug_listings_raw(limit: int = 5):
+    limit = max(1, min(limit, 20))
+    items = await db.listings.find({}, {"_id": 0}).limit(limit).to_list(length=limit)
+    return {"count": len(items), "items": items}
 
 
 # Lightweight metrics endpoint — no Prometheus, just enough to grep latency/errors
@@ -2363,7 +2386,17 @@ async def list_listings(
         else:
             _METRICS["cache_misses"] = _METRICS.get("cache_misses", 0) + 1
 
-    query: dict = {"status": "active", "moderation": "approved"}
+    # Visibility filter: keep the public feed clean. We accept legacy docs that
+    # predate the `moderation` field (treat missing as "approved") so historical
+    # data created before that column was added stays visible.
+    query: dict = {
+        "status": "active",
+        "$or": [
+            {"moderation": "approved"},
+            {"moderation": {"$exists": False}},
+            {"moderation": None},
+        ],
+    }
     if country_code:
         query["country_code"] = country_code
     if category:
