@@ -332,11 +332,15 @@ async def _metrics_endpoint():
         key=lambda x: x["n"],
         reverse=True,
     )[:20]
+    hits = _METRICS.get("cache_hits", 0)
+    misses = _METRICS.get("cache_misses", 0)
+    cache_total = hits + misses
     return {
         "requests_total": _METRICS["requests_total"],
         "errors_total": _METRICS["errors_total"],
         "slow_total_gt_500ms": _METRICS["slow_total"],
         "error_rate": round(_METRICS["errors_total"] / max(1, _METRICS["requests_total"]), 4),
+        "avg_ms": round(sum(dl) / max(1, n), 1),
         "latency_ms": {
             "p50": _pct(0.50),
             "p90": _pct(0.90),
@@ -345,7 +349,11 @@ async def _metrics_endpoint():
             "samples": n,
         },
         "cache": {
+            "redis": _redis_status() if "_redis_status" in globals() else "off",
             "listings_entries": len(_LISTINGS_CACHE) if "_LISTINGS_CACHE" in globals() else 0,
+            "hits": hits,
+            "misses": misses,
+            "hit_rate": round(hits / max(1, cache_total), 4),
         },
         "top_paths": top_paths,
     }
@@ -2184,11 +2192,19 @@ async def list_listings(
     if cache_key and not (q and q.strip()):
         cached = _cache_get(cache_key)
         if cached:
+            _METRICS["cache_hits"] = _METRICS.get("cache_hits", 0) + 1
             payload_cached, etag_cached = cached
             inm_c = request.headers.get("if-none-match") if request else None
+            hdrs = {
+                "ETag": f'"{etag_cached}"',
+                "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+                "Vary": "Accept-Encoding",
+            }
             if inm_c and inm_c.strip('"') == etag_cached:
-                return Response(status_code=304, headers={"ETag": f'"{etag_cached}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120"})
-            return JSONResponse(content=payload_cached, headers={"ETag": f'"{etag_cached}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120", "X-Cache": "HIT"})
+                return Response(status_code=304, headers=hdrs)
+            return JSONResponse(content=payload_cached, headers={**hdrs, "X-Cache": "HIT"})
+        else:
+            _METRICS["cache_misses"] = _METRICS.get("cache_misses", 0) + 1
 
     query: dict = {"status": "active", "moderation": "approved"}
     if country_code:
@@ -2269,29 +2285,69 @@ async def list_listings(
     items = await cursor_q.to_list(length=limit)
     next_cursor = items[-1].get("created_at") if (using_cursor and items and len(items) == limit) else None
     body = {"total": total, "items": items, "page": page or (skip // limit + 1), "limit": limit, "next_cursor": next_cursor}
-    # Edge-cacheable for 60s; ETag lets browsers skip the body when nothing changed.
+    # Edge-cacheable for 120s with 300s stale-while-revalidate.
     import hashlib as _hl
     payload_str = jsonable_encoder(body)
     etag = _hl.md5(str(payload_str).encode("utf-8")).hexdigest()
     inm = request.headers.get("if-none-match") if request else None
+    final_hdrs = {
+        "ETag": f'"{etag}"',
+        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+        "Vary": "Accept-Encoding",
+    }
     if inm and inm.strip('"') == etag:
-        return Response(status_code=304, headers={"ETag": f'"{etag}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120"})
+        return Response(status_code=304, headers=final_hdrs)
     # Stash in memory for the next 60s so repeated identical requests skip the DB
     cache_key = f"{request.url.path}?{request.url.query}" if request else None
     if cache_key:
         _cache_set(cache_key, (payload_str, etag))
-    return JSONResponse(content=payload_str, headers={"ETag": f'"{etag}"', "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120"})
+    return JSONResponse(content=payload_str, headers=final_hdrs)
 
 
 # ============================================================
-# In-memory listings cache (lightweight, single-process). Invalidated on
-# create/update/delete. Safe for low/medium scale; replace with Redis later.
+# Two-tier cache for listings: Redis (if REDIS_URL set) → in-memory fallback.
+# - Invalidated on create/update/delete via _cache_invalidate().
+# - All operations are sync to keep call sites trivial; Redis client is sync.
 # ============================================================
 _LISTINGS_CACHE: dict = {}
-_LISTINGS_CACHE_TTL = 60  # seconds
+_LISTINGS_CACHE_TTL = 120  # bumped to match Cache-Control s-maxage
+
+# Optional Redis. Imported lazily so the app still boots when redis-py is absent.
+_REDIS = None
+_REDIS_URL = os.environ.get("REDIS_URL", "").strip()
+if _REDIS_URL:
+    try:
+        import redis as _redis_pkg  # type: ignore
+        _REDIS = _redis_pkg.Redis.from_url(_REDIS_URL, socket_timeout=0.25, socket_connect_timeout=0.25, decode_responses=True)
+        # Probe once so we know it's reachable; fall back silently otherwise.
+        _REDIS.ping()
+        logger.info("[cache] Redis connected: %s", _REDIS_URL.split("@")[-1])
+    except Exception as _e:
+        logger.warning("[cache] Redis unavailable, using in-memory only: %s", _e)
+        _REDIS = None
+
+def _redis_status() -> str:
+    if not _REDIS_URL:
+        return "off"
+    if _REDIS is None:
+        return "fallback"
+    try:
+        _REDIS.ping()
+        return "on"
+    except Exception:
+        return "fallback"
 
 def _cache_get(key: str):
-    import time as _t
+    import time as _t, json as _json
+    # Try Redis first when available
+    if _REDIS is not None:
+        try:
+            raw = _REDIS.get(f"hp:{key}")
+            if raw:
+                obj = _json.loads(raw)
+                return (obj["payload"], obj["etag"])
+        except Exception:
+            pass  # fall through to memory
     item = _LISTINGS_CACHE.get(key)
     if not item:
         return None
@@ -2301,7 +2357,13 @@ def _cache_get(key: str):
     return item[0]
 
 def _cache_set(key: str, value):
-    import time as _t
+    import time as _t, json as _json
+    payload, etag = value
+    if _REDIS is not None:
+        try:
+            _REDIS.setex(f"hp:{key}", _LISTINGS_CACHE_TTL, _json.dumps({"payload": payload, "etag": etag}))
+        except Exception:
+            pass  # silent fallback to memory
     # Cap cache at 200 entries (LRU-ish — oldest gets evicted)
     if len(_LISTINGS_CACHE) > 200:
         try:
@@ -2313,6 +2375,13 @@ def _cache_set(key: str, value):
 
 def _cache_invalidate():
     _LISTINGS_CACHE.clear()
+    if _REDIS is not None:
+        try:
+            # SCAN+DEL is non-blocking; cap iterations to stay safe.
+            for k in _REDIS.scan_iter(match="hp:*", count=200):
+                _REDIS.delete(k)
+        except Exception:
+            pass
 
 @api.get("/listings/by-slug/{slug}")
 async def get_listing_by_slug(slug: str, request: Request):

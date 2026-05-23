@@ -6,6 +6,7 @@ import { formatApiError } from "../api";
 import { signInWithGoogle, signInWithApple, signInWithX, signInWithSnapchat } from "../socialAuth";
 import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
 import { useI18n } from "../I18nContext";
+import { validatePhone, phoneExampleFor } from "../phoneValidator";
 
 function SocialButtons({ onSuccess }) {
     const { t } = useI18n();
@@ -196,7 +197,13 @@ export function RegisterScreen({ navigation }) {
     const submit = async () => {
         setErr(""); setBusy(true);
         try {
-            await register(form);
+            const v = validatePhone(form.phone, form.country_code);
+            if (!v.ok) {
+                setErr(v.error);
+                setBusy(false);
+                return;
+            }
+            await register({ ...form, phone: v.normalized });
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
         } finally { setBusy(false); }
@@ -217,7 +224,7 @@ export function RegisterScreen({ navigation }) {
                     <TextInput placeholder={t("الاسم الكامل")} placeholderTextColor={theme.colors.textMuted} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.input} />
                     <TextInput placeholder={t("البريد الإلكتروني")} placeholderTextColor={theme.colors.textMuted} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
                     <TextInput placeholder={t("كلمة المرور")} placeholderTextColor={theme.colors.textMuted} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} secureTextEntry style={styles.input} />
-                    <TextInput placeholder={t("رقم الجوال")} placeholderTextColor={theme.colors.textMuted} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, "") })} keyboardType="phone-pad" style={styles.input} />
+                    <TextInput placeholder={t("رقم الجوال") + ` (${phoneExampleFor(form.country_code)})`} placeholderTextColor={theme.colors.textMuted} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, "") })} keyboardType="phone-pad" style={styles.input} testID="register-phone-input" />
 
                     <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]}>
                         <Text style={styles.btnText}>{busy ? "..." : t("إنشاء حساب")}</Text>

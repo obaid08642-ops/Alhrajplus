@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -18,6 +19,7 @@ export default function ChatScreen({ navigation, route }) {
     const [input, setInput] = useState("");
     const [translations, setTranslations] = useState({});
     const [translating, setTranslating] = useState(null);
+    const [uploadingImg, setUploadingImg] = useState(false);
     const listRef = useRef();
     const { subscribe, connected } = useChatSocket();
 
@@ -75,6 +77,41 @@ export default function ChatScreen({ navigation, route }) {
             setMessages((m) => [...m, data]);
             setActiveConvoId(data.convo_id);
         } catch (_) {}
+    };
+
+    const sendImage = async () => {
+        if (!activeOther || uploadingImg) return;
+        try {
+            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الصور")); return; }
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.7,
+            });
+            if (result.canceled || !result.assets?.[0]) return;
+            setUploadingImg(true);
+            const asset = result.assets[0];
+            // Signed Cloudinary upload (same pattern as PostScreen).
+            const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "image", folder: "chat" } });
+            const fd = new FormData();
+            fd.append("file", { uri: asset.uri, type: "image/jpeg", name: `chat_${Date.now()}.jpg` });
+            fd.append("api_key", sig.api_key);
+            fd.append("timestamp", String(sig.timestamp));
+            fd.append("signature", sig.signature);
+            fd.append("folder", sig.folder);
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`, { method: "POST", body: fd });
+            const out = await res.json();
+            if (!out.secure_url) throw new Error("upload failed");
+            const { data } = await api.post("/chat/send", {
+                receiver_id: activeOther.id,
+                listing_id: listingId || null,
+                image: out.secure_url,
+            });
+            setMessages((m) => [...m, data]);
+            setActiveConvoId(data.convo_id);
+        } catch (_) {
+            Alert.alert(t("خطأ"), t("فشل رفع الصورة"));
+        } finally { setUploadingImg(false); }
     };
 
     const translate = async (m) => {
@@ -155,6 +192,9 @@ export default function ChatScreen({ navigation, route }) {
                     }}
                 />
                 <View style={styles.inputBar}>
+                    <TouchableOpacity onPress={sendImage} disabled={uploadingImg} style={styles.attachBtn} testID="chat-attach-image">
+                        <Text style={styles.attachIcon}>{uploadingImg ? "…" : "📎"}</Text>
+                    </TouchableOpacity>
                     <TextInput value={input} onChangeText={setInput} placeholder={t("اكتب رسالة...")} placeholderTextColor={theme.colors.textMuted} style={styles.inputBox} />
                     <TouchableOpacity onPress={send} style={styles.sendBtn}>
                         <Text style={styles.sendText}>⇦</Text>
@@ -190,6 +230,8 @@ const styles = StyleSheet.create({
     translateBtn: { marginTop: 2, color: theme.colors.primary, fontSize: 11, fontWeight: "700", textAlign: "right" },
     inputBar: { flexDirection: "row", padding: 10, gap: 8, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border },
     inputBox: { flex: 1, backgroundColor: theme.colors.surfaceElevated, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: theme.colors.text, textAlign: "right" },
+    attachBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surfaceElevated, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: theme.colors.border },
+    attachIcon: { fontSize: 18 },
     sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.primary, justifyContent: "center", alignItems: "center" },
     sendText: { color: "#fff", fontSize: 18, fontWeight: "900" },
 });

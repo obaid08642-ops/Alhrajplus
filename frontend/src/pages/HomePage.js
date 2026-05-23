@@ -22,6 +22,10 @@ export default function HomePage() {
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const sentinelRef = useRef(null);
+    // Dedupe concurrent loadMore() calls — IntersectionObserver can fire twice
+    // in rapid succession while the DOM settles. Skip if a fetch is in flight.
+    const inflightRef = useRef(false);
+    const lastLoadTsRef = useRef(0);
 
     useEffect(() => { localStorage.setItem("hp_layout", layout); }, [layout]);
 
@@ -50,6 +54,12 @@ export default function HomePage() {
     // Infinite scroll — fetches the next 20 when the sentinel scrolls into view
     const loadMore = useCallback(async () => {
         if (loadingMore || loading || !hasMore) return;
+        // Dedupe: skip if a previous call is still in flight, or fired <300ms ago
+        if (inflightRef.current) return;
+        const now = Date.now();
+        if (now - lastLoadTsRef.current < 300) return;
+        inflightRef.current = true;
+        lastLoadTsRef.current = now;
         setLoadingMore(true);
         try {
             const params = { limit: 20, page: page + 1 };
@@ -60,7 +70,7 @@ export default function HomePage() {
             setPage(page + 1);
             if (next.length < 20) setHasMore(false);
         } catch (_) { setHasMore(false); }
-        finally { setLoadingMore(false); }
+        finally { setLoadingMore(false); inflightRef.current = false; }
     }, [country, page, hasMore, loadingMore, loading]);
 
     useEffect(() => {

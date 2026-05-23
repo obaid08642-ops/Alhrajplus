@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share } from "react-native";
+import { useEffect, useState, useRef } from "react";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -14,6 +14,8 @@ export default function ListingDetailScreen({ route, navigation }) {
     const [similar, setSimilar] = useState([]);
     const [badge, setBadge] = useState(null);
     const [activeImg, setActiveImg] = useState(0);
+    const carouselRef = useRef(null);
+    const SCREEN_W = Dimensions.get("window").width;
 
     useEffect(() => {
         (async () => {
@@ -82,17 +84,40 @@ export default function ListingDetailScreen({ route, navigation }) {
     return (
         <ScrollView style={styles.wrap}>
             <View style={styles.imageWrap}>
-                {listing.images?.[activeImg] ? (
-                    <Image source={{ uri: listing.images[activeImg] }} style={styles.mainImage} resizeMode="cover" />
+                {listing.images?.length ? (
+                    <FlatList
+                        ref={carouselRef}
+                        data={listing.images}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(_, i) => `img-${i}`}
+                        getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
+                        onMomentumScrollEnd={(e) => {
+                            const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+                            setActiveImg(idx);
+                        }}
+                        renderItem={({ item }) => (
+                            <Image source={{ uri: item }} style={[styles.mainImage, { width: SCREEN_W }]} resizeMode="cover" />
+                        )}
+                        testID="mobile-image-carousel"
+                    />
                 ) : (
                     <View style={[styles.mainImage, styles.ph]}><Text style={styles.phText}>{t("لا توجد صور")}</Text></View>
+                )}
+                {listing.images?.length > 1 && (
+                    <View style={styles.dotsRow} pointerEvents="none">
+                        {listing.images.map((_, i) => (
+                            <View key={i} style={[styles.dot, i === activeImg && styles.dotActive]} />
+                        ))}
+                    </View>
                 )}
             </View>
 
             {listing.images?.length > 1 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbs} contentContainerStyle={{ paddingHorizontal: 10 }}>
                     {listing.images.map((img, i) => (
-                        <TouchableOpacity key={i} onPress={() => setActiveImg(i)} style={[styles.thumb, activeImg === i && styles.thumbActive]}>
+                        <TouchableOpacity key={i} onPress={() => { setActiveImg(i); carouselRef.current?.scrollToIndex?.({ index: i, animated: true }); }} style={[styles.thumb, activeImg === i && styles.thumbActive]}>
                             <Image source={{ uri: img }} style={styles.thumbImg} />
                         </TouchableOpacity>
                     ))}
@@ -219,9 +244,12 @@ export default function ListingDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
     wrap: { flex: 1, backgroundColor: theme.colors.bg },
     center: { flex: 1, justifyContent: "center", alignItems: "center" },
-    imageWrap: { aspectRatio: 16 / 10, backgroundColor: theme.colors.surfaceElevated },
+    imageWrap: { aspectRatio: 16 / 10, backgroundColor: theme.colors.surfaceElevated, position: "relative" },
     mainImage: { width: "100%", height: "100%" },
     ph: { justifyContent: "center", alignItems: "center" }, phText: { color: theme.colors.textMuted },
+    dotsRow: { position: "absolute", bottom: 10, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 6 },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)" },
+    dotActive: { backgroundColor: "#fff", width: 18 },
     thumbs: { maxHeight: 80, marginTop: 8 },
     thumb: { width: 64, height: 64, borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent", marginHorizontal: 4 },
     thumbActive: { borderColor: theme.colors.primary },
