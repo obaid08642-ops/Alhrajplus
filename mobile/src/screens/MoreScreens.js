@@ -220,6 +220,9 @@ export function SettingsScreen({ navigation }) {
                 <TouchableOpacity style={s.menuItem} onPress={() => setLang(nextLang())} testID="mobile-lang-switcher">
                     <Text style={s.menuLabel}>{t("اللغة")}: {LANG_LABELS[lang]}</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("NotifSettings")}>
+                    <Text style={s.menuLabel}>🔔 {t("إعدادات الإشعارات")}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Notifications")}>
                     <Text style={s.menuLabel}>{t("الإشعارات")}</Text>
                 </TouchableOpacity>
@@ -302,4 +305,45 @@ const s = StyleSheet.create({
     menuItem: { padding: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
     menuLabel: { color: theme.colors.text, fontWeight: "700", textAlign: "right" },
     staticBody: { color: theme.colors.text, fontSize: 14, lineHeight: 22, textAlign: "right" },
+    switchRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+    switchLabel: { color: theme.colors.text, fontWeight: "700", fontSize: 14, textAlign: "right" },
 });
+
+
+// ---------- NOTIFICATION SETTINGS ----------
+import { Switch } from "react-native";
+export function NotifSettingsScreen() {
+    const { t } = useI18n();
+    const [prefs, setPrefs] = useState({});
+    const [loaded, setLoaded] = useState(false);
+    useEffect(() => {
+        api.get("/users/me/notifications/settings").then(({ data }) => { setPrefs(data); setLoaded(true); }).catch(() => setLoaded(true));
+    }, []);
+    const toggle = async (k) => {
+        const next = !prefs[k];
+        setPrefs({ ...prefs, [k]: next });
+        try { await api.put("/users/me/notifications/settings", { [k]: next }); } catch (_) {}
+    };
+    const ROWS = [
+        ["price_alerts", "🔔 " + t("تنبيهات الأسعار")],
+        ["category_alerts", "📂 " + t("تنبيهات التصنيفات")],
+        ["messages", "💬 " + t("رسائل المحادثة")],
+        ["listing_status", "📝 " + t("حالة الإعلانات")],
+        ["watchlist", "👁️ " + t("قائمة المتابعة")],
+        ["broadcasts", "📢 " + t("الإعلانات العامة")],
+    ];
+    if (!loaded) return <View style={{ flex: 1, justifyContent: "center" }}><ActivityIndicator color={theme.colors.primary} /></View>;
+    return (
+        <ScrollView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+            <Text style={{ padding: 16, fontSize: 18, fontWeight: "900", color: theme.colors.text, textAlign: "right" }}>{t("إعدادات الإشعارات")}</Text>
+            <View style={{ marginHorizontal: 16, backgroundColor: theme.colors.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, overflow: "hidden" }}>
+                {ROWS.map(([k, label]) => (
+                    <View key={k} style={s.switchRow}>
+                        <Switch value={!!prefs[k]} onValueChange={() => toggle(k)} testID={`notif-toggle-${k}`} />
+                        <Text style={s.switchLabel}>{label}</Text>
+                    </View>
+                ))}
+            </View>
+        </ScrollView>
+    );
+}

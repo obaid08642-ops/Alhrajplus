@@ -23,6 +23,13 @@ export function MyListingsScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const load = () => { setLoading(true); api.get("/listings/me/mine").then(({ data }) => setItems(data)).finally(() => setLoading(false)); };
     useEffect(() => { load(); }, []);
+    const toggleBoost = async (item) => {
+        try {
+            if (item.is_boosted) await api.delete(`/listings/${item.id}/boost`);
+            else await api.post(`/listings/${item.id}/boost`);
+            load();
+        } catch (_) {}
+    };
     return (
         <SafeAreaView style={styles.wrap}>
             <View style={styles.titleRow}>
@@ -31,7 +38,16 @@ export function MyListingsScreen({ navigation }) {
                     <Text style={styles.addText}>+ إضافة</Text>
                 </TouchableOpacity>
             </View>
-            <FlatList data={items} numColumns={2} keyExtractor={(x) => x.id} renderItem={({ item }) => <ListingCard listing={item} />}
+            <FlatList data={items} numColumns={2} keyExtractor={(x) => x.id} renderItem={({ item }) => (
+                <View style={{ flex: 1, padding: 4 }}>
+                    <ListingCard listing={item} />
+                    <TouchableOpacity onPress={() => toggleBoost(item)} style={[styles.boostBtn, item.is_boosted && styles.boostBtnActive]} testID={`boost-${item.id}`}>
+                        <Text style={[styles.boostText, item.is_boosted && { color: "#fff" }]}>
+                            {item.is_boosted ? "⭐ مُروَّج" : "🚀 رَوِّج"}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
                 contentContainerStyle={{ padding: 8 }}
                 ListEmptyComponent={!loading && <View style={styles.empty}><Text style={styles.emptyText}>لا توجد إعلانات بعد</Text></View>} />
         </SafeAreaView>
@@ -78,4 +94,7 @@ const styles = StyleSheet.create({
     heroSub: { fontSize: 11, color: theme.colors.textMuted, textAlign: "right" },
     dealBadge: { position: "absolute", top: 12, start: 12, backgroundColor: "#DC2626", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
     dealBadgeText: { color: "#fff", fontSize: 10, fontWeight: "900" },
+    boostBtn: { marginTop: 4, paddingVertical: 6, borderRadius: theme.radius.full, alignItems: "center", borderWidth: 1, borderColor: theme.colors.primary, backgroundColor: "rgba(79,182,230,0.1)" },
+    boostBtnActive: { backgroundColor: "#F59E0B", borderColor: "#F59E0B" },
+    boostText: { color: theme.colors.primary, fontWeight: "900", fontSize: 11 },
 });

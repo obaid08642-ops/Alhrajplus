@@ -2334,15 +2334,15 @@ async def list_listings(
         else:
             query["created_at"] = {op: cursor}
 
-    sort_field = [("created_at", -1)]
+    sort_field = [("is_boosted", -1), ("created_at", -1)]
     if sort == "oldest":
-        sort_field = [("created_at", 1)]
+        sort_field = [("is_boosted", -1), ("created_at", 1)]
     elif sort == "price_asc":
-        sort_field = [("price", 1)]
+        sort_field = [("is_boosted", -1), ("price", 1)]
     elif sort == "price_desc":
-        sort_field = [("price", -1)]
+        sort_field = [("is_boosted", -1), ("price", -1)]
     elif sort == "popular":
-        sort_field = [("views", -1)]
+        sort_field = [("is_boosted", -1), ("views", -1)]
 
     # Slim projection — only the fields a listing card actually renders.
     # Cuts response size by ~70% (no custom_fields/search_blob/media_urls/etc).
@@ -2681,6 +2681,93 @@ async def list_saved_searches(user: dict = Depends(get_current_user)):
 async def delete_saved_search(sid: str, user: dict = Depends(get_current_user)):
     await db.saved_searches.delete_one({"id": sid, "user_id": user["id"]})
     return {"ok": True}
+
+
+# ============================================================
+# Category follow — opt-in subscription to new listings in a category.
+# ============================================================
+@api.post("/follow/category/{name}")
+async def follow_category(name: str, user: dict = Depends(get_current_user)):
+    await db.category_follows.update_one(
+        {"user_id": user["id"], "category": name},
+        {"$set": {"user_id": user["id"], "category": name, "ts": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"ok": True, "following": True}
+
+@api.delete("/follow/category/{name}")
+async def unfollow_category(name: str, user: dict = Depends(get_current_user)):
+    await db.category_follows.delete_one({"user_id": user["id"], "category": name})
+    return {"ok": True, "following": False}
+
+@api.get("/following")
+async def list_following(user: dict = Depends(get_current_user)):
+    cats = await db.category_follows.find({"user_id": user["id"]}, {"_id": 0, "category": 1, "ts": 1}).sort("ts", -1).to_list(length=200)
+    sellers = await db.follows.find({"follower_id": user["id"]}, {"_id": 0, "seller_id": 1, "ts": 1}).sort("ts", -1).to_list(length=200)
+    return {"categories": cats, "sellers": sellers}
+
+
+# ============================================================
+# Notification preferences — per-user toggles.
+# Stored as a sub-document on the user row to avoid an extra collection.
+# ============================================================
+class NotifPrefsIn(BaseModel):
+    price_alerts: Optional[bool] = None
+    category_alerts: Optional[bool] = None
+    chat: Optional[bool] = None
+    listing_status: Optional[bool] = None
+
+@api.get("/users/me/notifications/settings")
+async def get_notif_settings(user: dict = Depends(get_current_user)):
+    prefs = (user.get("notification_prefs") or {})
+    return {
+        "price_alerts": prefs.get("price_alerts", True),
+        "category_alerts": prefs.get("category_alerts", True),
+        "messages": prefs.get("messages", True),
+        "listing_status": prefs.get("listing_status", True),
+        "watchlist": prefs.get("watchlist", True),
+        "broadcasts": prefs.get("broadcasts", True),
+    }
+
+@api.put("/users/me/notifications/settings")
+async def update_notif_settings(body: NotifPrefsIn, user: dict = Depends(get_current_user)):
+    update = {k: v for k, v in body.model_dump(exclude_none=True).items()}
+    if not update:
+        return {"ok": True}
+    prefixed = {f"notification_prefs.{k}": v for k, v in update.items()}
+    await db.users.update_one({"id": user["id"]}, {"$set": prefixed})
+    return {"ok": True, "prefs": update}
+
+
+# ============================================================
+# Boost (monetization-ready, no payment yet).
+# Sets is_boosted=true + boost_until=now+7d. Sort uses (-is_boosted, -created_at).
+# ============================================================
+@api.post("/listings/{listing_id}/boost")
+async def boost_listing(listing_id: str, user: dict = Depends(get_current_user)):
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1})
+    if not item:
+        raise HTTPException(404, "Listing not found")
+    if item["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(403, "غير مصرح")
+    boost_until = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    await db.listings.update_one(
+        {"id": listing_id},
+        {"$set": {"is_boosted": True, "boost_until": boost_until}},
+    )
+    _cache_invalidate()
+    return {"ok": True, "is_boosted": True, "boost_until": boost_until}
+
+@api.delete("/listings/{listing_id}/boost")
+async def unboost_listing(listing_id: str, user: dict = Depends(get_current_user)):
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1})
+    if not item:
+        raise HTTPException(404, "Listing not found")
+    if item["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(403, "غير مصرح")
+    await db.listings.update_one({"id": listing_id}, {"$set": {"is_boosted": False}})
+    _cache_invalidate()
+    return {"ok": True, "is_boosted": False}
 
 
 async def _notify_category_watchers(listing: dict):
@@ -3790,6 +3877,26 @@ async def admin_stats():
     # Top 5 searched keywords (from search_terms collection — already maintained).
     top_kw = await db.search_terms.find({}, {"_id": 0, "q_lower": 1, "count": 1}).sort("count", -1).limit(5).to_list(length=5)
     top_keywords = [{"q": k.get("q_lower"), "count": k.get("count", 0)} for k in top_kw if k.get("q_lower")]
+    # Daily series for the last 7 days — users created, listings created, views accrued.
+    daily = []
+    for i in range(6, -1, -1):
+        day_start = (datetime.now(timezone.utc) - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        s_iso, e_iso = day_start.isoformat(), day_end.isoformat()
+        u = await db.users.count_documents({"created_at": {"$gte": s_iso, "$lt": e_iso}})
+        l = await db.listings.count_documents({"created_at": {"$gte": s_iso, "$lt": e_iso}})
+        # Views per day — listings created up to that day with new views since then is expensive to compute
+        # cheaply, so we approximate by counting views on listings created that day.
+        agg_v = await db.listings.aggregate([
+            {"$match": {"created_at": {"$gte": s_iso, "$lt": e_iso}}},
+            {"$group": {"_id": None, "v": {"$sum": "$views"}}},
+        ]).to_list(length=1)
+        daily.append({
+            "date": day_start.date().isoformat(),
+            "users": u,
+            "listings": l,
+            "views": int(agg_v[0]["v"]) if agg_v else 0,
+        })
     return {
         "users": await db.users.count_documents({}),
         "listings": await db.listings.count_documents({}),
@@ -3803,6 +3910,7 @@ async def admin_stats():
         "total_clicks": int(totals.get("clicks") or 0),
         "top_categories": top_categories,
         "top_keywords": top_keywords,
+        "daily_7d": daily,
     }
 
 @admin_router.get("/listings/pending")
@@ -4757,6 +4865,10 @@ async def startup():
     await _safe_index(db.recently_viewed, [("user_id", 1), ("listing_id", 1)], unique=True)
     await _safe_index(db.saved_searches, [("user_id", 1), ("q_lower", 1)], unique=True)
     await _safe_index(db.saved_searches, [("user_id", 1), ("created_at", -1)])
+    # Category follow + boosted listings
+    await _safe_index(db.category_follows, [("user_id", 1), ("category", 1)], unique=True)
+    await _safe_index(db.category_follows, "category")
+    await _safe_index(db.listings, [("is_boosted", -1), ("created_at", -1)])
     await _safe_index(db.ratings, [("author_id", 1), ("seller_id", 1)], unique=False)
 
     # Backfill SEO slugs for any listings that don't have one yet. Runs in the
