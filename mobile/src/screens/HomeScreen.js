@@ -11,18 +11,21 @@ export default function HomeScreen({ navigation }) {
     const { t, lang } = useI18n();
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
+    const [trending, setTrending] = useState([]);
     const [q, setQ] = useState("");
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const load = async () => {
         try {
-            const [cats, lists] = await Promise.all([
+            const [cats, lists, tr] = await Promise.all([
                 api.get("/meta/categories", { params: { lang } }),
                 api.get("/listings", { params: { country_code: user?.country_code, limit: 30 } }),
+                api.get("/listings/trending", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
             ]);
             setCategories(cats.data);
             setListings(lists.data.items || []);
+            setTrending(tr.data?.items || []);
         } catch (_) {} finally {
             setLoading(false);
             setRefreshing(false);
@@ -76,10 +79,32 @@ export default function HomeScreen({ navigation }) {
                 numColumns={2}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => <ListingCard listing={item} />}
+                ListHeaderComponent={
+                    trending.length > 0 ? (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text style={styles.sectionTitle}>🔥 {t("الأكثر مشاهدة")}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
+                                {trending.map((it) => (
+                                    <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
+                                        <ListingCard listing={it} />
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    ) : null
+                }
                 contentContainerStyle={{ padding: 8, paddingBottom: 80 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
                 ListEmptyComponent={
-                    !loading && <View style={styles.empty}><Text style={styles.emptyText}>{t("لا توجد بيانات")}</Text></View>
+                    loading ? (
+                        <View style={styles.skeletonWrap}>
+                            {[...Array(6)].map((_, i) => (
+                                <View key={i} style={styles.skeletonCard} />
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={styles.empty}><Text style={styles.emptyText}>{t("لا توجد بيانات")}</Text></View>
+                    )
                 }
             />
 
@@ -124,6 +149,9 @@ const styles = StyleSheet.create({
         marginHorizontal: 4,
     },
     catText: { fontSize: 12, fontWeight: "700", color: theme.colors.text },
+    sectionTitle: { fontSize: 14, fontWeight: "900", color: theme.colors.text, paddingHorizontal: 8, paddingVertical: 6, textAlign: "right" },
+    skeletonWrap: { flexDirection: "row", flexWrap: "wrap", padding: 4 },
+    skeletonCard: { width: "48%", aspectRatio: 0.75, margin: "1%", borderRadius: 12, backgroundColor: theme.colors.surfaceElevated, opacity: 0.5 },
     empty: { padding: 40, alignItems: "center" },
     emptyText: { color: theme.colors.textMuted },
     fab: {

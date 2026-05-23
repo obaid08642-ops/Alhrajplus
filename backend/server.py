@@ -2290,6 +2290,7 @@ async def list_listings(
                 "ETag": f'"{etag_cached}"',
                 "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
                 "Vary": "Accept-Encoding",
+                "X-Cache-Ready": "true",
             }
             if inm_c and inm_c.strip('"') == etag_cached:
                 return Response(status_code=304, headers=hdrs)
@@ -2385,6 +2386,7 @@ async def list_listings(
         "ETag": f'"{etag}"',
         "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
         "Vary": "Accept-Encoding",
+        "X-Cache-Ready": "true",
     }
     if inm and inm.strip('"') == etag:
         return Response(status_code=304, headers=final_hdrs)
@@ -2409,9 +2411,13 @@ _CATEGORIES_CACHE_TTL = 300  # categories/search — 300s
 _REDIS = None
 _REDIS_URL = os.environ.get("REDIS_URL", "").strip()
 if _REDIS_URL:
+    # Production-safety guard: warn loudly when someone points at a local Redis.
+    # External managed Redis (Upstash / Redis Cloud / ElastiCache) is required.
+    if "localhost" in _REDIS_URL or "127.0.0.1" in _REDIS_URL or "::1" in _REDIS_URL:
+        logger.warning("[cache] REDIS_URL points at localhost — NOT PRODUCTION SAFE. Use a managed Redis (Upstash/Redis Cloud/ElastiCache).")
     try:
         import redis as _redis_pkg  # type: ignore
-        _REDIS = _redis_pkg.Redis.from_url(_REDIS_URL, socket_timeout=0.25, socket_connect_timeout=0.25, decode_responses=True)
+        _REDIS = _redis_pkg.Redis.from_url(_REDIS_URL, socket_timeout=0.5, socket_connect_timeout=0.5, decode_responses=True)
         # Probe once so we know it's reachable; fall back silently otherwise.
         _REDIS.ping()
         logger.info("[cache] Redis connected: %s", _REDIS_URL.split("@")[-1])
@@ -2477,6 +2483,76 @@ def _cache_invalidate():
         except Exception:
             pass
 
+
+# ============================================================
+# Lightweight search + trending. Uses Mongo's built-in text index
+# (already created on title+description) + plain count_documents.
+# No ElasticSearch, no fancy ranking — keeps infra cost flat.
+# ============================================================
+@api.get("/search")
+async def search_listings(q: str = "", limit: int = 20, country_code: Optional[str] = None):
+    """Full-text search over active listings. Sort: newest first. Hard cap 20."""
+    limit = max(1, min(limit, 20))
+    if not q or not q.strip():
+        return {"items": [], "total": 0, "q": ""}
+    query: dict = {
+        "status": "active",
+        "moderation": "approved",
+        "$text": {"$search": q.strip()},
+    }
+    if country_code:
+        query["country_code"] = country_code
+    SLIM = {
+        "_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
+        "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
+        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+    }
+    try:
+        cursor = db.listings.find(query, SLIM).sort([("created_at", -1)]).limit(limit)
+        items = await cursor.to_list(length=limit)
+    except Exception:
+        # Text index not yet ready — fall back to a case-insensitive regex
+        # so the endpoint always returns something usable.
+        import re as _re
+        rx = {"$regex": _re.escape(q.strip()), "$options": "i"}
+        fallback_query = {k: v for k, v in query.items() if k != "$text"}
+        fallback_query["$or"] = [{"title": rx}, {"description": rx}]
+        cursor = db.listings.find(fallback_query, SLIM).sort([("created_at", -1)]).limit(limit)
+        items = await cursor.to_list(length=limit)
+    return JSONResponse(
+        content=jsonable_encoder({"items": items, "total": len(items), "q": q.strip()}),
+        headers={
+            "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+            "Vary": "Accept-Encoding",
+            "X-Cache-Ready": "true",
+        },
+    )
+
+
+@api.get("/listings/trending")
+async def trending_listings(limit: int = 20, country_code: Optional[str] = None, days: int = 7):
+    """Most-viewed active listings in the past `days`. Hard cap 20."""
+    limit = max(1, min(limit, 20))
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).isoformat()
+    query: dict = {"status": "active", "moderation": "approved", "created_at": {"$gte": cutoff}}
+    if country_code:
+        query["country_code"] = country_code
+    SLIM = {
+        "_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
+        "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
+        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+    }
+    cursor = db.listings.find(query, SLIM).sort([("views", -1), ("created_at", -1)]).limit(limit)
+    items = await cursor.to_list(length=limit)
+    return JSONResponse(
+        content=jsonable_encoder({"items": items, "total": len(items)}),
+        headers={
+            "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+            "Vary": "Accept-Encoding",
+            "X-Cache-Ready": "true",
+        },
+    )
+
 @api.get("/listings/by-slug/{slug}")
 async def get_listing_by_slug(slug: str, request: Request):
     """Resolve a listing by its SEO slug. Used by /listing/:slug URLs."""
@@ -2486,7 +2562,7 @@ async def get_listing_by_slug(slug: str, request: Request):
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     item["seller"] = seller
-    return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600"})
+    return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600", "Vary": "Accept-Encoding", "X-Cache-Ready": "true"})
 
 
 @api.get("/listings/{listing_id}")
@@ -2498,7 +2574,7 @@ async def get_listing(listing_id: str, request: Request):
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     item["seller"] = seller
-    return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600"})
+    return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600", "Vary": "Accept-Encoding", "X-Cache-Ready": "true"})
 
 @api.get("/listings/{listing_id}/similar")
 async def similar_listings(listing_id: str, limit: int = 12):
