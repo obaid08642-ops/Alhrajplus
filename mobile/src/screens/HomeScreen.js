@@ -12,21 +12,28 @@ export default function HomeScreen({ navigation }) {
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
     const [trending, setTrending] = useState([]);
+    const [recommended, setRecommended] = useState([]);
+    const [error, setError] = useState(false);
     const [q, setQ] = useState("");
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const load = async () => {
+        setError(false);
         try {
-            const [cats, lists, tr] = await Promise.all([
+            const [cats, lists, tr, rec] = await Promise.all([
                 api.get("/meta/categories", { params: { lang } }),
                 api.get("/listings", { params: { country_code: user?.country_code, limit: 30 } }),
                 api.get("/listings/trending", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
+                api.get("/listings/recommended", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
             ]);
             setCategories(cats.data);
             setListings(lists.data.items || []);
             setTrending(tr.data?.items || []);
-        } catch (_) {} finally {
+            setRecommended(rec.data?.items || []);
+        } catch (_) {
+            setError(true);
+        } finally {
             setLoading(false);
             setRefreshing(false);
         }
@@ -80,18 +87,32 @@ export default function HomeScreen({ navigation }) {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => <ListingCard listing={item} />}
                 ListHeaderComponent={
-                    trending.length > 0 ? (
-                        <View style={{ marginBottom: 8 }}>
-                            <Text style={styles.sectionTitle}>🔥 {t("الأكثر مشاهدة")}</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
-                                {trending.map((it) => (
-                                    <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
-                                        <ListingCard listing={it} />
-                                    </View>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    ) : null
+                    <>
+                        {trending.length > 0 && (
+                            <View style={{ marginBottom: 8 }}>
+                                <Text style={styles.sectionTitle}>🔥 {t("الأكثر مشاهدة")}</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
+                                    {trending.map((it) => (
+                                        <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
+                                            <ListingCard listing={it} />
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+                        {recommended.length > 0 && (
+                            <View style={{ marginBottom: 8 }}>
+                                <Text style={styles.sectionTitle}>✨ {t("مقترحات لك")}</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
+                                    {recommended.map((it) => (
+                                        <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
+                                            <ListingCard listing={it} />
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+                    </>
                 }
                 contentContainerStyle={{ padding: 8, paddingBottom: 80 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
@@ -99,8 +120,18 @@ export default function HomeScreen({ navigation }) {
                     loading ? (
                         <View style={styles.skeletonWrap}>
                             {[...Array(6)].map((_, i) => (
-                                <View key={i} style={styles.skeletonCard} />
+                                <View key={i} style={styles.skeletonCard}>
+                                    <View style={styles.skeletonShimmer} />
+                                </View>
                             ))}
+                        </View>
+                    ) : error ? (
+                        <View style={styles.errorWrap}>
+                            <Text style={styles.errorIcon}>⚠️</Text>
+                            <Text style={styles.errorText}>{t("تعذر تحميل البيانات")}</Text>
+                            <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={styles.retryBtn} testID="mobile-retry-btn">
+                                <Text style={styles.retryText}>{t("إعادة المحاولة")}</Text>
+                            </TouchableOpacity>
                         </View>
                     ) : (
                         <View style={styles.empty}><Text style={styles.emptyText}>{t("لا توجد بيانات")}</Text></View>
@@ -151,7 +182,13 @@ const styles = StyleSheet.create({
     catText: { fontSize: 12, fontWeight: "700", color: theme.colors.text },
     sectionTitle: { fontSize: 14, fontWeight: "900", color: theme.colors.text, paddingHorizontal: 8, paddingVertical: 6, textAlign: "right" },
     skeletonWrap: { flexDirection: "row", flexWrap: "wrap", padding: 4 },
-    skeletonCard: { width: "48%", aspectRatio: 0.75, margin: "1%", borderRadius: 12, backgroundColor: theme.colors.surfaceElevated, opacity: 0.5 },
+    skeletonCard: { width: "48%", aspectRatio: 0.75, margin: "1%", borderRadius: 12, backgroundColor: theme.colors.surfaceElevated, opacity: 0.6, overflow: "hidden" },
+    skeletonShimmer: { width: "60%", height: "100%", backgroundColor: theme.colors.surface, opacity: 0.4 },
+    errorWrap: { padding: 32, alignItems: "center" },
+    errorIcon: { fontSize: 36, marginBottom: 8 },
+    errorText: { color: theme.colors.textMuted, marginBottom: 12, textAlign: "center" },
+    retryBtn: { backgroundColor: theme.colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: theme.radius.full },
+    retryText: { color: theme.colors.primaryFg, fontWeight: "900" },
     empty: { padding: 40, alignItems: "center" },
     emptyText: { color: theme.colors.textMuted },
     fab: {

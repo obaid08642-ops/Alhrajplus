@@ -1,12 +1,18 @@
 import { View, Text, StyleSheet, Image, TouchableOpacity, I18nManager } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { theme } from "../theme";
+import api from "../api";
 
 export default function ListingCard({ listing }) {
     const nav = useNavigation();
+    const onPress = () => {
+        // Fire-and-forget click tracking — never blocks navigation.
+        api.post(`/listings/${listing.id}/click`).catch(() => {});
+        nav.navigate("ListingDetail", { id: listing.id });
+    };
     return (
         <TouchableOpacity
-            onPress={() => nav.navigate("ListingDetail", { id: listing.id })}
+            onPress={onPress}
             style={styles.card}
             activeOpacity={0.85}
             testID={`listing-card-${listing.id}`}

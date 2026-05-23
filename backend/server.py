@@ -2410,6 +2410,8 @@ _CATEGORIES_CACHE_TTL = 300  # categories/search — 300s
 # Optional Redis. Imported lazily so the app still boots when redis-py is absent.
 _REDIS = None
 _REDIS_URL = os.environ.get("REDIS_URL", "").strip()
+if not _REDIS_URL:
+    logger.warning("[cache] REDIS DISABLED IN PRODUCTION — set REDIS_URL to a managed Redis (Upstash/Redis Cloud/ElastiCache) for multi-instance safety.")
 if _REDIS_URL:
     # Production-safety guard: warn loudly when someone points at a local Redis.
     # External managed Redis (Upstash / Redis Cloud / ElastiCache) is required.
@@ -2491,7 +2493,7 @@ def _cache_invalidate():
 # ============================================================
 @api.get("/search")
 async def search_listings(q: str = "", limit: int = 20, country_code: Optional[str] = None):
-    """Full-text search over active listings. Sort: newest first. Hard cap 20."""
+    """Full-text search over active listings. Ranked by score=views*0.7 + recency*0.3. Hard cap 20."""
     limit = max(1, min(limit, 20))
     if not q or not q.strip():
         return {"items": [], "total": 0, "q": ""}
@@ -2505,11 +2507,11 @@ async def search_listings(q: str = "", limit: int = 20, country_code: Optional[s
     SLIM = {
         "_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
         "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
-        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+        "images": {"$slice": 1}, "created_at": 1, "views": 1, "clicks": 1, "is_demo": 1,
     }
+    # Pull a slightly bigger candidate set, then score in Python (cheap, ≤ 60 docs).
     try:
-        cursor = db.listings.find(query, SLIM).sort([("created_at", -1)]).limit(limit)
-        items = await cursor.to_list(length=limit)
+        pool = await db.listings.find(query, SLIM).sort([("created_at", -1)]).limit(60).to_list(length=60)
     except Exception:
         # Text index not yet ready — fall back to a case-insensitive regex
         # so the endpoint always returns something usable.
@@ -2517,8 +2519,21 @@ async def search_listings(q: str = "", limit: int = 20, country_code: Optional[s
         rx = {"$regex": _re.escape(q.strip()), "$options": "i"}
         fallback_query = {k: v for k, v in query.items() if k != "$text"}
         fallback_query["$or"] = [{"title": rx}, {"description": rx}]
-        cursor = db.listings.find(fallback_query, SLIM).sort([("created_at", -1)]).limit(limit)
-        items = await cursor.to_list(length=limit)
+        pool = await db.listings.find(fallback_query, SLIM).sort([("created_at", -1)]).limit(60).to_list(length=60)
+    # Score: views*0.7 + recency*0.3 (recency = fraction of last 30 days remaining).
+    now_ts = datetime.now(timezone.utc).timestamp()
+    max_views = max((it.get("views") or 0) for it in pool) if pool else 1
+    max_views = max(1, max_views)
+    def _score(it):
+        v_norm = (it.get("views") or 0) / max_views
+        try:
+            age_days = max(0.0, (now_ts - datetime.fromisoformat(it["created_at"].replace("Z","+00:00")).timestamp()) / 86400)
+        except Exception:
+            age_days = 999
+        recency = max(0.0, 1.0 - min(1.0, age_days / 30.0))
+        return v_norm * 0.7 + recency * 0.3
+    pool.sort(key=_score, reverse=True)
+    items = pool[:limit]
     return JSONResponse(
         content=jsonable_encoder({"items": items, "total": len(items), "q": q.strip()}),
         headers={
@@ -2527,6 +2542,50 @@ async def search_listings(q: str = "", limit: int = 20, country_code: Optional[s
             "X-Cache-Ready": "true",
         },
     )
+
+
+@api.get("/listings/recommended")
+async def recommended_listings(category: Optional[str] = None, country_code: Optional[str] = None, limit: int = 20):
+    """Lightweight recommendation: 60% category similarity + 40% trending mix.
+    Anonymous-friendly — works for logged-out users too."""
+    limit = max(1, min(limit, 20))
+    SLIM = {
+        "_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
+        "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
+        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+    }
+    base_query: dict = {"status": "active", "moderation": "approved"}
+    if country_code:
+        base_query["country_code"] = country_code
+    cat_split = max(1, int(limit * 0.6))
+    trend_split = limit - cat_split
+    cat_items = []
+    if category:
+        cq = {**base_query, "category": category}
+        cat_items = await db.listings.find(cq, SLIM).sort([("created_at", -1)]).limit(cat_split).to_list(length=cat_split)
+    # Trending: views DESC + recent
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    tq = {**base_query, "created_at": {"$gte": cutoff}}
+    if cat_items:
+        seen = [it["id"] for it in cat_items]
+        tq["id"] = {"$nin": seen}
+    trend_items = await db.listings.find(tq, SLIM).sort([("views", -1), ("created_at", -1)]).limit(trend_split or limit).to_list(length=trend_split or limit)
+    merged = (cat_items + trend_items)[:limit]
+    return JSONResponse(
+        content=jsonable_encoder({"items": merged, "total": len(merged)}),
+        headers={
+            "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+            "Vary": "Accept-Encoding",
+            "X-Cache-Ready": "true",
+        },
+    )
+
+
+@api.post("/listings/{listing_id}/click")
+async def track_click(listing_id: str):
+    """Lightweight click tracking — anonymous, fire-and-forget."""
+    await db.listings.update_one({"id": listing_id}, {"$inc": {"clicks": 1}})
+    return {"ok": True}
 
 
 @api.get("/listings/trending")
@@ -3591,6 +3650,11 @@ admin_router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 @admin_router.get("/stats")
 async def admin_stats():
     today = datetime.now(timezone.utc) - timedelta(days=1)
+    # Sum total views + clicks across all listings (single aggregation, cheap).
+    agg = await db.listings.aggregate([
+        {"$group": {"_id": None, "views": {"$sum": "$views"}, "clicks": {"$sum": "$clicks"}}}
+    ]).to_list(length=1)
+    totals = agg[0] if agg else {"views": 0, "clicks": 0}
     return {
         "users": await db.users.count_documents({}),
         "listings": await db.listings.count_documents({}),
@@ -3600,6 +3664,8 @@ async def admin_stats():
         "messages_24h": await db.messages.count_documents({"ts": {"$gt": today.isoformat()}}),
         "new_users_24h": await db.users.count_documents({"created_at": {"$gt": today.isoformat()}}),
         "ads": await db.ads.count_documents({"active": True}),
+        "total_views": int(totals.get("views") or 0),
+        "total_clicks": int(totals.get("clicks") or 0),
     }
 
 @admin_router.get("/listings/pending")
