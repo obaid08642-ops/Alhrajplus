@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, TextInput, ScrollView, TouchableOpacity, RefreshControl, SafeAreaView } from "react-native";
+import { View, Text, FlatList, StyleSheet, TextInput, ScrollView, TouchableOpacity, RefreshControl, SafeAreaView, Image, Linking } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import ListingCard from "../components/ListingCard";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
+
+// Inline ad card — appears every 6 listings (parity with web HomePage).
+function MobileAdCard({ ad }) {
+    if (!ad) return null;
+    const open = () => { if (ad.link_url) Linking.openURL(ad.link_url).catch(() => {}); };
+    return (
+        <TouchableOpacity onPress={open} activeOpacity={0.9} style={styles.adCard} testID={`home-ad-${ad.id}`}>
+            {ad.image_url ? <Image source={{ uri: ad.image_url }} style={styles.adImage} /> : null}
+            <View style={styles.adBadge}><Text style={styles.adBadgeText}>{"إعلان"}</Text></View>
+            {ad.title ? <Text style={styles.adTitle} numberOfLines={1}>{ad.title}</Text> : null}
+        </TouchableOpacity>
+    );
+}
 
 export default function HomeScreen({ navigation }) {
     const { user } = useAuth();
@@ -14,6 +27,7 @@ export default function HomeScreen({ navigation }) {
     const [trending, setTrending] = useState([]);
     const [recommended, setRecommended] = useState([]);
     const [recent, setRecent] = useState([]);
+    const [ads, setAds] = useState([]);
     const [error, setError] = useState(false);
     const [q, setQ] = useState("");
     const [refreshing, setRefreshing] = useState(false);
@@ -22,18 +36,20 @@ export default function HomeScreen({ navigation }) {
     const load = async () => {
         setError(false);
         try {
-            const [cats, lists, tr, rec, rv] = await Promise.all([
+            const [cats, lists, tr, rec, rv, adsRes] = await Promise.all([
                 api.get("/meta/categories", { params: { lang } }),
                 api.get("/listings", { params: { country_code: user?.country_code, limit: 30 } }),
                 api.get("/listings/trending", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
                 api.get("/listings/recommended", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
                 user ? api.get("/listings/recent", { params: { limit: 10 } }).catch(() => ({ data: { items: [] } })) : Promise.resolve({ data: { items: [] } }),
+                api.get("/ads", { params: { placement: "home_middle" } }).catch(() => ({ data: [] })),
             ]);
             setCategories(cats.data);
             setListings(lists.data.items || []);
             setTrending(tr.data?.items || []);
             setRecommended(rec.data?.items || []);
             setRecent(rv.data?.items || []);
+            setAds(Array.isArray(adsRes.data) ? adsRes.data : (adsRes.data?.items || []));
         } catch (_) {
             setError(true);
         } finally {
@@ -85,10 +101,22 @@ export default function HomeScreen({ navigation }) {
             </ScrollView>
 
             <FlatList
-                data={listings}
+                data={(() => {
+                    // Inject an ad every 6 listings (parity with web HomePage).
+                    if (!ads.length) return listings;
+                    const out = [];
+                    listings.forEach((it, idx) => {
+                        out.push(it);
+                        if ((idx + 1) % 6 === 0) {
+                            const ad = ads[Math.floor(idx / 6) % ads.length];
+                            if (ad) out.push({ __ad: true, ...ad });
+                        }
+                    });
+                    return out;
+                })()}
                 numColumns={2}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => <ListingCard listing={item} />}
+                keyExtractor={(item, idx) => item.__ad ? `ad-${item.id}-${idx}` : item.id}
+                renderItem={({ item }) => item.__ad ? <MobileAdCard ad={item} /> : <ListingCard listing={item} />}
                 ListHeaderComponent={
                     <>
                         {recent.length > 0 && (
@@ -204,6 +232,11 @@ const styles = StyleSheet.create({
     errorText: { color: theme.colors.textMuted, marginBottom: 12, textAlign: "center" },
     retryBtn: { backgroundColor: theme.colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: theme.radius.full },
     retryText: { color: theme.colors.primaryFg, fontWeight: "900" },
+    adCard: { width: "48%", aspectRatio: 0.85, margin: "1%", borderRadius: 12, overflow: "hidden", backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border, position: "relative" },
+    adImage: { width: "100%", height: "100%" },
+    adBadge: { position: "absolute", top: 6, end: 6, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+    adBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900" },
+    adTitle: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 6, color: "#fff", backgroundColor: "rgba(0,0,0,0.45)", fontSize: 11, fontWeight: "800", textAlign: "right" },
     empty: { padding: 40, alignItems: "center" },
     emptyText: { color: theme.colors.textMuted },
     fab: {

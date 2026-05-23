@@ -319,6 +319,15 @@ def _rl_kind(path: str) -> Optional[str]:
 @app.middleware("http")
 async def _rate_limit(request, call_next):
     import time as _t
+    # Abuse protection: cap request body size on writes (10 MB hard limit).
+    # Reject early — protects DB, JSON parser, and memory from hostile clients.
+    if request.method in ("POST", "PUT", "PATCH"):
+        cl = request.headers.get("content-length")
+        try:
+            if cl and int(cl) > 10 * 1024 * 1024:
+                return JSONResponse(status_code=413, content={"detail": "Payload too large (max 10MB)"})
+        except Exception:
+            pass
     kind = _rl_kind(request.url.path)
     if not kind:
         return await call_next(request)
@@ -4049,8 +4058,10 @@ async def admin_update_ad(aid: str, body: AdIn):
 class BroadcastIn(BaseModel):
     title: str = Field(min_length=2, max_length=100)
     body: str = Field(min_length=2, max_length=500)
-    target: str = Field(default="all", pattern="^(all|verified|unverified|country)$")
+    target: str = Field(default="all", pattern="^(all|verified|unverified|country|category|inactive)$")
     country_code: Optional[str] = None
+    category: Optional[str] = None  # used when target=category
+    inactive_days: Optional[int] = None  # used when target=inactive (default 14)
 
 # ============================================================
 # Admin Finance + SEO
@@ -4109,6 +4120,23 @@ async def broadcast_notification(body: BroadcastIn):
         q["verified"] = {"$ne": True}
     elif body.target == "country" and body.country_code:
         q["country_code"] = body.country_code
+    elif body.target == "category" and body.category:
+        # Users who follow this category OR posted in it.
+        followers = await db.category_follows.distinct("user_id", {"category": body.category})
+        posters = await db.listings.distinct("user_id", {"category": body.category})
+        ids = list({*(followers or []), *(posters or [])})
+        if not ids:
+            return {"sent": 0, "target": body.target, "push_devices": 0}
+        q["id"] = {"$in": ids}
+    elif body.target == "inactive":
+        # Users whose last_seen is older than N days (default 14).
+        days = max(1, int(body.inactive_days or 14))
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        q["$or"] = [
+            {"last_seen": {"$lt": cutoff}},
+            {"last_seen": None},
+            {"last_seen": {"$exists": False}},
+        ]
     user_ids = [u["id"] async for u in db.users.find(q, {"_id": 0, "id": 1})]
     docs = [
         {"id": str(uuid.uuid4()), "user_id": uid, "title": body.title, "body": body.body,

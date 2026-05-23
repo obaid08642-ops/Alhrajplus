@@ -336,7 +336,7 @@ function ReportsPanel() {
 }
 
 function NotificationsPanel() {
-    const [form, setForm] = useState({ title: "", body: "", target: "all", country_code: "" });
+    const [form, setForm] = useState({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14 });
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState(null);
     const [suggesting, setSuggesting] = useState(false);
@@ -349,7 +349,7 @@ function NotificationsPanel() {
         try {
             const { data } = await api.post("/admin/notifications/broadcast", form);
             setResult(data);
-            setForm({ title: "", body: "", target: "all", country_code: "" });
+            setForm({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14 });
         } catch (e) {
             alert(e.response?.data?.detail || "تعذر الإرسال");
         } finally { setBusy(false); }
@@ -395,12 +395,26 @@ function NotificationsPanel() {
                                 <option value="verified">{tr("الموثقون فقط")}</option>
                                 <option value="unverified">{tr("غير الموثقين")}</option>
                                 <option value="country">{tr("حسب الدولة")}</option>
+                                <option value="category">{tr("حسب التصنيف")}</option>
+                                <option value="inactive">{tr("غير النشطين")}</option>
                             </select>
                         </div>
                         {form.target === "country" && (
                             <div>
                                 <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("رمز الدولة")}</label>
                                 <input value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value.toUpperCase() })} maxLength={2} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="SA / AE / KW..." />
+                            </div>
+                        )}
+                        {form.target === "category" && (
+                            <div>
+                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("التصنيف")}</label>
+                                <input data-testid="notif-category" value={form.category || ""} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="cars / electronics ..." />
+                            </div>
+                        )}
+                        {form.target === "inactive" && (
+                            <div>
+                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("غير نشطين منذ (أيام)")}</label>
+                                <input data-testid="notif-inactive-days" type="number" min="1" max="365" value={form.inactive_days || 14} onChange={(e) => setForm({ ...form, inactive_days: parseInt(e.target.value || "14", 10) })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" />
                             </div>
                         )}
                     </div>
