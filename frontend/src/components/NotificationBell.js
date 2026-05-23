@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
 import { useChatSocket } from "@/lib/useChatSocket";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 /**
  * Bell icon for the TopBar.
@@ -42,6 +43,7 @@ export default function NotificationBell() {
     const [unread, setUnread] = useState(0);
     const [loading, setLoading] = useState(false);
     const ref = useRef(null);
+    const lastUnreadRef = useRef(null);
     const { subscribe } = useChatSocket();
 
     const fetchList = useCallback(async () => {
@@ -50,8 +52,15 @@ export default function NotificationBell() {
         try {
             const { data } = await api.get("/notifications", { params: { limit: 20 } });
             const list = Array.isArray(data) ? data : (data?.items || []);
+            const nextUnread = list.filter((n) => !n.read).length;
+            // Ping the user when unread count goes UP — never on initial load
+            // or when the user just marked some read.
+            if (lastUnreadRef.current != null && nextUnread > lastUnreadRef.current) {
+                try { playNotificationSound(); } catch (_) {}
+            }
+            lastUnreadRef.current = nextUnread;
             setItems(list);
-            setUnread(list.filter((n) => !n.read).length);
+            setUnread(nextUnread);
         } catch (_) { /* keep previous state */ }
         finally { setLoading(false); }
     }, [user]);

@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import ImageViewer from "@/components/ImageViewer";
 import { useChatSocket } from "@/lib/useChatSocket";
+import { playNotificationSound } from "@/lib/notificationSound";
 import "@/styles/chat.css";
 
 /** Format a timestamp into "اليوم"، "أمس"، or "DD/MM/YYYY". */
@@ -137,6 +138,10 @@ export default function ChatPage() {
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
     const isAtBottomRef = useRef(true);
+    // True only for the very first render after opening a thread — used to do
+    // a one-time scroll-to-bottom and then NEVER force a scroll again unless
+    // the user is the sender of the new message.
+    const initialLoadRef = useRef(true);
     const [showScrollDown, setShowScrollDown] = useState(false);
     const typingDebounce = useRef(null);
 
@@ -205,27 +210,8 @@ export default function ChatPage() {
     }, [activeConvoId]);
 
     // ----------- Notification ping + vibration -----------
-    const audioCtxRef = useRef(null);
-    const playPing = () => {
-        try {
-            if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            const ctx = audioCtxRef.current;
-            // Two-tone "ding" — softer than single beep, matches WhatsApp feel
-            [880, 660].forEach((freq, i) => {
-                const o = ctx.createOscillator(); const g = ctx.createGain();
-                o.type = "sine"; o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
-                g.gain.setValueAtTime(0.12, ctx.currentTime + i * 0.08);
-                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.08 + 0.20);
-                o.connect(g); g.connect(ctx.destination);
-                o.start(ctx.currentTime + i * 0.08);
-                o.stop(ctx.currentTime + i * 0.08 + 0.22);
-            });
-        } catch (_) {}
-        try {
-            // Subtle haptic on mobile (Android Chrome, Brave). iOS Safari ignores.
-            if (navigator.vibrate && document.visibilityState === "visible") navigator.vibrate(40);
-        } catch (_) {}
-    };
+    // Signature Harajplus sound — see /lib/notificationSound.js
+    const playPing = () => { playNotificationSound(); };
 
     // ----------- Load conversations -----------
     useEffect(() => {
@@ -249,16 +235,26 @@ export default function ChatPage() {
         if (!activeConvoId) return;
         let cancelled = false;
         setHasMoreMessages(true);
+        // `initial` flag tells the auto-scroll guard "we just opened this thread,
+        // it's OK to jump to the latest message ONCE". Subsequent loads must
+        // preserve whatever position the user has scrolled to.
+        initialLoadRef.current = true;
         api.get(`/chat/messages/${activeConvoId}`).then(({ data }) => {
             if (cancelled) return;
             setMessages(data);
-            setTimeout(() => scrollToBottom(false), 30);
+            // One-time jump to latest message when the thread first opens.
+            // After this, the user controls the scroll completely — no more
+            // forced scrolls from incoming messages, image loads, or keyboard.
+            requestAnimationFrame(() => {
+                const el = scrollRef.current;
+                if (el) { el.scrollTop = el.scrollHeight; }
+                initialLoadRef.current = false;
+            });
             setTimeout(() => inputRef.current?.focus(), 80);
-            // Tell server we read everything
             wsSend({ type: "read", convo_id: activeConvoId });
         }).catch(() => {});
         return () => { cancelled = true; };
-    }, [activeConvoId, scrollToBottom, wsSend]);
+    }, [activeConvoId, wsSend]);
 
     // Load older messages (cursor pagination) when user scrolls to the top
     const loadOlderMessages = useCallback(async () => {
@@ -311,13 +307,9 @@ export default function ChatPage() {
                     // Immediately mark conversation as read since we're viewing it
                     wsSend({ type: "read", convo_id: activeConvoId });
                 }
-                // Compute "is at bottom" RIGHT NOW instead of trusting the
-                // cached ref — image loads + keyboard show/hide can shift the
-                // scroll position without firing the onScroll handler, leaving
-                // the ref stale and causing surprise auto-scroll jumps.
-                const el = scrollRef.current;
-                const atBottomNow = el ? (el.scrollHeight - el.scrollTop - el.clientHeight < 120) : true;
-                if (atBottomNow || m.sender_id === user.id) {
+                // Only auto-scroll when the USER sent the message. Never force-
+                // scroll for incoming messages — let the user read in peace.
+                if (m.sender_id === user.id) {
                     setTimeout(() => scrollToBottom(true), 20);
                 }
             } else {
@@ -552,7 +544,7 @@ export default function ChatPage() {
 
                             {/* Listing context card — shown when chat was opened from a listing */}
                             {listingCtx && (
-                                <Link to={`/listings/${listingCtx.id}`} className="hp-chat-listing-card" data-testid="chat-listing-context">
+                                <Link to={`/listing/${listingCtx.slug || listingCtx.id}`} className="hp-chat-listing-card" data-testid="chat-listing-context" onClick={(e) => e.stopPropagation()}>
                                     {listingCtx.images?.[0] && (
                                         <img src={listingCtx.images[0]} alt="" loading="lazy" />
                                     )}

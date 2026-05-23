@@ -26,12 +26,24 @@ function subToJSON(sub) {
 }
 
 export function isWebPushSupported() {
+    if (typeof window === "undefined") return false;
+    // Push API requires a Secure Context (HTTPS or localhost).
+    if (window.isSecureContext === false) return false;
     return (
-        typeof window !== "undefined" &&
         "serviceWorker" in navigator &&
         "PushManager" in window &&
         "Notification" in window
     );
+}
+
+// Detailed reason — helps users understand WHY their browser is unsupported.
+export function getWebPushUnsupportedReason() {
+    if (typeof window === "undefined") return "no-window";
+    if (window.isSecureContext === false) return "insecure-context";
+    if (!("serviceWorker" in navigator)) return "no-service-worker";
+    if (!("PushManager" in window)) return "no-push-api";
+    if (!("Notification" in window)) return "no-notification-api";
+    return null;
 }
 
 export async function getWebPushStatus() {

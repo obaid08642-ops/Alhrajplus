@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
-import { isWebPushSupported, getWebPushStatus, subscribeWebPush, unsubscribeWebPush, sendTestPush } from "@/lib/webPush";
+import { isWebPushSupported, getWebPushStatus, subscribeWebPush, unsubscribeWebPush, sendTestPush, getWebPushUnsupportedReason } from "@/lib/webPush";
 import api from "@/lib/api";
+
+const UNSUPPORTED_REASONS = {
+    "insecure-context": "يتطلب اتصال HTTPS آمن",
+    "no-service-worker": "متصفحك لا يدعم Service Workers",
+    "no-push-api": "متصفحك لا يدعم Push API — جرّب Chrome/Edge/Firefox",
+    "no-notification-api": "متصفحك لا يدعم نظام الإشعارات",
+};
 
 /**
  * NotificationsPanel — settings UI for web push & per-type preferences.
@@ -80,7 +87,15 @@ export default function NotificationsPanel() {
                     <div className="flex-1 min-w-0">
                         <div className="font-arabic font-bold text-sm text-[var(--text)] mb-1">{tr("إشعارات المتصفح")}</div>
                         <div className="text-xs text-[var(--text-muted)] font-arabic-body flex items-center gap-1">
-                            {!supported && <><XCircle className="w-3.5 h-3.5 text-[var(--danger)]" /> {tr("غير مدعوم في هذا المتصفح")}</>}
+                            {!supported && (
+                                <>
+                                    <XCircle className="w-3.5 h-3.5 text-[var(--danger)]" />
+                                    {(() => {
+                                        const reason = getWebPushUnsupportedReason();
+                                        return tr(UNSUPPORTED_REASONS[reason] || "غير مدعوم في هذا المتصفح");
+                                    })()}
+                                </>
+                            )}
                             {supported && status === "subscribed" && <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {tr("مفعّل على هذا الجهاز")}</>}
                             {supported && status === "denied" && <><XCircle className="w-3.5 h-3.5 text-[var(--danger)]" /> {tr("الإذن مرفوض — فعّلها من إعدادات المتصفح")}</>}
                             {supported && (status === "default" || status === "granted-unsubscribed") && <><BellOff className="w-3.5 h-3.5 text-[var(--text-muted)]" /> {tr("غير مفعّل")}</>}
