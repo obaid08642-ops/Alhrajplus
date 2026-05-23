@@ -175,6 +175,19 @@ client = AsyncIOMotorClient(
 )
 db = client[DB_NAME]
 
+# Startup banner — masks credentials but shows DB selection so deployment
+# misconfiguration (wrong DB_NAME / wrong cluster) is obvious in container logs.
+def _mask_mongo_url(u: str) -> str:
+    try:
+        if "@" in u:
+            scheme, rest = u.split("://", 1)
+            creds, host = rest.split("@", 1)
+            return f"{scheme}://***@{host}"
+        return u
+    except Exception:
+        return "***"
+logger.info("[db] MONGO_URL=%s DB_NAME=%s", _mask_mongo_url(MONGO_URL), DB_NAME)
+
 # ============================================================
 # App
 # ============================================================
@@ -382,6 +395,45 @@ async def health_root():
 @app.head("/", include_in_schema=False)
 async def root_index():
     return {"status": "ok", "service": "haraj-plus-backend", "docs": "/docs"}
+
+
+# Debug endpoint — confirms which Mongo cluster + DB the live container is using
+# and reports counts. No auth required so deployment misconfig is one curl away.
+@app.get("/api/debug/db-check", include_in_schema=False)
+async def _debug_db_check():
+    try:
+        ping = await asyncio.wait_for(client.admin.command("ping"), timeout=4.0)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "ping_error": str(e), "mongo_url_masked": _mask_mongo_url(MONGO_URL), "db_name": DB_NAME})
+    cols = []
+    try:
+        cols = sorted(await db.list_collection_names())
+    except Exception as e:
+        return {"ok": False, "list_error": str(e), "mongo_url_masked": _mask_mongo_url(MONGO_URL), "db_name": DB_NAME}
+    counts = {}
+    for name in ("listings", "users", "messages", "conversations", "ads", "categories", "cities", "meta_categories"):
+        try:
+            counts[name] = await db[name].count_documents({})
+        except Exception:
+            counts[name] = -1
+    # Surface filters the API applies so we can see if data is "hidden" by status/moderation.
+    filters = {
+        "listings_total": counts.get("listings", 0),
+        "listings_active": await db.listings.count_documents({"status": "active"}) if counts.get("listings", 0) else 0,
+        "listings_approved": await db.listings.count_documents({"moderation": "approved"}) if counts.get("listings", 0) else 0,
+        "listings_visible": await db.listings.count_documents({"status": "active", "moderation": "approved"}) if counts.get("listings", 0) else 0,
+    }
+    note = "categories & cities are SERVED FROM CODE (i18n_data.py), not from DB collections — empty DB collections are expected."
+    return {
+        "ok": True,
+        "mongo_url_masked": _mask_mongo_url(MONGO_URL),
+        "db_name": DB_NAME,
+        "ping": ping,
+        "collections": cols,
+        "counts": counts,
+        "filters": filters,
+        "note": note,
+    }
 
 
 # Lightweight metrics endpoint — no Prometheus, just enough to grep latency/errors
@@ -4828,6 +4880,15 @@ async def startup():
         # Probe Mongo with a short timeout — if it fails we still come up so
         # the platform can show a useful error in the response body.
         await asyncio.wait_for(client.admin.command("ping"), timeout=8.0)
+        # Print collections + key counts so deployment mistakes (wrong DB, fresh
+        # cluster, dropped collection) are obvious in container logs.
+        try:
+            cols = await db.list_collection_names()
+            logger.info("[db] Collections (%d): %s", len(cols), ", ".join(sorted(cols)[:30]))
+            for name in ("listings", "users", "messages", "ads"):
+                logger.info("[db] %s count = %d", name, await db[name].count_documents({}))
+        except Exception as _e:
+            logger.warning("[db] count probe failed: %s", _e)
     except Exception as e:
         logger.error(f"[startup] Mongo ping failed (continuing anyway): {e}")
         return
