@@ -26,6 +26,7 @@ export default function AdminPage() {
         { key: "seo", label: tr("SEO"), icon: SearchIcon },
         { key: "notifications", label: tr("الإشعارات"), icon: Bell },
         { key: "ads", label: tr("الإعلانات"), icon: ImageIcon },
+        { key: "logs", label: tr("سجلات الأدمن"), icon: Shield },
         { key: "theme", label: tr("الهوية البصرية"), icon: Palette },
     ];
 
@@ -52,6 +53,7 @@ export default function AdminPage() {
             {tab === "seo" && <SEOPanel />}
             {tab === "notifications" && <NotificationsPanel />}
             {tab === "ads" && <AdsPanel />}
+            {tab === "logs" && <LogsPanel />}
             {tab === "theme" && <ThemePanel />}
         </div>
     );
@@ -518,15 +520,49 @@ function AdsPanel() {
                             <img src={a.image_url} alt={a.title} className="w-full h-32 object-cover" />
                         )}
                         <div className="p-3 flex items-center justify-between">
-                            <div>
-                                <div className="font-arabic font-bold text-sm text-[var(--text)]">{a.title}</div>
+                            <div className="min-w-0 flex-1">
+                                <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{a.title}</div>
                                 <div className="text-xs text-[var(--text-muted)] font-arabic-body">{a.placement} • {a.ad_type || "image"}</div>
+                                <div className="flex gap-3 mt-1 text-[11px] font-latin">
+                                    <span className="text-[var(--text-muted)]">👁 {a.impressions || 0}</span>
+                                    <span className="text-[var(--text-muted)]">🖱 {a.clicks || 0}</span>
+                                    <span className="font-bold text-[var(--primary)]">CTR {a.ctr || 0}%</span>
+                                </div>
                             </div>
                             <button data-testid={`del-ad-${a.id}`} onClick={() => remove(a.id)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
                         </div>
                     </div>
                 ))}
             </div>
+        </div>
+    );
+}
+
+function LogsPanel() {
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    useEffect(() => {
+        api.get("/admin/logs", { params: { limit: 200 } }).then(({ data }) => setLogs(data || [])).finally(() => setLoading(false));
+    }, []);
+    if (loading) return <div className="p-6 text-center font-arabic">{tr("تحميل...")}</div>;
+    return (
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[11px] font-arabic font-bold text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+                <div className="col-span-3">{tr("الإجراء")}</div>
+                <div className="col-span-3">{tr("الأدمن")}</div>
+                <div className="col-span-3">{tr("الهدف")}</div>
+                <div className="col-span-3">{tr("التاريخ")}</div>
+            </div>
+            {logs.length === 0 ? (
+                <div className="p-6 text-center text-sm text-[var(--text-muted)] font-arabic-body">{tr("لا توجد سجلات")}</div>
+            ) : logs.map((l) => (
+                <div key={l.id} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs border-b border-[var(--border)]/40 font-latin" data-testid={`admin-log-${l.id}`}>
+                    <div className="col-span-3 font-arabic font-bold text-[var(--text)] truncate">{l.action}</div>
+                    <div className="col-span-3 text-[var(--text-muted)] truncate">{l.admin_id?.slice(0, 8)}</div>
+                    <div className="col-span-3 text-[var(--text-muted)] truncate">{l.target_id?.slice(0, 12) || "-"}</div>
+                    <div className="col-span-3 text-[var(--text-muted)]">{new Date(l.ts).toLocaleString()}</div>
+                </div>
+            ))}
         </div>
     );
 }

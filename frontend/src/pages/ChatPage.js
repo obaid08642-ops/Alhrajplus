@@ -142,6 +142,17 @@ export default function ChatPage() {
         const near = dist < 80;
         isAtBottomRef.current = near;
         setShowScrollDown(!near && el.scrollHeight > el.clientHeight + 200);
+        // Load older when scrolled near the top.
+        if (el.scrollTop < 80) {
+            const prevHeight = el.scrollHeight;
+            loadOlderMessages?.()?.then?.(() => {
+                // Preserve visual position after older messages prepend.
+                requestAnimationFrame(() => {
+                    const next = scrollRef.current;
+                    if (next) next.scrollTop = next.scrollHeight - prevHeight;
+                });
+            });
+        }
     };
     const scrollToBottom = useCallback((smooth = true) => {
         const el = scrollRef.current; if (!el) return;
@@ -224,9 +235,12 @@ export default function ChatPage() {
     }, [user, initialTo, tr]);
 
     // ----------- Load messages once when convo opens -----------
+    const [loadingOlder, setLoadingOlder] = useState(false);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
     useEffect(() => {
         if (!activeConvoId) return;
         let cancelled = false;
+        setHasMoreMessages(true);
         api.get(`/chat/messages/${activeConvoId}`).then(({ data }) => {
             if (cancelled) return;
             setMessages(data);
@@ -237,6 +251,22 @@ export default function ChatPage() {
         }).catch(() => {});
         return () => { cancelled = true; };
     }, [activeConvoId, scrollToBottom, wsSend]);
+
+    // Load older messages (cursor pagination) when user scrolls to the top
+    const loadOlderMessages = useCallback(async () => {
+        if (!activeConvoId || loadingOlder || !hasMoreMessages || messages.length === 0) return;
+        const oldest = messages[0]?.ts;
+        if (!oldest) return;
+        setLoadingOlder(true);
+        try {
+            const { data } = await api.get(`/chat/messages/${activeConvoId}`, { params: { before: oldest, limit: 50 } });
+            const older = data?.messages || [];
+            if (older.length === 0) setHasMoreMessages(false);
+            else setMessages((prev) => [...older, ...prev]);
+            if (!data?.has_more) setHasMoreMessages(false);
+        } catch (_) { setHasMoreMessages(false); }
+        finally { setLoadingOlder(false); }
+    }, [activeConvoId, loadingOlder, hasMoreMessages, messages]);
 
     // ----------- Fetch presence of active peer -----------
     useEffect(() => {

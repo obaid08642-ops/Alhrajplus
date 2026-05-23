@@ -14,6 +14,7 @@ export default function ProfilePage() {
     const [myListings, setMyListings] = useState([]);
     const [favorites, setFavorites] = useState([]);
     const [referral, setReferral] = useState(null);
+    const [stats, setStats] = useState(null);
 
     useEffect(() => {
         if (!loading && !user) nav("/login");
@@ -24,7 +25,16 @@ export default function ProfilePage() {
         api.get("/listings/me/mine").then(({ data }) => setMyListings(data));
         api.get("/favorites").then(({ data }) => setFavorites(data));
         api.get("/referral/me").then(({ data }) => setReferral(data));
+        api.get("/auth/me/stats").then(({ data }) => setStats(data)).catch(() => {});
     }, [user]);
+
+    const togglePhoneVisibility = async () => {
+        try {
+            const next = !(user.show_phone ?? true);
+            await api.put("/auth/me", { show_phone: next });
+            window.location.reload();
+        } catch (_) {}
+    };
 
     const removeListing = async (id) => {
         if (!window.confirm(tr("متأكد من حذف الإعلان؟"))) return;
@@ -48,6 +58,19 @@ export default function ProfilePage() {
                         </h1>
                         <p className="text-sm text-[var(--text-muted)] font-arabic-body">{user.email}</p>
                         <PhoneEditor user={user} />
+                        {stats && (
+                            <div className="flex flex-wrap gap-3 mt-2 text-[11px] font-latin" data-testid="profile-stats">
+                                <span className="text-[var(--text-muted)]">📦 {stats.total_listings} {tr("إعلان")}</span>
+                                <span className="text-[var(--text-muted)]">✓ {stats.active_listings} {tr("نشط")}</span>
+                                <span className="text-[var(--text-muted)]">❤ {stats.favorites_count}</span>
+                                {stats.joined_at && (
+                                    <span className="text-[var(--text-muted)]">📅 {tr("انضم في")} {new Date(stats.joined_at).toLocaleDateString()}</span>
+                                )}
+                            </div>
+                        )}
+                        <button onClick={togglePhoneVisibility} className="mt-2 text-[11px] font-arabic-body text-[var(--primary)] hover:underline" data-testid="toggle-phone-visibility">
+                            {user.show_phone === false ? tr("📵 الجوال مخفي - إظهار") : tr("📞 الجوال ظاهر - إخفاء")}
+                        </button>
                     </div>
                     <button data-testid="profile-logout" onClick={async () => { await logout(); nav("/"); }} className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 font-bold text-sm font-arabic">
                         <LogOut className="w-4 h-4" /> {t("logout")}

@@ -985,6 +985,7 @@ class MeUpdateIn(BaseModel):
     phone: Optional[str] = None
     city: Optional[str] = None
     avatar_url: Optional[str] = None
+    show_phone: Optional[bool] = None  # control whether buyers see the phone
 
 
 @api.put("/auth/me")
@@ -1011,12 +1012,27 @@ async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
         update["city"] = body.city.strip()
     if body.avatar_url is not None:
         update["avatar_url"] = body.avatar_url
+    if body.show_phone is not None:
+        update["show_phone"] = bool(body.show_phone)
     if not update:
         return user
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.users.update_one({"id": user["id"]}, {"$set": update})
     new_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
     return new_user
+
+
+@api.get("/auth/me/stats")
+async def get_me_stats(user: dict = Depends(get_current_user)):
+    """User-facing profile stats: total listings, active, sold, join date."""
+    uid = user["id"]
+    return {
+        "total_listings": await db.listings.count_documents({"user_id": uid}),
+        "active_listings": await db.listings.count_documents({"user_id": uid, "status": "active"}),
+        "sold_listings": await db.listings.count_documents({"user_id": uid, "status": "sold"}),
+        "favorites_count": await db.favorites.count_documents({"user_id": uid}),
+        "joined_at": user.get("created_at"),
+    }
 
 @api.post("/auth/refresh")
 async def refresh_token(request: Request, response: Response):
@@ -3452,12 +3468,25 @@ async def list_conversations(user: dict = Depends(get_current_user)):
     return convos
 
 @api.get("/chat/messages/{convo_id}")
-async def get_messages(convo_id: str, user: dict = Depends(get_current_user)):
+async def get_messages(convo_id: str, before: Optional[str] = None, limit: int = 50, user: dict = Depends(get_current_user)):
+    """Cursor-paginated messages. When `before` (ISO ts) is provided, returns
+    {messages, has_more, next_before} for "load older" scroll. Otherwise returns
+    the legacy list shape (newest 500 ascending) so existing clients keep working."""
     parts = convo_id.split("_")
     if user["id"] not in parts:
         raise HTTPException(403)
+    if before:
+        limit = max(1, min(limit, 100))
+        q = {"convo_id": convo_id, "ts": {"$lt": before}}
+        msgs = await db.messages.find(q, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
+        msgs.reverse()
+        return {
+            "messages": msgs,
+            "has_more": len(msgs) == limit,
+            "next_before": msgs[0]["ts"] if (msgs and len(msgs) == limit) else None,
+        }
+    # Legacy: latest 500 oldest-first + mark as read.
     msgs = await db.messages.find({"convo_id": convo_id}, {"_id": 0}).sort("ts", 1).to_list(length=500)
-    # mark as read
     await db.messages.update_many({"convo_id": convo_id, "receiver_id": user["id"], "read": False}, {"$set": {"read": True}})
     await db.conversations.update_one({"id": convo_id}, {"$set": {f"unread_{user['id']}": 0}})
     return msgs
@@ -3528,6 +3557,20 @@ async def public_ads(placement: Optional[str] = None, country_code: Optional[str
         q["$or"] = [{"country_code": country_code}, {"country_code": None}, {"country_code": ""}]
     ads = await db.ads.find(q, {"_id": 0}).sort("created_at", -1).to_list(length=20)
     return ads
+
+
+# Ads analytics: fire-and-forget impression + click tracking. Both endpoints
+# accept anonymous calls (no auth) because ads are public surfaces. Counters
+# are stored on the ad doc; aggregated CTR is computed in admin stats.
+@api.post("/ads/{aid}/impression")
+async def ad_impression(aid: str):
+    await db.ads.update_one({"id": aid}, {"$inc": {"impressions": 1}})
+    return {"ok": True}
+
+@api.post("/ads/{aid}/click")
+async def ad_click(aid: str):
+    await db.ads.update_one({"id": aid}, {"$inc": {"clicks": 1}})
+    return {"ok": True}
 
 
 # ============================================================
@@ -4019,9 +4062,10 @@ async def admin_pending():
     return await db.listings.find({"moderation": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
 
 @admin_router.post("/listings/{lid}/approve")
-async def admin_approve(lid: str):
+async def admin_approve(lid: str, user: dict = Depends(require_admin)):
     r = await db.listings.update_one({"id": lid}, {"$set": {"moderation": "approved"}})
     if r.modified_count:
+        await _admin_log(user["id"], "listing_approve", lid)
         item = await db.listings.find_one({"id": lid}, {"_id": 0, "user_id": 1, "title": 1})
         if item and item.get("user_id"):
             title = item.get("title", "إعلانك")
@@ -4047,9 +4091,10 @@ async def admin_approve(lid: str):
 
 
 @admin_router.post("/listings/{lid}/reject")
-async def admin_reject(lid: str):
+async def admin_reject(lid: str, user: dict = Depends(require_admin)):
     r = await db.listings.update_one({"id": lid}, {"$set": {"moderation": "rejected", "status": "rejected"}})
     if r.modified_count:
+        await _admin_log(user["id"], "listing_reject", lid)
         item = await db.listings.find_one({"id": lid}, {"_id": 0, "user_id": 1, "title": 1})
         if item and item.get("user_id"):
             title = item.get("title", "إعلانك")
@@ -4078,18 +4123,24 @@ async def admin_users(limit: int = 100):
     return await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
 
 @admin_router.post("/users/{uid}/ban")
-async def admin_ban(uid: str):
+async def admin_ban(uid: str, user: dict = Depends(require_admin)):
     r = await db.users.update_one({"id": uid}, {"$set": {"banned": True}})
+    if r.modified_count:
+        await _admin_log(user["id"], "user_ban", uid)
     return {"updated": r.modified_count}
 
 @admin_router.post("/users/{uid}/unban")
-async def admin_unban(uid: str):
+async def admin_unban(uid: str, user: dict = Depends(require_admin)):
     r = await db.users.update_one({"id": uid}, {"$set": {"banned": False}})
+    if r.modified_count:
+        await _admin_log(user["id"], "user_unban", uid)
     return {"updated": r.modified_count}
 
 @admin_router.post("/users/{uid}/verify")
-async def admin_verify(uid: str):
+async def admin_verify(uid: str, user: dict = Depends(require_admin)):
     r = await db.users.update_one({"id": uid}, {"$set": {"verified": True}})
+    if r.modified_count:
+        await _admin_log(user["id"], "user_verify", uid)
     return {"updated": r.modified_count}
 
 @admin_router.get("/reports")
@@ -4097,9 +4148,19 @@ async def admin_reports():
     return await db.reports.find({}, {"_id": 0}).sort("created_at", -1).limit(200).to_list(length=200)
 
 @admin_router.post("/reports/{rid}/close")
-async def admin_close_report(rid: str):
+async def admin_close_report(rid: str, user: dict = Depends(require_admin)):
     r = await db.reports.update_one({"id": rid}, {"$set": {"status": "closed"}})
+    if r.modified_count:
+        await _admin_log(user["id"], "report_close", rid)
     return {"updated": r.modified_count}
+
+@admin_router.delete("/listings/{lid}")
+async def admin_delete_listing(lid: str, user: dict = Depends(require_admin)):
+    r = await db.listings.delete_one({"id": lid})
+    if r.deleted_count:
+        await _admin_log(user["id"], "listing_delete", lid)
+        _cache_invalidate()
+    return {"deleted": r.deleted_count}
 
 # Theme settings
 @admin_router.post("/theme")
@@ -4114,7 +4175,38 @@ async def admin_set_theme(body: ThemeIn):
 # Ads management
 @admin_router.get("/ads")
 async def admin_list_ads():
-    return await db.ads.find({}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
+    ads = await db.ads.find({}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
+    # Compute CTR per ad. Safe-divide; missing counters = 0.
+    for a in ads:
+        imp = int(a.get("impressions") or 0)
+        clk = int(a.get("clicks") or 0)
+        a["ctr"] = round((clk / imp) * 100, 2) if imp > 0 else 0.0
+        a["impressions"] = imp
+        a["clicks"] = clk
+    return ads
+
+
+# ============================================================
+# Admin audit log: every privileged mutation appends a row to admin_logs.
+# Lightweight insert (no joins, no indexes beyond ts) — keeps writes fast.
+# ============================================================
+async def _admin_log(admin_id: str, action: str, target_id: Optional[str] = None, meta: Optional[dict] = None):
+    try:
+        await db.admin_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "admin_id": admin_id,
+            "action": action,
+            "target_id": target_id,
+            "meta": meta or {},
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as _e:
+        logger.warning(f"[admin_log] insert failed: {_e}")
+
+@admin_router.get("/logs")
+async def admin_list_logs(limit: int = 100):
+    limit = max(1, min(limit, 500))
+    return await db.admin_logs.find({}, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
 
 @admin_router.post("/ads")
 async def admin_create_ad(body: AdIn):
@@ -4998,6 +5090,9 @@ async def startup():
     await _safe_index(db.category_follows, [("user_id", 1), ("category", 1)], unique=True)
     await _safe_index(db.category_follows, "category")
     await _safe_index(db.listings, [("is_boosted", -1), ("created_at", -1)])
+    # Admin audit log
+    await _safe_index(db.admin_logs, [("ts", -1)])
+    await _safe_index(db.admin_logs, [("admin_id", 1), ("ts", -1)])
     await _safe_index(db.ratings, [("author_id", 1), ("seller_id", 1)], unique=False)
 
     # Backfill SEO slugs for any listings that don't have one yet. Runs in the

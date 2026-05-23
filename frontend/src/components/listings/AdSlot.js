@@ -12,8 +12,19 @@ export default function AdSlot({ placement, className = "" }) {
            .catch(() => setAds([]));
     }, [placement]);
 
+    // Track impression once per ad render. IntersectionObserver would be nicer
+    // but causes layout thrash on long pages; the simple "render = impression"
+    // matches industry standard for above-the-fold inventory.
+    useEffect(() => {
+        if (!ads.length) return;
+        const ad = ads[0];
+        if (ad?.id) api.post(`/ads/${ad.id}/impression`).catch(() => {});
+    }, [ads]);
+
     if (!ads.length) return null;
     const ad = ads[0];
+
+    const onClickAd = () => { if (ad?.id) api.post(`/ads/${ad.id}/click`).catch(() => {}); };
 
     // Iframe ad (e.g., Trip.com affiliate banner)
     if (ad.ad_type === "iframe" && ad.iframe_url) {
@@ -48,7 +59,7 @@ export default function AdSlot({ placement, className = "" }) {
     return (
         <div className={`my-6 ${className}`} data-testid={`ad-slot-${placement}`}>
             {ad.link_url ? (
-                <a href={ad.link_url} target="_blank" rel="noopener noreferrer" className="block">{inner}</a>
+                <a href={ad.link_url} target="_blank" rel="noopener noreferrer" onClick={onClickAd} className="block">{inner}</a>
             ) : inner}
         </div>
     );
