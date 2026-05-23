@@ -73,6 +73,42 @@
 }
 .dark .hp-chat-date { background: rgba(255, 255, 255, 0.08); }
 
+/* Listing context card — sticky-feel banner shown at top of a chat
+   thread when the buyer opened the chat from a specific listing. */
+.hp-chat-listing-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 10px 0;
+    padding: 8px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(79, 182, 230, 0.10), rgba(79, 182, 230, 0.04));
+    border: 1px solid rgba(79, 182, 230, 0.35);
+    text-decoration: none;
+    transition: transform 0.15s ease, background 0.2s ease;
+}
+.hp-chat-listing-card:hover { transform: translateY(-1px); background: linear-gradient(135deg, rgba(79, 182, 230, 0.18), rgba(79, 182, 230, 0.08)); }
+.hp-chat-listing-card img {
+    width: 56px; height: 56px; border-radius: 10px;
+    object-fit: cover; flex-shrink: 0;
+}
+.hp-chat-listing-card-body { flex: 1; min-width: 0; }
+.hp-chat-listing-card-label {
+    font-size: 10px; font-weight: 700; color: var(--primary);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;
+}
+.hp-chat-listing-card-title {
+    font-size: 13px; font-weight: 800; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hp-chat-listing-card-price {
+    font-size: 12px; font-weight: 700; color: var(--primary); margin-top: 2px;
+}
+.hp-chat-listing-card-arrow {
+    color: var(--text-muted); flex-shrink: 0;
+}
+[dir="rtl"] .hp-chat-listing-card-arrow { transform: rotate(180deg); }
+
 /* Bubbles ----------------------------------------------------------------- */
 .hp-bubble {
     position: relative;

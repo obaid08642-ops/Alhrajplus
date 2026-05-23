@@ -125,6 +125,14 @@ export default function ChatPage() {
     const [presence, setPresence] = useState({}); // {user_id: {online, last_seen}}
     const [recording, setRecording] = useState(false);
     const recorderRef = useRef(null);
+    // Listing context card — fetched once when the chat opens with ?listing=<id>.
+    // Acts as a persistent reference at the top of the thread so buyer + seller
+    // both know which ad they're discussing (sellers often have many ads).
+    const [listingCtx, setListingCtx] = useState(null);
+    useEffect(() => {
+        if (!initialListing) { setListingCtx(null); return; }
+        api.get(`/listings/${initialListing}`).then(({ data }) => setListingCtx(data)).catch(() => setListingCtx(null));
+    }, [initialListing]);
 
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
@@ -303,7 +311,13 @@ export default function ChatPage() {
                     // Immediately mark conversation as read since we're viewing it
                     wsSend({ type: "read", convo_id: activeConvoId });
                 }
-                if (isAtBottomRef.current || m.sender_id === user.id) {
+                // Compute "is at bottom" RIGHT NOW instead of trusting the
+                // cached ref — image loads + keyboard show/hide can shift the
+                // scroll position without firing the onScroll handler, leaving
+                // the ref stale and causing surprise auto-scroll jumps.
+                const el = scrollRef.current;
+                const atBottomNow = el ? (el.scrollHeight - el.scrollTop - el.clientHeight < 120) : true;
+                if (atBottomNow || m.sender_id === user.id) {
                     setTimeout(() => scrollToBottom(true), 20);
                 }
             } else {
@@ -535,6 +549,25 @@ export default function ChatPage() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Listing context card — shown when chat was opened from a listing */}
+                            {listingCtx && (
+                                <Link to={`/listings/${listingCtx.id}`} className="hp-chat-listing-card" data-testid="chat-listing-context">
+                                    {listingCtx.images?.[0] && (
+                                        <img src={listingCtx.images[0]} alt="" loading="lazy" />
+                                    )}
+                                    <div className="hp-chat-listing-card-body">
+                                        <div className="hp-chat-listing-card-label">{tr("بخصوص الإعلان")}</div>
+                                        <div className="hp-chat-listing-card-title">{listingCtx.title}</div>
+                                        {listingCtx.price != null && (
+                                            <div className="hp-chat-listing-card-price">
+                                                {Number(listingCtx.price).toLocaleString()} {listingCtx.currency_code || listingCtx.currency || ""}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 hp-chat-listing-card-arrow" />
+                                </Link>
+                            )}
 
                             {/* Messages */}
                             <div ref={scrollRef} onScroll={handleScroll} className="hp-chat-messages flex flex-col p-2 sm:p-3 relative" data-testid="chat-messages">
