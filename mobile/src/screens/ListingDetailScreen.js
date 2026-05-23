@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -14,6 +14,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     const [similar, setSimilar] = useState([]);
     const [badge, setBadge] = useState(null);
     const [activeImg, setActiveImg] = useState(0);
+    const [zoomImg, setZoomImg] = useState(null);
     const carouselRef = useRef(null);
     const SCREEN_W = Dimensions.get("window").width;
 
@@ -98,7 +99,9 @@ export default function ListingDetailScreen({ route, navigation }) {
                             setActiveImg(idx);
                         }}
                         renderItem={({ item }) => (
-                            <Image source={{ uri: item }} style={[styles.mainImage, { width: SCREEN_W }]} resizeMode="cover" />
+                            <TouchableOpacity activeOpacity={0.9} onPress={() => setZoomImg(item)}>
+                                <Image source={{ uri: item }} style={[styles.mainImage, { width: SCREEN_W }]} resizeMode="cover" />
+                            </TouchableOpacity>
                         )}
                         testID="mobile-image-carousel"
                     />
@@ -258,6 +261,15 @@ export default function ListingDetailScreen({ route, navigation }) {
                     </>
                 )}
             </View>
+
+            <Modal visible={!!zoomImg} transparent animationType="fade" onRequestClose={() => setZoomImg(null)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => setZoomImg(null)} style={styles.zoomBg}>
+                    {zoomImg && <Image source={{ uri: zoomImg }} style={styles.zoomImg} resizeMode="contain" />}
+                    <TouchableOpacity onPress={() => setZoomImg(null)} style={styles.zoomClose}>
+                        <Text style={styles.zoomCloseText}>×</Text>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
         </ScrollView>
     );
 }
@@ -304,6 +316,10 @@ const styles = StyleSheet.create({
     reportText: { color: "#b91c1c", fontWeight: "800", fontSize: 13 },
     priceAlertBtn: { marginTop: 8, padding: 12, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.primary, alignItems: "center", backgroundColor: "rgba(79,182,230,0.1)" },
     priceAlertText: { color: theme.colors.primary, fontWeight: "800", fontSize: 13 },
+    zoomBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
+    zoomImg: { width: "100%", height: "80%" },
+    zoomClose: { position: "absolute", top: 44, right: 18, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
+    zoomCloseText: { color: "#fff", fontSize: 24, fontWeight: "900", lineHeight: 28 },
     demoBadge: { marginTop: 12, padding: 10, borderRadius: theme.radius.md, backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#F59E0B", alignItems: "center" },
     demoBadgeText: { color: "#92400E", fontWeight: "900", fontSize: 13 },
 });

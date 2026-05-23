@@ -91,6 +91,23 @@ export default function SellerProfileScreen({ route, navigation }) {
                         <TouchableOpacity onPress={() => navigation.navigate("Chat", { to: sellerId })} style={[s.actionBtn, { backgroundColor: theme.colors.primary }]} testID="mobile-chat-seller-btn">
                             <Text style={[s.actionText, { color: theme.colors.primaryFg }]}>💬</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => {
+                                Alert.alert(t("خيارات"), "", [
+                                    { text: t("الإبلاغ"), onPress: async () => {
+                                        try { await api.post("/reports", { target_type: "user", target_id: sellerId, reason: "inappropriate" }); Alert.alert("✅", t("تم استلام بلاغك")); } catch (_) {}
+                                    }},
+                                    { text: t("حظر"), style: "destructive", onPress: async () => {
+                                        try { await api.post(`/blocks/${sellerId}`); Alert.alert("🚫", t("تم الحظر")); } catch (_) {}
+                                    }},
+                                    { text: t("إلغاء"), style: "cancel" },
+                                ]);
+                            }}
+                            style={s.actionBtn}
+                            testID="mobile-seller-more"
+                        >
+                            <Text style={s.actionText}>⋮</Text>
+                        </TouchableOpacity>
                     </View>
                 )}
             </View>

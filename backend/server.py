@@ -244,6 +244,7 @@ _METRICS = {
     "slow_total": 0,  # > 500ms
     "durations_ms": [],  # rolling window, max 500 entries
     "by_path": {},  # { path: {"n": int, "errs": int, "sum_ms": float, "max_ms": float} }
+    "started_at": __import__("time").time(),
 }
 
 def _track_metric(path: str, status: int, dur_ms: float):
@@ -319,33 +320,41 @@ def _rl_kind(path: str) -> Optional[str]:
 async def _rate_limit(request, call_next):
     import time as _t
     kind = _rl_kind(request.url.path)
-    if kind:
-        limit = _RL_LIMITS[kind]
-        ip = _client_ip(request)
-        key = f"{kind}:{ip}"
-        now = _t.time()
-        ws, cnt = _RL_BUCKETS.get(key, (now, 0))
-        if now - ws >= _RL_WINDOW_S:
-            ws, cnt = now, 0
-        cnt += 1
-        _RL_BUCKETS[key] = (ws, cnt)
-        # Prune occasionally to bound memory at scale.
-        if len(_RL_BUCKETS) > 50000:
-            cutoff = now - _RL_WINDOW_S
-            for k in [k for k, v in list(_RL_BUCKETS.items())[:1000] if v[0] < cutoff]:
-                _RL_BUCKETS.pop(k, None)
-        if cnt > limit:
-            retry = int(_RL_WINDOW_S - (now - ws))
-            return JSONResponse(
-                status_code=429,
-                content={"detail": "Too Many Requests"},
-                headers={
-                    "Retry-After": str(max(1, retry)),
-                    "X-RateLimit-Limit": str(limit),
-                    "X-RateLimit-Remaining": "0",
-                },
-            )
-    return await call_next(request)
+    if not kind:
+        return await call_next(request)
+    limit = _RL_LIMITS[kind]
+    ip = _client_ip(request)
+    key = f"{kind}:{ip}"
+    now = _t.time()
+    ws, cnt = _RL_BUCKETS.get(key, (now, 0))
+    if now - ws >= _RL_WINDOW_S:
+        ws, cnt = now, 0
+    cnt += 1
+    _RL_BUCKETS[key] = (ws, cnt)
+    # Periodic GC: every ~200 calls, drop expired buckets so memory stays bounded.
+    if _METRICS["requests_total"] % 200 == 0:
+        cutoff = now - _RL_WINDOW_S
+        expired = [k for k, v in list(_RL_BUCKETS.items()) if v[0] < cutoff]
+        for k in expired:
+            _RL_BUCKETS.pop(k, None)
+    remaining = max(0, limit - cnt)
+    retry = max(1, int(_RL_WINDOW_S - (now - ws)))
+    if cnt > limit:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too Many Requests"},
+            headers={
+                "Retry-After": str(retry),
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(retry),
+            },
+        )
+    response = await call_next(request)
+    # Surface remaining quota on every successful rate-limited response.
+    response.headers["X-RateLimit-Limit"] = str(limit)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    return response
 
 
 # ============================================================
@@ -371,6 +380,7 @@ async def root_index():
 # process; switch to Redis/Prom if you scale horizontally.
 @app.get("/api/_metrics", include_in_schema=False)
 async def _metrics_endpoint():
+    import time as _t, os as _os
     dl = list(_METRICS["durations_ms"])
     dl_sorted = sorted(dl)
     n = len(dl_sorted)
@@ -396,8 +406,24 @@ async def _metrics_endpoint():
     hits = _METRICS.get("cache_hits", 0)
     misses = _METRICS.get("cache_misses", 0)
     cache_total = hits + misses
+    redis_status = _redis_status() if "_redis_status" in globals() else "off"
+    # Lightweight memory probe via /proc (no psutil dep).
+    mem_mb = 0
+    try:
+        with open(f"/proc/{_os.getpid()}/status") as f:
+            for ln in f:
+                if ln.startswith("VmRSS:"):
+                    mem_mb = round(int(ln.split()[1]) / 1024, 1)
+                    break
+    except Exception:
+        pass
+    uptime_s = round(_t.time() - _METRICS.get("started_at", _t.time()), 1)
+    rpm = round(_METRICS["requests_total"] / max(0.01, uptime_s) * 60, 1)
     return {
+        "uptime_s": uptime_s,
+        "memory_mb": mem_mb,
         "requests_total": _METRICS["requests_total"],
+        "requests_per_min": rpm,
         "errors_total": _METRICS["errors_total"],
         "slow_total_gt_500ms": _METRICS["slow_total"],
         "error_rate": round(_METRICS["errors_total"] / max(1, _METRICS["requests_total"]), 4),
@@ -410,11 +436,15 @@ async def _metrics_endpoint():
             "samples": n,
         },
         "cache": {
-            "redis": _redis_status() if "_redis_status" in globals() else "off",
+            "redis": redis_status,
+            "cache_layer": "redis" if redis_status == "on" else "memory",
             "listings_entries": len(_LISTINGS_CACHE) if "_LISTINGS_CACHE" in globals() else 0,
             "hits": hits,
             "misses": misses,
             "hit_rate": round(hits / max(1, cache_total), 4),
+        },
+        "rate_limit": {
+            "active_buckets": len(_RL_BUCKETS) if "_RL_BUCKETS" in globals() else 0,
         },
         "top_paths": top_paths,
     }
@@ -2258,7 +2288,7 @@ async def list_listings(
             inm_c = request.headers.get("if-none-match") if request else None
             hdrs = {
                 "ETag": f'"{etag_cached}"',
-                "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+                "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
                 "Vary": "Accept-Encoding",
             }
             if inm_c and inm_c.strip('"') == etag_cached:
@@ -2353,7 +2383,7 @@ async def list_listings(
     inm = request.headers.get("if-none-match") if request else None
     final_hdrs = {
         "ETag": f'"{etag}"',
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
         "Vary": "Accept-Encoding",
     }
     if inm and inm.strip('"') == etag:
@@ -2371,8 +2401,9 @@ async def list_listings(
 # - All operations are sync to keep call sites trivial; Redis client is sync.
 # ============================================================
 _LISTINGS_CACHE: dict = {}
-_LISTINGS_CACHE_TTL = 60  # listings list — 60s
-_DETAIL_CACHE_TTL = 120   # listing detail — 120s
+_LISTINGS_CACHE_TTL = 60   # listings list — 60s
+_DETAIL_CACHE_TTL = 120    # listing detail — 120s
+_CATEGORIES_CACHE_TTL = 300  # categories/search — 300s
 
 # Optional Redis. Imported lazily so the app still boots when redis-py is absent.
 _REDIS = None
@@ -2418,12 +2449,13 @@ def _cache_get(key: str):
         return None
     return item[0]
 
-def _cache_set(key: str, value):
+def _cache_set(key: str, value, ttl: Optional[int] = None):
     import time as _t, json as _json
     payload, etag = value
+    effective_ttl = ttl or _LISTINGS_CACHE_TTL
     if _REDIS is not None:
         try:
-            _REDIS.setex(f"hp:{key}", _LISTINGS_CACHE_TTL, _json.dumps({"payload": payload, "etag": etag}))
+            _REDIS.setex(f"hp:{key}", effective_ttl, _json.dumps({"payload": payload, "etag": etag}))
         except Exception:
             pass  # silent fallback to memory
     # Cap cache at 200 entries (LRU-ish — oldest gets evicted)
@@ -2735,6 +2767,31 @@ async def list_price_alerts(user: dict = Depends(get_current_user)):
 async def delete_price_alert(listing_id: str, user: dict = Depends(get_current_user)):
     await db.price_alerts.delete_one({"user_id": user["id"], "listing_id": listing_id})
     return {"ok": True}
+
+
+# ============================================================
+# Block user — hides their listings + prevents messaging.
+# ============================================================
+@api.post("/blocks/{target_id}")
+async def block_user(target_id: str, user: dict = Depends(get_current_user)):
+    if target_id == user["id"]:
+        raise HTTPException(400, "لا يمكنك حظر نفسك")
+    await db.blocks.update_one(
+        {"blocker_id": user["id"], "blocked_id": target_id},
+        {"$set": {"blocker_id": user["id"], "blocked_id": target_id, "ts": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"ok": True, "blocked": True}
+
+@api.delete("/blocks/{target_id}")
+async def unblock_user(target_id: str, user: dict = Depends(get_current_user)):
+    await db.blocks.delete_one({"blocker_id": user["id"], "blocked_id": target_id})
+    return {"ok": True, "blocked": False}
+
+@api.get("/blocks/{target_id}/status")
+async def block_status(target_id: str, user: dict = Depends(get_current_user)):
+    exists = await db.blocks.find_one({"blocker_id": user["id"], "blocked_id": target_id}, {"_id": 0, "blocker_id": 1})
+    return {"blocked": bool(exists)}
 
 async def _check_price_alerts(listing_id: str, new_price: Optional[float]):
     """Fire push notifications to anyone whose target_price >= new_price."""
@@ -4411,6 +4468,11 @@ async def startup():
     await db.follows.create_index([("follower_id", 1)])
     await db.follows.create_index([("seller_id", 1)])
     await _safe_index(db.ratings, [("seller_id", 1), ("created_at", -1)])
+    # Price alerts — fast lookup by user + listing
+    await _safe_index(db.price_alerts, [("user_id", 1), ("listing_id", 1)], unique=True)
+    await _safe_index(db.price_alerts, "listing_id")
+    # Block user
+    await _safe_index(db.blocks, [("blocker_id", 1), ("blocked_id", 1)], unique=True)
     await _safe_index(db.ratings, [("author_id", 1), ("seller_id", 1)], unique=False)
 
     # Backfill SEO slugs for any listings that don't have one yet. Runs in the
