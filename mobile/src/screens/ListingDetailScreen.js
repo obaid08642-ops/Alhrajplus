@@ -207,6 +207,27 @@ export default function ListingDetailScreen({ route, navigation }) {
                     <Text style={styles.shareText}>{t("مشاركة الإعلان")}</Text>
                 </TouchableOpacity>
 
+                {!isOwner && user && listing.price && (
+                    <TouchableOpacity
+                        onPress={() => {
+                            Alert.prompt
+                                ? Alert.prompt(t("تنبيه سعر"), t("نبّهني عند انخفاض السعر إلى:"), async (val) => {
+                                    const target = parseFloat(val);
+                                    if (!target || target <= 0) return;
+                                    try {
+                                        await api.post(`/price-alerts/${id}`, { target_price: target });
+                                        Alert.alert("✅", t("تم تفعيل التنبيه"));
+                                    } catch (_) { Alert.alert(t("خطأ"), t("تعذر التفعيل")); }
+                                }, "plain-text", String(Math.round((listing.price || 0) * 0.9)))
+                                : Alert.alert(t("تنبيه سعر"), t("متاح على iOS فقط حالياً"));
+                        }}
+                        style={styles.priceAlertBtn}
+                        testID="mobile-price-alert"
+                    >
+                        <Text style={styles.priceAlertText}>🔔 {t("نبّهني عند انخفاض السعر")}</Text>
+                    </TouchableOpacity>
+                )}
+
                 {!isOwner && !listing.is_demo && user && (
                     <TouchableOpacity
                         onPress={() => {
@@ -281,6 +302,8 @@ const styles = StyleSheet.create({
     shareText: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
     reportBtn: { marginTop: 8, padding: 10, borderRadius: theme.radius.md, borderWidth: 1, borderColor: "#fca5a5", alignItems: "center", backgroundColor: "#fee2e2" },
     reportText: { color: "#b91c1c", fontWeight: "800", fontSize: 13 },
+    priceAlertBtn: { marginTop: 8, padding: 12, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.primary, alignItems: "center", backgroundColor: "rgba(79,182,230,0.1)" },
+    priceAlertText: { color: theme.colors.primary, fontWeight: "800", fontSize: 13 },
     demoBadge: { marginTop: 12, padding: 10, borderRadius: theme.radius.md, backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#F59E0B", alignItems: "center" },
     demoBadgeText: { color: "#92400E", fontWeight: "900", fontSize: 13 },
 });

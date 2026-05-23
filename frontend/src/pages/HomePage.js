@@ -45,6 +45,21 @@ export default function HomePage() {
                 setCategories(cats.data);
                 const items = lists.data.items || [];
                 setListings(items);
+                // Preload the first 2 listing images so LCP fires immediately.
+                // We inject <link rel="preload"> tags into <head> (one-shot, no React).
+                try {
+                    const { optimizeImage } = await import("@/lib/imageOptimizer");
+                    items.slice(0, 2).forEach((it) => {
+                        const url = it.images?.[0];
+                        if (!url) return;
+                        const l = document.createElement("link");
+                        l.rel = "preload";
+                        l.as = "image";
+                        l.href = optimizeImage(url, { w: 480 });
+                        l.fetchPriority = "high";
+                        document.head.appendChild(l);
+                    });
+                } catch (_) {}
                 if (items.length < 20 || items.length >= (lists.data.total || 0)) setHasMore(false);
             } catch (_) {} finally { setLoading(false); }
         };

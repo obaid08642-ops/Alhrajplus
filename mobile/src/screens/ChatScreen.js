@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
+import { Audio } from "expo-av";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -20,6 +22,7 @@ export default function ChatScreen({ navigation, route }) {
     const [translations, setTranslations] = useState({});
     const [translating, setTranslating] = useState(null);
     const [uploadingImg, setUploadingImg] = useState(false);
+    const [recording, setRecording] = useState(null);
     const listRef = useRef();
     const { subscribe, connected } = useChatSocket();
 
@@ -114,6 +117,69 @@ export default function ChatScreen({ navigation, route }) {
         } finally { setUploadingImg(false); }
     };
 
+    const shareLocation = async () => {
+        if (!activeOther) return;
+        try {
+            const perm = await Location.requestForegroundPermissionsAsync();
+            if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الموقع")); return; }
+            const loc = await Location.getCurrentPositionAsync({});
+            const { latitude, longitude } = loc.coords;
+            const mapUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`;
+            const { data } = await api.post("/chat/send", {
+                receiver_id: activeOther.id,
+                listing_id: listingId || null,
+                text: `📍 ${t("موقعي")}: ${mapUrl}`,
+            });
+            setMessages((m) => [...m, data]);
+            setActiveConvoId(data.convo_id);
+        } catch (_) { Alert.alert(t("خطأ"), t("تعذر مشاركة الموقع")); }
+    };
+
+    const toggleRecord = async () => {
+        if (!activeOther) return;
+        try {
+            if (recording) {
+                // Stop + upload
+                await recording.stopAndUnloadAsync();
+                const uri = recording.getURI();
+                setRecording(null);
+                if (!uri) return;
+                setUploadingImg(true);
+                const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "video", folder: "chat" } });
+                const fd = new FormData();
+                fd.append("file", { uri, type: "audio/m4a", name: `voice_${Date.now()}.m4a` });
+                fd.append("api_key", sig.api_key);
+                fd.append("timestamp", String(sig.timestamp));
+                fd.append("signature", sig.signature);
+                fd.append("folder", sig.folder);
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/video/upload`, { method: "POST", body: fd });
+                const out = await res.json();
+                if (out.secure_url) {
+                    const { data } = await api.post("/chat/send", {
+                        receiver_id: activeOther.id,
+                        listing_id: listingId || null,
+                        text: `🎙️ ${out.secure_url}`,
+                    });
+                    setMessages((m) => [...m, data]);
+                    setActiveConvoId(data.convo_id);
+                }
+                setUploadingImg(false);
+            } else {
+                // Start recording
+                const perm = await Audio.requestPermissionsAsync();
+                if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الميكروفون")); return; }
+                await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+                const rec = new Audio.Recording();
+                await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+                await rec.startAsync();
+                setRecording(rec);
+            }
+        } catch (_) {
+            Alert.alert(t("خطأ"), t("تعذر التسجيل"));
+            setRecording(null); setUploadingImg(false);
+        }
+    };
+
     const translate = async (m) => {
         if (translations[m.id] || !m.text) return;
         setTranslating(m.id);
@@ -194,6 +260,12 @@ export default function ChatScreen({ navigation, route }) {
                 <View style={styles.inputBar}>
                     <TouchableOpacity onPress={sendImage} disabled={uploadingImg} style={styles.attachBtn} testID="chat-attach-image">
                         <Text style={styles.attachIcon}>{uploadingImg ? "…" : "📎"}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={shareLocation} style={styles.attachBtn} testID="chat-share-location">
+                        <Text style={styles.attachIcon}>📍</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={toggleRecord} style={[styles.attachBtn, recording && { backgroundColor: theme.colors.danger, borderColor: theme.colors.danger }]} testID="chat-voice">
+                        <Text style={styles.attachIcon}>{recording ? "⏹" : "🎙"}</Text>
                     </TouchableOpacity>
                     <TextInput value={input} onChangeText={setInput} placeholder={t("اكتب رسالة...")} placeholderTextColor={theme.colors.textMuted} style={styles.inputBox} />
                     <TouchableOpacity onPress={send} style={styles.sendBtn}>

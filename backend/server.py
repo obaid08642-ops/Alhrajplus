@@ -288,6 +288,67 @@ async def _perf_logger(request, call_next):
 
 
 # ============================================================
+# Lightweight in-process rate limiter — fixed 60-second window per IP.
+# Only enforced on hot paths (/api/listings + /api/auth/*) to keep overhead
+# negligible for the rest of the API. Counters are kept in a plain dict so
+# the limiter survives without Redis. For multi-process deploys behind a
+# load balancer, swap this to a Redis-backed INCR with EX.
+# ============================================================
+_RL_WINDOW_S = 60
+_RL_LIMITS = {
+    "listings": int(os.environ.get("RATE_LIMIT_LISTINGS", "100")),  # /api/listings
+    "auth":     int(os.environ.get("RATE_LIMIT_AUTH", "30")),       # /api/auth/*
+}
+_RL_BUCKETS: dict = {}  # { "<kind>:<ip>": (window_start_ts, count) }
+
+def _client_ip(req) -> str:
+    # Honor X-Forwarded-For when behind a proxy (Vercel/Cloudflare).
+    fwd = req.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return (req.client.host if req.client else "unknown")
+
+def _rl_kind(path: str) -> Optional[str]:
+    if path.startswith("/api/auth"):
+        return "auth"
+    if path == "/api/listings" or path.startswith("/api/listings?"):
+        return "listings"
+    return None
+
+@app.middleware("http")
+async def _rate_limit(request, call_next):
+    import time as _t
+    kind = _rl_kind(request.url.path)
+    if kind:
+        limit = _RL_LIMITS[kind]
+        ip = _client_ip(request)
+        key = f"{kind}:{ip}"
+        now = _t.time()
+        ws, cnt = _RL_BUCKETS.get(key, (now, 0))
+        if now - ws >= _RL_WINDOW_S:
+            ws, cnt = now, 0
+        cnt += 1
+        _RL_BUCKETS[key] = (ws, cnt)
+        # Prune occasionally to bound memory at scale.
+        if len(_RL_BUCKETS) > 50000:
+            cutoff = now - _RL_WINDOW_S
+            for k in [k for k, v in list(_RL_BUCKETS.items())[:1000] if v[0] < cutoff]:
+                _RL_BUCKETS.pop(k, None)
+        if cnt > limit:
+            retry = int(_RL_WINDOW_S - (now - ws))
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too Many Requests"},
+                headers={
+                    "Retry-After": str(max(1, retry)),
+                    "X-RateLimit-Limit": str(limit),
+                    "X-RateLimit-Remaining": "0",
+                },
+            )
+    return await call_next(request)
+
+
+# ============================================================
 # Health endpoints (used by Render keep-alive cron / Vercel health checks)
 # Both /health (root) and /api/health (api router) are exposed so any
 # uptime monitor or rewrite rule works without extra config.
@@ -2197,7 +2258,7 @@ async def list_listings(
             inm_c = request.headers.get("if-none-match") if request else None
             hdrs = {
                 "ETag": f'"{etag_cached}"',
-                "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+                "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
                 "Vary": "Accept-Encoding",
             }
             if inm_c and inm_c.strip('"') == etag_cached:
@@ -2292,7 +2353,7 @@ async def list_listings(
     inm = request.headers.get("if-none-match") if request else None
     final_hdrs = {
         "ETag": f'"{etag}"',
-        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
         "Vary": "Accept-Encoding",
     }
     if inm and inm.strip('"') == etag:
@@ -2310,7 +2371,8 @@ async def list_listings(
 # - All operations are sync to keep call sites trivial; Redis client is sync.
 # ============================================================
 _LISTINGS_CACHE: dict = {}
-_LISTINGS_CACHE_TTL = 120  # bumped to match Cache-Control s-maxage
+_LISTINGS_CACHE_TTL = 60  # listings list — 60s
+_DETAIL_CACHE_TTL = 120   # listing detail — 120s
 
 # Optional Redis. Imported lazily so the app still boots when redis-py is absent.
 _REDIS = None
@@ -2632,6 +2694,65 @@ async def list_favorites(user: dict = Depends(get_current_user)):
     listing_ids = [f["listing_id"] for f in favs]
     listings = await db.listings.find({"id": {"$in": listing_ids}}, {"_id": 0}).to_list(length=500)
     return listings
+
+
+# ============================================================
+# Price Alerts — notify a user when a listing's price drops below a target.
+# Lightweight: stored in `price_alerts` collection, checked on every PUT to
+# /listings/{id}. No background poller needed.
+# ============================================================
+@api.post("/price-alerts/{listing_id}")
+async def create_price_alert(listing_id: str, payload: dict, user: dict = Depends(get_current_user)):
+    target = float(payload.get("target_price") or 0)
+    if target <= 0:
+        raise HTTPException(400, "target_price required")
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "id": 1, "price": 1, "title": 1})
+    if not listing:
+        raise HTTPException(404, "Listing not found")
+    doc = {
+        "id": uuid.uuid4().hex,
+        "user_id": user["id"],
+        "listing_id": listing_id,
+        "target_price": target,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "current_price": listing.get("price"),
+        "title": listing.get("title"),
+    }
+    # Upsert by (user, listing) — one alert per user per listing.
+    await db.price_alerts.update_one(
+        {"user_id": user["id"], "listing_id": listing_id},
+        {"$set": doc},
+        upsert=True,
+    )
+    return {"ok": True, "alert": doc}
+
+@api.get("/price-alerts")
+async def list_price_alerts(user: dict = Depends(get_current_user)):
+    items = await db.price_alerts.find({"user_id": user["id"]}, {"_id": 0}).to_list(length=200)
+    return items
+
+@api.delete("/price-alerts/{listing_id}")
+async def delete_price_alert(listing_id: str, user: dict = Depends(get_current_user)):
+    await db.price_alerts.delete_one({"user_id": user["id"], "listing_id": listing_id})
+    return {"ok": True}
+
+async def _check_price_alerts(listing_id: str, new_price: Optional[float]):
+    """Fire push notifications to anyone whose target_price >= new_price."""
+    if new_price is None:
+        return
+    alerts = await db.price_alerts.find({"listing_id": listing_id, "target_price": {"$gte": new_price}}, {"_id": 0}).to_list(length=500)
+    for a in alerts:
+        try:
+            asyncio.create_task(_send_push(
+                a["user_id"],
+                "🔔 سعر مناسب!",
+                f"{a.get('title','إعلان')} — السعر الآن {new_price}",
+                {"type": "price_alert", "listing_id": listing_id},
+            ))
+        except Exception:
+            pass
+        # Auto-remove the alert so the user is only notified once.
+        await db.price_alerts.delete_one({"id": a["id"]})
 
 
 # ============================================================
@@ -3150,6 +3271,9 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         update_data["slug"] = f"{base_slug}-{listing_id.replace('-', '')[:6]}" if base_slug else item.get("slug") or f"listing-{listing_id.replace('-', '')[:8]}"
     await db.listings.update_one({"id": listing_id}, {"$set": update_data})
     _cache_invalidate()
+    # Trigger price-alert notifications (best-effort; non-blocking)
+    if "price" in update_data:
+        asyncio.create_task(_check_price_alerts(listing_id, update_data.get("price")))
 
     # Re-submit to IndexNow when meaningful content changes (so search engines re-crawl)
     try:

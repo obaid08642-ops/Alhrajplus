@@ -7,7 +7,7 @@ import { theme } from "../theme";
 import { useI18n } from "../I18nContext";
 
 export default function PostScreen({ navigation, route }) {
-    const { lang } = useI18n();
+    const { lang, t } = useI18n();
     const editId = route.params?.editId;
     const [step, setStep] = useState(1);
     const [categories, setCategories] = useState([]);
@@ -82,6 +82,32 @@ export default function PostScreen({ navigation, route }) {
         Alert.alert("✅", t("تم تحديد موقعك"));
     };
 
+    const aiAutofill = async () => {
+        try {
+            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الصور")); return; }
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.6,
+                base64: true,
+            });
+            if (result.canceled || !result.assets?.[0]?.base64) return;
+            setBusy(true);
+            const { data } = await api.post("/ai/listing-autofill", { image_base64: result.assets[0].base64 });
+            setForm((f) => ({
+                ...f,
+                title: data.title || f.title,
+                description: data.description || f.description,
+                category: data.category_key || f.category,
+                price: data.suggested_price_range?.mid ? String(data.suggested_price_range.mid) : f.price,
+            }));
+            setStep(2);
+            Alert.alert("✨", t("تم التعبئة بنجاح"));
+        } catch (e) {
+            Alert.alert(t("خطأ"), formatApiError(e.response?.data?.detail) || t("تعذر التعبئة"));
+        } finally { setBusy(false); }
+    };
+
     const submit = async () => {
         setErr(""); setBusy(true);
         try {
@@ -105,6 +131,9 @@ export default function PostScreen({ navigation, route }) {
 
                 {step === 1 && (
                     <>
+                        <TouchableOpacity onPress={aiAutofill} disabled={busy} style={styles.aiBtn} testID="mobile-ai-autofill">
+                            <Text style={styles.aiBtnText}>{busy ? "..." : `✨ ${t("تعبئة بالذكاء الاصطناعي")}`}</Text>
+                        </TouchableOpacity>
                         <Text style={styles.label}>{t("اختر التصنيف")}</Text>
                         <View style={styles.catGrid}>
                             {categories.map((c) => (
@@ -198,4 +227,6 @@ const styles = StyleSheet.create({
     submit: { marginTop: 20, backgroundColor: theme.colors.primary, padding: 14, borderRadius: theme.radius.md, alignItems: "center" },
     submitText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 14 },
     disabled: { opacity: 0.5 },
+    aiBtn: { backgroundColor: theme.colors.primary, padding: 14, borderRadius: theme.radius.md, alignItems: "center", marginBottom: 12 },
+    aiBtnText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 14 },
 });
