@@ -220,6 +220,12 @@ export function SettingsScreen({ navigation }) {
                 <TouchableOpacity style={s.menuItem} onPress={() => setLang(nextLang())} testID="mobile-lang-switcher">
                     <Text style={s.menuLabel}>{t("اللغة")}: {LANG_LABELS[lang]}</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("SavedSearches")}>
+                    <Text style={s.menuLabel}>🔍 {t("الأبحاث المحفوظة")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Following")}>
+                    <Text style={s.menuLabel}>👥 {t("متابعاتي")}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("NotifSettings")}>
                     <Text style={s.menuLabel}>🔔 {t("إعدادات الإشعارات")}</Text>
                 </TouchableOpacity>
@@ -308,6 +314,73 @@ const s = StyleSheet.create({
     switchRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
     switchLabel: { color: theme.colors.text, fontWeight: "700", fontSize: 14, textAlign: "right" },
 });
+
+
+// ---------- SAVED SEARCHES + FOLLOWING ----------
+export function SavedSearchesScreen({ navigation }) {
+    const { t } = useI18n();
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const load = () => { setLoading(true); api.get("/search/saved").then(({ data }) => setItems(data || [])).finally(() => setLoading(false)); };
+    useEffect(() => { load(); }, []);
+    const del = async (id) => { try { await api.delete(`/search/saved/${id}`); load(); } catch (_) {} };
+    if (loading) return <View style={{ flex: 1, justifyContent: "center" }}><ActivityIndicator color={theme.colors.primary} /></View>;
+    return (
+        <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+            <Text style={{ padding: 16, fontSize: 18, fontWeight: "900", color: theme.colors.text, textAlign: "right" }}>{t("الأبحاث المحفوظة")}</Text>
+            <FlatList
+                data={items}
+                keyExtractor={(it) => it.id}
+                renderItem={({ item }) => (
+                    <View style={s.menuItem}>
+                        <TouchableOpacity onPress={() => navigation.navigate("Search", { q: item.q })} style={{ flex: 1 }}>
+                            <Text style={s.menuLabel}>🔍 {item.q}</Text>
+                            {item.category ? <Text style={{ color: theme.colors.textMuted, fontSize: 11, textAlign: "right" }}>{item.category}</Text> : null}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => del(item.id)} testID={`saved-del-${item.id}`}>
+                            <Text style={{ color: theme.colors.danger, padding: 6 }}>🗑️</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+                ListEmptyComponent={<View style={{ padding: 40, alignItems: "center" }}><Text style={{ color: theme.colors.textMuted }}>{t("لا توجد أبحاث محفوظة")}</Text></View>}
+            />
+        </View>
+    );
+}
+
+export function FollowingScreen({ navigation }) {
+    const { t } = useI18n();
+    const [data, setData] = useState({ categories: [], sellers: [] });
+    const [loading, setLoading] = useState(true);
+    useEffect(() => { api.get("/following").then(({ data }) => setData(data || { categories: [], sellers: [] })).finally(() => setLoading(false)); }, []);
+    if (loading) return <View style={{ flex: 1, justifyContent: "center" }}><ActivityIndicator color={theme.colors.primary} /></View>;
+    return (
+        <ScrollView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+            <Text style={{ padding: 16, fontSize: 18, fontWeight: "900", color: theme.colors.text, textAlign: "right" }}>{t("متابعاتي")}</Text>
+            <Text style={{ paddingHorizontal: 16, fontSize: 13, fontWeight: "800", color: theme.colors.textMuted, textAlign: "right" }}>{t("التصنيفات")}</Text>
+            {data.categories.length === 0
+                ? <Text style={{ padding: 16, color: theme.colors.textMuted, textAlign: "right" }}>{t("لا يوجد")}</Text>
+                : data.categories.map((c) => (
+                    <View key={c.category} style={s.menuItem}>
+                        <TouchableOpacity onPress={() => navigation.navigate("CategoryListings", { key: c.category, name: c.category })} style={{ flex: 1 }}>
+                            <Text style={s.menuLabel}>📂 {c.category}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={async () => { await api.delete(`/follow/category/${c.category}`); setData((d) => ({ ...d, categories: d.categories.filter((x) => x.category !== c.category) })); }}>
+                            <Text style={{ color: theme.colors.danger, padding: 6 }}>🗑️</Text>
+                        </TouchableOpacity>
+                    </View>
+                ))}
+            <Text style={{ paddingHorizontal: 16, paddingTop: 12, fontSize: 13, fontWeight: "800", color: theme.colors.textMuted, textAlign: "right" }}>{t("البائعون")}</Text>
+            {data.sellers.length === 0
+                ? <Text style={{ padding: 16, color: theme.colors.textMuted, textAlign: "right" }}>{t("لا يوجد")}</Text>
+                : data.sellers.map((s2) => (
+                    <TouchableOpacity key={s2.seller_id} style={s.menuItem} onPress={() => navigation.navigate("SellerProfile", { sellerId: s2.seller_id })}>
+                        <Text style={s.menuLabel}>👤 {s2.seller_id}</Text>
+                    </TouchableOpacity>
+                ))}
+        </ScrollView>
+    );
+}
 
 
 // ---------- NOTIFICATION SETTINGS ----------

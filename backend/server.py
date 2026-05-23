@@ -2443,12 +2443,15 @@ def _redis_status() -> str:
         return "fallback"
 
 def _cache_get(key: str):
-    import time as _t, json as _json
+    import time as _t, json as _json, gzip as _gz, base64 as _b64
     # Try Redis first when available
     if _REDIS is not None:
         try:
-            raw = _REDIS.get(f"hp:{key}")
+            raw = _REDIS.get(f"hp:v1:{key}")
             if raw:
+                # Gzipped payloads are stored as `gz:<base64>`; decompress transparently.
+                if raw.startswith("gz:"):
+                    raw = _gz.decompress(_b64.b64decode(raw[3:])).decode("utf-8")
                 obj = _json.loads(raw)
                 return (obj["payload"], obj["etag"])
         except Exception:
@@ -2462,12 +2465,16 @@ def _cache_get(key: str):
     return item[0]
 
 def _cache_set(key: str, value, ttl: Optional[int] = None):
-    import time as _t, json as _json
+    import time as _t, json as _json, gzip as _gz, base64 as _b64
     payload, etag = value
     effective_ttl = ttl or _LISTINGS_CACHE_TTL
     if _REDIS is not None:
         try:
-            _REDIS.setex(f"hp:{key}", effective_ttl, _json.dumps({"payload": payload, "etag": etag}))
+            raw = _json.dumps({"payload": payload, "etag": etag})
+            # Gzip when payload exceeds ~4KB — saves ~70% on listing pages.
+            if len(raw) > 4096:
+                raw = "gz:" + _b64.b64encode(_gz.compress(raw.encode("utf-8"))).decode("ascii")
+            _REDIS.setex(f"hp:v1:{key}", effective_ttl, raw)
         except Exception:
             pass  # silent fallback to memory
     # Cap cache at 200 entries (LRU-ish — oldest gets evicted)
@@ -2484,7 +2491,7 @@ def _cache_invalidate():
     if _REDIS is not None:
         try:
             # SCAN+DEL is non-blocking; cap iterations to stay safe.
-            for k in _REDIS.scan_iter(match="hp:*", count=200):
+            for k in _REDIS.scan_iter(match="hp:v1:*", count=200):
                 _REDIS.delete(k)
         except Exception:
             pass

@@ -78,7 +78,9 @@ export function SearchPage() {
     }, [sortBy]);
 
     useEffect(() => {
-        const search = async () => {
+        // Debounce search input by 300ms and cancel any previous in-flight request.
+        const ctrl = new AbortController();
+        const timer = setTimeout(async () => {
             setLoading(true);
             try {
                 const params = { q: q || undefined, country_code: user?.country_code, limit: 30, sort: sortBy };
@@ -89,12 +91,12 @@ export function SearchPage() {
                     params.lat = userLoc.lat;
                     params.lng = userLoc.lng;
                 }
-                const { data } = await api.get("/listings", { params });
+                const { data } = await api.get("/listings", { params, signal: ctrl.signal });
                 setResults(data.items);
                 setFuzzy(Boolean(data.fuzzy));
             } catch (_) {} finally { setLoading(false); }
-        };
-        search();
+        }, 300);
+        return () => { clearTimeout(timer); ctrl.abort(); };
     }, [q, user, sortBy, days, minPrice, maxPrice, userLoc, country]);
 
     const startVoice = () => {

@@ -157,17 +157,66 @@ function StatsPanel() {
         { label: "إعلانات نشطة", value: stats.active_listings },
         { label: "بانتظار المراجعة", value: stats.pending_moderation, danger: true },
         { label: "بلاغات مفتوحة", value: stats.open_reports, danger: true },
-        { label: "رسائل (24س)", value: stats.messages_24h },
-        { label: "إعلانات بنرات نشطة", value: stats.ads },
+        { label: "إجمالي المشاهدات", value: stats.total_views || 0 },
+        { label: "إجمالي النقرات", value: stats.total_clicks || 0 },
     ];
+    const daily = stats.daily_7d || [];
+    const maxL = Math.max(1, ...daily.map((d) => d.listings || 0));
+    const maxV = Math.max(1, ...daily.map((d) => d.views || 0));
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {items.map((it) => (
-                <div key={it.label} className={`bg-[var(--surface)] rounded-2xl p-4 border ${it.danger && it.value > 0 ? "border-[var(--danger)]" : "border-[var(--border)]"}`}>
-                    <div className={`font-latin font-black text-2xl sm:text-3xl ${it.danger && it.value > 0 ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>{it.value}</div>
-                    <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{it.label}</div>
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {items.map((it) => (
+                    <div key={it.label} className={`bg-[var(--surface)] rounded-2xl p-4 border ${it.danger && it.value > 0 ? "border-[var(--danger)]" : "border-[var(--border)]"}`}>
+                        <div className={`font-latin font-black text-2xl sm:text-3xl ${it.danger && it.value > 0 ? "text-[var(--danger)]" : "text-[var(--primary)]"}`}>{it.value}</div>
+                        <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{it.label}</div>
+                    </div>
+                ))}
+            </div>
+            {daily.length > 0 && (
+                <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]" data-testid="admin-daily-chart">
+                    <div className="font-arabic font-bold mb-3 text-sm">{tr("آخر 7 أيام")}</div>
+                    <div className="flex items-end gap-2 h-32">
+                        {daily.map((d) => (
+                            <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                                <div className="w-full flex flex-col-reverse h-full gap-0.5">
+                                    <div className="bg-[var(--primary)] rounded-t" style={{ height: `${(d.listings / maxL) * 60}%` }} title={`${d.listings} إعلان`}></div>
+                                    <div className="bg-[var(--accent)] rounded-t opacity-70" style={{ height: `${(d.views / maxV) * 40}%` }} title={`${d.views} مشاهدة`}></div>
+                                </div>
+                                <div className="text-[9px] text-[var(--text-muted)] font-latin">{d.date.slice(5)}</div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex gap-4 text-[11px] mt-2 font-arabic-body text-[var(--text-muted)]">
+                        <span><span className="inline-block w-3 h-3 bg-[var(--primary)] rounded-sm me-1"></span>{tr("الإعلانات")}</span>
+                        <span><span className="inline-block w-3 h-3 bg-[var(--accent)] opacity-70 rounded-sm me-1"></span>{tr("المشاهدات")}</span>
+                    </div>
                 </div>
-            ))}
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(stats.top_categories || []).length > 0 && (
+                    <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                        <div className="font-arabic font-bold mb-2 text-sm">{tr("أعلى التصنيفات")}</div>
+                        {stats.top_categories.map((c) => (
+                            <div key={c.category} className="flex justify-between text-xs py-1 border-b border-[var(--border)]/40">
+                                <span className="font-arabic-body">{c.category}</span>
+                                <span className="font-latin font-bold">{c.count}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {(stats.top_keywords || []).length > 0 && (
+                    <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                        <div className="font-arabic font-bold mb-2 text-sm">{tr("أعلى الكلمات بحثاً")}</div>
+                        {stats.top_keywords.map((k) => (
+                            <div key={k.q} className="flex justify-between text-xs py-1 border-b border-[var(--border)]/40">
+                                <span className="font-arabic-body">{k.q}</span>
+                                <span className="font-latin font-bold">{k.count}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

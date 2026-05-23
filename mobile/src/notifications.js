@@ -27,6 +27,9 @@ function routeFromUrl(url) {
     // Listing detail
     let m = url.match(/^\/listing\/([^/?#]+)/);
     if (m && _navigationRef?.navigate) { _navigationRef.navigate("ListingDetail", { id: m[1] }); return; }
+    // Seller profile
+    m = url.match(/^\/seller\/([^/?#]+)/);
+    if (m && _navigationRef?.navigate) { _navigationRef.navigate("SellerProfile", { sellerId: m[1] }); return; }
     // Chat
     m = url.match(/^\/chat(\?to=([^&]+))?/);
     if (m && _navigationRef?.navigate) {
