@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { Wallet, TrendingUp, TrendingDown, Gift, Sparkles, Loader2 } from "lucide-react";
 import api, { formatApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { tr } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { Link } from "react-router-dom";
 
 export default function WalletPage() {
     const { user } = useAuth();
+    useI18n(); // subscribe so the page re-renders when language changes
     const [data, setData] = useState({ balance: 0, currency: "SAR", transactions: [] });
     const [loading, setLoading] = useState(true);
     const [claiming, setClaiming] = useState(false);

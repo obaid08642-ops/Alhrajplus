@@ -1,4 +1,172 @@
 {
+  "محفظتي": {
+    "en": "My Wallet",
+    "ur": "میرا والیٹ",
+    "hi": "मेरा वॉलेट",
+    "bn": "আমার ওয়ালেট",
+    "fr": "Mon portefeuille"
+  },
+  "رصيد محفظتك": {
+    "en": "Your wallet balance",
+    "ur": "آپ کے والیٹ کا بیلنس",
+    "hi": "आपका वॉलेट बैलेंस",
+    "bn": "আপনার ওয়ালেট ব্যালেন্স",
+    "fr": "Solde de votre portefeuille"
+  },
+  "سجّل دخولك لعرض محفظتك": {
+    "en": "Sign in to view your wallet",
+    "ur": "اپنا والیٹ دیکھنے کے لیے لاگ ان کریں",
+    "hi": "अपना वॉलेट देखने के लिए लॉग इन करें",
+    "bn": "আপনার ওয়ালেট দেখতে সাইন ইন করুন",
+    "fr": "Connectez-vous pour voir votre portefeuille"
+  },
+  "تسجيل الدخول": {
+    "en": "Sign In",
+    "ur": "لاگ ان",
+    "hi": "लॉग इन",
+    "bn": "সাইন ইন",
+    "fr": "Connexion"
+  },
+  "مكافأة الانضمام": {
+    "en": "Welcome Bonus",
+    "ur": "ویلکم بونس",
+    "hi": "स्वागत बोनस",
+    "bn": "স্বাগত বোনাস",
+    "fr": "Bonus de bienvenue"
+  },
+  "احصل على 5 ر.س مجاناً لتجربة التعزيز": {
+    "en": "Get 5 SAR free to try boosting",
+    "ur": "بوسٹنگ آزمانے کے لیے مفت 5 SAR حاصل کریں",
+    "hi": "बूस्टिंग आज़माने के लिए 5 SAR मुफ़्त पाएं",
+    "bn": "বুস্টিং চেষ্টা করতে বিনামূল্যে 5 SAR পান",
+    "fr": "Obtenez 5 SAR gratuits pour essayer le boost"
+  },
+  "استلم": {
+    "en": "Claim",
+    "ur": "حاصل کریں",
+    "hi": "प्राप्त करें",
+    "bn": "নিন",
+    "fr": "Réclamer"
+  },
+  "تم استلام مكافأتك! 🎉": {
+    "en": "Your bonus has been claimed! 🎉",
+    "ur": "آپ کا بونس وصول ہو گیا! 🎉",
+    "hi": "आपका बोनस प्राप्त हुआ! 🎉",
+    "bn": "আপনার বোনাস পেয়েছেন! 🎉",
+    "fr": "Votre bonus a été réclamé ! 🎉"
+  },
+  "تعذر استلام المكافأة": {
+    "en": "Could not claim the bonus",
+    "ur": "بونس وصول کرنے میں ناکامی",
+    "hi": "बोनस प्राप्त नहीं किया जा सका",
+    "bn": "বোনাস নেওয়া যায়নি",
+    "fr": "Impossible de réclamer le bonus"
+  },
+  "عزّز إعلاناً": {
+    "en": "Boost a listing",
+    "ur": "اشتہار بوسٹ کریں",
+    "hi": "विज्ञापन को बूस्ट करें",
+    "bn": "বিজ্ঞাপন বুস্ট করুন",
+    "fr": "Booster une annonce"
+  },
+  "5 ر.س / أسبوع": {
+    "en": "5 SAR / week",
+    "ur": "5 SAR / ہفتہ",
+    "hi": "5 SAR / सप्ताह",
+    "bn": "5 SAR / সপ্তাহ",
+    "fr": "5 SAR / semaine"
+  },
+  "شحن المحفظة": {
+    "en": "Top up wallet",
+    "ur": "والیٹ ٹاپ اپ کریں",
+    "hi": "वॉलेट टॉप अप",
+    "bn": "ওয়ালেট টপ আপ",
+    "fr": "Recharger le portefeuille"
+  },
+  "قريباً عبر بوابة الدفع": {
+    "en": "Coming soon via payment gateway",
+    "ur": "جلد ہی پیمنٹ گیٹ وے کے ذریعے",
+    "hi": "जल्द ही पेमेंट गेटवे के माध्यम से",
+    "bn": "শীঘ্রই পেমেন্ট গেটওয়ের মাধ্যমে",
+    "fr": "Bientôt via la passerelle de paiement"
+  },
+  "سجل العمليات": {
+    "en": "Transaction history",
+    "ur": "لین دین کی تاریخ",
+    "hi": "लेन-देन का इतिहास",
+    "bn": "লেনদেনের ইতিহাস",
+    "fr": "Historique des transactions"
+  },
+  "لا توجد عمليات بعد": {
+    "en": "No transactions yet",
+    "ur": "ابھی تک کوئی لین دین نہیں",
+    "hi": "अभी तक कोई लेन-देन नहीं",
+    "bn": "এখনও কোন লেনদেন নেই",
+    "fr": "Aucune transaction pour le moment"
+  },
+  "المساعد الذكي": {
+    "en": "AI Assistant",
+    "ur": "AI اسسٹنٹ",
+    "hi": "AI सहायक",
+    "bn": "AI সহকারী",
+    "fr": "Assistant IA"
+  },
+  "اسألني عن أي شيء في الحراج بلس": {
+    "en": "Ask me anything about Haraj Plus",
+    "ur": "حراج پلس کے بارے میں کچھ بھی پوچھیں",
+    "hi": "हराज प्लस के बारे में कुछ भी पूछें",
+    "bn": "হারাজ প্লাস সম্পর্কে যা ইচ্ছা জিজ্ঞাসা করুন",
+    "fr": "Demandez-moi tout sur Haraj Plus"
+  },
+  "جلسة جديدة": {
+    "en": "New session",
+    "ur": "نیا سیشن",
+    "hi": "नया सत्र",
+    "bn": "নতুন সেশন",
+    "fr": "Nouvelle session"
+  },
+  "اقتراحات سريعة:": {
+    "en": "Quick suggestions:",
+    "ur": "فوری تجاویز:",
+    "hi": "त्वरित सुझाव:",
+    "bn": "দ্রুত পরামর্শ:",
+    "fr": "Suggestions rapides :"
+  },
+  "كيف أنشر إعلاناً جديداً؟": {
+    "en": "How do I post a new ad?",
+    "ur": "میں نیا اشتہار کیسے شائع کروں؟",
+    "hi": "मैं नया विज्ञापन कैसे पोस्ट करूं?",
+    "bn": "আমি কীভাবে নতুন বিজ্ঞাপন পোস্ট করব?",
+    "fr": "Comment publier une nouvelle annonce ?"
+  },
+  "ما متوسط سعر سيارة كامري 2020؟": {
+    "en": "What is the average price of a 2020 Camry?",
+    "ur": "2020 کیمری کی اوسط قیمت کیا ہے؟",
+    "hi": "2020 कैमरी की औसत कीमत क्या है?",
+    "bn": "2020 ক্যামরির গড় দাম কত?",
+    "fr": "Quel est le prix moyen d'une Camry 2020 ?"
+  },
+  "هل البيع آمن؟ ما النصائح للحماية من الاحتيال؟": {
+    "en": "Is selling safe? What tips to avoid fraud?",
+    "ur": "کیا فروخت محفوظ ہے؟ دھوکہ دہی سے بچنے کے لیے کیا تجاویز ہیں؟",
+    "hi": "क्या बेचना सुरक्षित है? धोखाधड़ी से बचने के लिए सुझाव?",
+    "bn": "বিক্রি কি নিরাপদ? জালিয়াতি এড়াতে কী টিপস?",
+    "fr": "La vente est-elle sûre ? Quels conseils contre la fraude ?"
+  },
+  "اكتب رسالتك...": {
+    "en": "Type your message...",
+    "ur": "اپنا پیغام لکھیں...",
+    "hi": "अपना संदेश लिखें...",
+    "bn": "আপনার বার্তা লিখুন...",
+    "fr": "Tapez votre message..."
+  },
+  "تعذر الوصول للمساعد": {
+    "en": "Cannot reach assistant",
+    "ur": "اسسٹنٹ تک رسائی ممکن نہیں",
+    "hi": "सहायक तक नहीं पहुंच सकते",
+    "bn": "সহকারী পৌঁছানো যায়নি",
+    "fr": "Impossible de joindre l'assistant"
+  },
   "💬 آلية التواصل: عند إرسال هذا النموذج تصلنا رسالتك على لوحة الإدارة وسيتم الرد على بريدك الإلكتروني خلال 24-48 ساعة. تأكد من إدخال بريد إلكتروني صحيح.": {
     "en": "💬 Communication Mechanism: When you send this form, your message reaches our administration panel and we will reply to your email within 24-48 hours. Make sure to enter a valid email address.",
     "ur": "💬 رابطے کا طریقہ کار: جب آپ یہ فارم بھیجیں گے تو آپ کا پیغام ہمارے انتظامی پینل میں موصول ہوگا اور 24-48 گھنٹوں کے اندر آپ کی ای میل کا جواب دیا جائے گا۔ یقینی بنائیں کہ آپ نے ایک درست ای میل ایڈریس داخل کیا ہے۔",

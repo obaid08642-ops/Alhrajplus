@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, Send, X, Loader2, Bot } from "lucide-react";
 import api, { formatApiError } from "@/lib/api";
-import { tr } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 
 const SESSION_KEY = "hp_ai_session_id";
 const HIST_KEY = "hp_ai_history";
@@ -16,6 +16,7 @@ function getSessionId() {
 }
 
 export default function AIAssistantWidget() {
+    useI18n(); // subscribe so widget re-renders on language change
     const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState(() => {
         try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); } catch { return []; }
