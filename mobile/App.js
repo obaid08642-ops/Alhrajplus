@@ -8,10 +8,12 @@ import { ActivityIndicator, View, I18nManager, Text } from "react-native";
 import * as Linking from "expo-linking";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import { I18nProvider } from "./src/I18nContext";
+import { CountryProvider } from "./src/CountryContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
 import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/PasswordReset";
-import { SearchScreen, CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen } from "./src/screens/MoreScreens";
+import { SearchScreen as _LegacySearch, CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen } from "./src/screens/MoreScreens";
+import SearchScreen from "./src/screens/SearchScreen";
 import SellerProfileScreen from "./src/screens/SellerProfile";
 import ListingDetailScreen from "./src/screens/ListingDetailScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
@@ -147,8 +149,10 @@ export default function App() {
         <SafeAreaProvider>
             <I18nProvider>
                 <AuthProvider>
-                    <Navigation />
-                    <StatusBar style="dark" />
+                    <CountryProvider>
+                        <Navigation />
+                        <StatusBar style="dark" />
+                    </CountryProvider>
                 </AuthProvider>
             </I18nProvider>
         </SafeAreaProvider>

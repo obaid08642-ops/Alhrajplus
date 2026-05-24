@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
     View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator,
     KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl,
+    Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,12 +14,15 @@ import * as Location from "expo-location";
 import { AudioModule, AudioRecorder, RecordingPresets } from "expo-audio";
 import {
     Send, Camera, MapPin, Mic, Search, ChevronLeft, Check, CheckCheck,
-    Image as ImageIcon, Plus, Languages, Phone, MoreVertical, X,
+    Image as ImageIcon, Plus, Languages, Phone, MoreVertical, X, Play, Pause,
 } from "lucide-react-native";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useChatSocket } from "../useChatSocket";
 import { colors, radius, shadow } from "../theme";
+
+// Audio player module for voice playback
+import { useAudioPlayer } from "expo-audio";
 
 function fmtLastSeen(iso) {
     if (!iso) return "متصل الآن";
@@ -438,7 +442,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                         return (
                             <>
                                 {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(item.created_at)}</Text></View>}
-                                <MessageBubble m={item} isMine={item.sender_id === user.id} />
+                                <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} />
                             </>
                         );
                     }}
@@ -490,12 +494,24 @@ function ChatThread({ convoId, other, listing, onBack }) {
                     </TouchableOpacity>
                 )}
             </View>
+
+            {/* Image Lightbox */}
+            {lightbox && (
+                <Modal visible transparent animationType="fade" onRequestClose={() => setLightbox(null)}>
+                    <View style={s.lightboxBg}>
+                        <TouchableOpacity style={s.lightboxClose} onPress={() => setLightbox(null)} hitSlop={10}>
+                            <X size={28} color="#fff" />
+                        </TouchableOpacity>
+                        <Image source={{ uri: lightbox }} style={s.lightboxImg} resizeMode="contain" />
+                    </View>
+                </Modal>
+            )}
         </KeyboardAvoidingView>
     );
 }
 
 // =============== Message Bubble ===============
-function MessageBubble({ m, isMine }) {
+function MessageBubble({ m, isMine, onImagePress }) {
     const text = m.text || "";
     const isImage = text.startsWith("📷 ");
     const isVoice = text.startsWith("🎙️ ");
@@ -504,19 +520,13 @@ function MessageBubble({ m, isMine }) {
 
     return (
         <View style={[s.bubbleWrap, { alignItems: isMine ? "flex-end" : "flex-start" }]}>
-            <View style={[s.bubble, isMine ? s.bubbleMine : s.bubbleOther]}>
+            <View style={[s.bubble, isMine ? s.bubbleMine : s.bubbleOther, isImage && { padding: 3 }]}>
                 {isImage && url ? (
-                    <Image source={{ uri: url }} style={s.bubbleImg} resizeMode="cover" />
+                    <TouchableOpacity onPress={() => onImagePress?.(url)} activeOpacity={0.9}>
+                        <Image source={{ uri: url }} style={s.bubbleImg} resizeMode="cover" />
+                    </TouchableOpacity>
                 ) : isVoice && url ? (
-                    <View style={s.voiceBubble}>
-                        <View style={s.voicePlayBtn}><Mic size={14} color="#fff" /></View>
-                        <View style={s.voiceWave}>
-                            {[6, 12, 8, 14, 10, 8, 12, 6, 14].map((h, i) => (
-                                <View key={i} style={[s.voiceBar, { height: h, backgroundColor: isMine ? "rgba(255,255,255,0.6)" : colors.primary }]} />
-                            ))}
-                        </View>
-                        <Text style={[s.voiceTime, { color: isMine ? "rgba(255,255,255,0.8)" : colors.textMuted }]}>صوت</Text>
-                    </View>
+                    <VoicePlayer url={url} isMine={isMine} />
                 ) : isLocation && url ? (
                     <TouchableOpacity onPress={() => require("react-native").Linking.openURL(url)} style={s.locationBubble}>
                         <MapPin size={14} color={isMine ? "#fff" : colors.primary} />
@@ -525,7 +535,7 @@ function MessageBubble({ m, isMine }) {
                 ) : (
                     <Text style={[s.bubbleText, isMine && { color: "#fff" }]} selectable>{text}</Text>
                 )}
-                <View style={s.metaRow}>
+                <View style={[s.metaRow, isImage && { paddingHorizontal: 8, paddingBottom: 4 }]}>
                     <Text style={[s.metaTime, isMine && { color: "rgba(255,255,255,0.75)" }]}>{fmtTime(m.created_at)}</Text>
                     {isMine && (
                         m.read ? <CheckCheck size={12} color="#4FC3F7" /> :
@@ -533,6 +543,47 @@ function MessageBubble({ m, isMine }) {
                     )}
                 </View>
             </View>
+        </View>
+    );
+}
+
+// =============== Voice Player ===============
+function VoicePlayer({ url, isMine }) {
+    const player = useAudioPlayer(url);
+    const [playing, setPlaying] = useState(false);
+
+    const toggle = () => {
+        if (playing) { player.pause(); setPlaying(false); }
+        else { player.play(); setPlaying(true); }
+    };
+
+    useEffect(() => {
+        if (!player) return;
+        const interval = setInterval(() => {
+            if (player.playing !== playing) setPlaying(player.playing);
+            if (player.currentTime >= (player.duration || 0) - 0.1 && (player.duration || 0) > 0) {
+                player.seekTo(0); player.pause(); setPlaying(false);
+            }
+        }, 300);
+        return () => clearInterval(interval);
+    }, [player, playing]);
+
+    return (
+        <View style={s.voiceBubble}>
+            <TouchableOpacity onPress={toggle} style={s.voicePlayBtn}>
+                {playing ? <Pause size={14} color="#fff" fill="#fff" /> : <Play size={14} color="#fff" fill="#fff" />}
+            </TouchableOpacity>
+            <View style={s.voiceWave}>
+                {[6, 12, 8, 14, 10, 8, 12, 6, 14, 9, 11, 7].map((h, i) => (
+                    <View key={i} style={[s.voiceBar, {
+                        height: h,
+                        backgroundColor: playing ? (isMine ? "#fff" : colors.primary) : (isMine ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.3)"),
+                    }]} />
+                ))}
+            </View>
+            <Text style={[s.voiceTime, { color: isMine ? "rgba(255,255,255,0.85)" : colors.textMuted }]}>
+                {player?.duration ? `${Math.floor(player.duration)}s` : "صوت"}
+            </Text>
         </View>
     );
 }
@@ -634,4 +685,8 @@ const s = StyleSheet.create({
     actionBtn: { alignItems: "center", gap: 5 },
     actionIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
     actionLabel: { fontSize: 11, color: colors.text, fontWeight: "700" },
+    // Lightbox
+    lightboxBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", alignItems: "center", justifyContent: "center" },
+    lightboxClose: { position: "absolute", top: 60, end: 20, width: 44, height: 44, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center", zIndex: 10 },
+    lightboxImg: { width: "100%", height: "85%" },
 });

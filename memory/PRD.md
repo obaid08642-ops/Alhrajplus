@@ -779,3 +779,24 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
   - ✅ **ListingDetail**: added "💬 محادثة داخل التطبيق" button that navigates to Chat with `{to: seller.id, listing}` context.
   - ✅ Verified: Android export 4.47 MB, iOS export 4.46 MB, `expo-doctor` 18/18, no breaking changes.
   - 🟡 Phase 3 (next): PostListing with category-specific fields, advanced Search filters UI, MapScreen with clustering, full i18n strings translation pass for new screens, ChatScreen Phase 2 polish (voice playback + image preview lightbox + reply/forward).
+
+- **Feb 2026 (Session N+4) — Mobile Phase 3: Post + Search + Chat polish**:
+  - ✅ **PostScreen — full rebuild** mirroring web `/app/frontend/src/pages/PostListing.js`:
+    - 2-step flow: Category picker (Step 1) → Details form (Step 2).
+    - AI Autofill CTA with gradient: snap a photo and Gemini fills title/description/category/price.
+    - **Dynamic category fields**: renders `cat.fields` from `/api/meta/categories` — supports `type: select|number|text` with options_ar, required validation.
+    - **City + District pickers**: bottom-sheet modals with live search; cities/districts from `country.cities` via new `CountryContext`.
+    - Multi-image upload + camera, location pin button, show-phone toggle.
+    - Bottom sticky CTA with gradient submit button + inline error.
+  - ✅ **CountryContext** added to mobile (mirrors web): persists country in `AsyncStorage`, loads `/api/meta/countries`, syncs to backend on change.
+  - ✅ **SearchScreen — advanced** (new dedicated file `/screens/SearchScreen.js`):
+    - Auto-complete suggestions (debounced 220ms) via `/search/suggest`.
+    - Active filter chips row (category/city/price/condition/sort) — each removable.
+    - Filters modal: Sort (5 options), Condition (new/used), Price range min-max, City scrollable tags (top 20), Category grid.
+    - Pull-to-refresh, results counter, empty state with icon.
+  - ✅ **Chat improvements (Phase 3)**:
+    - **Voice playback**: `useAudioPlayer` from `expo-audio` — tap play/pause icon on voice bubbles, waveform animates when playing, shows duration in seconds.
+    - **Image lightbox**: tap any image bubble → fullscreen modal with close X (dark backdrop 95%).
+    - Bubble padding adjusted for image messages (3px container, time overlay).
+  - ✅ Verified: Android 4.5 MB ✅, iOS 4.49 MB ✅, expo-doctor 18/18 ✅.
+  - 🟡 Phase 4 (next): MapScreen with marker clustering, complete i18n translations, ChatScreen reply/forward, listing voice search.
