@@ -757,3 +757,25 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
   - ✅ App.js: guests can browse Main/Home (auth-required actions push Login); added stacks for Wallet, Auctions, Flights, AI Assistant, Deals, Map.
   - ✅ Android bundle: 4.45 MB, iOS bundle: 4.44 MB — both export successfully via `npx expo export`.
   - 🟡 Pending Phase 2 (next session): ListingDetail, PostListing with category fields, Search+Filters, ProfileScreen redesign, ChatScreen UI polish, MapScreen, full I18n for new screens.
+
+- **Feb 2026 (Session N+3) — Mobile Phase 2: Premium Chat + Profile**:
+  - ✅ **ChatScreen — WhatsApp-grade rebuild**:
+    - Two views: conversations list + single thread.
+    - Gradient header showing avatar + name + verified dot + "يكتب الآن..." or live "آخر ظهور قبل X دقيقة" (uses `/api/chat/presence/{user_id}` + WS `presence` events).
+    - Bubble design: my=#075E54 (WhatsApp green), other=white, day separator chip, image bubbles, voice bubbles with bar waveform, location bubbles.
+    - Read receipts: single Check (sent), double CheckCheck blue (read) — via WS `read` event handler.
+    - Typing indicator: throttled `wsSend({type:"typing"})` on input change; animated 3-dot bubble for the other party.
+    - Action sheet (+ button): image picker / location share / close — slide up.
+    - Voice notes: hold-to-record using `expo-audio` (AudioRecorder + RecordingPresets.HIGH_QUALITY); upload to Cloudinary.
+    - Listing context pill at top when navigated with `{listing}` param.
+    - Conversation list: avatar with online green-dot, unread badge, last message preview with type-icons (📷/🎙️/📍), pull-to-refresh, in-list search.
+    - Guest state: gradient avatar + login CTA.
+  - ✅ **ProfileScreen — premium redesign**:
+    - Gradient hero (navy + blobs) with avatar + verified badge + name + stats row (listings/favorites/rating).
+    - Wallet balance card (gradient) clickable → WalletScreen.
+    - Quick-action grid (8 tiles): MyListings, Favorites, AI Assistant, Auctions, Flights, Deals, Map, Saved Searches.
+    - Referral card with copy-to-share (Share API), invited count.
+    - Menu list: Notifications, Settings, Following, About, Terms, Privacy, Contact, Logout.
+  - ✅ **ListingDetail**: added "💬 محادثة داخل التطبيق" button that navigates to Chat with `{to: seller.id, listing}` context.
+  - ✅ Verified: Android export 4.47 MB, iOS export 4.46 MB, `expo-doctor` 18/18, no breaking changes.
+  - 🟡 Phase 3 (next): PostListing with category-specific fields, advanced Search filters UI, MapScreen with clustering, full i18n strings translation pass for new screens, ChatScreen Phase 2 polish (voice playback + image preview lightbox + reply/forward).

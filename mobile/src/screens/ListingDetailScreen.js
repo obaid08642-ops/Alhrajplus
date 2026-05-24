@@ -198,6 +198,18 @@ export default function ListingDetailScreen({ route, navigation }) {
                         <TouchableOpacity onPress={wa} style={[styles.cta, { backgroundColor: "#25D366" }]} testID="mobile-wa-btn">
                             <Text style={styles.ctaText}>{t("💬 واتساب")}</Text>
                         </TouchableOpacity>
+                        {!isOwner && listing.seller?.id && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    if (!user) { navigation.navigate("Login"); return; }
+                                    navigation.navigate("Chat", { to: listing.seller.id, listing });
+                                }}
+                                style={[styles.cta, { backgroundColor: theme.colors.primary }]}
+                                testID="mobile-chat-btn"
+                            >
+                                <Text style={styles.ctaText}>{t("💬 محادثة داخل التطبيق")}</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
 
