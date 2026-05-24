@@ -5000,6 +5000,169 @@ async def seo_listing_html(listing_id: str):
     return HTMLResponse(html)
 
 
+
+
+# ============================================================
+# Wallet / Balance system (internal credits — no real payments yet)
+# Used for: boosting listings, premium features. Currency = SAR-equivalent credits.
+# ============================================================
+class WalletTopupIn(BaseModel):
+    amount: float = Field(gt=0)
+    note: Optional[str] = None
+    target_user_id: Optional[str] = None  # admin-only field
+
+class WalletSpendIn(BaseModel):
+    amount: float = Field(gt=0)
+    purpose: str
+    ref_id: Optional[str] = None  # e.g. listing_id when boosting
+
+
+async def _wallet_balance(user_id: str) -> float:
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "balance": 1})
+    return float((u or {}).get("balance") or 0)
+
+
+async def _wallet_log(user_id: str, kind: str, amount: float, description: str, ref_id: Optional[str] = None):
+    await db.wallet_transactions.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": kind,  # topup | spend | bonus | refund
+        "amount": float(amount),
+        "currency": "SAR",
+        "description": description,
+        "ref_id": ref_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+@api.get("/wallet/me")
+async def wallet_me(user: dict = Depends(get_current_user)):
+    bal = await _wallet_balance(user["id"])
+    txs = await db.wallet_transactions.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).limit(20).to_list(length=20)
+    return {"balance": bal, "currency": "SAR", "transactions": txs}
+
+
+@api.get("/wallet/transactions")
+async def wallet_transactions(limit: int = 50, user: dict = Depends(get_current_user)):
+    limit = max(1, min(int(limit or 50), 200))
+    txs = await db.wallet_transactions.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(length=limit)
+    return txs
+
+
+@api.post("/wallet/topup")
+async def wallet_topup(body: WalletTopupIn, user: dict = Depends(get_current_user)):
+    """Admins can top-up any user (via target_user_id). Non-admins get a 5 SAR welcome bonus only once."""
+    is_admin = user.get("role") == "admin"
+    target = body.target_user_id if (is_admin and body.target_user_id) else user["id"]
+    if not is_admin:
+        # Non-admin self-topup is only allowed once as welcome bonus (≤ 5 SAR)
+        already = await db.wallet_transactions.find_one({"user_id": user["id"], "type": "bonus"})
+        if already:
+            raise HTTPException(403, "إعادة الشحن متاحة عبر بوابة الدفع قريباً")
+        if body.amount > 5:
+            raise HTTPException(400, "الحد الأقصى للمكافأة الترحيبية: 5 ر.س")
+        kind = "bonus"
+        desc = body.note or "مكافأة الانضمام"
+    else:
+        kind = "topup"
+        desc = body.note or "شحن يدوي من الإدارة"
+    await db.users.update_one({"id": target}, {"$inc": {"balance": float(body.amount)}})
+    await _wallet_log(target, kind, body.amount, desc)
+    new_bal = await _wallet_balance(target)
+    return {"success": True, "balance": new_bal}
+
+
+@api.post("/wallet/spend")
+async def wallet_spend(body: WalletSpendIn, user: dict = Depends(get_current_user)):
+    bal = await _wallet_balance(user["id"])
+    if bal < body.amount:
+        raise HTTPException(402, f"الرصيد غير كافٍ. رصيدك الحالي: {bal} ر.س")
+    await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": -float(body.amount)}})
+    await _wallet_log(user["id"], "spend", -float(body.amount), body.purpose, body.ref_id)
+    # If purpose is "boost" with a listing_id, also flip is_boosted
+    if body.purpose == "boost" and body.ref_id:
+        boost_until = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        await db.listings.update_one(
+            {"id": body.ref_id, "user_id": user["id"]},
+            {"$set": {"is_boosted": True, "boost_until": boost_until}},
+        )
+    new_bal = await _wallet_balance(user["id"])
+    return {"success": True, "balance": new_bal}
+
+
+# ============================================================
+# AI Assistant — multi-turn shopping/support chatbot (Gemini 2.5 Flash)
+# ============================================================
+class AssistantIn(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    session_id: Optional[str] = None
+
+
+_ASSISTANT_SYS_PROMPT = (
+    "أنت مساعد ذكي لمنصة 'الحراج بلس' — أكبر سوق رقمي للخليج العربي ومصر. "
+    "تساعد المستخدمين في: البحث عن إعلانات (سيارات، عقارات، إلكترونيات، وظائف، خدمات)، "
+    "نصائح للشراء والبيع الآمن، تقدير أسعار السوق، شرح كيفية النشر، الرحلات والمزادات. "
+    "أجب دائماً بالعربية الفصحى البسيطة، بإيجاز (3-5 أسطر)، وبأسلوب ودود. "
+    "إذا سُئلت عن سعر، اقترح المستخدم زيارة قسم 'الصفقات' أو استخدام أداة 'اقتراح السعر'. "
+    "لا تختلق إعلانات أو أسعار محددة. لا تتحدث في السياسة أو الدين."
+)
+
+
+@api.post("/ai/assistant")
+async def ai_assistant(body: AssistantIn, request: Request):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "المساعد الذكي غير متاح حالياً")
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+    except Exception as e:
+        logger.error(f"emergentintegrations import failed: {e}")
+        raise HTTPException(503, "خطأ في تحميل مكتبة الذكاء الاصطناعي")
+
+    sid = body.session_id or f"anon-{_client_ip(request)}-{int(time.time() // 600)}"
+    # Load previous history for this session (last 10 turns) so multi-turn works
+    prev = await db.ai_chats.find(
+        {"session_id": sid}, {"_id": 0, "role": 1, "text": 1}
+    ).sort("created_at", -1).limit(10).to_list(length=10)
+    prev.reverse()
+
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=sid,
+        system_message=_ASSISTANT_SYS_PROMPT,
+    ).with_model("gemini", "gemini-2.5-flash")
+
+    try:
+        # Replay short history so model has context
+        for m in prev:
+            if m.get("role") == "user":
+                await chat.send_message(UserMessage(text=m.get("text") or ""))
+        reply = await chat.send_message(UserMessage(text=body.message))
+    except Exception as e:
+        logger.error(f"AI assistant failed: {e}")
+        raise HTTPException(502, "تعذر الوصول للمساعد الذكي. حاول لاحقاً.")
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.ai_chats.insert_many([
+        {"id": str(uuid.uuid4()), "session_id": sid, "role": "user", "text": body.message, "created_at": now},
+        {"id": str(uuid.uuid4()), "session_id": sid, "role": "assistant", "text": reply, "created_at": now},
+    ])
+    return {"session_id": sid, "reply": reply}
+
+
+@api.get("/ai/assistant/history")
+async def ai_assistant_history(session_id: str, limit: int = 30):
+    if not session_id:
+        return []
+    limit = max(1, min(int(limit or 30), 100))
+    msgs = await db.ai_chats.find(
+        {"session_id": session_id}, {"_id": 0, "role": 1, "text": 1, "created_at": 1}
+    ).sort("created_at", 1).limit(limit).to_list(length=limit)
+    return msgs
+
 app.include_router(api)
 
 
@@ -5183,6 +5346,8 @@ async def startup():
                 "ad_type": "image",
                 "created_at": now_iso,
             })
+
+
 
 
 @app.on_event("shutdown")

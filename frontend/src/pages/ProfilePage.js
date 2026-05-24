@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
 
 export default function ProfilePage() {
@@ -120,6 +120,11 @@ export default function ProfilePage() {
 
             {/* Quick menu — Settings / About / Terms / Contact / Logout */}
             <div className="bg-[var(--surface)] rounded-3xl border border-[var(--border)] mb-6 overflow-hidden">
+                <Link to="/wallet" data-testid="menu-wallet" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
+                    <Wallet className="w-5 h-5 text-[var(--accent)]" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("محفظتي")}</span>
+                    <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                </Link>
                 <Link to="/settings" data-testid="menu-settings" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Settings className="w-5 h-5 text-[var(--primary)]" />
                     <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("الإعدادات")}</span>

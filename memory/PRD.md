@@ -729,3 +729,14 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
   - ✅ Metro bundles all 1448 modules successfully for Android (Hermes bytecode step fails only in sandbox due to linux64 binary incompatibility — works on real Expo Go).
   - ✅ Added Web Favicon links (`<link rel="icon">`, `shortcut icon`, `apple-touch-icon`) using existing `logo-haraj.png` in `/app/frontend/public/index.html`.
   - ✅ Preserved `eas.projectId` and `slug` in `app.json` per user instruction.
+
+- **Feb 2026 (Session N+1) — P2 Features**:
+  - ✅ **Tagline change**: "بيع و اشتري | جديد أو مستعمل" → "بيع و اشتري أي شيء" (SplashScreen + I18nContext + auto_translations.json EN/UR/HI/BN/FR).
+  - ✅ **Favicon proper sizes**: generated `favicon.ico` (16/32/48), `favicon-32.png`, `favicon-192.png`, `favicon-512.png` from `logo-haraj.png` (square-cropped). Linked in index.html with sizes attribute. Replaces 850KB logo with 1.6KB favicon for fast tab loading.
+  - ✅ **Mobile assets**: regenerated `icon.png` (1024×1024, white bg), `adaptive-icon.png` (Android), `splash.png` (1284×2778 dark navy) from logo for proper Expo Go and store-grade display.
+  - ✅ **Wallet system** (`/api/wallet/{me,topup,spend,transactions}`): SAR credit balance per user, transaction log, 5 SAR welcome bonus (claim once), admin manual top-up, spend with auto-boost listing (7-day boost activation).
+  - ✅ **AI Assistant** (`/api/ai/assistant`, `/api/ai/assistant/history`): Multi-turn Gemini 2.5 Flash chatbot with Arabic system prompt, MongoDB-backed `ai_chats` history per session_id, anonymous + authenticated support.
+  - ✅ **Frontend pages**: `/wallet` (balance hero, welcome bonus card, transactions log), floating `AIAssistantWidget` on every page (FAB bottom-left, slide-up panel with quick suggestions).
+  - ✅ Profile menu: added "محفظتي" entry above settings.
+  - ✅ Mobile build verified: Android + iOS JS bundles export successfully (~2.81 MB each).
+  - ✅ Manual curl tests passed: AI returns Arabic reply (197 chars), wallet topup → balance 100 SAR, transaction logged.

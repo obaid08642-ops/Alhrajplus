@@ -29,6 +29,8 @@ const ReelsPage = lazy(() => import("@/pages/ReelsPage"));
 const AuctionsPage = lazy(() => import("@/pages/AuctionsPage"));
 const FlightsPage = lazy(() => import("@/pages/FlightsPage"));
 const DealsPage = lazy(() => import("@/pages/DealsPage"));
+const WalletPage = lazy(() => import("@/pages/WalletPage"));
+const AIAssistantWidget = lazy(() => import("@/components/AIAssistantWidget"));
 const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage"));
 const XAuthCallback = lazy(() => import("@/pages/XAuthCallback"));
 const SnapAuthCallback = lazy(() => import("@/pages/SnapAuthCallback"));
@@ -93,6 +95,7 @@ function AppRouter() {
             <Route path="/auctions" element={<Layout><AuctionsPage /></Layout>} />
             <Route path="/flights" element={<Layout><FlightsPage /></Layout>} />
             <Route path="/deals" element={<Layout><DealsPage /></Layout>} />
+            <Route path="/wallet" element={<Layout><WalletPage /></Layout>} />
             <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
             <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
             <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
@@ -130,6 +133,9 @@ function App() {
                             {showSplash && <SplashScreen />}
                             <BrowserRouter>
                                 <AppRouter />
+                                <Suspense fallback={null}>
+                                    <AIAssistantWidget />
+                                </Suspense>
                             </BrowserRouter>
                         </CountryProvider>
                     </AuthProvider>
