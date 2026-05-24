@@ -559,12 +559,12 @@
     "bn": "ব্রাউজার অবস্থান সনাক্তকরণ সমর্থন করে না",
     "fr": "Le navigateur ne prend pas en charge la géolocalisation"
   },
-  "بيع و اشتري | جديد أو مستعمل": {
-    "en": "Sell & Buy | New or Used",
-    "ur": "بیچیں اور خریدیں | نیا یا استعمال شدہ",
-    "hi": "बेचें और खरीदें | नया या पुराना",
-    "bn": "বিক্রি করুন এবং কিনুন | নতুন অথবা ব্যবহৃত",
-    "fr": "Vendez et achetez | Neuf ou occasion"
+  "بيع و اشتري أي شيء": {
+    "en": "Sell & Buy Anything",
+    "ur": "کچھ بھی بیچیں اور خریدیں",
+    "hi": "कुछ भी बेचें और खरीदें",
+    "bn": "যেকোনো কিছু বিক্রি ও কিনুন",
+    "fr": "Vendez et achetez tout"
   },
   "فشل رفع الملف. حاول مرة أخرى": {
     "en": "File upload failed. Try again",

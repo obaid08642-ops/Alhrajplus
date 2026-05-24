@@ -5,7 +5,7 @@ const I18nCtx = createContext(null);
 
 const TRANSLATIONS = {
     ar: {
-        site_name: "الحراج بلس", tagline: "بيع و اشتري | جديد أو مستعمل",
+        site_name: "الحراج بلس", tagline: "بيع و اشتري أي شيء",
         nav_home: "الرئيسية", nav_search: "بحث", nav_post: "إعلان", nav_messages: "الرسائل", nav_profile: "حسابي",
         cta_post: "أنشر إعلانك", cta_explore: "تصفّح الأقسام",
         sec_categories: "الأقسام", sec_categories_sub: "اختر الفئة قبل النشر",
@@ -44,7 +44,7 @@ const TRANSLATIONS = {
         premium_locked: "🔒 الباقات المدفوعة معطلة — جميع الميزات مجانية حالياً",
     },
     en: {
-        site_name: "Haraj Plus", tagline: "Buy & Sell | New or Used",
+        site_name: "Haraj Plus", tagline: "Sell & Buy Anything",
         nav_home: "Home", nav_search: "Search", nav_post: "Post", nav_messages: "Messages", nav_profile: "Profile",
         cta_post: "Post Your Ad", cta_explore: "Browse Categories",
         sec_categories: "Categories", sec_categories_sub: "Choose category before posting",

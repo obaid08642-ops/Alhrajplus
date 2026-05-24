@@ -22,7 +22,7 @@ export default function SplashScreen() {
                         <h1 className="font-arabic font-black text-3xl sm:text-4xl text-white tracking-tight">{tr("الحراج")}</h1>
                         <span className="font-arabic font-bold text-base sm:text-lg text-[#4FB6E6]">{tr("بلس")}</span>
                     </div>
-                    <p className="text-white/60 font-arabic-body text-xs sm:text-sm mt-1">{tr("بيع و اشتري | جديد أو مستعمل")}</p>
+                    <p className="text-white/60 font-arabic-body text-xs sm:text-sm mt-1">{tr("بيع و اشتري أي شيء")}</p>
                 </div>
                 <div className="w-44 h-0.5 bg-white/10 rounded-full overflow-hidden animate-fade-up" style={{ animationDelay: "0.6s" }}>
                     <div className="h-full bg-gradient-to-r from-[#4FB6E6] to-[#D4AF37] rounded-full" style={{ animation: "splashLoad 1.4s ease-out forwards" }}></div>
