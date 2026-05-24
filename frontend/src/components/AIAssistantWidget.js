@@ -41,7 +41,8 @@ export default function AIAssistantWidget() {
         setMessages(nextMsgs);
         setBusy(true);
         try {
-            const { data } = await api.post("/ai/assistant", { message: text, session_id: getSessionId() });
+            const lang = (typeof localStorage !== "undefined" && localStorage.getItem("hp_lang")) || "ar";
+            const { data } = await api.post("/ai/assistant", { message: text, session_id: getSessionId(), lang });
             setMessages([...nextMsgs, { role: "assistant", text: data.reply || "" }]);
         } catch (e) {
             const errText = formatApiError(e.response?.data?.detail) || tr("تعذر الوصول للمساعد");

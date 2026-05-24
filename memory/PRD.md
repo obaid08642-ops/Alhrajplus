@@ -800,3 +800,20 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
     - Bubble padding adjusted for image messages (3px container, time overlay).
   - ✅ Verified: Android 4.5 MB ✅, iOS 4.49 MB ✅, expo-doctor 18/18 ✅.
   - 🟡 Phase 4 (next): MapScreen with marker clustering, complete i18n translations, ChatScreen reply/forward, listing voice search.
+
+- **Feb 2026 (Session N+5) — Phase 4: Multilingual AI + Geo Autocomplete**:
+  - ✅ **AI Assistant now multilingual**:
+    - Backend `POST /api/ai/assistant` accepts new `lang` field (`ar|en|ur|hi|bn|fr`).
+    - Falls back to `Accept-Language` header if `lang` not provided.
+    - System prompt rebuilt dynamically with `_build_assistant_prompt(lang)` instructing Gemini to reply in user's selected language AND mirror the user's writing language if different.
+    - Verified: replies in English, French, and Urdu work correctly (tested via curl).
+    - Mobile `AIAssistantScreen` + Web `AIAssistantWidget` now read `hp_lang` from storage and pass it.
+  - ✅ **Global Geo Autocomplete** (covers EVERY city/district worldwide):
+    - **Backend** `GET /api/geo/search?q=&country=&type=city|district&lang=` → proxies OpenStreetMap Nominatim (cached 24h).
+    - **Backend** `GET /api/geo/districts?city=&country=&lang=&limit=` → uses Overpass API to query OSM for neighbourhood/suburb/quarter/district places inside the city's boundary. Falls back to bbox search for cities not represented as relations.
+    - Verified: Riyadh → 29 districts in Arabic, Cairo → 20 districts, Dubai → 20 districts.
+    - **Mobile** `PostScreen` GeoPickerModal: merges static `country.cities` list + live geo search; shows 🌍 خريطة badge for results from OSM.
+    - **Web** new `components/GeoAutocomplete.js` reusable component. `PostListing.js` swapped `<select>` → autocomplete dropdown for city + district fields.
+  - ✅ All 4 new translation strings added across 5 languages (search map, no results, search city, search district).
+  - ✅ Verified: Android export 4.51 MB, iOS export 4.50 MB, both pass.
+  - 🟡 Backlog (future): MapScreen marker clustering, voice search in SearchScreen, chat reply/forward, listing voice search.

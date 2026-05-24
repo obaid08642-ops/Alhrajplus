@@ -53,7 +53,8 @@ export default function AIAssistantScreen() {
         setBusy(true);
         try {
             const sid = await getSessionId();
-            const { data } = await api.post("/ai/assistant", { message: text, session_id: sid });
+            const lang = (await AsyncStorage.getItem("hp_lang").catch(() => null)) || "ar";
+            const { data } = await api.post("/ai/assistant", { message: text, session_id: sid, lang });
             setMessages([...next, { role: "assistant", text: data.reply || "" }]);
         } catch (e) {
             const err = e.response?.data?.detail || "تعذر الوصول للمساعد";

@@ -5100,27 +5100,56 @@ async def wallet_spend(body: WalletSpendIn, user: dict = Depends(get_current_use
 class AssistantIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     session_id: Optional[str] = None
+    lang: Optional[str] = None  # ar|en|ur|hi|bn|fr — overrides language detection
 
 
-_ASSISTANT_SYS_PROMPT = (
-    "أنت مساعد ذكي لمنصة 'الحراج بلس' — أكبر سوق رقمي للخليج العربي ومصر. "
-    "تساعد المستخدمين في: البحث عن إعلانات (سيارات، عقارات، إلكترونيات، وظائف، خدمات)، "
-    "نصائح للشراء والبيع الآمن، تقدير أسعار السوق، شرح كيفية النشر، الرحلات والمزادات. "
-    "أجب دائماً بالعربية الفصحى البسيطة، بإيجاز (3-5 أسطر)، وبأسلوب ودود. "
-    "إذا سُئلت عن سعر، اقترح المستخدم زيارة قسم 'الصفقات' أو استخدام أداة 'اقتراح السعر'. "
-    "لا تختلق إعلانات أو أسعار محددة. لا تتحدث في السياسة أو الدين."
-)
+_LANG_NAMES = {
+    "ar": "Arabic (العربية)",
+    "en": "English",
+    "ur": "Urdu (اردو)",
+    "hi": "Hindi (हिन्दी)",
+    "bn": "Bengali (বাংলা)",
+    "fr": "French (Français)",
+}
+
+
+def _build_assistant_prompt(lang_code: str) -> str:
+    lang_name = _LANG_NAMES.get(lang_code, "Arabic (العربية)")
+    return (
+        f"You are the assistant of 'Haraj Plus' (الحراج بلس) — the largest digital marketplace "
+        f"for the Arab Gulf and Egypt. You help users with: finding listings (cars, real estate, "
+        f"electronics, jobs, services), tips for safe buying and selling, market price estimates, "
+        f"how to post, flights, and auctions.\n\n"
+        f"CRITICAL LANGUAGE RULES:\n"
+        f"1. Always respond in {lang_name}. This is the user's preferred app language.\n"
+        f"2. If the user writes their message in a DIFFERENT language than {lang_name}, "
+        f"   reply in the SAME language the user wrote in (mirror the user's language).\n"
+        f"3. Keep replies short (3-5 sentences), friendly, and helpful.\n\n"
+        f"If asked about prices, suggest visiting the 'Deals' section or using the 'Price suggestion' tool. "
+        f"Do not fabricate listings or specific prices. Do not discuss politics or religion."
+    )
 
 
 @api.post("/ai/assistant")
 async def ai_assistant(body: AssistantIn, request: Request):
     if not EMERGENT_LLM_KEY:
-        raise HTTPException(503, "المساعد الذكي غير متاح حالياً")
+        raise HTTPException(503, "Assistant temporarily unavailable")
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
     except Exception as e:
         logger.error(f"emergentintegrations import failed: {e}")
-        raise HTTPException(503, "خطأ في تحميل مكتبة الذكاء الاصطناعي")
+        raise HTTPException(503, "Failed to load AI library")
+
+    # Pick language: body.lang > Accept-Language header > "ar" default
+    lang = (body.lang or "").lower().strip()
+    if lang not in _LANG_NAMES:
+        accept = (request.headers.get("accept-language") or "").lower()
+        for code in _LANG_NAMES.keys():
+            if accept.startswith(code) or f",{code}" in accept or f" {code}" in accept:
+                lang = code
+                break
+    if lang not in _LANG_NAMES:
+        lang = "ar"
 
     sid = body.session_id or f"anon-{_client_ip(request)}-{int(time.time() // 600)}"
     # Load previous history for this session (last 10 turns) so multi-turn works
@@ -5132,7 +5161,7 @@ async def ai_assistant(body: AssistantIn, request: Request):
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=sid,
-        system_message=_ASSISTANT_SYS_PROMPT,
+        system_message=_build_assistant_prompt(lang),
     ).with_model("gemini", "gemini-2.5-flash")
 
     try:
@@ -5162,6 +5191,253 @@ async def ai_assistant_history(session_id: str, limit: int = 30):
         {"session_id": session_id}, {"_id": 0, "role": 1, "text": 1, "created_at": 1}
     ).sort("created_at", 1).limit(limit).to_list(length=limit)
     return msgs
+
+
+# ============================================================
+# Geographic autocomplete — OpenStreetMap Nominatim proxy.
+# Lets us cover EVERY city and district in every country we serve
+# without maintaining a static list.
+# Cached for 24h to respect Nominatim's 1 req/sec policy.
+# ============================================================
+# Geo autocomplete uses httpx (already imported at top of file as `httpx`)
+_GEO_CACHE: dict[str, tuple[float, list]] = {}
+_GEO_TTL = 86400  # 24h
+
+
+@api.get("/geo/search")
+async def geo_search(
+    q: str = Query(..., min_length=2, max_length=80),
+    country: str = Query("", max_length=2),
+    type: str = Query("city", regex="^(city|district|any)$"),
+    lang: str = Query("ar", max_length=2),
+    limit: int = Query(10, ge=1, le=20),
+):
+    """Search cities/districts using OpenStreetMap Nominatim.
+    type=city → returns cities/towns/villages (administrative places)
+    type=district → returns neighbourhoods/suburbs/quarters
+    """
+    key = f"{q.lower()}|{country}|{type}|{lang}|{limit}"
+    now = time.time()
+    if key in _GEO_CACHE:
+        ts, cached = _GEO_CACHE[key]
+        if now - ts < _GEO_TTL:
+            return cached
+
+    # Build Nominatim params
+    feature_classes = {
+        "city": "P",   # populated places
+        "district": "P",
+        "any": "",
+    }
+    feature_codes_filter = None
+    if type == "city":
+        # Match cities/towns/villages by featuretype
+        params = {
+            "q": q,
+            "format": "json",
+            "addressdetails": "1",
+            "limit": str(limit),
+            "accept-language": lang,
+            "featuretype": "city",
+        }
+    elif type == "district":
+        params = {
+            "q": q,
+            "format": "json",
+            "addressdetails": "1",
+            "limit": str(limit),
+            "accept-language": lang,
+        }
+    else:
+        params = {
+            "q": q,
+            "format": "json",
+            "addressdetails": "1",
+            "limit": str(limit),
+            "accept-language": lang,
+        }
+    if country:
+        params["countrycodes"] = country.lower()
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as cli:
+            r = await cli.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
+                headers={"User-Agent": "HarajPlus/1.0 (https://alhraj.online)"},
+            )
+            r.raise_for_status()
+            data = r.json() or []
+    except Exception as e:
+        logger.warning(f"[geo/search] Nominatim error: {e}")
+        return []
+
+    # Normalize results
+    out = []
+    seen = set()
+    for item in data:
+        addr = item.get("address", {})
+        # Pick best label
+        if type == "district":
+            name = (
+                addr.get("neighbourhood") or addr.get("suburb")
+                or addr.get("quarter") or addr.get("city_district")
+                or addr.get("residential") or item.get("name")
+            )
+            parent = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("state")
+        else:
+            name = (
+                addr.get("city") or addr.get("town") or addr.get("village")
+                or addr.get("municipality") or item.get("name")
+            )
+            parent = addr.get("state") or addr.get("region") or addr.get("country")
+
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append({
+            "name": name,
+            "parent": parent or "",
+            "country": addr.get("country_code", "").upper(),
+            "lat": float(item.get("lat") or 0),
+            "lng": float(item.get("lon") or 0),
+            "display_name": item.get("display_name") or name,
+        })
+
+    _GEO_CACHE[key] = (now, out)
+    # Cap cache to prevent unbounded growth
+    if len(_GEO_CACHE) > 5000:
+        # Drop oldest 1000 entries
+        for k in list(_GEO_CACHE.keys())[:1000]:
+            _GEO_CACHE.pop(k, None)
+    return out
+
+
+@api.get("/geo/districts")
+async def geo_districts(
+    city: str = Query(..., min_length=2, max_length=80),
+    country: str = Query("", max_length=2),
+    lang: str = Query("ar", max_length=2),
+    limit: int = Query(50, ge=1, le=100),
+):
+    """List all neighbourhoods/suburbs inside a given city using Overpass API (OSM).
+    Returns up to `limit` districts for the matched city.
+    Cached for 24h.
+    """
+    key = f"DISTRICTS|{city.lower()}|{country}|{lang}|{limit}"
+    now = time.time()
+    if key in _GEO_CACHE:
+        ts, cached = _GEO_CACHE[key]
+        if now - ts < _GEO_TTL:
+            return cached
+
+    # Step 1: Find the city's OSM relation/area (prefer relation for Overpass `area()`)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as cli:
+            params = {
+                "q": city,
+                "format": "json",
+                "limit": "5",  # ask more so we can prefer relations
+                "accept-language": lang,
+                "featuretype": "city",
+                "extratags": "1",
+            }
+            if country:
+                params["countrycodes"] = country.lower()
+            r = await cli.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
+                headers={"User-Agent": "HarajPlus/1.0 (https://alhraj.online)"},
+            )
+            r.raise_for_status()
+            found = r.json() or []
+    except Exception as e:
+        logger.warning(f"[geo/districts] Nominatim lookup failed: {e}")
+        return []
+
+    if not found:
+        _GEO_CACHE[key] = (now, [])
+        return []
+
+    # Prefer relations (Overpass `area()` requires it). Fallback to first result.
+    relation = next((r for r in found if (r.get("osm_type") or "").lower() == "relation"), None)
+    osm = relation or found[0]
+    osm_id = osm.get("osm_id")
+    osm_type = (osm.get("osm_type") or "").lower()
+    if not osm_id:
+        return []
+
+    # If we don't have a relation, query by bounding box instead.
+    if osm_type != "relation":
+        try:
+            lat = float(osm.get("lat") or 0)
+            lon = float(osm.get("lon") or 0)
+            # ~0.25 degree box around the city center (~25km radius)
+            bbox = f"{lat-0.25},{lon-0.25},{lat+0.25},{lon+0.25}"
+            overpass_q = f"""
+            [out:json][timeout:25];
+            (
+              node["place"~"^(neighbourhood|suburb|quarter|district)$"]({bbox});
+              way["place"~"^(neighbourhood|suburb|quarter|district)$"]({bbox});
+            );
+            out tags center {limit};
+            """
+        except Exception:
+            return []
+    else:
+        area_id = int(osm_id) + 3600000000
+        overpass_q = f"""
+        [out:json][timeout:25];
+        area({area_id})->.searchArea;
+        (
+          node["place"~"^(neighbourhood|suburb|quarter|district)$"](area.searchArea);
+          way["place"~"^(neighbourhood|suburb|quarter|district)$"](area.searchArea);
+        );
+        out tags center {limit};
+        """
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as cli:
+            r = await cli.post(
+                "https://overpass-api.de/api/interpreter",
+                data={"data": overpass_q},
+                headers={"User-Agent": "HarajPlus/1.0 (https://alhraj.online)"},
+            )
+            r.raise_for_status()
+            data = r.json() or {}
+    except Exception as e:
+        logger.warning(f"[geo/districts] Overpass failed: {e}")
+        return []
+
+    out = []
+    seen = set()
+    for el in (data.get("elements") or []):
+        tags = el.get("tags", {})
+        # Prefer Arabic name when lang=ar
+        name = (
+            tags.get(f"name:{lang}")
+            or tags.get("name:ar")
+            or tags.get("name")
+        )
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        center = el.get("center") or {}
+        out.append({
+            "name": name,
+            "name_en": tags.get("name:en") or tags.get("name") or name,
+            "lat": center.get("lat") or el.get("lat") or 0,
+            "lng": center.get("lon") or el.get("lon") or 0,
+            "place": tags.get("place") or "",
+        })
+        if len(out) >= limit:
+            break
+
+    # Sort alphabetically for stable UX
+    out.sort(key=lambda x: x.get("name") or "")
+    _GEO_CACHE[key] = (now, out)
+    return out
+
 
 app.include_router(api)
 

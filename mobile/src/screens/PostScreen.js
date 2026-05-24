@@ -1,7 +1,7 @@
 // PostScreen — full rebuild matching web /app/frontend/src/pages/PostListing.js
 // Supports: category picker, dynamic category fields, city+district pickers,
 // multi-image upload, AI autofill, location pin, edit mode.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
     View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet,
     Image, Alert, ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform,
@@ -202,21 +202,120 @@ export default function PostScreen({ navigation, route }) {
                 </View>
             )}
 
-            {/* City picker */}
-            <PickerModal
+            {/* City picker — supports static list + live geo search */}
+            <GeoPickerModal
                 visible={pickerOpen === "city"} onClose={() => setPickerOpen(null)}
-                title={t("اختر المدينة")} items={country?.cities || []}
-                getLabel={(c) => c.name_ar} current={form.city}
-                onPick={(c) => { setForm({ ...form, city: c.name_ar, district: "" }); setPickerOpen(null); }}
+                title={t("اختر المدينة")} country={country?.code} lang={lang}
+                staticItems={(country?.cities || []).map((c) => ({ name: c.name_ar }))}
+                kind="city"
+                current={form.city}
+                onPick={(name) => { setForm({ ...form, city: name, district: "" }); setPickerOpen(null); }}
             />
-            {/* District picker */}
-            <PickerModal
+            {/* District picker — Nominatim/Overpass-powered (covers every neighborhood) */}
+            <GeoPickerModal
                 visible={pickerOpen === "district"} onClose={() => setPickerOpen(null)}
-                title={t("اختر الحي")} items={[...districts.map((d) => ({ name_ar: d })), { name_ar: "__other__", is_other: true }]}
-                getLabel={(d) => d.is_other ? `⚙️ ${t("أخرى (اكتبه بنفسك)")}` : d.name_ar} current={form.district}
-                onPick={(d) => { setForm({ ...form, district: d.is_other ? "" : d.name_ar }); setPickerOpen(null); }}
+                title={t("اختر الحي")} country={country?.code} lang={lang}
+                staticItems={(districts || []).map((d) => ({ name: d }))}
+                kind="district" parent={form.city}
+                current={form.district}
+                onPick={(name) => { setForm({ ...form, district: name }); setPickerOpen(null); }}
             />
         </KeyboardAvoidingView>
+    );
+}
+
+// =============== Geo Picker Modal (uses /api/geo/search or /api/geo/districts) ===============
+function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, country, lang, current, onPick }) {
+    const [q, setQ] = useState("");
+    const [remote, setRemote] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const debounceRef = useRef(null);
+
+    useEffect(() => {
+        if (!visible) { setQ(""); setRemote([]); return; }
+        // Auto-load full list of districts for the current city on open
+        if (kind === "district" && parent && !q) {
+            setLoading(true);
+            api.get("/geo/districts", { params: { city: parent, country, lang, limit: 60 } })
+                .then(({ data }) => setRemote(data || []))
+                .catch(() => setRemote([]))
+                .finally(() => setLoading(false));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visible, kind, parent, country, lang]);
+
+    useEffect(() => {
+        if (!visible || q.length < 2) return;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(async () => {
+            setLoading(true);
+            try {
+                const params = kind === "district"
+                    ? { q, country, type: "district", lang, limit: 20 }
+                    : { q, country, type: "city", lang, limit: 20 };
+                const { data } = await api.get("/geo/search", { params });
+                setRemote(data || []);
+            } catch (_) { setRemote([]); }
+            finally { setLoading(false); }
+        }, 350);
+        return () => debounceRef.current && clearTimeout(debounceRef.current);
+    }, [q, visible, kind, country, lang]);
+
+    // Merge: static items first (fast, no network), then remote results
+    const items = useMemo(() => {
+        const localFiltered = q
+            ? staticItems.filter((it) => (it.name || "").includes(q))
+            : staticItems;
+        const seen = new Set(localFiltered.map((x) => x.name));
+        const merged = [...localFiltered];
+        for (const r of remote) {
+            if (!seen.has(r.name)) {
+                merged.push({ name: r.name, parent: r.parent, fromGeo: true });
+                seen.add(r.name);
+            }
+        }
+        return merged;
+    }, [staticItems, remote, q]);
+
+    return (
+        <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+            <View style={s.modalBg}>
+                <View style={s.modalSheet}>
+                    <Text style={s.modalTitle}>{title}</Text>
+                    <View style={s.searchPill}>
+                        <Search size={14} color={colors.textMuted} />
+                        <TextInput value={q} onChangeText={setQ} placeholder={kind === "city" ? "ابحث عن مدينة..." : "ابحث عن حي..."} placeholderTextColor={colors.textMuted} style={s.searchInput} autoFocus={kind === "city"} />
+                        {loading && <ActivityIndicator size="small" color={colors.primary} />}
+                    </View>
+                    {items.length === 0 && !loading && (
+                        <Text style={{ padding: 30, textAlign: "center", color: colors.textMuted, fontSize: 12 }}>
+                            {q ? "لا نتائج — جرّب اسم آخر" : (kind === "district" ? "لا أحياء في القائمة المحلية — اكتب للبحث في الخريطة" : "اكتب اسم المدينة")}
+                        </Text>
+                    )}
+                    <FlatList
+                        data={items}
+                        keyExtractor={(it, i) => `${it.name}-${i}`}
+                        renderItem={({ item }) => {
+                            const isCur = item.name === current;
+                            return (
+                                <TouchableOpacity onPress={() => onPick(item.name)} style={[s.modalRow, isCur && s.modalRowActive]}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[s.modalRowText, isCur && { color: colors.primary, fontWeight: "900" }]}>{item.name}</Text>
+                                        {item.parent && <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>{item.parent}</Text>}
+                                    </View>
+                                    {item.fromGeo && <Text style={{ fontSize: 9, color: colors.primary, fontWeight: "800" }}>🌍 خريطة</Text>}
+                                    {isCur && <Check size={16} color={colors.primary} />}
+                                </TouchableOpacity>
+                            );
+                        }}
+                        style={{ maxHeight: 380 }}
+                    />
+                    <TouchableOpacity onPress={onClose} style={s.modalCloseBtn}>
+                        <Text style={s.modalCloseText}>إلغاء</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
     );
 }
 
@@ -304,7 +403,7 @@ function Step2({ form, setForm, cat, onPickerOpen, country, onPickImage, onTakeP
                 </Field>
             ))}
 
-            {/* City / District */}
+            {/* City / District (geo autocomplete + fallback to local list) */}
             <Field label={t("المدينة") + " *"}>
                 <TouchableOpacity onPress={() => onPickerOpen("city")} style={s.input}>
                     <Text style={form.city ? s.inputText : s.inputPh}>{form.city || t("اختر المدينة")}</Text>

@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import GeoAutocomplete from "@/components/GeoAutocomplete";
 
 export default function PostListing() {
     const nav = useNavigate();
@@ -396,47 +397,31 @@ export default function PostListing() {
 
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("المدينة *")}</label>
-                        <select data-testid="post-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value, district: "" })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
-                            <option value="">{tr("اختر المدينة")}</option>
-                            {country?.cities.map((c) => <option key={c.name_ar} value={c.name_ar}>{c.name_ar}</option>)}
-                        </select>
+                        <GeoAutocomplete
+                            testId="post-city"
+                            kind="city"
+                            country={country?.code}
+                            staticItems={country?.cities || []}
+                            value={form.city}
+                            onChange={(v) => setForm({ ...form, city: v, district: "" })}
+                        />
                     </div>
 
-                    {/* District selector — appears after city */}
-                    {form.city && (() => {
-                        const cityObj = country?.cities?.find((c) => c.name_ar === form.city);
-                        const districts = cityObj?.districts || [];
-                        return (
-                            <div>
-                                <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("الحي / المنطقة")}</label>
-                                <select
-                                    data-testid="post-district"
-                                    value={form.district === "__other__" ? "__other__" : (districts.includes(form.district) ? form.district : (form.district ? "__other__" : ""))}
-                                    onChange={(e) => {
-                                        if (e.target.value === "__other__") {
-                                            setForm({ ...form, district: "__other__" });
-                                        } else {
-                                            setForm({ ...form, district: e.target.value });
-                                        }
-                                    }}
-                                    className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body"
-                                >
-                                    <option value="">{tr("اختر الحي (اختياري)")}</option>
-                                    {districts.map((d) => <option key={d} value={d}>{d}</option>)}
-                                    <option value="__other__">{tr("⚙️ أخرى (اكتبه بنفسك)")}</option>
-                                </select>
-                                {form.district === "__other__" && (
-                                    <input
-                                        data-testid="post-district-custom"
-                                        autoFocus
-                                        placeholder={tr("اكتب اسم الحي")}
-                                        onChange={(e) => setForm({ ...form, district: e.target.value })}
-                                        className="mt-2 w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--primary)] text-[var(--text)] outline-none font-arabic-body"
-                                    />
-                                )}
-                            </div>
-                        );
-                    })()}
+                    {/* District selector — Nominatim/Overpass-powered autocomplete */}
+                    {form.city && (
+                        <div>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("الحي / المنطقة")}</label>
+                            <GeoAutocomplete
+                                testId="post-district"
+                                kind="district"
+                                country={country?.code}
+                                parentCity={form.city}
+                                staticItems={(country?.cities?.find((c) => c.name_ar === form.city)?.districts || []).map((d) => ({ name_ar: d }))}
+                                value={form.district === "__other__" ? "" : form.district}
+                                onChange={(v) => setForm({ ...form, district: v })}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 
