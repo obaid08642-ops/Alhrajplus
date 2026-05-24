@@ -720,3 +720,12 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 
 ## Session History
 - **Jan 2026**: Initial MVP — full marketplace web app with 15 categories, multi-country, multi-language, admin panel, chat, maps, ads system. Backend tested by automated agent (97.7%, fixed to 100%).
+
+- **Feb 2026 (Session N)**: 
+  - ✅ Upgraded Expo mobile project from SDK 51 → SDK 54 (react-native 0.81.5, react 19.1.0, all expo-* peers aligned via `expo install --fix`).
+  - ✅ Migrated reanimated 4 → switched babel plugin from `react-native-reanimated/plugin` to `react-native-worklets/plugin`; added `react-native-worklets@0.5.1`.
+  - ✅ Added `metro.config.js` extending `expo/metro-config` (required by SDK 54).
+  - ✅ expo-doctor: 17/18 passing (only cosmetic .expo-in-gitignore false-positive).
+  - ✅ Metro bundles all 1448 modules successfully for Android (Hermes bytecode step fails only in sandbox due to linux64 binary incompatibility — works on real Expo Go).
+  - ✅ Added Web Favicon links (`<link rel="icon">`, `shortcut icon`, `apple-touch-icon`) using existing `logo-haraj.png` in `/app/frontend/public/index.html`.
+  - ✅ Preserved `eas.projectId` and `slug` in `app.json` per user instruction.
