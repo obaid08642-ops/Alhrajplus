@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { Audio } from "expo-av";
+import { AudioModule, AudioRecorder, RecordingPresets } from "expo-audio";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -140,8 +140,8 @@ export default function ChatScreen({ navigation, route }) {
         try {
             if (recording) {
                 // Stop + upload
-                await recording.stopAndUnloadAsync();
-                const uri = recording.getURI();
+                await recording.stop();
+                const uri = recording.uri;
                 setRecording(null);
                 if (!uri) return;
                 setUploadingImg(true);
@@ -165,13 +165,13 @@ export default function ChatScreen({ navigation, route }) {
                 }
                 setUploadingImg(false);
             } else {
-                // Start recording
-                const perm = await Audio.requestPermissionsAsync();
+                // Start recording (expo-audio API)
+                const perm = await AudioModule.requestRecordingPermissionsAsync();
                 if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الميكروفون")); return; }
-                await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-                const rec = new Audio.Recording();
-                await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-                await rec.startAsync();
+                await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+                const rec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
+                await rec.prepareToRecordAsync();
+                rec.record();
                 setRecording(rec);
             }
         } catch (_) {
