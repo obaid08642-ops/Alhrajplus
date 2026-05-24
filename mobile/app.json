@@ -113,7 +113,8 @@
         }
       ],
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "backendUrl": "https://alhrajplus.onrender.com",

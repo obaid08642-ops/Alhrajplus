@@ -20,7 +20,11 @@ import ChatScreen from "./src/screens/ChatScreen";
 import MapScreen from "./src/screens/MapScreen";
 import ReelsScreen from "./src/screens/ReelsScreen";
 import { FavoritesScreen, MyListingsScreen, DealsScreen } from "./src/screens/OtherScreens";
-import { theme } from "./src/theme";
+import AuctionsScreen from "./src/screens/AuctionsScreen";
+import FlightsScreen from "./src/screens/FlightsScreen";
+import WalletScreen from "./src/screens/WalletScreen";
+import AIAssistantScreen from "./src/screens/AIAssistantScreen";
+import { theme, colors } from "./src/theme";
 import { registerForNotifications, setNotificationNavigationRef } from "./src/notifications";
 import { useI18n } from "./src/I18nContext";
 
@@ -41,29 +45,15 @@ function TabIcon({ icon, focused }) {
 }
 
 function TabsNavigator() {
-    const { t } = useI18n();
     return (
         <Tab.Navigator
-            screenOptions={{
-                headerShown: false,
-                tabBarActiveTintColor: theme.colors.primary,
-                tabBarInactiveTintColor: theme.colors.textMuted,
-                tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, height: 64, paddingBottom: 10, paddingTop: 8 },
-                tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
-            }}
+            tabBar={(props) => <FloatingTabBar {...props} />}
+            screenOptions={{ headerShown: false }}
         >
-            <Tab.Screen name="HomeTab" component={HomeScreen}
-                options={{ title: t("الرئيسية"), tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} /> }} />
-            <Tab.Screen name="DealsTab" component={DealsScreen}
-                options={{ title: t("صفقات"), tabBarIcon: ({ focused }) => <TabIcon icon="🔥" focused={focused} /> }} />
-            <Tab.Screen name="ReelsTab" component={ReelsScreen}
-                options={{ title: t("قصص"), tabBarIcon: ({ focused }) => <TabIcon icon="🎬" focused={focused} /> }} />
-            <Tab.Screen name="MapTab" component={MapScreen}
-                options={{ title: t("خريطة"), tabBarIcon: ({ focused }) => <TabIcon icon="🗺️" focused={focused} /> }} />
-            <Tab.Screen name="ChatTab" component={ChatScreen}
-                options={{ title: t("رسائل"), tabBarIcon: ({ focused }) => <TabIcon icon="💬" focused={focused} /> }} />
-            <Tab.Screen name="ProfileTab" component={ProfileScreen}
-                options={{ title: t("حسابي"), tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} /> }} />
+            <Tab.Screen name="HomeTab" component={HomeScreen} />
+            <Tab.Screen name="ReelsTab" component={ReelsScreen} />
+            <Tab.Screen name="ChatTab" component={ChatScreen} />
+            <Tab.Screen name="ProfileTab" component={ProfileScreen} />
         </Tab.Navigator>
     );
 }
@@ -113,39 +103,40 @@ function Navigation() {
         >
             <Stack.Navigator
                 screenOptions={{
-                    headerStyle: { backgroundColor: theme.colors.surface },
-                    headerTitleStyle: { fontWeight: "800", color: theme.colors.text },
-                    headerTintColor: theme.colors.primary,
+                    headerStyle: { backgroundColor: colors.surface },
+                    headerTitleStyle: { fontWeight: "800", color: colors.text },
+                    headerTintColor: colors.primary,
                     headerShadowVisible: false,
                 }}
             >
-                {user ? (
-                    <>
-                        <Stack.Screen name="Main" component={TabsNavigator} options={{ headerShown: false }} />
-                        <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: t("تفاصيل الإعلان") }} />
-                        <Stack.Screen name="Post" component={PostScreen} options={{ title: t("إضافة إعلان") }} />
-                        <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: t("المفضلة") }} />
-                        <Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: t("إعلاناتي") }} />
-                        <Stack.Screen name="Chat" component={ChatScreen} options={{ title: t("الرسائل") }} />
-                        <Stack.Screen name="Search" component={SearchScreen} options={{ title: t("بحث") }} />
-                        <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: t("التصنيفات") }} />
-                        <Stack.Screen name="CategoryListings" component={CategoryListingsScreen} options={({ route }) => ({ title: route.params?.name || "" })} />
-                        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: t("الإشعارات") }} />
-                        <Stack.Screen name="NotifSettings" component={NotifSettingsScreen} options={{ title: t("إعدادات الإشعارات") }} />
-                        <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: t("الأبحاث المحفوظة") }} />
-                        <Stack.Screen name="Following" component={FollowingScreen} options={{ title: t("متابعاتي") }} />
-                        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("الإعدادات") }} />
-                        <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
-                        <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: t("الملف الشخصي للبائع") }} />
-                    </>
-                ) : (
-                    <>
-                        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-                        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: t("إنشاء حساب") }} />
-                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: t("نسيت كلمة المرور؟") }} />
-                        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: t("إعادة تعيين كلمة المرور") }} />
-                    </>
-                )}
+                {/* Main tabs are accessible to guests too — auth-required actions push Login */}
+                <Stack.Screen name="Main" component={TabsNavigator} options={{ headerShown: false }} />
+                <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: t("تفاصيل الإعلان") }} />
+                <Stack.Screen name="Post" component={PostScreen} options={{ title: t("إضافة إعلان") }} />
+                <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: t("المفضلة") }} />
+                <Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: t("إعلاناتي") }} />
+                <Stack.Screen name="Chat" component={ChatScreen} options={{ title: t("الرسائل") }} />
+                <Stack.Screen name="Search" component={SearchScreen} options={{ title: t("بحث") }} />
+                <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: t("التصنيفات") }} />
+                <Stack.Screen name="CategoryListings" component={CategoryListingsScreen} options={({ route }) => ({ title: route.params?.name || "" })} />
+                <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: t("الإشعارات") }} />
+                <Stack.Screen name="NotifSettings" component={NotifSettingsScreen} options={{ title: t("إعدادات الإشعارات") }} />
+                <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: t("الأبحاث المحفوظة") }} />
+                <Stack.Screen name="Following" component={FollowingScreen} options={{ title: t("متابعاتي") }} />
+                <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("الإعدادات") }} />
+                <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
+                <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: t("الملف الشخصي للبائع") }} />
+                <Stack.Screen name="MapTab" component={MapScreen} options={{ title: t("الخريطة") }} />
+                <Stack.Screen name="Deals" component={DealsScreen} options={{ title: t("صفقات اليوم") }} />
+                <Stack.Screen name="Auctions" component={AuctionsScreen} options={{ title: t("المزادات") }} />
+                <Stack.Screen name="Flights" component={FlightsScreen} options={{ title: t("حجز الطيران") }} />
+                <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: t("محفظتي") }} />
+                <Stack.Screen name="AIAssistant" component={AIAssistantScreen} options={{ title: t("المساعد الذكي") }} />
+                {/* Auth screens — always available so guests can sign up */}
+                <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="Register" component={RegisterScreen} options={{ title: t("إنشاء حساب") }} />
+                <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: t("نسيت كلمة المرور؟") }} />
+                <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: t("إعادة تعيين كلمة المرور") }} />
             </Stack.Navigator>
         </NavigationContainer>
     );
@@ -153,11 +144,13 @@ function Navigation() {
 
 export default function App() {
     return (
-        <I18nProvider>
-            <AuthProvider>
-                <Navigation />
-                <StatusBar style="auto" />
-            </AuthProvider>
-        </I18nProvider>
+        <SafeAreaProvider>
+            <I18nProvider>
+                <AuthProvider>
+                    <Navigation />
+                    <StatusBar style="dark" />
+                </AuthProvider>
+            </I18nProvider>
+        </SafeAreaProvider>
     );
 }

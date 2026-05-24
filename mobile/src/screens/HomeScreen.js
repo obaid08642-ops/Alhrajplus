@@ -1,251 +1,345 @@
-import { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, TextInput, ScrollView, TouchableOpacity, RefreshControl, SafeAreaView, Image, Linking } from "react-native";
+// HomeScreen — full visual parity with web /app/frontend/src/pages/HomePage.js
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import {
+    View, Text, ScrollView, TouchableOpacity, FlatList, Image,
+    StyleSheet, RefreshControl, ActivityIndicator, Dimensions, StatusBar,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
+import * as LucideIcons from "lucide-react-native";
+import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Bell, Globe } from "lucide-react-native";
 import api from "../api";
-import { theme } from "../theme";
-import ListingCard from "../components/ListingCard";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
+import { colors, radius, shadow } from "../theme";
+import ListingCard from "../components/ListingCard";
 
-// Inline ad card — appears every 6 listings (parity with web HomePage).
-function MobileAdCard({ ad }) {
-    if (!ad) return null;
-    const open = () => { if (ad.link_url) Linking.openURL(ad.link_url).catch(() => {}); };
-    return (
-        <TouchableOpacity onPress={open} activeOpacity={0.9} style={styles.adCard} testID={`home-ad-${ad.id}`}>
-            {ad.image_url ? <Image source={{ uri: ad.image_url }} style={styles.adImage} /> : null}
-            <View style={styles.adBadge}><Text style={styles.adBadgeText}>{"إعلان"}</Text></View>
-            {ad.title ? <Text style={styles.adTitle} numberOfLines={1}>{ad.title}</Text> : null}
-        </TouchableOpacity>
-    );
-}
+const { width: SCREEN_W } = Dimensions.get("window");
+const CARD_GAP = 10;
+const CARD_W = (SCREEN_W - 16 * 2 - CARD_GAP) / 2;
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen() {
+    const nav = useNavigation();
     const { user } = useAuth();
     const { t, lang } = useI18n();
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
-    const [trending, setTrending] = useState([]);
-    const [recommended, setRecommended] = useState([]);
-    const [recent, setRecent] = useState([]);
-    const [ads, setAds] = useState([]);
-    const [error, setError] = useState(false);
-    const [q, setQ] = useState("");
-    const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [showAllCats, setShowAllCats] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const inflightRef = useRef(false);
 
-    const load = async () => {
-        setError(false);
+    const fetchAll = useCallback(async (reset = false) => {
+        if (reset) { setRefreshing(true); setPage(1); setHasMore(true); }
+        else setLoading(true);
         try {
-            const [cats, lists, tr, rec, rv, adsRes] = await Promise.all([
+            const [cats, lists] = await Promise.all([
                 api.get("/meta/categories", { params: { lang } }),
-                api.get("/listings", { params: { country_code: user?.country_code, limit: 30 } }),
-                api.get("/listings/trending", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
-                api.get("/listings/recommended", { params: { country_code: user?.country_code, limit: 10 } }).catch(() => ({ data: { items: [] } })),
-                user ? api.get("/listings/recent", { params: { limit: 10 } }).catch(() => ({ data: { items: [] } })) : Promise.resolve({ data: { items: [] } }),
-                api.get("/ads", { params: { placement: "home_middle" } }).catch(() => ({ data: [] })),
+                api.get("/listings", { params: { limit: 20, page: 1 } }),
             ]);
-            setCategories(cats.data);
-            setListings(lists.data.items || []);
-            setTrending(tr.data?.items || []);
-            setRecommended(rec.data?.items || []);
-            setRecent(rv.data?.items || []);
-            setAds(Array.isArray(adsRes.data) ? adsRes.data : (adsRes.data?.items || []));
-        } catch (_) {
-            setError(true);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
+            setCategories(cats.data || []);
+            const items = lists.data.items || [];
+            setListings(items);
+            if (items.length < 20) setHasMore(false);
+        } catch (_) {}
+        finally { setLoading(false); setRefreshing(false); }
+    }, [lang]);
 
-    useEffect(() => { load(); }, [user, lang]);
+    useEffect(() => { fetchAll(); }, [fetchAll]);
 
-    const onSearch = () => {
-        if (q.trim()) navigation.navigate("Search", { q: q.trim() });
-    };
+    const loadMore = useCallback(async () => {
+        if (loadingMore || !hasMore || inflightRef.current) return;
+        inflightRef.current = true;
+        setLoadingMore(true);
+        try {
+            const { data } = await api.get("/listings", { params: { limit: 20, page: page + 1 } });
+            const next = data.items || [];
+            setListings((prev) => [...prev, ...next]);
+            setPage((p) => p + 1);
+            if (next.length < 20) setHasMore(false);
+        } catch (_) { setHasMore(false); }
+        finally { setLoadingMore(false); inflightRef.current = false; }
+    }, [page, hasMore, loadingMore]);
+
+    const visibleCats = showAllCats ? categories : categories.slice(0, 8);
+
+    const Header = useMemo(() => (
+        <View>
+            <TopBar nav={nav} />
+            <Hero nav={nav} />
+            <QuickActions nav={nav} />
+            <CategoriesStrip cats={visibleCats} nav={nav} lang={lang} expanded={showAllCats} onToggle={() => setShowAllCats((s) => !s)} total={categories.length} />
+            <View style={styles.sectionHead}>
+                <View>
+                    <Text style={styles.sectionTitle}>قريب منك</Text>
+                    <Text style={styles.sectionSub}>إعلانات في مدينتك ومدن قريبة</Text>
+                </View>
+            </View>
+        </View>
+    ), [nav, visibleCats, categories.length, showAllCats, lang]);
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <View style={styles.logo}>
-                    <Text style={styles.logoMain}>الحراج</Text>
-                    <Text style={styles.logoSub}>بلس</Text>
-                </View>
-                <TouchableOpacity onPress={() => navigation.navigate("ProfileTab")} style={styles.avatar}>
-                    <Text style={styles.avatarText}>{user?.name?.[0] || "?"}</Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.searchBox}>
-                <TextInput
-                    value={q}
-                    onChangeText={setQ}
-                    placeholder={t("ابحث عن إعلان...")}
-                    placeholderTextColor={theme.colors.textMuted}
-                    onSubmitEditing={onSearch}
-                    style={styles.searchInput}
-                    testID="mobile-search-input"
-                />
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catStrip} contentContainerStyle={{ paddingHorizontal: 12 }}>
-                {categories.slice(0, 12).map((c) => (
-                    <TouchableOpacity
-                        key={c.key}
-                        onPress={() => navigation.navigate("CategoryListings", { key: c.key, name: c.name || c.name_ar || c.key })}
-                        style={styles.catChip}
-                    >
-                        <Text style={styles.catText}>{c.name || c.name_ar || c.key}</Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
+            <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
             <FlatList
-                data={(() => {
-                    // Inject an ad every 6 listings (parity with web HomePage).
-                    if (!ads.length) return listings;
-                    const out = [];
-                    listings.forEach((it, idx) => {
-                        out.push(it);
-                        if ((idx + 1) % 6 === 0) {
-                            const ad = ads[Math.floor(idx / 6) % ads.length];
-                            if (ad) out.push({ __ad: true, ...ad });
-                        }
-                    });
-                    return out;
-                })()}
+                data={listings}
+                keyExtractor={(item) => item.id}
                 numColumns={2}
-                keyExtractor={(item, idx) => item.__ad ? `ad-${item.id}-${idx}` : item.id}
-                renderItem={({ item }) => item.__ad ? <MobileAdCard ad={item} /> : <ListingCard listing={item} />}
-                ListHeaderComponent={
-                    <>
-                        {recent.length > 0 && (
-                            <View style={{ marginBottom: 8 }}>
-                                <Text style={styles.sectionTitle}>🕒 {t("شُوهدت مؤخراً")}</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
-                                    {recent.map((it) => (
-                                        <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
-                                            <ListingCard listing={it} />
-                                        </View>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        )}
-                        {trending.length > 0 && (
-                            <View style={{ marginBottom: 8 }}>
-                                <Text style={styles.sectionTitle}>🔥 {t("الأكثر مشاهدة")}</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
-                                    {trending.map((it) => (
-                                        <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
-                                            <ListingCard listing={it} />
-                                        </View>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        )}
-                        {recommended.length > 0 && (
-                            <View style={{ marginBottom: 8 }}>
-                                <Text style={styles.sectionTitle}>✨ {t("مقترحات لك")}</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
-                                    {recommended.map((it) => (
-                                        <View key={it.id} style={{ width: 160, marginEnd: 8 }}>
-                                            <ListingCard listing={it} />
-                                        </View>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        )}
-                    </>
-                }
-                contentContainerStyle={{ padding: 8, paddingBottom: 80 }}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
-                ListEmptyComponent={
-                    loading ? (
-                        <View style={styles.skeletonWrap}>
-                            {[...Array(6)].map((_, i) => (
-                                <View key={i} style={styles.skeletonCard}>
-                                    <View style={styles.skeletonShimmer} />
-                                </View>
-                            ))}
-                        </View>
-                    ) : error ? (
-                        <View style={styles.errorWrap}>
-                            <Text style={styles.errorIcon}>⚠️</Text>
-                            <Text style={styles.errorText}>{t("تعذر تحميل البيانات")}</Text>
-                            <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={styles.retryBtn} testID="mobile-retry-btn">
-                                <Text style={styles.retryText}>{t("إعادة المحاولة")}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <View style={styles.empty}><Text style={styles.emptyText}>{t("لا توجد بيانات")}</Text></View>
-                    )
-                }
+                columnWrapperStyle={{ gap: CARD_GAP, paddingHorizontal: 12, marginBottom: CARD_GAP }}
+                contentContainerStyle={{ paddingBottom: 130 }}
+                ListHeaderComponent={Header}
+                renderItem={({ item }) => (
+                    <View style={{ width: CARD_W }}>
+                        <ListingCard listing={item} />
+                    </View>
+                )}
+                ListEmptyComponent={loading ? (
+                    <View style={{ padding: 32, alignItems: "center" }}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                    </View>
+                ) : (
+                    <View style={styles.empty}>
+                        <Text style={styles.mutedCenter}>لا توجد نتائج</Text>
+                    </View>
+                )}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchAll(true)} tintColor={colors.primary} />}
+                onEndReached={loadMore}
+                onEndReachedThreshold={0.6}
+                ListFooterComponent={loadingMore ? (
+                    <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+                ) : (!hasMore && listings.length > 0 ? (
+                    <Text style={[styles.mutedCenter, { marginVertical: 16 }]}>وصلت لنهاية القائمة</Text>
+                ) : null)}
+                showsVerticalScrollIndicator={false}
             />
-
-            <TouchableOpacity
-                style={styles.fab}
-                onPress={() => navigation.navigate("Post")}
-                testID="mobile-post-fab"
-            >
-                <Text style={styles.fabText}>+</Text>
-            </TouchableOpacity>
-        </SafeAreaView>
+            {!user && <CTASection nav={nav} />}
+        </View>
     );
 }
 
+// ====================== TopBar ======================
+function TopBar({ nav }) {
+    return (
+        <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox}>
+                <SearchIcon size={16} color={colors.textMuted} />
+                <Text style={styles.searchPh} numberOfLines={1}>ابحث عن أي شيء... (مدعوم بالذكاء الاصطناعي)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => nav.navigate("Notifications")} style={styles.iconBtn}>
+                <Bell size={20} color={colors.text} />
+            </TouchableOpacity>
+        </View>
+    );
+}
+
+// ====================== Hero ======================
+function Hero({ nav }) {
+    return (
+        <View style={{ paddingHorizontal: 12, marginTop: 6 }}>
+            <View style={[styles.heroWrap, shadow.card]}>
+                <LinearGradient
+                    colors={["#0F1A35", "#1A2952", "#0F1A35"]}
+                    start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFillObject}
+                />
+                {/* glow blobs */}
+                <View style={[styles.glowBlob, { top: -40, right: -40, backgroundColor: "rgba(79,182,230,0.25)" }]} />
+                <View style={[styles.glowBlob, { bottom: -40, left: -40, backgroundColor: "rgba(255,209,102,0.12)" }]} />
+
+                <View style={styles.heroInner}>
+                    <View style={styles.aiBadge}>
+                        <Sparkles size={11} color={colors.primary} />
+                        <Text style={styles.aiBadgeText}>مدعوم بالذكاء الاصطناعي</Text>
+                    </View>
+                    <Text style={styles.heroTitle}>
+                        بيع، اشترِ، استأجر،{" "}
+                        <Text style={{ color: colors.primary }}>وظّف</Text>
+                    </Text>
+                    <Text style={styles.heroSubtitle}>أكبر سوق رقمي للخليج العربي — كل شيء في مكان واحد</Text>
+                    <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+                        <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.heroPrimaryBtn}>
+                            <Plus size={15} color="#fff" strokeWidth={3} />
+                            <Text style={styles.heroPrimaryText}>أنشر مجاناً</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => nav.navigate("MapTab")} style={styles.heroSecondaryBtn}>
+                            <Text style={styles.heroSecondaryText}>🗺️ خريطة قريبة</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </View>
+    );
+}
+
+// ====================== Quick Actions ======================
+function QuickActions({ nav }) {
+    const items = [
+        { to: "Deals", icon: "🔥", label: "صفقات", bg: ["#D1FAE5", "#FEE2E2"] },
+        { to: "Auctions", icon: "🔨", label: "مزادات", bg: ["#FEF3C7", "#FEF9C3"] },
+        { to: "ReelsTab", icon: "🎬", label: "قصص", bg: ["#FCE7F3", "#FDF2F8"] },
+        { to: "Flights", icon: "✈️", label: "طيران", bg: ["#DBEAFE", "#F0F9FF"] },
+        { to: "MapTab", icon: "🗺️", label: "خريطة", bg: ["#D1FAE5", "#ECFDF5"] },
+    ];
+    return (
+        <View style={styles.quickWrap}>
+            {items.map((it) => (
+                <TouchableOpacity key={it.label} onPress={() => nav.navigate(it.to)} style={styles.quickItem} activeOpacity={0.85}>
+                    <LinearGradient colors={it.bg} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                    <Text style={{ fontSize: 22 }}>{it.icon}</Text>
+                    <Text style={styles.quickLabel}>{it.label}</Text>
+                </TouchableOpacity>
+            ))}
+        </View>
+    );
+}
+
+// ====================== Categories Strip ======================
+function CategoriesStrip({ cats, nav, lang, expanded, onToggle, total }) {
+    return (
+        <View style={{ paddingHorizontal: 12, marginTop: 16 }}>
+            <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>الأقسام</Text>
+                {total > 8 && (
+                    <TouchableOpacity onPress={onToggle} style={styles.toggleBtn}>
+                        <Text style={styles.toggleText}>{expanded ? "عرض أقل" : "عرض الكل"}</Text>
+                        <ChevronDown size={13} color={colors.primary} style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }} />
+                    </TouchableOpacity>
+                )}
+            </View>
+            <View style={styles.catsGrid}>
+                {cats.map((c) => {
+                    const Icon = LucideIcons[c.icon] || LucideIcons.Shapes;
+                    const name = c.name || c.name_ar || c.name_en || c.key;
+                    return (
+                        <TouchableOpacity
+                            key={c.key}
+                            onPress={() => nav.navigate("CategoryListings", { categoryKey: c.key, name })}
+                            style={styles.catItem}
+                            activeOpacity={0.85}
+                        >
+                            <View style={styles.catIconWrap}>
+                                <Icon size={22} color={colors.primary} strokeWidth={2.2} />
+                            </View>
+                            <Text style={styles.catName} numberOfLines={1}>{name}</Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
+// ====================== CTA Section (for guests) ======================
+function CTASection({ nav }) {
+    return (
+        <View style={styles.ctaWrap}>
+            <LinearGradient colors={["#0F1A35", "#1A2952"]} style={StyleSheet.absoluteFillObject} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} />
+            <View style={{ padding: 18 }}>
+                <Text style={styles.ctaTitle}>انضم اليوم — مجاناً تماماً</Text>
+                <Text style={styles.ctaSub}>سجّل في دقيقة وابدأ البيع والشراء</Text>
+                <TouchableOpacity onPress={() => nav.navigate("Login")} style={styles.ctaBtn}>
+                    <Text style={styles.ctaBtnText}>إنشاء حساب</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+}
+
+// ====================== Styles ======================
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.bg },
-    header: {
-        paddingHorizontal: 16, paddingVertical: 12,
+    // TopBar
+    topBar: {
+        flexDirection: "row", alignItems: "center", gap: 8,
+        paddingHorizontal: 12, paddingTop: 50, paddingBottom: 10,
+        backgroundColor: colors.bg,
+    },
+    searchBox: {
+        flex: 1, flexDirection: "row", alignItems: "center", gap: 8,
+        backgroundColor: colors.surface, borderRadius: 999,
+        borderWidth: 1, borderColor: colors.border,
+        paddingHorizontal: 14, paddingVertical: 10,
+    },
+    searchPh: { flex: 1, color: colors.textMuted, fontSize: 12 },
+    iconBtn: {
+        width: 42, height: 42, borderRadius: 999,
+        backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+        alignItems: "center", justifyContent: "center",
+    },
+    // Hero
+    heroWrap: {
+        borderRadius: 24, overflow: "hidden",
+        backgroundColor: colors.secondary, position: "relative",
+    },
+    glowBlob: {
+        position: "absolute", width: 200, height: 200, borderRadius: 999, opacity: 0.7,
+    },
+    heroInner: { paddingHorizontal: 18, paddingVertical: 22, position: "relative" },
+    aiBadge: {
+        alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4,
+        backgroundColor: "rgba(79,182,230,0.18)", borderColor: "rgba(79,182,230,0.4)",
+        borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4,
+        marginBottom: 10,
+    },
+    aiBadgeText: { color: colors.primary, fontSize: 10, fontWeight: "800" },
+    heroTitle: { color: "#fff", fontSize: 26, fontWeight: "900", lineHeight: 32, marginBottom: 4 },
+    heroSubtitle: { color: "rgba(255,255,255,0.7)", fontSize: 11.5, lineHeight: 16 },
+    heroPrimaryBtn: {
+        backgroundColor: colors.primary, borderRadius: 999,
+        paddingHorizontal: 16, paddingVertical: 10,
+        flexDirection: "row", alignItems: "center", gap: 5,
+    },
+    heroPrimaryText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+    heroSecondaryBtn: {
+        backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.3)",
+        borderWidth: 1, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10,
+    },
+    heroSecondaryText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+    // Quick actions
+    quickWrap: {
+        flexDirection: "row", gap: 8, paddingHorizontal: 12, marginTop: 14,
+    },
+    quickItem: {
+        flex: 1, aspectRatio: 1, borderRadius: 18, overflow: "hidden",
+        borderWidth: 1, borderColor: colors.border,
+        alignItems: "center", justifyContent: "center", gap: 4,
+    },
+    quickLabel: { fontSize: 10, fontWeight: "800", color: colors.text, textAlign: "center" },
+    // Section heads
+    sectionHead: {
         flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-        backgroundColor: theme.colors.surface,
-        borderBottomWidth: 1, borderBottomColor: theme.colors.border,
+        paddingHorizontal: 12, marginTop: 18, marginBottom: 8,
     },
-    logo: { flexDirection: "row", alignItems: "baseline" },
-    logoMain: { fontSize: 22, fontWeight: "900", color: theme.colors.secondary },
-    logoSub: { fontSize: 14, fontWeight: "700", color: theme.colors.primary, marginStart: 4 },
-    avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.primary, justifyContent: "center", alignItems: "center" },
-    avatarText: { color: theme.colors.primaryFg, fontWeight: "900" },
-    searchBox: { padding: 12 },
-    searchInput: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.radius.full,
-        paddingHorizontal: 18, paddingVertical: 12,
-        borderWidth: 1, borderColor: theme.colors.border,
-        textAlign: "right", color: theme.colors.text, fontSize: 14,
+    sectionTitle: { fontSize: 18, fontWeight: "900", color: colors.text },
+    sectionSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+    toggleBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
+    toggleText: { fontSize: 11, fontWeight: "800", color: colors.primary },
+    // Categories
+    catsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    catItem: {
+        width: (SCREEN_W - 24 - 8 * 3) / 4,
+        backgroundColor: colors.surface, borderRadius: radius.xl,
+        borderWidth: 1, borderColor: colors.border,
+        alignItems: "center", padding: 10, gap: 5,
     },
-    catStrip: { maxHeight: 60, marginBottom: 4 },
-    catChip: {
-        backgroundColor: theme.colors.surface,
-        paddingHorizontal: 14, paddingVertical: 8,
-        borderRadius: theme.radius.full,
-        borderWidth: 1, borderColor: theme.colors.border,
-        marginHorizontal: 4,
+    catIconWrap: {
+        width: 44, height: 44, borderRadius: 14,
+        backgroundColor: "rgba(79,182,230,0.15)",
+        alignItems: "center", justifyContent: "center",
     },
-    catText: { fontSize: 12, fontWeight: "700", color: theme.colors.text },
-    sectionTitle: { fontSize: 14, fontWeight: "900", color: theme.colors.text, paddingHorizontal: 8, paddingVertical: 6, textAlign: "right" },
-    skeletonWrap: { flexDirection: "row", flexWrap: "wrap", padding: 4 },
-    skeletonCard: { width: "48%", aspectRatio: 0.75, margin: "1%", borderRadius: 12, backgroundColor: theme.colors.surfaceElevated, opacity: 0.6, overflow: "hidden" },
-    skeletonShimmer: { width: "60%", height: "100%", backgroundColor: theme.colors.surface, opacity: 0.4 },
-    errorWrap: { padding: 32, alignItems: "center" },
-    errorIcon: { fontSize: 36, marginBottom: 8 },
-    errorText: { color: theme.colors.textMuted, marginBottom: 12, textAlign: "center" },
-    retryBtn: { backgroundColor: theme.colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: theme.radius.full },
-    retryText: { color: theme.colors.primaryFg, fontWeight: "900" },
-    adCard: { width: "48%", aspectRatio: 0.85, margin: "1%", borderRadius: 12, overflow: "hidden", backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border, position: "relative" },
-    adImage: { width: "100%", height: "100%" },
-    adBadge: { position: "absolute", top: 6, end: 6, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-    adBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900" },
-    adTitle: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 6, color: "#fff", backgroundColor: "rgba(0,0,0,0.45)", fontSize: 11, fontWeight: "800", textAlign: "right" },
-    empty: { padding: 40, alignItems: "center" },
-    emptyText: { color: theme.colors.textMuted },
-    fab: {
-        position: "absolute", bottom: 24, alignSelf: "center",
-        backgroundColor: theme.colors.primary,
-        width: 56, height: 56, borderRadius: 28,
-        justifyContent: "center", alignItems: "center",
-        shadowColor: "#000", shadowOpacity: 0.25, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10,
-        elevation: 6,
+    catName: { fontSize: 10.5, fontWeight: "700", color: colors.text, textAlign: "center" },
+    // Empty/loading
+    empty: { padding: 32, marginHorizontal: 12, alignItems: "center", backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border },
+    mutedCenter: { color: colors.textMuted, fontSize: 13, textAlign: "center" },
+    // CTA
+    ctaWrap: {
+        position: "absolute", bottom: 110, left: 12, right: 12,
+        borderRadius: 22, overflow: "hidden",
     },
-    fabText: { color: theme.colors.primaryFg, fontSize: 30, fontWeight: "900", lineHeight: 32 },
+    ctaTitle: { color: "#fff", fontSize: 16, fontWeight: "900", marginBottom: 4 },
+    ctaSub: { color: "rgba(255,255,255,0.75)", fontSize: 11, marginBottom: 10 },
+    ctaBtn: { backgroundColor: colors.primary, borderRadius: 999, alignSelf: "flex-start", paddingHorizontal: 18, paddingVertical: 8 },
+    ctaBtnText: { color: "#fff", fontWeight: "800", fontSize: 12 },
 });

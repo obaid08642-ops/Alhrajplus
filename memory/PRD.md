@@ -740,3 +740,20 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
   - ✅ Profile menu: added "محفظتي" entry above settings.
   - ✅ Mobile build verified: Android + iOS JS bundles export successfully (~2.81 MB each).
   - ✅ Manual curl tests passed: AI returns Arabic reply (197 chars), wallet topup → balance 100 SAR, transaction logged.
+
+- **Feb 2026 (Session N+2) — Mobile Full Native Rebuild Phase 1**:
+  - ✅ Critical fix: Removed `expo-av` (deprecated in SDK 54), migrated voice notes to `expo-audio` with new `AudioModule/AudioRecorder` API.
+  - ✅ Added native peer deps: `expo-asset`, `expo-system-ui`, `lucide-react-native`, `react-native-svg`, `expo-linear-gradient`, `@react-native-community/datetimepicker`.
+  - ✅ `expo-doctor`: 18/18 PASSED. Removed deprecated `sdkVersion` from app.json.
+  - ✅ Rebuilt design system (`src/theme.js`) with exact web color tokens (primary #4FB6E6, accent #FFD166, etc.).
+  - ✅ Created `FloatingTabBar.js` — glass pill + animated holographic "+" FAB with pulse rings, identical to web BottomNav.js.
+  - ✅ Rebuilt `HomeScreen.js` to mirror web HomePage: TopBar with AI search box, Hero with gradient + glow blobs + "بيع، اشترِ، استأجر، وظّف", QuickActions (5 colored tiles: Deals/Auctions/Reels/Flights/Map), Categories grid (4 cols, expandable), Nearby section with FlatList infinite scroll + RefreshControl.
+  - ✅ Created `ListingCard.js` with image, favorite heart, boost badge, price + currency, city + verified check.
+  - ✅ Created 4 new native screens matching web exactly:
+    - `AuctionsScreen.js` — live auctions with bid modal, top bid display, bid history list.
+    - `FlightsScreen.js` — full flight search (60+ airports picker modal, date picker, trip type toggle, pax counter, 5 providers via Linking).
+    - `WalletScreen.js` — gradient balance hero, welcome bonus claim, transactions log, boost CTA.
+    - `AIAssistantScreen.js` — multi-turn chat with Gemini, session persistence (AsyncStorage), quick suggestion bubbles.
+  - ✅ App.js: guests can browse Main/Home (auth-required actions push Login); added stacks for Wallet, Auctions, Flights, AI Assistant, Deals, Map.
+  - ✅ Android bundle: 4.45 MB, iOS bundle: 4.44 MB — both export successfully via `npx expo export`.
+  - 🟡 Pending Phase 2 (next session): ListingDetail, PostListing with category fields, Search+Filters, ProfileScreen redesign, ChatScreen UI polish, MapScreen, full I18n for new screens.
