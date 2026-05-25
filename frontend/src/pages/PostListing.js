@@ -9,6 +9,7 @@ import { useCountry } from "@/contexts/CountryContext";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import GeoAutocomplete from "@/components/GeoAutocomplete";
+import CitySelect from "@/components/CitySelect";
 
 export default function PostListing() {
     const nav = useNavigate();
