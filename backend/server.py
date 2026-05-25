@@ -1043,10 +1043,12 @@ class MeUpdateIn(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     city: Optional[str] = None
+    country_code: Optional[str] = None  # 2-letter ISO; restricted to GCC + EG
     avatar_url: Optional[str] = None
     show_phone: Optional[bool] = None  # control whether buyers see the phone
 
 
+@api.put("/users/me")
 @api.put("/auth/me")
 async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
     update = {}
@@ -1057,18 +1059,21 @@ async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
     if body.phone is not None:
         p = (body.phone or "").strip().replace(" ", "").replace("-", "")
         if p:
-            cc = user.get("country_code", "SA")
+            cc = (body.country_code or user.get("country_code", "SA")).upper()
             rule = PHONE_RULES.get(cc)
             if rule:
                 pref = rule["prefix"] if isinstance(rule["prefix"], list) else [rule["prefix"]]
                 if len(p) != rule["length"] or not any(p.startswith(pp) for pp in pref):
                     raise HTTPException(400, "رقم الجوال غير صحيح")
             update["phone"] = p
-            # Build phone_full from country code
             country_phone_codes = {"SA": "+966", "AE": "+971", "KW": "+965", "QA": "+974", "BH": "+973", "OM": "+968", "EG": "+20"}
             update["phone_full"] = f"{country_phone_codes.get(cc, '+966')}{p}"
     if body.city is not None:
         update["city"] = body.city.strip()
+    if body.country_code is not None:
+        cc = (body.country_code or "").strip().upper()
+        if cc in {"SA", "AE", "KW", "QA", "BH", "OM", "EG"}:
+            update["country_code"] = cc
     if body.avatar_url is not None:
         update["avatar_url"] = body.avatar_url
     if body.show_phone is not None:
@@ -2005,6 +2010,73 @@ async def _upsert_apple_user(apple_sub: str, email: str, name: str, picture: Opt
     if user.get("banned"):
         raise HTTPException(403, "تم حظر حسابك")
     return user
+
+
+class AppleNativeIn(BaseModel):
+    identity_token: str
+    authorization_code: Optional[str] = None
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+
+
+@api.post("/auth/apple/native")
+async def apple_native_signin(body: AppleNativeIn):
+    """Native Sign-In with Apple (iOS).
+    iOS sends us the `identity_token` (JWT signed by Apple). We verify the
+    signature using Apple's public JWKS, extract the `sub` (Apple user id) and
+    email, then upsert the user and issue OUR JWT tokens.
+    """
+    if not body.identity_token:
+        raise HTTPException(400, "Missing identity_token")
+    if not APPLE_CLIENT_ID:
+        raise HTTPException(503, "Apple Sign-In is not configured on the server")
+    try:
+        # Fetch Apple JWKS (cached short-term via httpx)
+        async with httpx.AsyncClient(timeout=8.0) as cli:
+            jwks_r = await cli.get("https://appleid.apple.com/auth/keys")
+            jwks_r.raise_for_status()
+            jwks = jwks_r.json()
+        # Decode header to find the right key
+        unverified_header = jwt.get_unverified_header(body.identity_token)
+        kid = unverified_header.get("kid")
+        key_dict = None
+        for k in jwks.get("keys", []):
+            if k.get("kid") == kid:
+                key_dict = k
+                break
+        if not key_dict:
+            raise HTTPException(401, "Apple key id not found in JWKS")
+        # Build the public key from JWK
+        from jose import jwk as jose_jwk
+        pub_key = jose_jwk.construct(key_dict, algorithm="RS256")
+        # Apple supports multiple audiences: Services ID (web) AND App Bundle IDs (native).
+        allowed_aud = [a.strip() for a in (APPLE_CLIENT_ID + "," + os.environ.get("APPLE_BUNDLE_ID", "")).split(",") if a.strip()]
+        claims = jwt.decode(
+            body.identity_token,
+            pub_key,
+            algorithms=["RS256"],
+            audience=allowed_aud if len(allowed_aud) > 1 else allowed_aud[0],
+            issuer="https://appleid.apple.com",
+            options={"verify_at_hash": False},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"[apple/native] token verify failed: {e}")
+        raise HTTPException(401, "تعذر التحقق من تسجيل دخول Apple")
+
+    apple_sub = claims.get("sub") or body.user_id
+    if not apple_sub:
+        raise HTTPException(401, "Apple sub missing")
+    email = claims.get("email") or body.email or ""
+    name = body.full_name or ""
+
+    user = await _upsert_apple_user(apple_sub, email, name)
+    access = create_access_token(user["id"], user.get("email", ""), user.get("role", "user"))
+    refresh = create_refresh_token(user["id"])
+    safe_user = {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
+    return {"access_token": access, "refresh_token": refresh, "token": access, "user": safe_user}
 
 
 @api.get("/auth/apple/start")
@@ -3984,6 +4056,51 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         logger.warning(f"price-drop notify failed: {e}")
     new_item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
     return new_item
+
+@api.post("/listings/{listing_id}/pause")
+async def pause_listing(listing_id: str, user: dict = Depends(get_current_user)):
+    """Soft-pause a listing: it stays in the DB and the seller can resume it
+    anytime, but it is hidden from public listings/search/auctions/stories.
+    Different from delete (permanent) and sold (final)."""
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if item["user_id"] != user["id"]:
+        raise HTTPException(403, "غير مصرح")
+    if item.get("status") == "paused":
+        return {"ok": True, "already_paused": True}
+    await db.listings.update_one(
+        {"id": listing_id},
+        {"$set": {
+            "status": "paused",
+            "previous_status": item.get("status", "active"),
+            "paused_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    return {"ok": True}
+
+
+@api.post("/listings/{listing_id}/resume")
+async def resume_listing(listing_id: str, user: dict = Depends(get_current_user)):
+    """Resume a paused listing back to its previous status (usually active)."""
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if item["user_id"] != user["id"]:
+        raise HTTPException(403, "غير مصرح")
+    if item.get("status") != "paused":
+        return {"ok": True, "not_paused": True}
+    prev = item.get("previous_status") or "active"
+    await db.listings.update_one(
+        {"id": listing_id},
+        {"$set": {
+            "status": prev,
+            "resumed_at": datetime.now(timezone.utc).isoformat(),
+        },
+         "$unset": {"paused_at": "", "previous_status": ""}},
+    )
+    return {"ok": True, "status": prev}
+
 
 @api.post("/listings/{listing_id}/republish")
 async def republish_listing(listing_id: str, user: dict = Depends(get_current_user)):

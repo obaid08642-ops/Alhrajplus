@@ -28,7 +28,7 @@ function SocialButtons({ onSuccess }) {
                 <Text style={styles.googleIcon}>G</Text>
                 <Text style={styles.googleText}>{busy === "google" ? "..." : t("متابعة بحساب Google")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={run("apple", signInWithApple)} disabled={!!busy} style={[styles.appleBtn, busy && styles.btnDisabled]} testID="mobile-apple-btn">
+            <TouchableOpacity onPress={run("apple", signInWithApple)} disabled={!!busy || Platform.OS === "android"} style={[styles.appleBtn, busy && styles.btnDisabled, Platform.OS === "android" && { display: "none" }]} testID="mobile-apple-btn">
                 <Text style={styles.appleIcon}></Text>
                 <Text style={styles.appleText}>{busy === "apple" ? "..." : t("متابعة بحساب Apple")}</Text>
             </TouchableOpacity>

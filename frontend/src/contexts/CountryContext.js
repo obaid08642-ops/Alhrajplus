@@ -34,18 +34,19 @@ export function CountryProvider({ children }) {
     });
     const [showPicker, setShowPicker] = useState(false);
 
-    // Seed from user profile on first login if localStorage empty.
-    // STRICT: user's chosen country at signup takes priority over IP detect.
+    // Seed from user profile ONLY on initial login (when localStorage is empty).
+    // After the user has explicitly chosen a country (or we auto-detected one),
+    // `localStorage[STORAGE_KEY]` becomes the single source of truth — we never
+    // overwrite it from `user.country_code` again, otherwise hitting Refresh
+    // would silently snap the UI back to whatever is in the DB.
     useEffect(() => {
         if (!user || user === false) return;
         const fromUser = (user.country_code || "").toUpperCase();
         if (!fromUser || fromUser.length !== 2) return;
-        // If localStorage country differs from user.country_code AND user just
-        // logged in (no prior chosen country), use the profile value — this
-        // prevents IP detect from overriding the country chosen at signup.
         let stored = "";
         try { stored = localStorage.getItem(STORAGE_KEY) || ""; } catch (_) {}
-        if (!stored || stored !== fromUser) {
+        // Only seed when storage is empty. Never overwrite an existing choice.
+        if (!stored) {
             try { localStorage.setItem(STORAGE_KEY, fromUser); } catch (_) {}
             setCountryState(fromUser);
         }

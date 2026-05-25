@@ -49,26 +49,11 @@ export function CountryProvider({ children }) {
         })();
     }, []);
 
-    // When the auth profile loads and the user has a country_code that differs
-    // from the locally stored one, prefer the user's CHOICE at signup. This
-    // fixes the issue where someone registers as EG but the app shows SA.
-    useEffect(() => {
-        if (!hydrated) return;
-        let cancelled = false;
-        (async () => {
-            try {
-                const { data: me } = await api.get("/users/me");
-                if (cancelled) return;
-                const fromUser = (me?.country_code || "").toUpperCase();
-                if (!fromUser || fromUser.length !== 2) return;
-                if (fromUser !== country) {
-                    setCountryState(fromUser);
-                    await AsyncStorage.setItem(STORAGE_KEY, fromUser).catch(() => {});
-                }
-            } catch (_) {}
-        })();
-        return () => { cancelled = true; };
-    }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
+    // STRICT: localStorage is the source of truth. We DO NOT auto-sync the
+    // profile country into storage on every load — that caused refresh to
+    // silently snap users back to SA when their stored choice differed from
+    // the (stale) value in the DB. The user changes country only via
+    // setCountry(), which itself persists to both storage AND profile.
 
     const setCountry = useCallback(async (code) => {
         const c = (code || "").toUpperCase();

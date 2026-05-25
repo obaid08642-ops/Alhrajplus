@@ -1,5 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { Platform } from "react-native";
 import api, { saveToken, BACKEND_URL } from "./api";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -55,9 +57,41 @@ async function runOAuth(provider) {
 }
 
 export const signInWithGoogle   = () => runOAuth("google");
-export const signInWithApple    = () => runOAuth("apple");
 export const signInWithX        = () => runOAuth("x");
 export const signInWithSnapchat = () => runOAuth("snapchat");
+
+// Apple Sign-In:
+//   * iOS  → use the native button (REQUIRED by App Store guidelines whenever
+//     other third-party logins are present).
+//   * Android / Web → fall back to the OAuth web flow.
+export async function signInWithApple() {
+    if (Platform.OS === "ios") {
+        const available = await AppleAuthentication.isAvailableAsync();
+        if (!available) throw new Error("Apple Sign-In غير متوفر على هذا الجهاز");
+        const credential = await AppleAuthentication.signInAsync({
+            requestedScopes: [
+                AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                AppleAuthentication.AppleAuthenticationScope.EMAIL,
+            ],
+        });
+        // identityToken is the JWT signed by Apple — backend verifies it.
+        const { data } = await api.post("/auth/apple/native", {
+            identity_token: credential.identityToken,
+            authorization_code: credential.authorizationCode,
+            user_id: credential.user,
+            email: credential.email,
+            full_name: credential.fullName
+                ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(" ")
+                : null,
+        });
+        const access = data?.access_token || data?.token;
+        const refresh = data?.refresh_token || null;
+        if (!access) throw new Error("لم نتلق رمز الوصول");
+        await saveToken(access, refresh);
+        return { access_token: access, refresh_token: refresh };
+    }
+    return runOAuth("apple");
+}
 
 // Convenience: fetch /auth/me after OAuth so callers can update their context.
 export async function fetchMe() {

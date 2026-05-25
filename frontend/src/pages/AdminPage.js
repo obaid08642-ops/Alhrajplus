@@ -26,6 +26,7 @@ export default function AdminPage() {
         { key: "seo", label: tr("SEO"), icon: SearchIcon },
         { key: "notifications", label: tr("الإشعارات"), icon: Bell },
         { key: "ads", label: tr("الإعلانات"), icon: ImageIcon },
+        { key: "geo", label: tr("المدن والأحياء"), icon: SearchIcon },
         { key: "logs", label: tr("سجلات الأدمن"), icon: Shield },
         { key: "theme", label: tr("الهوية البصرية"), icon: Palette },
     ];
@@ -53,6 +54,7 @@ export default function AdminPage() {
             {tab === "seo" && <SEOPanel />}
             {tab === "notifications" && <NotificationsPanel />}
             {tab === "ads" && <AdsPanel />}
+            {tab === "geo" && <GeoPanel />}
             {tab === "logs" && <LogsPanel />}
             {tab === "theme" && <ThemePanel />}
         </div>
@@ -616,6 +618,158 @@ function AdsPanel() {
                     </div>
                 ))}
             </div>
+        </div>
+    );
+}
+
+function GeoPanel() {
+    const [countries, setCountries] = useState([]);
+    const [selCountry, setSelCountry] = useState("SA");
+    const [overrides, setOverrides] = useState(null);
+    const [newCity, setNewCity] = useState({ name_ar: "", name_en: "", districts: "" });
+    const [selCity, setSelCity] = useState("");
+    const [newDistrict, setNewDistrict] = useState("");
+    const [busy, setBusy] = useState(false);
+
+    const load = async () => {
+        try {
+            const [c, o] = await Promise.all([
+                api.get("/meta/countries"),
+                api.get("/admin/geo/overrides"),
+            ]);
+            setCountries(c.data || []);
+            const ov = (o.data || []).find((x) => x.country_code === selCountry);
+            setOverrides(ov || null);
+        } catch (_) {}
+    };
+    useEffect(() => { load(); /* eslint-disable-next-line */ }, [selCountry]);
+
+    const country = countries.find((c) => c.code === selCountry);
+    const cityNames = (country?.cities || []).map((x) => x.name_ar);
+    const districts = (country?.cities?.find((x) => x.name_ar === selCity)?.districts || []);
+
+    const addCity = async () => {
+        if (!newCity.name_ar.trim()) return;
+        setBusy(true);
+        try {
+            await api.post("/admin/geo/cities/add", {
+                country_code: selCountry,
+                name_ar: newCity.name_ar.trim(),
+                name_en: newCity.name_en.trim() || newCity.name_ar.trim(),
+                districts: newCity.districts.split(",").map((s) => s.trim()).filter(Boolean),
+            });
+            setNewCity({ name_ar: "", name_en: "", districts: "" });
+            await load();
+        } catch (e) { alert(e.response?.data?.detail || tr("فشل الإضافة")); }
+        finally { setBusy(false); }
+    };
+
+    const removeCity = async (name) => {
+        if (!window.confirm(tr("حذف المدينة:") + " " + name + "؟")) return;
+        try { await api.post("/admin/geo/cities/remove", { country_code: selCountry, name_ar: name }); await load(); }
+        catch (e) { alert(e.response?.data?.detail || tr("فشل الحذف")); }
+    };
+
+    const addDistrict = async () => {
+        if (!selCity || !newDistrict.trim()) return;
+        try {
+            await api.post("/admin/geo/districts/update", {
+                country_code: selCountry, city_name_ar: selCity, add: [newDistrict.trim()],
+            });
+            setNewDistrict("");
+            await load();
+        } catch (e) { alert(e.response?.data?.detail || tr("فشل")); }
+    };
+
+    const removeDistrict = async (d) => {
+        if (!window.confirm(tr("حذف الحي:") + " " + d + "؟")) return;
+        try {
+            await api.post("/admin/geo/districts/update", {
+                country_code: selCountry, city_name_ar: selCity, remove: [d],
+            });
+            await load();
+        } catch (e) { alert(e.response?.data?.detail || tr("فشل")); }
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <h2 className="font-arabic font-black text-lg text-[var(--text)] mb-3 flex items-center gap-2">
+                    🌍 {tr("إدارة المدن والأحياء")}
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-3">
+                    {tr("التغييرات تظهر مباشرة لكل المستخدمين في خانة المدينة عند نشر إعلان جديد.")}
+                </p>
+                <div className="flex gap-2 flex-wrap mb-4">
+                    {(countries || []).map((c) => (
+                        <button
+                            key={c.code}
+                            data-testid={`geo-pick-${c.code}`}
+                            onClick={() => { setSelCountry(c.code); setSelCity(""); }}
+                            className={`rounded-full px-3 py-1.5 text-xs font-arabic font-bold border ${selCountry === c.code ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                        >
+                            {c.flag} {c.name_ar} ({(c.cities || []).length})
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Add city */}
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <h3 className="font-arabic font-black text-base text-[var(--text)] mb-3">➕ {tr("إضافة مدينة جديدة")}</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                    <input data-testid="new-city-ar" value={newCity.name_ar} onChange={(e) => setNewCity({ ...newCity, name_ar: e.target.value })} placeholder={tr("الاسم بالعربية *")} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none font-arabic-body" />
+                    <input data-testid="new-city-en" value={newCity.name_en} onChange={(e) => setNewCity({ ...newCity, name_en: e.target.value })} placeholder={tr("English name (optional)")} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none" dir="ltr" />
+                    <input data-testid="new-city-districts" value={newCity.districts} onChange={(e) => setNewCity({ ...newCity, districts: e.target.value })} placeholder={tr("الأحياء (مفصولة بفاصلة)")} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none font-arabic-body" />
+                </div>
+                <button data-testid="add-city-btn" onClick={addCity} disabled={busy || !newCity.name_ar.trim()} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-4 py-2 text-sm font-arabic font-bold disabled:opacity-50">
+                    {busy ? "..." : tr("إضافة المدينة")}
+                </button>
+            </div>
+
+            {/* List + manage districts */}
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <h3 className="font-arabic font-black text-base text-[var(--text)] mb-3">
+                    📍 {tr("مدن")} {country?.name_ar} ({cityNames.length})
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className="max-h-[400px] overflow-y-auto border border-[var(--border)] rounded-xl">
+                        {cityNames.map((cn) => (
+                            <div key={cn} className={`flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--border)]/50 last:border-0 ${selCity === cn ? "bg-[var(--primary)]/10" : ""}`}>
+                                <button onClick={() => setSelCity(cn)} className="text-sm font-arabic-body text-[var(--text)] flex-1 text-start truncate">{cn}</button>
+                                <button onClick={() => removeCity(cn)} className="text-red-500 text-xs px-2 py-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20">✕</button>
+                            </div>
+                        ))}
+                    </div>
+                    <div>
+                        {selCity ? (
+                            <div>
+                                <div className="font-arabic font-bold text-sm text-[var(--text)] mb-2">{tr("أحياء")} {selCity} ({districts.length}):</div>
+                                <div className="flex gap-2 mb-3">
+                                    <input data-testid="new-district-input" value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} placeholder={tr("اسم الحي الجديد")} className="flex-1 bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none font-arabic-body" onKeyDown={(e) => e.key === "Enter" && addDistrict()} />
+                                    <button data-testid="add-district-btn" onClick={addDistrict} disabled={!newDistrict.trim()} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-4 py-2 text-xs font-arabic font-bold disabled:opacity-50">{tr("إضافة")}</button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 max-h-[280px] overflow-y-auto">
+                                    {districts.map((d) => (
+                                        <span key={d} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-full px-2.5 py-1 text-xs font-arabic-body text-[var(--text)] flex items-center gap-1">
+                                            {d}
+                                            <button onClick={() => removeDistrict(d)} className="text-red-500 hover:text-red-700 text-[10px]">✕</button>
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-[var(--text-muted)] font-arabic-body text-center py-8">{tr("اختر مدينة من اليسار لإدارة أحيائها")}</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {overrides && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300 font-arabic-body">
+                    ℹ️ {tr("لهذه الدولة overrides مخصصة:")} <code className="text-[10px]">add_cities={overrides.add_cities?.length || 0}, remove={overrides.remove_cities?.length || 0}</code>
+                </div>
+            )}
         </div>
     );
 }

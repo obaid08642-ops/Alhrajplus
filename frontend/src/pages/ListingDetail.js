@@ -145,6 +145,22 @@ export default function ListingDetail() {
         nav(`/post?edit=${listing.id}`);
     };
 
+    const handlePauseToggle = async () => {
+        const isPaused = listing.status === "paused";
+        const msg = isPaused
+            ? tr("سيتم استئناف الإعلان وإظهاره مجدداً للمشترين. متابعة؟")
+            : tr("سيتم إيقاف الإعلان مؤقتاً (لن يظهر في القوائم) لكنه لن يُحذف. تستطيع استئنافه أي وقت. متابعة؟");
+        if (!window.confirm(msg)) return;
+        try {
+            await api.post(`/listings/${listing.id}/${isPaused ? "resume" : "pause"}`);
+            const r = await api.get(`/listings/${listing.id}`);
+            setListing(r.data);
+            alert(isPaused ? tr("✓ تم استئناف الإعلان") : tr("⏸️ تم إيقاف الإعلان مؤقتاً"));
+        } catch (e) {
+            alert(e.response?.data?.detail || tr("تعذر التحديث"));
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24">
             <ListingSEO listing={listing} />
@@ -160,6 +176,9 @@ export default function ListingDetail() {
                     </button>
                     <button data-testid="republish-btn" onClick={handleRepublish} className="bg-[var(--success)] hover:opacity-90 text-white rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1">
                         <RefreshCw className="w-3 h-3" /> تجديد النشر
+                    </button>
+                    <button data-testid="pause-resume-btn" onClick={handlePauseToggle} className={`${listing.status === "paused" ? "bg-emerald-500 text-white" : "bg-amber-500/15 text-amber-700 hover:bg-amber-500/25"} rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1`}>
+                        {listing.status === "paused" ? <>▶ {tr("استئناف")}</> : <>⏸ {tr("إيقاف مؤقت")}</>}
                     </button>
                     <button data-testid="mark-sold-btn" onClick={handleMarkSold} className="bg-[var(--accent)] hover:opacity-90 text-[var(--secondary)] rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> تم البيع
