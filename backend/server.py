@@ -3793,7 +3793,7 @@ class AISuggestCategoryIn(BaseModel):
     title: str = Field(min_length=2, max_length=200)
 
 
-_CAT_SUGGEST_CACHE: Dict[str, Tuple[float, str]] = {}
+_CAT_SUGGEST_CACHE: dict = {}
 
 
 @api.post("/ai/suggest-category")
@@ -3822,11 +3822,12 @@ async def ai_suggest_category(body: AISuggestCategoryIn):
         msg = UserMessage(text=f"عنوان الإعلان: {title}\nالفئات المتاحة: {', '.join(valid_keys)}\nالفئة الأنسب فقط:")
         reply = (await chat.send_message(msg) or "").strip().lower()
         # Clean reply — sometimes the model wraps in backticks
-        reply = reply.replace("`", "").replace("\"", "").replace("'", "").strip()
-        # Use the first matching valid key in the reply
+        reply = reply.replace("`", "").replace("\"", "").replace("'", "").replace("-", "_").strip()
+        # Use the first matching valid key in the reply.
+        # Also tolerate the model returning hyphen/underscore variants.
         chosen = ""
         for k in valid_keys:
-            if k in reply:
+            if k in reply or k.replace("_", "") in reply.replace("_", ""):
                 chosen = k
                 break
         if chosen:

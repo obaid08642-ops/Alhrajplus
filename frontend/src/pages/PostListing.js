@@ -125,14 +125,25 @@ export default function PostListing() {
             business: ["مشروع", "محل للبيع", "تنازل", "خلو", "شراكة"],
         };
         for (const [k, words] of Object.entries(KEYWORDS)) {
-            if (words.some((w) => title.includes(w))) {
+            if (words.some((w) => titleNorm.includes(w))) {
                 const exists = categories.find((c) => c.key === k);
                 if (exists) {
                     setForm((f) => ({ ...f, category: k }));
-                    break;
+                    return;
                 }
             }
         }
+        // No keyword match — fall back to AI suggestion (debounced).
+        const tid = setTimeout(async () => {
+            try {
+                const { data } = await api.post("/ai/suggest-category", { title: form.title.trim() });
+                if (!data?.category) return;
+                if (categories.find((c) => c.key === data.category)) {
+                    setForm((f) => f.category ? f : { ...f, category: data.category });
+                }
+            } catch (_) {}
+        }, 1200);
+        return () => clearTimeout(tid);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form.title]);
 

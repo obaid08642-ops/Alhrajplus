@@ -561,7 +561,11 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 </View>
             )}
 
-            {/* Category selector */}
+<Field label={t("العنوان") + " *"}>
+                <TextInput value={form.title} onChangeText={(v) => update("title", v)} placeholder={t("مثال: تويوتا كامري 2020 ممتازة")} placeholderTextColor={colors.textMuted} style={s.input} />
+            </Field>
+
+                        {/* Category selector */}
             <Field label={t("التصنيف") + " *"}>
                 <TouchableOpacity onPress={() => setCatPickerOpen(true)} style={s.input}>
                     <Text style={form.category ? s.inputText : s.inputPh}>
@@ -600,10 +604,6 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                     </View>
                 </View>
             </Modal>
-
-            <Field label={t("العنوان") + " *"}>
-                <TextInput value={form.title} onChangeText={(v) => update("title", v)} placeholder={t("مثال: تويوتا كامري 2020 ممتازة")} placeholderTextColor={colors.textMuted} style={s.input} />
-            </Field>
             <Field label={t("الوصف") + " *"}>
                 <TextInput value={form.description} onChangeText={(v) => update("description", v)} placeholder={t("اوصف منتجك بالتفصيل...")} placeholderTextColor={colors.textMuted} style={[s.input, { height: 110, textAlignVertical: "top" }]} multiline />
             </Field>
