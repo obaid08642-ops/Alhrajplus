@@ -148,7 +148,7 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "").strip()
 # Fallback to direct Gemini API key when running outside Emergent platform
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 if not EMERGENT_LLM_KEY and GEMINI_API_KEY:
-    EMERGENT_LLM_KEY = GEMINI_API_KEY  # emergentintegrations accepts direct Gemini keys too
+    EMERGENT_LLM_KEY = GEMINI_API_KEY  # Gemini keys are accepted directly by llm_shim
 X_CLIENT_ID = os.environ.get("X_CLIENT_ID", "").strip()
 X_CLIENT_SECRET = os.environ.get("X_CLIENT_SECRET", "").strip()
 SNAPCHAT_CLIENT_ID = os.environ.get("SNAPCHAT_CLIENT_ID", "").strip()
@@ -3612,9 +3612,9 @@ async def ai_image_search(body: AIImageSearchIn):
         raise HTTPException(400, "صورة غير صالحة")
 
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        from llm_shim import LlmChat, UserMessage, ImageContent
     except Exception as e:
-        logger.error(f"emergentintegrations import failed: {e}")
+        logger.error(f"llm_shim import failed: {e}")
         raise HTTPException(500, "خدمة الذكاء الاصطناعي غير متوفرة")
 
     chat = LlmChat(
@@ -3664,9 +3664,9 @@ async def ai_listing_autofill(body: AIListingFillIn):
     cat_keys = [c["key"] for c in CATEGORIES]
 
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        from llm_shim import LlmChat, UserMessage, ImageContent
     except Exception as e:
-        logger.error(f"emergentintegrations import failed: {e}")
+        logger.error(f"llm_shim import failed: {e}")
         raise HTTPException(500, "خدمة الذكاء الاصطناعي غير متوفرة")
 
     chat = LlmChat(
@@ -3757,9 +3757,9 @@ async def ai_translate(body: AITranslateIn):
         return {"text": cached["translated"], "cached": True}
 
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from llm_shim import LlmChat, UserMessage
     except Exception as e:
-        logger.error(f"emergentintegrations import failed: {e}")
+        logger.error(f"llm_shim import failed: {e}")
         raise HTTPException(500, "خدمة الترجمة غير متوفرة")
 
     target_name = LANG_NAMES[target]
@@ -4359,7 +4359,7 @@ async def ai_suggest_notifications():
     active_auctions = await db.listings.count_documents({"category": "auctions", "status": "active"})
 
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from llm_shim import LlmChat, UserMessage
         chat = LlmChat(            api_key=EMERGENT_LLM_KEY,
             session_id=f"notif-{uuid.uuid4().hex[:8]}",
             system_message=(
@@ -5135,9 +5135,9 @@ async def ai_assistant(body: AssistantIn, request: Request):
     if not EMERGENT_LLM_KEY:
         raise HTTPException(503, "Assistant temporarily unavailable")
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from llm_shim import LlmChat, UserMessage
     except Exception as e:
-        logger.error(f"emergentintegrations import failed: {e}")
+        logger.error(f"llm_shim import failed: {e}")
         raise HTTPException(503, "Failed to load AI library")
 
     # Pick language: body.lang > Accept-Language header > "ar" default
