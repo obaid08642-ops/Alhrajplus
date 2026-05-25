@@ -105,11 +105,23 @@ export default function PostListing() {
         const KEYWORDS = {
             cars: ["سيارة", "سياره", "كامري", "كرولا", "هوندا", "تويوتا", "نيسان", "بي ام", "بمب", "مرسيدس", "لكزس", "هيونداي", "كيا", "فورد", "car", "toyota", "honda", "bmw"],
             real_estate: ["شقة", "فيلا", "أرض", "ارض", "بيت", "منزل", "عمارة", "محل", "مكتب", "إيجار", "للإيجار", "تمليك", "للبيع شقة", "دور", "استراحة"],
-            electronics: ["موبايل", "جوال", "ايفون", "آيفون", "سامسونج", "هواوي", "لاب توب", "لابتوب", "تلفزيون", "كمبيوتر", "ساعة", "سماعة", "بلايستيشن", "iphone", "samsung", "laptop"],
+            phones: ["ايفون", "آيفون", "iphone", "سامسونج", "samsung", "هواوي", "huawei", "شاومي", "xiaomi", "ساعة ذكية", "smart watch", "تابلت", "tablet", "ايباد", "ipad", "جوال", "موبايل", "هاتف"],
+            electronics: ["لاب توب", "لابتوب", "laptop", "تلفزيون", "tv", "كمبيوتر", "سماعة", "بلايستيشن", "playstation", "اكس بوكس", "xbox", "شاشة", "مكيف", "ثلاجة", "غسالة"],
             furniture: ["كنبة", "كنب", "كرسي", "طاولة", "غرفة نوم", "سرير", "ديكور", "مفروشات", "ستارة", "خزانة"],
             fashion: ["ثوب", "عباية", "حذاء", "ملابس", "حقيبة", "شنطة", "جزمة", "فستان", "قميص", "بنطلون"],
             jobs: ["وظيفة", "موظف", "موظفة", "للعمل", "للتوظيف", "مطلوب موظف", "مطلوب عامل"],
             services: ["خدمة", "تركيب", "صيانة", "نقل عفش", "تنظيف", "سباك", "كهربائي", "دهان", "نجار"],
+            pets: ["قطة", "قط ", "كلب", "كلاب", "طيور", "عصافير", "ببغاء", "اسماك", "أسماك", "هامستر", "أرنب"],
+            beauty_health: ["عطر", "عطور", "مكياج", "كريم", "سيروم", "مكمل", "vitamin", "فيتامين", "perfume"],
+            food: ["عسل", "تمر", "حلويات", "كيك", "أكل منزلي", "اكل منزلي", "مخبوزات", "بقالة"],
+            equipment: ["لودر", "حفار", "شيول", "كرين", "خلاطة", "جرار", "مولد", "شاحنة", "تريلا", "ديانة"],
+            books_courses: ["كتاب", "كتب", "رواية", "كورس", "دورة", "مذكرة", "ملخص"],
+            tickets_events: ["تذاكر", "تذكرة", "حفل", "حفلة", "مباراة", "concert"],
+            sports: ["دراجة", "سيكل", "جيم", "كرة", "كرسي رياضي", "تخييم", "هوب"],
+            kids: ["مهد", "عربة اطفال", "كرسي سيارة", "حفاضات", "حفاظات", "العاب اطفال", "ألعاب أطفال", "لعبة طفل"],
+            games: ["بلايستيشن", "ps5", "ps4", "xbox", "نينتندو", "ألعاب فيديو", "لعبة"],
+            garden: ["نخلة", "ورد", "نبات", "بذور", "تربة", "سماد"],
+            business: ["مشروع", "محل للبيع", "تنازل", "خلو", "شراكة"],
         };
         for (const [k, words] of Object.entries(KEYWORDS)) {
             if (words.some((w) => title.includes(w))) {
@@ -466,8 +478,13 @@ export default function PostListing() {
 
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)]">{t("listing_details")}</h2>
 
-                    {/* Category picker — DROPDOWN (per user spec). Always visible; allows manual change.
-                        Title triggers auto-suggestion above; user can still override here. */}
+                    {/* TITLE FIRST — so auto-suggest can fill the category dropdown below. */}
+                    <div>
+                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("title")} *</label>
+                        <input data-testid="post-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={120} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("مثال: تويوتا كامري 2020 — وارد الخليج")} />
+                    </div>
+
+                    {/* Category dropdown — pre-filled by auto-suggest from the title above. */}
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                             {tr("التصنيف")} <span className="text-red-500">*</span>
@@ -552,10 +569,6 @@ export default function PostListing() {
                         </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("title")} *</label>
-                        <input data-testid="post-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={120} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("عنوان واضح وموجز")} />
-                    </div>
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("description")} *</label>
                         <textarea data-testid="post-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("اكتب وصفاً تفصيلياً...")} />

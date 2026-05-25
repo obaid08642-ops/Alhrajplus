@@ -135,6 +135,20 @@ export default function ChatPage() {
         api.get(`/listings/${initialListing}`).then(({ data }) => setListingCtx(data)).catch(() => setListingCtx(null));
     }, [initialListing]);
 
+    // Whenever the active conversation changes, look for a listing reference
+    // inside its messages and pin that listing as the sticky context card —
+    // so the link stays visible across reloads and after switching chats.
+    useEffect(() => {
+        if (!activeConvoId) return;
+        if (initialListing) return; // explicit deep-link wins
+        const withListing = (messages || []).find((m) => m.listing_id || m.listing?.id);
+        const lid = withListing?.listing_id || withListing?.listing?.id;
+        if (!lid) return;
+        // Avoid refetch if we already have the right listing pinned
+        if (listingCtx && (listingCtx.id === lid || listingCtx.slug === lid)) return;
+        api.get(`/listings/${lid}`).then(({ data }) => setListingCtx(data)).catch(() => {});
+    }, [activeConvoId, messages, initialListing, listingCtx]);
+
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
     const isAtBottomRef = useRef(true);

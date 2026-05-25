@@ -460,7 +460,123 @@ CATEGORIES = [
         ]
     },
     {
-        "key": "all", "name_ar": "كل الحراج", "name_en": "Everything Else", "icon": "Shapes", "order": 15,
+        "key": "phones", "name_ar": "جوالات وتابلت", "name_en": "Phones & Tablets", "icon": "Smartphone", "order": 15,
+        "subcategories": [
+            {"key": "smartphones", "name_ar": "هواتف ذكية", "name_en": "Smartphones"},
+            {"key": "tablets", "name_ar": "تابلت", "name_en": "Tablets"},
+            {"key": "phone_accessories", "name_ar": "إكسسوارات الجوال", "name_en": "Accessories"},
+            {"key": "smart_watches", "name_ar": "ساعات ذكية", "name_en": "Smart Watches"},
+        ],
+        "fields": [
+            {"key": "brand", "label_ar": "الماركة", "label_en": "Brand", "type": "select", "options": ["Apple", "Samsung", "Xiaomi", "Huawei", "Honor", "Oppo", "Realme", "OnePlus", "Google", "Nokia", "Vivo", "آخر"], "required": True},
+            {"key": "model", "label_ar": "الموديل", "label_en": "Model", "type": "text", "required": True, "placeholder": "iPhone 15 Pro / Galaxy S24..."},
+            {"key": "storage", "label_ar": "السعة", "label_en": "Storage", "type": "select", "options": ["32GB", "64GB", "128GB", "256GB", "512GB", "1TB", "آخر"], "required": False},
+            {"key": "ram", "label_ar": "الذاكرة (RAM)", "label_en": "RAM", "type": "select", "options": ["2GB", "3GB", "4GB", "6GB", "8GB", "12GB", "16GB"], "required": False},
+            {"key": "color", "label_ar": "اللون", "label_en": "Color", "type": "text", "required": False},
+            {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد بالعلبة", "كالجديد", "مستعمل ممتاز", "مستعمل جيد", "يحتاج صيانة"], "required": True},
+            {"key": "warranty", "label_ar": "الضمان", "label_en": "Warranty", "type": "select", "options": ["ضمان وكيل", "ضمان محل", "لا يوجد"], "required": False},
+        ]
+    },
+    {
+        "key": "pets", "name_ar": "حيوانات أليفة", "name_en": "Pets", "icon": "Dog", "order": 16,
+        "subcategories": [
+            {"key": "cats", "name_ar": "قطط", "name_en": "Cats"},
+            {"key": "dogs", "name_ar": "كلاب", "name_en": "Dogs"},
+            {"key": "birds", "name_ar": "طيور", "name_en": "Birds"},
+            {"key": "fish", "name_ar": "أسماك", "name_en": "Fish"},
+            {"key": "pet_accessories", "name_ar": "مستلزمات الحيوانات", "name_en": "Pet Accessories"},
+        ],
+        "fields": [
+            {"key": "pet_type", "label_ar": "نوع الحيوان", "label_en": "Pet Type", "type": "select", "options": ["قطة", "كلب", "طائر", "أرنب", "هامستر", "سمك", "زواحف", "مستلزمات/أكل", "آخر"], "required": True},
+            {"key": "breed", "label_ar": "السلالة", "label_en": "Breed", "type": "text", "required": False, "placeholder": "شيرازي / بريش..."},
+            {"key": "age", "label_ar": "العمر", "label_en": "Age", "type": "text", "required": False, "placeholder": "3 شهور / سنة..."},
+            {"key": "gender", "label_ar": "الجنس", "label_en": "Gender", "type": "select", "options": ["ذكر", "أنثى"], "required": False},
+            {"key": "vaccinated", "label_ar": "مطعّم؟", "label_en": "Vaccinated", "type": "select", "options": ["نعم", "لا", "غير معروف"], "required": False},
+        ]
+    },
+    {
+        "key": "beauty_health", "name_ar": "صحة وجمال", "name_en": "Beauty & Health", "icon": "Heart", "order": 17,
+        "subcategories": [
+            {"key": "cosmetics", "name_ar": "مستحضرات تجميل", "name_en": "Cosmetics"},
+            {"key": "perfumes", "name_ar": "عطور", "name_en": "Perfumes"},
+            {"key": "skincare", "name_ar": "العناية بالبشرة", "name_en": "Skincare"},
+            {"key": "haircare", "name_ar": "العناية بالشعر", "name_en": "Haircare"},
+            {"key": "health_supplements", "name_ar": "مكملات غذائية", "name_en": "Supplements"},
+        ],
+        "fields": [
+            {"key": "item_type", "label_ar": "النوع", "label_en": "Type", "type": "select", "options": ["عطر", "مكياج", "كريم/سيروم", "أدوات شعر", "مكمّل غذائي", "أجهزة منزلية صحية", "آخر"], "required": True},
+            {"key": "brand", "label_ar": "الماركة", "label_en": "Brand", "type": "text", "required": False},
+            {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد ومغلّف", "مفتوح غير مستعمل", "مستعمل"], "required": True},
+        ]
+    },
+    {
+        "key": "food", "name_ar": "أطعمة ومأكولات", "name_en": "Food", "icon": "UtensilsCrossed", "order": 18,
+        "subcategories": [
+            {"key": "homemade", "name_ar": "أكلات منزلية", "name_en": "Homemade"},
+            {"key": "sweets", "name_ar": "حلويات", "name_en": "Sweets"},
+            {"key": "honey_dates", "name_ar": "عسل وتمور", "name_en": "Honey & Dates"},
+            {"key": "groceries", "name_ar": "بقالة وخضار", "name_en": "Groceries"},
+        ],
+        "fields": [
+            {"key": "food_type", "label_ar": "النوع", "label_en": "Type", "type": "select", "options": ["أكلات شعبية", "حلويات", "عسل", "تمور", "مخللات", "خضار/فواكه", "خبز ومخبوزات", "آخر"], "required": True},
+            {"key": "weight", "label_ar": "الوزن/الكمية", "label_en": "Weight", "type": "text", "required": False, "placeholder": "1 كجم / علبة..."},
+        ]
+    },
+    {
+        "key": "business", "name_ar": "أعمال ومشاريع", "name_en": "Business & Industrial", "icon": "Building", "order": 19,
+        "subcategories": [
+            {"key": "shops_for_sale", "name_ar": "محلات للبيع", "name_en": "Shops for Sale"},
+            {"key": "company_assets", "name_ar": "أصول شركات", "name_en": "Company Assets"},
+            {"key": "investment", "name_ar": "فرص استثمارية", "name_en": "Investment Opps"},
+        ],
+        "fields": [
+            {"key": "biz_kind", "label_ar": "نوع العرض", "label_en": "Kind", "type": "select", "options": ["محل قائم للبيع", "تنازل/خلو رجل", "شراكة", "استثمار", "أصول/معدات شركة"], "required": True},
+            {"key": "industry", "label_ar": "النشاط", "label_en": "Industry", "type": "text", "required": False, "placeholder": "مطعم / كافيه / تجارة..."},
+            {"key": "monthly_revenue", "label_ar": "الدخل الشهري التقريبي", "label_en": "Monthly Revenue", "type": "number", "required": False},
+        ]
+    },
+    {
+        "key": "equipment", "name_ar": "معدات ومحركات", "name_en": "Heavy Equipment", "icon": "Wrench", "order": 20,
+        "subcategories": [
+            {"key": "construction", "name_ar": "معدات بناء", "name_en": "Construction"},
+            {"key": "agri_equipment", "name_ar": "معدات زراعية", "name_en": "Agricultural"},
+            {"key": "generators", "name_ar": "مولدات", "name_en": "Generators"},
+            {"key": "trucks", "name_ar": "شاحنات", "name_en": "Trucks"},
+        ],
+        "fields": [
+            {"key": "equipment_type", "label_ar": "نوع المعدة", "label_en": "Equipment Type", "type": "select", "options": ["لودر", "حفار", "شيول", "كرين", "خلاطة", "ضاغطة", "جرّار زراعي", "مولد كهرباء", "شاحنة", "آخر"], "required": True},
+            {"key": "year", "label_ar": "سنة الصنع", "label_en": "Year", "type": "number", "required": False},
+            {"key": "hours_used", "label_ar": "ساعات التشغيل", "label_en": "Hours Used", "type": "number", "required": False},
+            {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد", "مستعمل ممتاز", "مستعمل جيد", "يحتاج صيانة"], "required": True},
+        ]
+    },
+    {
+        "key": "books_courses", "name_ar": "كتب ودورات", "name_en": "Books & Courses", "icon": "Book", "order": 21,
+        "subcategories": [
+            {"key": "books", "name_ar": "كتب", "name_en": "Books"},
+            {"key": "online_courses", "name_ar": "كورسات أونلاين", "name_en": "Online Courses"},
+            {"key": "schoolbooks", "name_ar": "كتب مدرسية", "name_en": "Schoolbooks"},
+        ],
+        "fields": [
+            {"key": "kind", "label_ar": "النوع", "label_en": "Kind", "type": "select", "options": ["كتاب ورقي", "كتاب إلكتروني", "كورس أونلاين", "كتب مدرسية/جامعية", "روايات", "ديني"], "required": True},
+            {"key": "language", "label_ar": "اللغة", "label_en": "Language", "type": "select", "options": ["عربي", "إنجليزي", "أخرى"], "required": False},
+        ]
+    },
+    {
+        "key": "tickets_events", "name_ar": "تذاكر وفعاليات", "name_en": "Tickets & Events", "icon": "Ticket", "order": 22,
+        "subcategories": [
+            {"key": "concert_tickets", "name_ar": "تذاكر حفلات", "name_en": "Concerts"},
+            {"key": "sports_tickets", "name_ar": "تذاكر رياضية", "name_en": "Sports"},
+            {"key": "travel_tickets", "name_ar": "تذاكر سفر", "name_en": "Travel"},
+        ],
+        "fields": [
+            {"key": "ticket_type", "label_ar": "النوع", "label_en": "Ticket Type", "type": "select", "options": ["حفل موسيقي", "مباراة رياضية", "مسرحية/سينما", "معرض/مؤتمر", "تذكرة طيران", "آخر"], "required": True},
+            {"key": "event_date", "label_ar": "تاريخ الحدث", "label_en": "Event Date", "type": "text", "required": False},
+            {"key": "quantity", "label_ar": "العدد", "label_en": "Quantity", "type": "number", "required": False},
+        ]
+    },
+    {
+        "key": "all", "name_ar": "كل الحراج", "name_en": "Everything Else", "icon": "Shapes", "order": 99,
         "subcategories": [
             {"key": "misc", "name_ar": "متفرقات", "name_en": "Misc"},
         ],
