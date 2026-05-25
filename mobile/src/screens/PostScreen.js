@@ -8,8 +8,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes } from "lucide-react-native";
+import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes, Video as VideoIcon, Play } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
+import { VideoView, useVideoPlayer } from "expo-video";
 import * as Location from "expo-location";
 import * as LucideIcons from "lucide-react-native";
 import api, { formatApiError } from "../api";
@@ -29,6 +30,7 @@ export default function PostScreen({ navigation, route }) {
     const [categories, setCategories] = useState([]);
     const [busy, setBusy] = useState(false);
     const [uploadingImg, setUploadingImg] = useState(false);
+    const [uploadingVid, setUploadingVid] = useState(false);
     const [aiBusy, setAiBusy] = useState(false);
     const [pickerOpen, setPickerOpen] = useState(null); // 'city' | 'district' | null
     const [err, setErr] = useState("");
@@ -122,6 +124,39 @@ export default function PostScreen({ navigation, route }) {
         if (!result.canceled) await uploadAssets(result.assets);
     };
 
+    const pickVideo = async () => {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الوسائط")); return; }
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+            quality: 0.8,
+            videoMaxDuration: 60,
+        });
+        if (result.canceled || !result.assets?.[0]) return;
+        const asset = result.assets[0];
+        setUploadingVid(true);
+        try {
+            const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "video", folder: "listings_videos" } });
+            const fd = new FormData();
+            const ext = (asset.uri.split(".").pop() || "mp4").toLowerCase();
+            fd.append("file", { uri: asset.uri, type: `video/${ext === "mov" ? "quicktime" : "mp4"}`, name: `vid_${Date.now()}.${ext}` });
+            fd.append("api_key", sig.api_key);
+            fd.append("timestamp", String(sig.timestamp));
+            fd.append("signature", sig.signature);
+            fd.append("folder", sig.folder);
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/video/upload`, { method: "POST", body: fd });
+            const out = await res.json();
+            if (out.secure_url) {
+                setForm((f) => ({ ...f, videos: [...(f.videos || []), out.secure_url] }));
+            } else {
+                Alert.alert(t("خطأ"), t("فشل رفع الفيديو"));
+            }
+        } catch (_) { Alert.alert(t("خطأ"), t("فشل رفع الفيديو")); }
+        finally { setUploadingVid(false); }
+    };
+
+    const removeVideo = (idx) => setForm((f) => ({ ...f, videos: (f.videos || []).filter((_, k) => k !== idx) }));
+
     const useMyLocation = async () => {
         const perm = await Location.requestForegroundPermissionsAsync();
         if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الموقع")); return; }
@@ -133,6 +168,10 @@ export default function PostScreen({ navigation, route }) {
     const validateRequiredFields = () => {
         if (!form.title || !form.description) return t("الرجاء إكمال العنوان والوصف");
         if (!form.city) return t("الرجاء اختيار المدينة");
+        const isStory = form.subcategory === "story" || form.custom_fields?.is_story;
+        if (isStory && (!form.videos || form.videos.length === 0)) {
+            return t("الستوري يتطلب رفع فيديو قصير");
+        }
         for (const f of (cat?.fields || [])) {
             if (f.required && !form.custom_fields[f.key]) return `${t("حقل مطلوب:")} ${f.label_ar || f.key}`;
         }
@@ -194,6 +233,8 @@ export default function PostScreen({ navigation, route }) {
                         onPickerOpen={setPickerOpen} country={country}
                         onPickImage={pickImage} onTakePhoto={takePhoto}
                         uploadingImg={uploadingImg}
+                        onPickVideo={pickVideo} onRemoveVideo={removeVideo}
+                        uploadingVid={uploadingVid}
                         onUseLocation={useMyLocation}
                     />
                 )}
@@ -417,7 +458,7 @@ function EntryCard({ icon, label, sub, bg, accent, onPress }) {
 }
 
 // =============== STEP 2: Details Form ===============
-function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickImage, onTakePhoto, uploadingImg, onUseLocation }) {
+function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickImage, onTakePhoto, uploadingImg, onPickVideo, onRemoveVideo, uploadingVid, onUseLocation }) {
     const { t } = useI18n();
     const [catPickerOpen, setCatPickerOpen] = useState(false);
     const update = (k, v) => setForm({ ...form, [k]: v });
@@ -555,6 +596,25 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 </Field>
             )}
 
+            {/* Video (required for stories, optional otherwise) */}
+            {(() => {
+                const isStory = form.subcategory === "story" || form.custom_fields?.is_story;
+                return (
+                    <Field label={t("الفيديو") + (isStory ? " *" : ` (${t("اختياري")})`)}>
+                        <TouchableOpacity onPress={onPickVideo} style={[s.imgBtn, { flexDirection: "row", justifyContent: "center", borderColor: isStory ? "#EC4899" : colors.border, borderWidth: isStory ? 1.5 : 1 }]} testID="post-pick-video-btn">
+                            <VideoIcon size={20} color={isStory ? "#EC4899" : colors.primary} />
+                            <Text style={[s.imgBtnText, { marginStart: 8 }]}>
+                                {(form.videos?.length || 0) > 0 ? t("تغيير الفيديو") : (isStory ? t("ارفع فيديو قصير (مطلوب)") : t("أضف فيديو"))}
+                            </Text>
+                        </TouchableOpacity>
+                        {uploadingVid && <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />}
+                        {(form.videos || []).map((url, i) => (
+                            <VideoPreview key={`${url}-${i}`} url={url} onRemove={() => onRemoveVideo(i)} testID={`post-video-preview-${i}`} />
+                        ))}
+                    </Field>
+                );
+            })()}
+
             {/* Images */}
             <Field label={t("الصور")}>
                 <View style={{ flexDirection: "row", gap: 10 }}>
@@ -597,6 +657,23 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 <Text style={s.toggleText}>{t("عرض رقم جوالي للمشترين")}</Text>
             </TouchableOpacity>
         </>
+    );
+}
+
+// =============== Video Preview (uses expo-video) ===============
+function VideoPreview({ url, onRemove, testID }) {
+    const player = useVideoPlayer(url, (p) => { if (p) { p.loop = true; p.muted = true; } });
+    return (
+        <View style={s.videoPreviewWrap} testID={testID}>
+            <VideoView player={player} style={s.videoPreview} contentFit="cover" nativeControls allowsFullscreen={false} allowsPictureInPicture={false} />
+            <TouchableOpacity onPress={onRemove} style={s.videoRemoveBtn} testID={`${testID}-remove`}>
+                <X size={14} color="#fff" />
+            </TouchableOpacity>
+            <View style={s.videoBadge}>
+                <Play size={10} color="#fff" fill="#fff" />
+                <Text style={s.videoBadgeText}>VIDEO</Text>
+            </View>
+        </View>
     );
 }
 
@@ -730,6 +807,12 @@ const s = StyleSheet.create({
     thumbX: { position: "absolute", top: -4, end: -4, width: 22, height: 22, borderRadius: 999, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
     mainImgTag: { position: "absolute", bottom: 2, start: 2, backgroundColor: colors.accent, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     mainImgText: { fontSize: 8, fontWeight: "900", color: colors.secondary },
+    // Video preview
+    videoPreviewWrap: { marginTop: 10, position: "relative", borderRadius: 14, overflow: "hidden", backgroundColor: "#000", aspectRatio: 16 / 9 },
+    videoPreview: { width: "100%", height: "100%" },
+    videoRemoveBtn: { position: "absolute", top: 6, end: 6, width: 28, height: 28, borderRadius: 999, backgroundColor: "rgba(239,68,68,0.95)", alignItems: "center", justifyContent: "center" },
+    videoBadge: { position: "absolute", top: 6, start: 6, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    videoBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
     locBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.surface, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 4 },
     locBtnActive: { borderColor: "#10B981", backgroundColor: "rgba(16,185,129,0.06)" },
     locBtnText: { fontSize: 13, fontWeight: "800", color: colors.text },

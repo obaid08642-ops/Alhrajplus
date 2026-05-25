@@ -235,5 +235,3 @@ const styles = StyleSheet.create({
     bidName: { fontSize: 11.5, color: colors.text },
     bidAmount: { fontSize: 13, fontWeight: "800", color: colors.text },
 });
-lor: colors.text },
-});
