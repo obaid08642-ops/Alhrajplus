@@ -5,6 +5,7 @@ import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
 import ListingCard from "../components/ListingCard";
+import Viewer360Mobile from "../components/Viewer360Mobile";
 
 export default function ListingDetailScreen({ route, navigation }) {
     const { id } = route.params;
@@ -15,6 +16,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     const [badge, setBadge] = useState(null);
     const [activeImg, setActiveImg] = useState(0);
     const [zoomImg, setZoomImg] = useState(null);
+    const [show360, setShow360] = useState(false);
     const carouselRef = useRef(null);
     const SCREEN_W = Dimensions.get("window").width;
 
@@ -116,6 +118,16 @@ export default function ListingDetailScreen({ route, navigation }) {
                             <View key={i} style={[styles.dot, i === activeImg && styles.dotActive]} />
                         ))}
                     </View>
+                )}
+                {(listing.custom_fields?.is_360 || (listing.images?.length || 0) >= 8) && (
+                    <TouchableOpacity
+                        onPress={() => setShow360(true)}
+                        style={styles.spin360Btn}
+                        testID="mobile-open-360-btn"
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.spin360Text}>🔄 360°</Text>
+                    </TouchableOpacity>
                 )}
             </View>
 
@@ -284,6 +296,10 @@ export default function ListingDetailScreen({ route, navigation }) {
                     </TouchableOpacity>
                 </TouchableOpacity>
             </Modal>
+
+            <Modal visible={show360} transparent animationType="fade" onRequestClose={() => setShow360(false)}>
+                <Viewer360Mobile images={listing.images || []} onClose={() => setShow360(false)} />
+            </Modal>
         </ScrollView>
     );
 }
@@ -336,4 +352,6 @@ const styles = StyleSheet.create({
     zoomCloseText: { color: "#fff", fontSize: 24, fontWeight: "900", lineHeight: 28 },
     demoBadge: { marginTop: 12, padding: 10, borderRadius: theme.radius.md, backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#F59E0B", alignItems: "center" },
     demoBadgeText: { color: "#92400E", fontWeight: "900", fontSize: 13 },
+    spin360Btn: { position: "absolute", top: 12, right: 12, backgroundColor: theme.colors.primary, paddingHorizontal: 12, paddingVertical: 7, borderRadius: theme.radius.full, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+    spin360Text: { color: "#fff", fontWeight: "900", fontSize: 12 },
 });
