@@ -11,6 +11,7 @@ import { useI18n, tr } from "@/contexts/I18nContext";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
+import Viewer360 from "@/components/Viewer360";
 import { ListingSEO } from "@/components/SEO";
 import Spin360Viewer from "@/components/Spin360Viewer";
 import PriceBadge from "@/components/PriceBadge";
@@ -208,9 +209,11 @@ export default function ListingDetail() {
                                     <Maximize2 className="w-3 h-3" /> عرض كامل
                                 </button>
                             )}
-                            {listing.images?.length >= 3 && (
+                            {/* Show 360 button when EITHER the seller flagged
+                                this listing as 360 OR there are >= 8 images. */}
+                            {(listing.custom_fields?.is_360 || (listing.images?.length || 0) >= 8) && (
                                 <button data-testid="open-spin360-btn" onClick={(e) => { e.stopPropagation(); setShow360(true); }} className="absolute top-3 end-28 bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur hover:opacity-90 shadow-lg">
-                                    <RotateCw className="w-3 h-3" /> 360°
+                                    <RotateCw className="w-3 h-3" /> 🔄 360°
                                 </button>
                             )}
                             <div className="absolute bottom-3 end-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{activeImg + 1} / {listing.images?.length || 0}</div>
@@ -483,7 +486,7 @@ export default function ListingDetail() {
             </div>
 
             {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
-            {show360 && <Spin360Viewer images={listing.images} onClose={() => setShow360(false)} />}
+            {show360 && <Viewer360 images={listing.images} onClose={() => setShow360(false)} />}
         </div>
     );
 }

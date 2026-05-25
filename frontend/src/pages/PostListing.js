@@ -696,7 +696,38 @@ export default function PostListing() {
                             <input data-testid="upload-videos" type="file" accept="video/*" className="hidden" onChange={(e) => onFiles(e.target.files, "video")} disabled={busy} />
                         </label>
                     </div>
-                    <p className="text-[10px] text-[var(--text-muted)] font-arabic-body text-center">{tr("📸 يمكنك رفع 8-16 صورة من زوايا مختلفة لإنشاء معاينة دوّارة 360° تلقائية")}</p>
+                    {/* 360° optional mode toggle. When ON, the listing is
+                        flagged via custom_fields.is_360 so the detail page
+                        can show the rotation viewer (requires ≥ 8 images). */}
+                    <div className={`rounded-2xl p-3 border-2 ${form.custom_fields?.is_360 ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-dashed border-[var(--border)] bg-[var(--surface-elevated)]"}`}>
+                        <button
+                            type="button"
+                            data-testid="enable-360-btn"
+                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, is_360: !form.custom_fields?.is_360 } })}
+                            className="w-full flex items-center gap-3 text-start"
+                        >
+                            <span className="text-2xl">📦</span>
+                            <div className="flex-1">
+                                <div className="font-arabic font-black text-sm text-[var(--text)]">
+                                    {form.custom_fields?.is_360 ? tr("وضع 360° مُفعّل ✓") : tr("📦 إضافة عرض 360°")}
+                                </div>
+                                <div className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-0.5">
+                                    {tr("ارفع 8 إلى 24 صورة للمنتج من جميع الزوايا")}
+                                </div>
+                            </div>
+                            <div className={`w-10 h-5 rounded-full relative ${form.custom_fields?.is_360 ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
+                                <span className={`absolute top-0.5 ${form.custom_fields?.is_360 ? "right-0.5" : "left-0.5"} w-4 h-4 rounded-full bg-white transition-all`}></span>
+                            </div>
+                        </button>
+                        {form.custom_fields?.is_360 && (
+                            <div className="mt-2 text-[11px] font-arabic-body text-[var(--text)] bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 leading-relaxed">
+                                📸 {tr("صوّر المنتج وأنت تلف حوله من نفس الارتفاع للحصول على أفضل نتيجة")} <br />
+                                <span className="font-bold">
+                                    {tr("الصور الحالية:")} <span className={form.images.length >= 8 ? "text-emerald-600" : "text-amber-600"}>{form.images.length}</span> / 24
+                                </span>
+                            </div>
+                        )}
+                    </div>
                     {busy && <div className="text-center text-sm font-arabic text-[var(--primary)]">{tr("جاري الرفع...")}</div>}
                     {form.images.length > 0 && (
                         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
