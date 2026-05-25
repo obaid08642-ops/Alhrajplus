@@ -343,6 +343,47 @@ function NotificationsPanel() {
     const [result, setResult] = useState(null);
     const [suggesting, setSuggesting] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
+    const [schedules, setSchedules] = useState([]);
+    const [schedAt, setSchedAt] = useState(""); // ISO local datetime
+    const [schedBusy, setSchedBusy] = useState(false);
+
+    const loadSchedules = async () => {
+        try {
+            const { data } = await api.get("/admin/notifications/schedule");
+            setSchedules(data || []);
+        } catch (_) { setSchedules([]); }
+    };
+    useEffect(() => { loadSchedules(); }, []);
+
+    const scheduleSend = async () => {
+        if (!form.title || !form.body) { alert(tr("املأ العنوان والنص")); return; }
+        if (!schedAt) { alert(tr("اختر تاريخ ووقت الإرسال")); return; }
+        const sendDate = new Date(schedAt);
+        if (Number.isNaN(sendDate.getTime()) || sendDate <= new Date()) {
+            alert(tr("اختر وقتاً مستقبلياً")); return;
+        }
+        setSchedBusy(true);
+        try {
+            await api.post("/admin/notifications/schedule", {
+                ...form,
+                send_at: sendDate.toISOString(),
+            });
+            setSchedAt("");
+            setForm({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14 });
+            await loadSchedules();
+            alert(tr("تم جدولة الإشعار ✅"));
+        } catch (e) {
+            alert(e.response?.data?.detail || tr("تعذرت الجدولة"));
+        } finally { setSchedBusy(false); }
+    };
+
+    const cancelSchedule = async (sid) => {
+        if (!window.confirm(tr("إلغاء هذا الإشعار المجدول؟"))) return;
+        try {
+            await api.delete(`/admin/notifications/schedule/${sid}`);
+            await loadSchedules();
+        } catch (_) { alert(tr("فشل الإلغاء")); }
+    };
 
     const send = async () => {
         if (!form.title || !form.body) { alert(tr("املأ العنوان والنص")); return; }
@@ -420,13 +461,25 @@ function NotificationsPanel() {
                             </div>
                         )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <button data-testid="notif-send" onClick={send} disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center gap-2 disabled:opacity-50">
                             <Bell className="w-4 h-4" /> {busy ? "جاري الإرسال..." : "إرسال للجميع"}
                         </button>
                         <button data-testid="notif-ai-suggest" onClick={suggest} disabled={suggesting} className="bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] text-white px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center gap-2 disabled:opacity-50">
                             <Sparkles className="w-4 h-4" /> {suggesting ? "AI يفكر..." : "اقتراحات AI"}
                         </button>
+                        <div className="flex items-center gap-2 ms-auto">
+                            <input
+                                data-testid="notif-schedule-at"
+                                type="datetime-local"
+                                value={schedAt}
+                                onChange={(e) => setSchedAt(e.target.value)}
+                                className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-xs border border-[var(--border)] outline-none text-[var(--text)] font-arabic-body"
+                            />
+                            <button data-testid="notif-schedule-btn" onClick={scheduleSend} disabled={schedBusy} className="bg-amber-500 text-white px-4 py-2 rounded-full font-arabic font-bold text-xs flex items-center gap-1.5 disabled:opacity-50">
+                                ⏰ {schedBusy ? tr("جاري...") : tr("جدولة")}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -447,6 +500,35 @@ function NotificationsPanel() {
                     </div>
                 </div>
             )}
+
+            {/* Scheduled broadcasts list (queue) */}
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-arabic font-black text-base text-[var(--text)] flex items-center gap-2">
+                        ⏰ {tr("الإشعارات المجدولة")} <span className="text-xs text-[var(--text-muted)]">({schedules.length})</span>
+                    </h3>
+                    <button onClick={loadSchedules} className="text-xs text-[var(--primary)] font-arabic font-bold hover:underline">{tr("تحديث")}</button>
+                </div>
+                {schedules.length === 0 ? (
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body text-center py-3">{tr("لا توجد إشعارات مجدولة حالياً.")}</p>
+                ) : (
+                    <div className="space-y-2">
+                        {schedules.map((s) => (
+                            <div key={s.id} data-testid={`scheduled-${s.id}`} className="bg-[var(--surface-elevated)] rounded-xl p-3 border border-[var(--border)] flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{s.title}</div>
+                                    <div className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-2 mt-0.5">{s.body}</div>
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap text-[10px] font-arabic-body">
+                                        <span className="bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">⏰ {new Date(s.send_at).toLocaleString("ar")}</span>
+                                        <span className="bg-[var(--primary)]/15 text-[var(--primary)] px-2 py-0.5 rounded-full font-bold">🎯 {s.target}</span>
+                                    </div>
+                                </div>
+                                <button data-testid={`cancel-scheduled-${s.id}`} onClick={() => cancelSchedule(s.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-lg shrink-0" title={tr("إلغاء")}>✕</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

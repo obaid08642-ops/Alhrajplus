@@ -37,6 +37,22 @@ function routeFromUrl(url) {
         _navigationRef.navigate("Chat", to ? { to } : {});
         return;
     }
+    // Post listing (abandoned-draft reminder)
+    if (url === "/post" || url.startsWith("/post?")) {
+        if (_navigationRef?.navigate) { _navigationRef.navigate("Post"); return; }
+    }
+    // Search (abandoned-search reminder) — supports /search?q=... or /c/{category}
+    m = url.match(/^\/search(?:\?q=([^&]+))?/);
+    if (m && _navigationRef?.navigate) {
+        const q = m[1] ? decodeURIComponent(m[1]) : "";
+        _navigationRef.navigate("Search", q ? { q } : {});
+        return;
+    }
+    m = url.match(/^\/c\/([^/?#]+)/);
+    if (m && _navigationRef?.navigate) {
+        _navigationRef.navigate("Search", { category: decodeURIComponent(m[1]) });
+        return;
+    }
     // Fallback — try built-in deep linking
     try { Linking.openURL(`harajplus://${url.startsWith("/") ? url.slice(1) : url}`); } catch (_) {}
 }

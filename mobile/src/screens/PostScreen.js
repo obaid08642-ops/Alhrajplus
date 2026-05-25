@@ -207,15 +207,35 @@ export default function PostScreen({ navigation, route }) {
             const payload = { ...form, price: form.price ? parseFloat(form.price) : null, country_code: country?.code };
             if (editId) {
                 const { data } = await api.put(`/listings/${editId}`, payload);
+                api.delete("/users/me/draft-listing").catch(() => {});
                 navigation.replace("ListingDetail", { id: data.id });
             } else {
                 const { data } = await api.post("/listings", payload);
+                api.delete("/users/me/draft-listing").catch(() => {});
                 navigation.replace("ListingDetail", { id: data.id });
             }
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || t("تعذر النشر"));
         } finally { setBusy(false); }
     };
+
+    // Persist a lightweight draft snapshot so the backend can nudge the user
+    // with a push notification if they abandon the flow for ~10 minutes.
+    useEffect(() => {
+        if (editId) return;
+        if (step !== 2) return;
+        if (!form.title && !form.category) return;
+        const tid = setTimeout(() => {
+            api.post("/users/me/draft-listing", {
+                title: form.title || "",
+                category: form.category || "",
+                city: form.city || "",
+                price: form.price ? parseFloat(form.price) : null,
+                images_count: (form.images || []).length,
+            }).catch(() => {});
+        }, 1500);
+        return () => clearTimeout(tid);
+    }, [step, form.title, form.category, form.city, form.price, form.images, editId]);
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>

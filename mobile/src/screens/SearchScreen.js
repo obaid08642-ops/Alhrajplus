@@ -127,7 +127,16 @@ export default function SearchScreen({ navigation, route }) {
             if (term !== undefined) p.q = term;
             const { data } = await api.get("/listings", { params: p });
             setResults(data?.items || []);
-            if (query) { try { await api.post("/search/log", { query }); } catch (_) {} }
+            if (query) {
+                try { await api.post("/search/log", { query }); } catch (_) {}
+                // Also save a re-engageable search event (smart notifications).
+                if ((query || "").trim().length >= 2) {
+                    api.post("/users/me/search-event", {
+                        query: (query || "").trim(),
+                        results_count: (data?.items || []).length,
+                    }).catch(() => {});
+                }
+            }
         } catch (_) { setResults([]); }
         finally { setLoading(false); setRefreshing(false); }
     }, [q, buildParams]);

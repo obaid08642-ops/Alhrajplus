@@ -4410,6 +4410,344 @@ async def mark_all_read(user: dict = Depends(get_current_user)):
 
 
 # ============================================================
+# Smart Notifications — abandoned drafts + abandoned searches
+# + scheduled admin broadcasts. Background worker runs every minute.
+# ============================================================
+
+class DraftListingIn(BaseModel):
+    """Snapshot of an in-progress new listing.
+    Frontend POSTs this whenever the user enters Step 2 (or makes meaningful
+    edits) so we can nudge them later if they don't actually publish.
+    """
+    title: Optional[str] = ""
+    category: Optional[str] = ""
+    city: Optional[str] = ""
+    price: Optional[float] = None
+    images_count: Optional[int] = 0
+
+
+@api.post("/users/me/draft-listing")
+async def save_draft_listing(body: DraftListingIn, user: dict = Depends(get_current_user)):
+    """Upsert the user's current in-progress listing draft."""
+    now = datetime.now(timezone.utc).isoformat()
+    await db.draft_listings.update_one(
+        {"user_id": user["id"]},
+        {"$set": {
+            "user_id": user["id"],
+            "title": (body.title or "")[:120],
+            "category": body.category or "",
+            "city": body.city or "",
+            "price": body.price,
+            "images_count": int(body.images_count or 0),
+            "updated_at": now,
+            "reminded": False,
+        },
+         "$setOnInsert": {"created_at": now}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+@api.delete("/users/me/draft-listing")
+async def clear_draft_listing(user: dict = Depends(get_current_user)):
+    """Called after a successful publish — removes the draft so we don't nudge."""
+    await db.draft_listings.delete_one({"user_id": user["id"]})
+    return {"ok": True}
+
+
+class SearchEventIn(BaseModel):
+    """Snapshot of a meaningful search the user just performed."""
+    query: str = Field(default="", max_length=200)
+    category: Optional[str] = ""
+    city: Optional[str] = ""
+    results_count: Optional[int] = 0
+
+
+@api.post("/users/me/search-event")
+async def save_search_event(body: SearchEventIn, user: dict = Depends(get_current_user)):
+    """Record the user's latest search so we can re-engage them if they bounce.
+    Only stores ONE row per user (we always upsert) — we only care about the
+    *last* search, not the full history.
+    """
+    if not body.query.strip() and not body.category:
+        return {"ok": True, "skipped": True}
+    now = datetime.now(timezone.utc).isoformat()
+    await db.search_events.update_one(
+        {"user_id": user["id"]},
+        {"$set": {
+            "user_id": user["id"],
+            "query": body.query.strip()[:200],
+            "category": body.category or "",
+            "city": body.city or "",
+            "results_count": int(body.results_count or 0),
+            "updated_at": now,
+            "reminded": False,
+        }, "$setOnInsert": {"created_at": now}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+# ----- Admin: scheduled broadcasts -----
+class ScheduleBroadcastIn(BaseModel):
+    title: str = Field(min_length=2, max_length=100)
+    body: str = Field(min_length=2, max_length=500)
+    send_at: str  # ISO-8601 UTC timestamp
+    target: str = Field(default="all", pattern="^(all|verified|unverified|country|category|inactive)$")
+    country_code: Optional[str] = None
+    category: Optional[str] = None
+    inactive_days: Optional[int] = None
+    url: Optional[str] = "/"
+
+
+@admin_router.post("/notifications/schedule")
+async def create_scheduled_broadcast(body: ScheduleBroadcastIn):
+    try:
+        send_at_dt = datetime.fromisoformat(body.send_at.replace("Z", "+00:00"))
+    except Exception:
+        raise HTTPException(400, "send_at must be ISO-8601 datetime")
+    if send_at_dt <= datetime.now(timezone.utc):
+        raise HTTPException(400, "send_at must be in the future")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "title": body.title,
+        "body": body.body,
+        "send_at": send_at_dt.isoformat(),
+        "target": body.target,
+        "country_code": body.country_code,
+        "category": body.category,
+        "inactive_days": body.inactive_days,
+        "url": body.url or "/",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.scheduled_broadcasts.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@admin_router.get("/notifications/schedule")
+async def list_scheduled_broadcasts(status: str = "pending"):
+    q: dict = {} if status == "all" else {"status": status}
+    items = await db.scheduled_broadcasts.find(q, {"_id": 0}).sort("send_at", 1).to_list(length=200)
+    return items
+
+
+@admin_router.delete("/notifications/schedule/{sid}")
+async def cancel_scheduled_broadcast(sid: str):
+    res = await db.scheduled_broadcasts.update_one(
+        {"id": sid, "status": "pending"},
+        {"$set": {"status": "cancelled", "cancelled_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Not found or already sent")
+    return {"ok": True}
+
+
+async def _send_user_notification(user_id: str, title: str, body: str, ntype: str, url: str, extra_data: Optional[dict] = None, pref_key: Optional[str] = None):
+    """Internal helper: persist to db.notifications + push to devices.
+    Used by the smart-notifications worker.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user_id,
+        "title": title, "body": body, "type": ntype,
+        "url": url, "data": extra_data or {},
+        "read": False, "ts": now, "created_at": now,
+    })
+    try:
+        await _send_push(
+            db, [user_id], title=title, body=body, url=url,
+            data={"type": ntype, **(extra_data or {})},
+            pref_key=pref_key,
+        )
+    except Exception as e:
+        logger.warning(f"[smart-notif] push failed for {user_id}: {e}")
+
+
+async def _process_abandoned_drafts(now_iso: str, cutoff_iso: str) -> int:
+    """Find users who started a listing but didn't publish within ~10 minutes,
+    and nudge them ONCE. We mark them as reminded so we don't spam.
+    """
+    sent = 0
+    cursor = db.draft_listings.find({
+        "reminded": False,
+        "updated_at": {"$lt": cutoff_iso},
+    })
+    async for d in cursor:
+        uid = d.get("user_id")
+        if not uid:
+            continue
+        # If a real listing was published since, skip + clear draft.
+        recent = await db.listings.count_documents({
+            "user_id": uid,
+            "created_at": {"$gte": d.get("created_at") or d.get("updated_at")},
+        })
+        if recent > 0:
+            await db.draft_listings.delete_one({"_id": d["_id"]})
+            continue
+        title_hint = (d.get("title") or "").strip()
+        body_text = (
+            f"إعلانك «{title_hint}» في انتظارك — أكمله الآن لتظهر للمشترين 🚀"
+            if title_hint else
+            "بدأت نشر إعلان ولم تكمله — أكمله الآن ليصل لآلاف المشترين 🚀"
+        )
+        await _send_user_notification(
+            user_id=uid,
+            title="📝 أكمل إعلانك الآن",
+            body=body_text,
+            ntype="abandoned_draft",
+            url="/post",
+            extra_data={"deep_link": "post", "draft_title": title_hint},
+            pref_key="broadcasts",
+        )
+        await db.draft_listings.update_one(
+            {"_id": d["_id"]},
+            {"$set": {"reminded": True, "reminded_at": now_iso}},
+        )
+        sent += 1
+    return sent
+
+
+async def _process_abandoned_searches(now_iso: str, cutoff_iso: str) -> int:
+    """Re-engage users who searched recently and bounced.
+    We only nudge if the search appears to have failed (low results) OR if
+    they haven't returned within ~30 minutes.
+    """
+    sent = 0
+    cursor = db.search_events.find({
+        "reminded": False,
+        "updated_at": {"$lt": cutoff_iso},
+    })
+    async for s in cursor:
+        uid = s.get("user_id")
+        if not uid:
+            continue
+        # Skip if user has been active since the search (last_seen newer)
+        u = await db.users.find_one({"id": uid}, {"_id": 0, "last_seen": 1})
+        if u and u.get("last_seen") and u["last_seen"] > s.get("updated_at", ""):
+            await db.search_events.update_one({"_id": s["_id"]}, {"$set": {"reminded": True}})
+            continue
+        q = (s.get("query") or "").strip()
+        cat = s.get("category") or ""
+        if q:
+            title = f"🔎 لقد بحثت عن «{q}»"
+            body_text = "يوجد لدينا الكثير من الإعلانات — حاول مرة أخرى وقد تجد أفضل صفقة لك إن شاء الله 🛍️"
+            deep_url = f"/search?q={q}"
+        elif cat:
+            title = f"🛍️ إعلانات جديدة في «{cat}»"
+            body_text = "تصفّح أحدث الإعلانات في الفئة التي تهمّك — قد تجد ما تبحث عنه بأفضل سعر."
+            deep_url = f"/c/{cat}"
+        else:
+            await db.search_events.update_one({"_id": s["_id"]}, {"$set": {"reminded": True}})
+            continue
+        await _send_user_notification(
+            user_id=uid, title=title, body=body_text,
+            ntype="abandoned_search", url=deep_url,
+            extra_data={"deep_link": "search", "query": q, "category": cat},
+            pref_key="broadcasts",
+        )
+        await db.search_events.update_one(
+            {"_id": s["_id"]},
+            {"$set": {"reminded": True, "reminded_at": now_iso}},
+        )
+        sent += 1
+    return sent
+
+
+async def _process_due_schedules(now_iso: str) -> int:
+    """Send any admin-scheduled broadcasts whose send_at has passed."""
+    sent = 0
+    cursor = db.scheduled_broadcasts.find({
+        "status": "pending",
+        "send_at": {"$lte": now_iso},
+    })
+    async for sch in cursor:
+        # Build the audience using same rules as the live broadcast endpoint.
+        target = sch.get("target") or "all"
+        q: dict = {"banned": {"$ne": True}}
+        if target == "verified":
+            q["verified"] = True
+        elif target == "unverified":
+            q["verified"] = {"$ne": True}
+        elif target == "country" and sch.get("country_code"):
+            q["country_code"] = sch["country_code"]
+        elif target == "category" and sch.get("category"):
+            followers = await db.category_follows.distinct("user_id", {"category": sch["category"]})
+            posters = await db.listings.distinct("user_id", {"category": sch["category"]})
+            ids = list({*(followers or []), *(posters or [])})
+            if not ids:
+                await db.scheduled_broadcasts.update_one(
+                    {"_id": sch["_id"]},
+                    {"$set": {"status": "sent", "sent_at": now_iso, "recipients": 0}},
+                )
+                continue
+            q["id"] = {"$in": ids}
+        elif target == "inactive":
+            days = max(1, int(sch.get("inactive_days") or 14))
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            q["$or"] = [
+                {"last_seen": {"$lt": cutoff}},
+                {"last_seen": None},
+                {"last_seen": {"$exists": False}},
+            ]
+        user_ids = [u["id"] async for u in db.users.find(q, {"_id": 0, "id": 1})]
+        docs = [{
+            "id": str(uuid.uuid4()), "user_id": uid,
+            "title": sch["title"], "body": sch["body"],
+            "type": "admin_scheduled", "url": sch.get("url") or "/",
+            "read": False, "ts": now_iso, "created_at": now_iso,
+        } for uid in user_ids]
+        if docs:
+            await db.notifications.insert_many(docs)
+        if user_ids:
+            try:
+                await _send_push(
+                    db, user_ids, title=sch["title"], body=sch["body"],
+                    url=sch.get("url") or "/",
+                    data={"type": "admin_scheduled", "schedule_id": sch["id"]},
+                    pref_key="broadcasts",
+                )
+            except Exception as e:
+                logger.warning(f"[smart-notif] scheduled push failed: {e}")
+        await db.scheduled_broadcasts.update_one(
+            {"_id": sch["_id"]},
+            {"$set": {"status": "sent", "sent_at": now_iso, "recipients": len(user_ids)}},
+        )
+        sent += len(user_ids)
+    return sent
+
+
+_SMART_NOTIF_TASK: Optional[asyncio.Task] = None
+
+
+async def _smart_notifications_worker():
+    """Background loop. Runs every 60 seconds.
+    - Sends abandoned-draft reminders (>10 min idle, never reminded).
+    - Sends abandoned-search reminders (>30 min idle, never reminded).
+    - Fires admin-scheduled broadcasts whose time has come.
+    """
+    DRAFT_DELAY_MIN = 10
+    SEARCH_DELAY_MIN = 30
+    INTERVAL_S = 60
+    logger.info("[smart-notif] worker starting (every 60s)")
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            now_iso = now.isoformat()
+            d_cutoff = (now - timedelta(minutes=DRAFT_DELAY_MIN)).isoformat()
+            s_cutoff = (now - timedelta(minutes=SEARCH_DELAY_MIN)).isoformat()
+            d = await _process_abandoned_drafts(now_iso, d_cutoff)
+            s = await _process_abandoned_searches(now_iso, s_cutoff)
+            sch = await _process_due_schedules(now_iso)
+            if d or s or sch:
+                logger.info(f"[smart-notif] sent drafts={d} searches={s} scheduled={sch}")
+        except Exception as e:
+            logger.error(f"[smart-notif] worker error: {e}")
+        await asyncio.sleep(INTERVAL_S)
+
+
+# ============================================================
 # Email verification (on registration)
 # ============================================================
 async def send_verification_email(to_email: str, verify_url: str, name: str = "") -> bool:
@@ -5792,6 +6130,11 @@ async def startup():
         except Exception as e:
             logger.warning(f"[startup] slug backfill failed: {e}")
     asyncio.create_task(_backfill_slugs())
+
+    # Start the smart notifications worker (abandoned drafts/searches + scheduled).
+    global _SMART_NOTIF_TASK
+    if _SMART_NOTIF_TASK is None or _SMART_NOTIF_TASK.done():
+        _SMART_NOTIF_TASK = asyncio.create_task(_smart_notifications_worker())
 
     # Seed admin (idempotent)
     existing = await db.users.find_one({"email": ADMIN_EMAIL})

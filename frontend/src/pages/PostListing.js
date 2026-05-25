@@ -170,15 +170,38 @@ export default function PostListing() {
             };
             if (editId) {
                 const { data } = await api.put(`/listings/${editId}`, payload);
+                // On successful publish, drop any pending draft so we don't nag the user.
+                api.delete("/users/me/draft-listing").catch(() => {});
                 nav(`/listing/${data.id}`);
             } else {
                 const { data } = await api.post("/listings", payload);
+                api.delete("/users/me/draft-listing").catch(() => {});
                 nav(`/listing/${data.id}`);
             }
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || e.message || "فشل النشر");
         } finally { setBusy(false); }
     };
+
+    // Save a lightweight draft snapshot whenever the user makes meaningful progress
+    // in Step 2. If they leave without publishing, the backend worker will nudge
+    // them with a push notification after ~10 minutes. Debounced to avoid spam.
+    useEffect(() => {
+        if (editId) return;            // editing existing — no draft tracking
+        if (step !== 2) return;
+        if (!form.title && !form.category) return;
+        const tid = setTimeout(() => {
+            api.post("/users/me/draft-listing", {
+                title: form.title || "",
+                category: form.category || "",
+                city: form.city || "",
+                price: form.price ? parseFloat(form.price) : null,
+                images_count: (form.images || []).length,
+            }).catch(() => {});
+        }, 1500);
+        return () => clearTimeout(tid);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step, form.title, form.category, form.city, form.price, form.images]);
 
     const aiSuggestPrice = async () => {
         try {

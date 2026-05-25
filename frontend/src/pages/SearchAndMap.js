@@ -113,6 +113,15 @@ export function SearchPage() {
                 const { data } = await api.get("/listings", { params, signal: ctrl.signal });
                 setResults(data.items);
                 setFuzzy(Boolean(data.fuzzy));
+                // Log a search event so the smart-notif worker can re-engage the user
+                // if they bounce. Fire-and-forget; ignore errors for guests / aborts.
+                if (q && q.trim().length >= 2) {
+                    api.post("/users/me/search-event", {
+                        query: q.trim(),
+                        city: user?.city || "",
+                        results_count: (data.items || []).length,
+                    }).catch(() => {});
+                }
             } catch (_) {} finally { setLoading(false); }
         }, 300);
         return () => { clearTimeout(timer); ctrl.abort(); };
