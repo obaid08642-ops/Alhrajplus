@@ -35,15 +35,21 @@ export function CountryProvider({ children }) {
     const [showPicker, setShowPicker] = useState(false);
 
     // Seed from user profile on first login if localStorage empty.
+    // STRICT: user's chosen country at signup takes priority over IP detect.
     useEffect(() => {
         if (!user || user === false) return;
-        if (country) return;
         const fromUser = (user.country_code || "").toUpperCase();
-        if (fromUser && fromUser.length === 2) {
+        if (!fromUser || fromUser.length !== 2) return;
+        // If localStorage country differs from user.country_code AND user just
+        // logged in (no prior chosen country), use the profile value — this
+        // prevents IP detect from overriding the country chosen at signup.
+        let stored = "";
+        try { stored = localStorage.getItem(STORAGE_KEY) || ""; } catch (_) {}
+        if (!stored || stored !== fromUser) {
             try { localStorage.setItem(STORAGE_KEY, fromUser); } catch (_) {}
             setCountryState(fromUser);
         }
-    }, [user, country]);
+    }, [user]);
 
     // Show first-visit picker once, if no country chosen and not previously dismissed.
     // BUT: before showing the picker, try to auto-detect the country from the

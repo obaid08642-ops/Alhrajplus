@@ -45,10 +45,21 @@ async function delStored(key) {
     return AsyncStorage.removeItem(key);
 }
 
-// Attach bearer token on every request (mobile has no cookies)
+// Attach bearer token + selected country on every request. The country query
+// param enforces STRICT country isolation across all reads (listings, stories,
+// auctions, search) without each screen having to remember to send it.
 api.interceptors.request.use(async (config) => {
     const token = await getStored(TOKEN_KEY);
     if (token) config.headers.Authorization = `Bearer ${token}`;
+    try {
+        const cc = await AsyncStorage.getItem("hp_country");
+        if (cc) {
+            config.params = config.params || {};
+            if (config.params.country_code === undefined && config.params.country === undefined) {
+                config.params.country_code = cc;
+            }
+        }
+    } catch (_) { /* noop */ }
     return config;
 });
 

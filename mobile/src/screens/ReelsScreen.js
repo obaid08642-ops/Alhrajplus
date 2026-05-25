@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, Dimensions, Image, TouchableOpacity, SafeAreaView, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Volume2, VolumeX, Play } from "lucide-react-native";
 import api from "../api";
@@ -21,26 +22,28 @@ export default function ReelsScreen() {
     useEffect(() => {
         (async () => {
             try {
-                // Prefer real stories (subcategory=story) — these are short videos
-                // the user explicitly posted via the "Story" entry point.
+                // STRICT country isolation: only show stories/videos posted in the
+                // currently-selected country. AsyncStorage is the source of truth
+                // (matches CountryContext key).
+                const cc = (await AsyncStorage.getItem("hp_country").catch(() => null)) || "";
+                const baseParams = { limit: 50, sort: "newest" };
+                if (cc) baseParams.country_code = cc;
+                // Prefer real stories (subcategory=story).
                 let storyItems = [];
                 try {
-                    const { data } = await api.get("/listings", { params: { limit: 50, sort: "newest", subcategory: "story" } });
+                    const { data } = await api.get("/listings", { params: { ...baseParams, subcategory: "story" } });
                     storyItems = (data.items || []).filter((i) => (i.videos?.length || 0) > 0);
                 } catch (_) {}
-                // Also pull any other listings that happen to have a video attached.
                 let withVideos = [];
                 try {
-                    const { data } = await api.get("/listings", { params: { limit: 50, sort: "newest" } });
+                    const { data } = await api.get("/listings", { params: baseParams });
                     withVideos = (data.items || []).filter((i) => (i.videos?.length || 0) > 0 && (i.subcategory !== "story"));
                 } catch (_) {}
-                // Image-only fallback so the tab isn't empty for new installs.
                 let imageOnly = [];
                 try {
-                    const { data } = await api.get("/listings", { params: { limit: 20, sort: "newest" } });
+                    const { data } = await api.get("/listings", { params: { ...baseParams, limit: 20 } });
                     imageOnly = (data.items || []).filter((i) => (i.videos?.length || 0) === 0 && (i.images?.length || 0) >= 1);
                 } catch (_) {}
-                // Dedupe by id, stories first
                 const seen = new Set();
                 const merged = [];
                 for (const arr of [storyItems, withVideos, imageOnly]) {

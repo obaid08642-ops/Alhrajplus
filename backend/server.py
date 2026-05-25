@@ -802,6 +802,7 @@ class ListingIn(BaseModel):
     custom_fields: dict = {}
     images: List[str] = []
     videos: List[str] = []
+    country_code: Optional[str] = None  # active country at time of post (overrides profile default)
     city: str
     district: Optional[str] = None
     lat: Optional[float] = None
@@ -877,7 +878,53 @@ async def get_auth_providers():
 
 @api.get("/meta/countries")
 async def get_countries():
-    return COUNTRIES
+    """Return the country list with any admin geo overrides merged in.
+    Overrides live in `db.geo_overrides` (one doc per country_code) and let
+    the admin add/remove cities and districts without code changes."""
+    overrides = {}
+    try:
+        async for d in db.geo_overrides.find({}, {"_id": 0}):
+            overrides[d["country_code"]] = d
+    except Exception:
+        pass
+    if not overrides:
+        return COUNTRIES
+    out = []
+    for c in COUNTRIES:
+        ov = overrides.get(c["code"])
+        if not ov:
+            out.append(c)
+            continue
+        merged = dict(c)
+        cities = list(c.get("cities") or [])
+        # Apply add_cities (skip duplicates by name_ar)
+        names = {x.get("name_ar") for x in cities if isinstance(x, dict)}
+        for nc in (ov.get("add_cities") or []):
+            if isinstance(nc, dict) and nc.get("name_ar") and nc["name_ar"] not in names:
+                cities.append(nc)
+                names.add(nc["name_ar"])
+        # Apply remove_cities (by name_ar)
+        rm = set(ov.get("remove_cities") or [])
+        if rm:
+            cities = [x for x in cities if x.get("name_ar") not in rm]
+        # Apply per-city district add/remove
+        dist_ov = ov.get("districts") or {}  # {city_name_ar: {"add":[...], "remove":[...]}}
+        if dist_ov:
+            for i, city in enumerate(cities):
+                co = dist_ov.get(city.get("name_ar"))
+                if not co:
+                    continue
+                dlist = list(city.get("districts") or [])
+                for nd in (co.get("add") or []):
+                    if nd and nd not in dlist:
+                        dlist.append(nd)
+                rmd = set(co.get("remove") or [])
+                if rmd:
+                    dlist = [x for x in dlist if x not in rmd]
+                cities[i] = {**city, "districts": dlist}
+        merged["cities"] = cities
+        out.append(merged)
+    return out
 
 @api.get("/meta/theme")
 async def get_theme():
@@ -3742,6 +3789,54 @@ async def ai_listing_autofill(body: AIListingFillIn):
 
 
 
+class AISuggestCategoryIn(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+
+
+_CAT_SUGGEST_CACHE: Dict[str, Tuple[float, str]] = {}
+
+
+@api.post("/ai/suggest-category")
+async def ai_suggest_category(body: AISuggestCategoryIn):
+    """Suggest the best category key for a listing title using the LLM.
+    Falls back gracefully — frontend already has a keyword matcher, this only
+    helps when keywords don't match (e.g. uncommon brand names).
+    """
+    title = body.title.strip()
+    if not title or not EMERGENT_LLM_KEY:
+        return {"category": ""}
+    key = f"CAT|{title.lower()}"
+    now = time.time()
+    if key in _CAT_SUGGEST_CACHE:
+        ts, c = _CAT_SUGGEST_CACHE[key]
+        if now - ts < 86400:
+            return {"category": c}
+    valid_keys = [c["key"] for c in CATEGORIES]
+    try:
+        from llm_shim import LlmChat, UserMessage
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"cat-{title[:30]}", system_message=(
+            "أنت مصنّف ذكي للإعلانات المبوبة. سأعطيك عنوان إعلان وقائمة فئات صالحة. "
+            "أرجع فقط مفتاح الفئة الأنسب من القائمة (key بالإنجليزية)، بدون أي شرح أو علامات اقتباس."
+        ))
+        chat.with_model("gemini", "gemini-2.5-flash")
+        msg = UserMessage(text=f"عنوان الإعلان: {title}\nالفئات المتاحة: {', '.join(valid_keys)}\nالفئة الأنسب فقط:")
+        reply = (await chat.send_message(msg) or "").strip().lower()
+        # Clean reply — sometimes the model wraps in backticks
+        reply = reply.replace("`", "").replace("\"", "").replace("'", "").strip()
+        # Use the first matching valid key in the reply
+        chosen = ""
+        for k in valid_keys:
+            if k in reply:
+                chosen = k
+                break
+        if chosen:
+            _CAT_SUGGEST_CACHE[key] = (now, chosen)
+        return {"category": chosen}
+    except Exception as e:
+        logger.warning(f"[ai/suggest-category] {e}")
+        return {"category": ""}
+
+
 @api.post("/ai/translate")
 async def ai_translate(body: AITranslateIn):
     if not EMERGENT_LLM_KEY:
@@ -4524,6 +4619,78 @@ async def create_scheduled_broadcast(body: ScheduleBroadcastIn):
     await db.scheduled_broadcasts.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@admin_router.get("/geo/overrides")
+async def list_geo_overrides():
+    docs = await db.geo_overrides.find({}, {"_id": 0}).to_list(length=50)
+    return docs
+
+
+class AddCityIn(BaseModel):
+    country_code: str = Field(min_length=2, max_length=2)
+    name_ar: str = Field(min_length=2, max_length=80)
+    name_en: Optional[str] = ""
+    districts: List[str] = []
+
+
+@admin_router.post("/geo/cities/add")
+async def admin_add_city(body: AddCityIn):
+    cc = body.country_code.upper()
+    await db.geo_overrides.update_one(
+        {"country_code": cc},
+        {"$push": {"add_cities": {
+            "name_ar": body.name_ar.strip(),
+            "name_en": (body.name_en or "").strip(),
+            "districts": list(body.districts or []),
+        }},
+         "$setOnInsert": {"country_code": cc}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+class RemoveCityIn(BaseModel):
+    country_code: str = Field(min_length=2, max_length=2)
+    name_ar: str = Field(min_length=1, max_length=80)
+
+
+@admin_router.post("/geo/cities/remove")
+async def admin_remove_city(body: RemoveCityIn):
+    cc = body.country_code.upper()
+    await db.geo_overrides.update_one(
+        {"country_code": cc},
+        {"$addToSet": {"remove_cities": body.name_ar.strip()},
+         "$setOnInsert": {"country_code": cc}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+class DistrictsIn(BaseModel):
+    country_code: str = Field(min_length=2, max_length=2)
+    city_name_ar: str = Field(min_length=1, max_length=80)
+    add: List[str] = []
+    remove: List[str] = []
+
+
+@admin_router.post("/geo/districts/update")
+async def admin_update_districts(body: DistrictsIn):
+    cc = body.country_code.upper()
+    key = f"districts.{body.city_name_ar}"
+    setters = {}
+    if body.add:
+        setters[f"{key}.add"] = list(set([x.strip() for x in body.add if x.strip()]))
+    if body.remove:
+        setters[f"{key}.remove"] = list(set([x.strip() for x in body.remove if x.strip()]))
+    if not setters:
+        return {"ok": True, "skipped": True}
+    await db.geo_overrides.update_one(
+        {"country_code": cc},
+        {"$set": setters, "$setOnInsert": {"country_code": cc}},
+        upsert=True,
+    )
+    return {"ok": True}
 
 
 @admin_router.get("/notifications/schedule")

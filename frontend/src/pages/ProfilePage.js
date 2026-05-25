@@ -3,8 +3,56 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet } from "lucide-react";
+import { useCountry } from "@/contexts/CountryContext";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
+
+// Bold country card — primary entry point for changing country (per UX spec).
+function CountryCard() {
+    const { country, setCountry } = useCountry();
+    const [open, setOpen] = useState(false);
+    const COUNTRIES = [
+        { code: "SA", flag: "🇸🇦", name_ar: "السعودية" },
+        { code: "AE", flag: "🇦🇪", name_ar: "الإمارات" },
+        { code: "KW", flag: "🇰🇼", name_ar: "الكويت" },
+        { code: "QA", flag: "🇶🇦", name_ar: "قطر" },
+        { code: "BH", flag: "🇧🇭", name_ar: "البحرين" },
+        { code: "OM", flag: "🇴🇲", name_ar: "عُمان" },
+        { code: "EG", flag: "🇪🇬", name_ar: "مصر" },
+    ];
+    const current = COUNTRIES.find((c) => c.code === country) || COUNTRIES[0];
+    return (
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-3xl p-5 border-2 border-emerald-300/40 mb-6">
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/80 dark:bg-black/30 flex items-center justify-center text-2xl shadow-sm">{current.flag}</div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-arabic font-black text-base text-[var(--text)] flex items-center gap-1.5">
+                        <Globe className="w-4 h-4 text-emerald-600" /> {tr("الدولة الحالية")}
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-0.5">{tr("كل الإعلانات والستوريز والمزادات ستظهر لهذه الدولة فقط")}</div>
+                </div>
+                <button data-testid="profile-change-country-btn" onClick={() => setOpen((o) => !o)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-full font-arabic font-black text-sm">
+                    {current.name_ar}
+                </button>
+            </div>
+            {open && (
+                <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {COUNTRIES.map((c) => (
+                        <button
+                            key={c.code}
+                            data-testid={`profile-country-pick-${c.code}`}
+                            onClick={() => { setCountry(c.code); setOpen(false); }}
+                            className={`rounded-xl py-2 px-2 flex flex-col items-center gap-1 border-2 transition-all ${country === c.code ? "border-emerald-500 bg-emerald-100 dark:bg-emerald-900/30" : "border-[var(--border)] bg-[var(--surface)] hover:border-emerald-400"}`}
+                        >
+                            <span className="text-2xl">{c.flag}</span>
+                            <span className="text-[11px] font-arabic font-bold text-[var(--text)]">{c.name_ar}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function ProfilePage() {
     const { user, loading, logout } = useAuth();
@@ -112,6 +160,10 @@ export default function ProfilePage() {
                     )}
                 </div>
             )}
+
+            {/* Country switcher — bold card. The ONLY place to change country
+                besides initial signup. Per UX spec, removed from topbar + post screen. */}
+            <CountryCard />
 
             {/* Premium locked notice */}
             <div className="bg-[var(--surface)] rounded-2xl p-3 border border-dashed border-[var(--border)] mb-4 text-center text-xs text-[var(--text-muted)] font-arabic-body">

@@ -97,11 +97,12 @@ export default function PostListing() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeCountryCode, countries]);
 
-    // Auto-suggest category from the title (keyword match). Runs only when no category yet.
+    // Auto-suggest category from the title (keyword match + AI fallback).
+    // Runs only when no category yet. Debounced.
     useEffect(() => {
         if (form.category) return;
         if (!form.title || form.title.trim().length < 4) return;
-        const title = form.title.toLowerCase();
+        const titleNorm = form.title.toLowerCase();
         const KEYWORDS = {
             cars: ["سيارة", "سياره", "كامري", "كرولا", "هوندا", "تويوتا", "نيسان", "بي ام", "بمب", "مرسيدس", "لكزس", "هيونداي", "كيا", "فورد", "car", "toyota", "honda", "bmw"],
             real_estate: ["شقة", "فيلا", "أرض", "ارض", "بيت", "منزل", "عمارة", "محل", "مكتب", "إيجار", "للإيجار", "تمليك", "للبيع شقة", "دور", "استراحة"],
@@ -180,10 +181,10 @@ export default function PostListing() {
             const payload = {
                 ...form,
                 price: form.price ? parseFloat(form.price) : null,
+                country_code: activeCountryCode || undefined,  // STRICT: post in active country
             };
             if (editId) {
                 const { data } = await api.put(`/listings/${editId}`, payload);
-                // On successful publish, drop any pending draft so we don't nag the user.
                 api.delete("/users/me/draft-listing").catch(() => {});
                 nav(`/listing/${data.id}`);
             } else {
@@ -613,29 +614,22 @@ export default function PostListing() {
 
                     <div>
                         <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
-                            <label className="block text-sm font-arabic font-bold text-[var(--text)]">{tr("المدينة")} <span className="text-red-500">*</span></label>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    data-testid="post-geo-locate-btn"
-                                    onClick={geoLocateAndFill}
-                                    disabled={geoBusy}
-                                    className="text-[11px] font-arabic font-bold text-emerald-600 hover:underline flex items-center gap-1 disabled:opacity-50"
-                                    title={tr("اقترح المدينة والحي من موقعك الحالي")}
-                                >
-                                    {geoBusy
-                                        ? <><span className="inline-block w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></span> {tr("جاري التحديد...")}</>
-                                        : <><Locate className="w-3 h-3" /> {tr("📍 استخدم موقعي")}</>}
-                                </button>
-                                <button
-                                    type="button"
-                                    data-testid="post-change-country-btn"
-                                    onClick={openPicker}
-                                    className="text-[11px] font-arabic font-bold text-[var(--primary)] hover:underline flex items-center gap-1"
-                                >
-                                    {country?.flag} {country?.name_ar || tr("اختر الدولة")} • {tr("تغيير")}
-                                </button>
-                            </div>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)]">
+                                {tr("المدينة")} <span className="text-red-500">*</span>
+                                {country?.flag && <span className="ms-2 text-[11px] font-normal text-[var(--text-muted)]">({country.flag} {country.name_ar})</span>}
+                            </label>
+                            <button
+                                type="button"
+                                data-testid="post-geo-locate-btn"
+                                onClick={geoLocateAndFill}
+                                disabled={geoBusy}
+                                className="text-[11px] font-arabic font-bold text-emerald-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+                                title={tr("اقترح المدينة والحي من موقعك الحالي")}
+                            >
+                                {geoBusy
+                                    ? <><span className="inline-block w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></span> {tr("جاري التحديد...")}</>
+                                    : <><Locate className="w-3 h-3" /> {tr("📍 استخدم موقعي")}</>}
+                            </button>
                         </div>
                         {geoMsg && (
                             <div className="text-[11px] font-arabic-body mb-2 px-2 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -745,27 +739,81 @@ export default function PostListing() {
                         <span className="text-sm font-arabic-body text-[var(--text)]">{t("show_phone")}</span>
                     </label>
 
-                    {/* Optional override phone for this listing (different from account phone) */}
-                    {form.show_phone && (
-                        <div>
-                            <label className="block text-sm font-arabic-body text-[var(--text-muted)] mb-1">
-                                {tr("رقم تواصل خاص بهذا الإعلان (اختياري)")}
-                            </label>
-                            <input
-                                data-testid="contact-phone-input"
-                                type="tel"
-                                inputMode="tel"
-                                dir="ltr"
-                                placeholder="+966 5XX XXX XXX"
-                                value={form.contact_phone || ""}
-                                onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
-                                className="w-full px-4 py-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] font-arabic-body text-sm"
-                            />
-                            <p className="text-xs text-[var(--text-muted)] mt-1 font-arabic-body">
-                                {tr("اتركه فارغاً لاستخدام رقم حسابك")}
-                            </p>
-                        </div>
-                    )}
+                    {/* Optional override phone for this listing (different from account phone).
+                        Pre-fills the user's signup phone + shows the correct country code
+                        placeholder based on the active country (NOT always +966). */}
+                    {form.show_phone && (() => {
+                        const DIAL_BY_CC = { SA: "+966", AE: "+971", KW: "+965", QA: "+974", BH: "+973", OM: "+968", EG: "+20" };
+                        const PLACEHOLDER_BY_CC = {
+                            SA: "+966 5X XXX XXXX", AE: "+971 5X XXX XXXX", KW: "+965 XXXX XXXX",
+                            QA: "+974 XXXX XXXX", BH: "+973 XXXX XXXX", OM: "+968 XXXX XXXX",
+                            EG: "+20 1X XXXX XXXX",
+                        };
+                        const dial = DIAL_BY_CC[activeCountryCode] || "+966";
+                        const ph = PLACEHOLDER_BY_CC[activeCountryCode] || "+9665XXXXXXXX";
+                        const accountPhone = user?.phone_full || (user?.country_code && user?.phone ? `${DIAL_BY_CC[user.country_code] || ""}${user.phone}` : "");
+                        const useAccountPhone = () => setForm({ ...form, contact_phone: "" });
+                        const useOtherPhone = () => setForm({ ...form, contact_phone: dial + " " });
+                        const usingOther = !!form.contact_phone;
+                        return (
+                            <div>
+                                <label className="block text-sm font-arabic-body text-[var(--text-muted)] mb-2">
+                                    {tr("رقم التواصل لهذا الإعلان")}
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                    <button
+                                        type="button"
+                                        data-testid="use-account-phone-btn"
+                                        onClick={useAccountPhone}
+                                        className={`rounded-xl py-2.5 px-3 text-xs font-arabic font-bold border-2 transition-all ${!usingOther ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                    >
+                                        ✓ {tr("استخدم رقم حسابي")}
+                                        {accountPhone && <div className="text-[10px] font-normal opacity-80 mt-0.5" dir="ltr">{accountPhone}</div>}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        data-testid="use-other-phone-btn"
+                                        onClick={useOtherPhone}
+                                        className={`rounded-xl py-2.5 px-3 text-xs font-arabic font-bold border-2 transition-all ${usingOther ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                    >
+                                        ✎ {tr("استخدم رقم آخر")}
+                                    </button>
+                                </div>
+                                {usingOther && (
+                                    <div className="flex items-stretch gap-0">
+                                        <select
+                                            data-testid="contact-phone-dial-select"
+                                            value={(form.contact_phone || "").split(" ")[0] || dial}
+                                            onChange={(e) => {
+                                                const newDial = e.target.value;
+                                                const rest = (form.contact_phone || "").split(" ").slice(1).join(" ");
+                                                setForm({ ...form, contact_phone: `${newDial} ${rest}`.trim() });
+                                            }}
+                                            className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-s-xl px-2 py-3 text-sm font-arabic-body cursor-pointer outline-none focus:border-[var(--primary)]"
+                                            dir="ltr"
+                                        >
+                                            {Object.entries(DIAL_BY_CC).map(([cc, d]) => (
+                                                <option key={cc} value={d}>{d} ({cc})</option>
+                                            ))}
+                                        </select>
+                                        <input
+                                            data-testid="contact-phone-input"
+                                            type="tel"
+                                            inputMode="tel"
+                                            dir="ltr"
+                                            placeholder={ph}
+                                            value={(form.contact_phone || "").split(" ").slice(1).join(" ")}
+                                            onChange={(e) => {
+                                                const d = (form.contact_phone || "").split(" ")[0] || dial;
+                                                setForm({ ...form, contact_phone: `${d} ${e.target.value}`.trim() });
+                                            }}
+                                            className="flex-1 px-4 py-3 rounded-e-xl bg-[var(--surface-elevated)] border border-s-0 border-[var(--border)] font-arabic-body text-sm outline-none focus:border-[var(--primary)]"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     <div className="bg-[var(--surface-elevated)] rounded-xl p-4 mt-4">
                         <h3 className="font-arabic font-bold text-sm text-[var(--text)] mb-2">{tr("ملخص الإعلان")}</h3>

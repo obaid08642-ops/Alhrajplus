@@ -48,12 +48,25 @@ const api = axios.create({
 
 // Attach Bearer token to every request as a fallback for browsers that block
 // third-party cookies (Safari ITP, iOS, Brave, strict tracking protection).
+// ALSO attach the user's selected country as a query parameter so the backend
+// can apply STRICT country isolation across all reads (listings, stories,
+// auctions, search) without each component having to remember to send it.
 api.interceptors.request.use((config) => {
     const t = tokenStore.getAccess();
     if (t) {
         config.headers = config.headers || {};
         if (!config.headers.Authorization) config.headers.Authorization = `Bearer ${t}`;
     }
+    try {
+        const cc = (typeof localStorage !== "undefined" && localStorage.getItem("hp_country")) || "";
+        if (cc) {
+            config.params = config.params || {};
+            // Don't clobber explicit overrides from callers.
+            if (config.params.country_code === undefined && config.params.country === undefined) {
+                config.params.country_code = cc;
+            }
+        }
+    } catch (_) { /* noop */ }
     return config;
 });
 

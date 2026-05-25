@@ -221,8 +221,9 @@ export default function TopBar() {
                     )}
                 </div>
 
-                {/* Country switcher */}
-                <CountrySwitcher />
+                {/* Country switcher — moved to Profile page only (per UX spec).
+                    To change country, user goes to Profile/Settings.
+                    {<CountrySwitcher />} */}
 
                 {/* Notifications bell */}
                 <NotificationBell />
