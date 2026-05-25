@@ -2472,7 +2472,7 @@ async def list_listings(
         "_id": 0,
         "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
         "currency_code": 1, "category": 1, "subcategory": 1, "city": 1,
-        "country_code": 1, "images": {"$slice": 1}, "created_at": 1,
+        "country_code": 1, "images": {"$slice": 1}, "videos": 1, "created_at": 1,
         "views": 1, "favorites": 1, "is_demo": 1, "demo_label": 1,
         "user_id": 1, "status": 1,
     }
@@ -5594,6 +5594,60 @@ async def ai_transcribe(audio: UploadFile = File(...), lang: Optional[str] = For
 _ALLOWED_GEO_COUNTRIES = {"sa", "ae", "kw", "qa", "bh", "om", "eg"}
 _GEO_CACHE: dict[str, tuple[float, list]] = {}
 _GEO_TTL = 86400  # 24h
+
+
+@api.get("/geo/detect-country")
+async def geo_detect_country(request: Request):
+    """Auto-detect the user's country from their IP address.
+
+    Used by the frontend on first visit to pre-select a country instead of
+    forcing the user to manually choose. The selection is always overridable
+    via the country picker in the topbar / profile.
+
+    Falls back to "SA" when:
+      * IP is private/loopback (dev environment)
+      * The IP lookup fails (network error, rate limit)
+      * The detected country is OUTSIDE our serviced area (GCC + Egypt)
+
+    Result is cached per-IP for 1 hour to be polite with the free service.
+    """
+    ALLOWED = {"SA", "AE", "KW", "QA", "BH", "OM", "EG"}
+    # Prefer X-Forwarded-For (set by ingress) — first IP in the chain is the real client.
+    xff = request.headers.get("x-forwarded-for", "")
+    ip = (xff.split(",")[0].strip() if xff else (request.client.host if request.client else "")) or ""
+    if not ip or ip.startswith(("127.", "10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.", "172.2", "172.30.", "172.31.")):
+        return {"country": "SA", "detected": False, "reason": "private_or_local_ip"}
+
+    cache_key = f"IPCC|{ip}"
+    now = time.time()
+    if cache_key in _GEO_CACHE:
+        ts, cached = _GEO_CACHE[cache_key]
+        if now - ts < 3600:
+            return cached
+
+    cc = None
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as cli:
+            # ip-api.com is free, no key needed, supports HTTPS, ~45 req/min/IP.
+            r = await cli.get(
+                f"https://ip-api.com/json/{ip}",
+                params={"fields": "status,countryCode,country"},
+                headers={"User-Agent": "HarajPlus/1.0"},
+            )
+            data = r.json() if r.status_code == 200 else {}
+        if (data.get("status") or "").lower() == "success":
+            cc = (data.get("countryCode") or "").upper()
+    except Exception as e:
+        logger.warning(f"[geo/detect-country] ip-api failed: {e}")
+
+    if cc and cc in ALLOWED:
+        result = {"country": cc, "detected": True, "raw_country": cc}
+    else:
+        # User is outside the serviced area or detection failed → default to SA.
+        result = {"country": "SA", "detected": False, "raw_country": cc, "reason": "outside_supported_area" if cc else "lookup_failed"}
+
+    _GEO_CACHE[cache_key] = (now, result)
+    return result
 
 
 @api.get("/geo/reverse")

@@ -19,10 +19,16 @@ export function CountryProvider({ children }) {
             try {
                 const { data } = await api.get("/meta/countries");
                 setCountries(data || []);
-                // First-time default = first country (SA)
-                if (!stored && data?.[0]?.code) {
-                    setCountryState(data[0].code);
-                    AsyncStorage.setItem(STORAGE_KEY, data[0].code).catch(() => {});
+                // First-time: try auto-detecting from IP. Fallback to SA on failure.
+                if (!stored) {
+                    let cc = "";
+                    try {
+                        const det = await api.get("/geo/detect-country");
+                        cc = (det?.data?.country || "").toUpperCase();
+                    } catch (_) {}
+                    if (!cc) cc = data?.[0]?.code || "SA";
+                    setCountryState(cc);
+                    AsyncStorage.setItem(STORAGE_KEY, cc).catch(() => {});
                 }
             } catch (_) {}
         })();

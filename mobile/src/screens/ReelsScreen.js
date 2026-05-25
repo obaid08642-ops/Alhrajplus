@@ -21,12 +21,34 @@ export default function ReelsScreen() {
     useEffect(() => {
         (async () => {
             try {
-                const { data } = await api.get("/listings", { params: { limit: 50, sort: "newest" } });
-                const list = data.items || [];
-                // Videos first, image-only stories second.
-                const withVideos = list.filter((i) => (i.videos?.length || 0) > 0);
-                const imageOnly = list.filter((i) => (i.videos?.length || 0) === 0 && (i.images?.length || 0) >= 1);
-                setItems([...withVideos, ...imageOnly]);
+                // Prefer real stories (subcategory=story) — these are short videos
+                // the user explicitly posted via the "Story" entry point.
+                let storyItems = [];
+                try {
+                    const { data } = await api.get("/listings", { params: { limit: 50, sort: "newest", subcategory: "story" } });
+                    storyItems = (data.items || []).filter((i) => (i.videos?.length || 0) > 0);
+                } catch (_) {}
+                // Also pull any other listings that happen to have a video attached.
+                let withVideos = [];
+                try {
+                    const { data } = await api.get("/listings", { params: { limit: 50, sort: "newest" } });
+                    withVideos = (data.items || []).filter((i) => (i.videos?.length || 0) > 0 && (i.subcategory !== "story"));
+                } catch (_) {}
+                // Image-only fallback so the tab isn't empty for new installs.
+                let imageOnly = [];
+                try {
+                    const { data } = await api.get("/listings", { params: { limit: 20, sort: "newest" } });
+                    imageOnly = (data.items || []).filter((i) => (i.videos?.length || 0) === 0 && (i.images?.length || 0) >= 1);
+                } catch (_) {}
+                // Dedupe by id, stories first
+                const seen = new Set();
+                const merged = [];
+                for (const arr of [storyItems, withVideos, imageOnly]) {
+                    for (const it of arr) {
+                        if (!seen.has(it.id)) { seen.add(it.id); merged.push(it); }
+                    }
+                }
+                setItems(merged);
             } catch (_) {}
             setLoading(false);
         })();

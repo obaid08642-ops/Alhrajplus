@@ -46,14 +46,30 @@ export function CountryProvider({ children }) {
     }, [user, country]);
 
     // Show first-visit picker once, if no country chosen and not previously dismissed.
+    // BUT: before showing the picker, try to auto-detect the country from the
+    // user's IP via /api/geo/detect-country. If detection succeeds and the
+    // country is supported, silently use it (still overridable by the topbar).
     useEffect(() => {
         if (country) return;
         let seen = "0";
         try { seen = localStorage.getItem(SEEN_PICKER_KEY) || "0"; } catch (_) {}
-        if (seen !== "1") {
-            const t = setTimeout(() => setShowPicker(true), 600);
-            return () => clearTimeout(t);
-        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data } = await api.get("/geo/detect-country");
+                if (cancelled) return;
+                if (data?.country) {
+                    try { localStorage.setItem(STORAGE_KEY, data.country); } catch (_) {}
+                    try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
+                    setCountryState(data.country);
+                    return; // auto-detected; no manual picker needed
+                }
+            } catch (_) { /* fall through to manual picker */ }
+            if (!cancelled && seen !== "1") {
+                setShowPicker(true);
+            }
+        })();
+        return () => { cancelled = true; };
     }, [country]);
 
     const setCountry = useCallback(async (code, opts = {}) => {
