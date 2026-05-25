@@ -174,10 +174,23 @@ export default function PostScreen({ navigation, route }) {
 
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 160 }} keyboardShouldPersistTaps="handled">
                 {step === 1 ? (
-                    <Step1 onAI={aiAutofill} aiBusy={aiBusy} categories={categories} onPick={(key) => { setForm({ ...form, category: key, subcategory: "", custom_fields: {} }); setStep(2); }} />
+                    <Step1 onAI={aiAutofill} aiBusy={aiBusy} categories={categories} onPick={(key) => {
+                        if (key === "__story__") {
+                            // Story mode = same form but enforces video upload + brief
+                            setForm({ ...form, category: form.category || "general", subcategory: "story", custom_fields: { is_story: true } });
+                            setStep(2);
+                        } else if (key === "auction") {
+                            setForm({ ...form, custom_fields: { ...form.custom_fields, is_auction: true } });
+                            setStep(2);
+                        } else {
+                            setForm({ ...form, category: key, subcategory: "", custom_fields: {} });
+                            setStep(2);
+                        }
+                    }} />
                 ) : (
                     <Step2
                         form={form} setForm={setForm} cat={cat}
+                        categories={categories}
                         onPickerOpen={setPickerOpen} country={country}
                         onPickImage={pickImage} onTakePhoto={takePhoto}
                         uploadingImg={uploadingImg}
@@ -233,13 +246,21 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
 
     useEffect(() => {
         if (!visible) { setQ(""); setRemote([]); return; }
-        // Auto-load full list of districts for the current city on open
-        if (kind === "district" && parent && !q) {
-            setLoading(true);
-            api.get("/geo/districts", { params: { city: parent, country, lang, limit: 60 } })
+        // Auto-load full list on open (cities OR districts) so user can scroll without searching
+        setLoading(true);
+        if (kind === "district" && parent) {
+            api.get("/geo/districts", { params: { city: parent, country, lang, limit: 100 } })
                 .then(({ data }) => setRemote(data || []))
                 .catch(() => setRemote([]))
                 .finally(() => setLoading(false));
+        } else if (kind === "city" && country) {
+            // Pre-load ALL cities of the selected country (no search needed)
+            api.get("/geo/cities", { params: { country, lang, limit: 100 } })
+                .then(({ data }) => setRemote(data || []))
+                .catch(() => setRemote([]))
+                .finally(() => setLoading(false));
+        } else {
+            setLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible, kind, parent, country, lang]);
@@ -251,8 +272,8 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
             setLoading(true);
             try {
                 const params = kind === "district"
-                    ? { q, country, type: "district", lang, limit: 20 }
-                    : { q, country, type: "city", lang, limit: 20 };
+                    ? { q, country, type: "district", lang, limit: 30 }
+                    : { q, country, type: "city", lang, limit: 30 };
                 const { data } = await api.get("/geo/search", { params });
                 setRemote(data || []);
             } catch (_) { setRemote([]); }
@@ -261,7 +282,9 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
         return () => debounceRef.current && clearTimeout(debounceRef.current);
     }, [q, visible, kind, country, lang]);
 
-    // Merge: static items first (fast, no network), then remote results
+    // For cities: static list comes from country.cities (already country-filtered).
+    // For districts: static list is from selected city only.
+    // Merge: static first then remote, dedupe by name.
     const items = useMemo(() => {
         const localFiltered = q
             ? staticItems.filter((it) => (it.name || "").includes(q))
@@ -284,12 +307,12 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
                     <Text style={s.modalTitle}>{title}</Text>
                     <View style={s.searchPill}>
                         <Search size={14} color={colors.textMuted} />
-                        <TextInput value={q} onChangeText={setQ} placeholder={kind === "city" ? "ابحث عن مدينة..." : "ابحث عن حي..."} placeholderTextColor={colors.textMuted} style={s.searchInput} autoFocus={kind === "city"} />
+                        <TextInput value={q} onChangeText={setQ} placeholder={kind === "city" ? "ابحث أو اختر من القائمة..." : "ابحث أو اختر الحي..."} placeholderTextColor={colors.textMuted} style={s.searchInput} />
                         {loading && <ActivityIndicator size="small" color={colors.primary} />}
                     </View>
                     {items.length === 0 && !loading && (
                         <Text style={{ padding: 30, textAlign: "center", color: colors.textMuted, fontSize: 12 }}>
-                            {q ? "لا نتائج — جرّب اسم آخر" : (kind === "district" ? "لا أحياء في القائمة المحلية — اكتب للبحث في الخريطة" : "اكتب اسم المدينة")}
+                            {q ? "لا نتائج" : (kind === "district" ? "اختر مدينة أولاً" : "اكتب اسم المدينة")}
                         </Text>
                     )}
                     <FlatList
@@ -303,12 +326,12 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
                                         <Text style={[s.modalRowText, isCur && { color: colors.primary, fontWeight: "900" }]}>{item.name}</Text>
                                         {item.parent && <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>{item.parent}</Text>}
                                     </View>
-                                    {item.fromGeo && <Text style={{ fontSize: 9, color: colors.primary, fontWeight: "800" }}>🌍 خريطة</Text>}
+                                    {item.fromGeo && <Text style={{ fontSize: 9, color: colors.primary, fontWeight: "800" }}>🌍</Text>}
                                     {isCur && <Check size={16} color={colors.primary} />}
                                 </TouchableOpacity>
                             );
                         }}
-                        style={{ maxHeight: 380 }}
+                        style={{ maxHeight: 420 }}
                     />
                     <TouchableOpacity onPress={onClose} style={s.modalCloseBtn}>
                         <Text style={s.modalCloseText}>إلغاء</Text>
@@ -319,58 +342,173 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
     );
 }
 
-// =============== STEP 1: Category Picker ===============
+// =============== STEP 1: Entry Cards (6 cards, mirrors web premium flow) ===============
 function Step1({ categories, onPick, onAI, aiBusy }) {
     const { t } = useI18n();
+    const nav = require("@react-navigation/native").useNavigation();
+
+    const isAdsCat = (k) => !["jobs", "services"].includes(k);
+    const jobsCat = categories.find((c) => c.key === "jobs");
+    const servicesCat = categories.find((c) => c.key === "services");
+
     return (
         <>
-            {/* AI Autofill */}
+            {/* Hero AI Autofill */}
             <TouchableOpacity onPress={onAI} disabled={aiBusy} style={[s.aiCta, shadow.card]}>
                 <LinearGradient colors={[colors.primary, "#7CCAEC", colors.accent]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
                 <View style={s.aiIcon}><Sparkles size={20} color="#fff" /></View>
                 <View style={{ flex: 1 }}>
-                    <Text style={s.aiTitle}>{t("نشر سريع بالذكاء الاصطناعي")}</Text>
+                    <Text style={s.aiTitle}>{t("بيع بالذكاء الاصطناعي")}</Text>
                     <Text style={s.aiSub}>{t("التقط صورة وسيُكمل الذكاء الاصطناعي العنوان والوصف والسعر")}</Text>
                 </View>
                 {aiBusy && <ActivityIndicator color="#fff" />}
             </TouchableOpacity>
 
-            <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 16 }}>
-                <View style={s.divider} />
-                <Text style={s.dividerText}>{t("أو اختر التصنيف يدوياً")}</Text>
-                <View style={s.divider} />
-            </View>
-
-            <View style={s.catGrid}>
-                {categories.map((c) => {
-                    const Icon = LucideIcons[c.icon] || Shapes;
-                    return (
-                        <TouchableOpacity key={c.key} onPress={() => onPick(c.key)} style={s.catCard} activeOpacity={0.85}>
-                            <View style={s.catIcon}><Icon size={26} color={colors.primary} strokeWidth={2.2} /></View>
-                            <Text style={s.catName} numberOfLines={2}>{c.name || c.name_ar}</Text>
-                        </TouchableOpacity>
-                    );
-                })}
+            {/* 6 entry cards in 2x3 grid */}
+            <View style={s.entryGrid}>
+                <EntryCard
+                    icon="📦" label={t("إضافة إعلان")} sub={t("كل الفئات")}
+                    bg={["#DBEAFE", "#EFF6FF"]} accent={colors.primary}
+                    onPress={() => onPick("")}
+                />
+                <EntryCard
+                    icon="🔨" label={t("رفع مزاد")} sub={t("ابدأ مزايدة حية")}
+                    bg={["#FEF3C7", "#FEF9C3"]} accent="#F59E0B"
+                    onPress={() => onPick("auction")}
+                />
+                {servicesCat && (
+                    <EntryCard
+                        icon="🛠️" label={servicesCat.name || t("خدمات")} sub={t("اعرض خدمتك")}
+                        bg={["#D1FAE5", "#ECFDF5"]} accent="#10B981"
+                        onPress={() => onPick("services")}
+                    />
+                )}
+                {jobsCat && (
+                    <EntryCard
+                        icon="💼" label={jobsCat.name || t("وظائف")} sub={t("ابحث أو وظّف")}
+                        bg={["#EDE9FE", "#F5F3FF"]} accent="#8B5CF6"
+                        onPress={() => onPick("jobs")}
+                    />
+                )}
+                <EntryCard
+                    icon="🎬" label={t("نشر ستوري")} sub={t("فيديو قصير")}
+                    bg={["#FCE7F3", "#FDF2F8"]} accent="#EC4899"
+                    onPress={() => onPick("__story__")}
+                />
+                <EntryCard
+                    icon="🏷️" label={t("صفقات اليوم")} sub={t("سعر مميز")}
+                    bg={["#FEE2E2", "#FEF2F2"]} accent="#EF4444"
+                    onPress={() => { nav.navigate("Deals"); }}
+                />
             </View>
         </>
     );
 }
 
+function EntryCard({ icon, label, sub, bg, accent, onPress }) {
+    return (
+        <TouchableOpacity onPress={onPress} style={s.entryCard} activeOpacity={0.85}>
+            <LinearGradient colors={bg} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <Text style={{ fontSize: 28 }}>{icon}</Text>
+            <Text style={[s.entryLabel, { color: accent }]} numberOfLines={1}>{label}</Text>
+            <Text style={s.entrySub} numberOfLines={1}>{sub}</Text>
+        </TouchableOpacity>
+    );
+}
+
 // =============== STEP 2: Details Form ===============
-function Step2({ form, setForm, cat, onPickerOpen, country, onPickImage, onTakePhoto, uploadingImg, onUseLocation }) {
+function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickImage, onTakePhoto, uploadingImg, onUseLocation }) {
     const { t } = useI18n();
+    const [catPickerOpen, setCatPickerOpen] = useState(false);
     const update = (k, v) => setForm({ ...form, [k]: v });
     const updateCF = (k, v) => setForm({ ...form, custom_fields: { ...form.custom_fields, [k]: v } });
 
+    // Auto-suggest category from title using simple keyword match
+    useEffect(() => {
+        if (form.category || !form.title || form.title.length < 4) return;
+        const title = form.title.toLowerCase();
+        const KEYWORDS = {
+            cars: ["سيارة", "سياره", "كامري", "كرولا", "هوندا", "تويوتا", "نيسان", "بي ام", "مرسيدس", "car"],
+            real_estate: ["شقة", "فيلا", "أرض", "ارض", "بيت", "عمارة", "محل", "مكتب", "إيجار", "تمليك"],
+            electronics: ["موبايل", "جوال", "ايفون", "آيفون", "سامسونج", "لاب توب", "تلفزيون", "كمبيوتر", "iphone", "samsung"],
+            furniture: ["كنبة", "كرسي", "طاولة", "غرفة نوم", "سرير", "ديكور"],
+            fashion: ["ثوب", "عباية", "حذاء", "ملابس", "حقيبة"],
+            jobs: ["وظيفة", "موظف", "موظفة", "مطلوب", "للعمل"],
+            services: ["خدمة", "تركيب", "صيانة", "نقل", "تنظيف"],
+        };
+        for (const [k, words] of Object.entries(KEYWORDS)) {
+            if (words.some((w) => title.includes(w))) {
+                if (categories.find((c) => c.key === k)) {
+                    setForm({ ...form, category: k });
+                    break;
+                }
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.title]);
+
     return (
         <>
-            {/* Selected category chip */}
-            {cat && (
-                <View style={s.catChip}>
-                    <Sparkles size={12} color={colors.primary} />
-                    <Text style={s.catChipText}>{cat.name || cat.name_ar}</Text>
+            {/* Story mode banner */}
+            {form.subcategory === "story" && (
+                <View style={s.storyBanner}>
+                    <Text style={s.storyBannerIcon}>🎬</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.storyBannerText}>{t("وضع الستوري — فيديو قصير فقط")}</Text>
+                        <Text style={s.storyBannerSub}>{t("ارفع فيديو قصير + عنوان + سعر + مدينة. لا حاجة لتفاصيل كثيرة.")}</Text>
+                    </View>
                 </View>
             )}
+            {/* Auction mode banner */}
+            {form.custom_fields?.is_auction && (
+                <View style={[s.storyBanner, { backgroundColor: "#FEF3C7", borderColor: "#F59E0B" }]}>
+                    <Text style={s.storyBannerIcon}>🔨</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.storyBannerText}>{t("وضع المزاد")}</Text>
+                        <Text style={s.storyBannerSub}>{t("السعر الذي ستضعه = السعر الابتدائي للمزايدة")}</Text>
+                    </View>
+                </View>
+            )}
+
+            {/* Category selector */}
+            <Field label={t("التصنيف") + " *"}>
+                <TouchableOpacity onPress={() => setCatPickerOpen(true)} style={s.input}>
+                    <Text style={form.category ? s.inputText : s.inputPh}>
+                        {cat ? (cat.name || cat.name_ar) : t("اختر التصنيف")}
+                    </Text>
+                </TouchableOpacity>
+                {!form.category && form.title && form.title.length >= 4 && (
+                    <Text style={{ fontSize: 10.5, color: colors.primary, marginTop: 4 }}>
+                        ✨ {t("اكتب العنوان واختر تصنيفاً مقترحاً تلقائياً")}
+                    </Text>
+                )}
+            </Field>
+            <Modal visible={catPickerOpen} transparent animationType="slide" onRequestClose={() => setCatPickerOpen(false)}>
+                <View style={s.modalBg}>
+                    <View style={s.modalSheet}>
+                        <Text style={s.modalTitle}>{t("اختر التصنيف")}</Text>
+                        <FlatList
+                            data={categories}
+                            keyExtractor={(c) => c.key}
+                            style={{ maxHeight: 480 }}
+                            renderItem={({ item }) => {
+                                const Icon = LucideIcons[item.icon] || Shapes;
+                                const isCur = item.key === form.category;
+                                return (
+                                    <TouchableOpacity onPress={() => { setForm({ ...form, category: item.key, subcategory: form.subcategory === "story" ? "story" : "", custom_fields: form.custom_fields?.is_story ? { is_story: true } : form.custom_fields?.is_auction ? { is_auction: true } : {} }); setCatPickerOpen(false); }} style={[s.modalRow, isCur && s.modalRowActive]}>
+                                        <Icon size={22} color={colors.primary} />
+                                        <Text style={[s.modalRowText, { flex: 1, marginStart: 10 }, isCur && { color: colors.primary, fontWeight: "900" }]}>{item.name || item.name_ar}</Text>
+                                        {isCur && <Check size={16} color={colors.primary} />}
+                                    </TouchableOpacity>
+                                );
+                            }}
+                        />
+                        <TouchableOpacity onPress={() => setCatPickerOpen(false)} style={s.modalCloseBtn}>
+                            <Text style={s.modalCloseText}>إلغاء</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             <Field label={t("العنوان") + " *"}>
                 <TextInput value={form.title} onChangeText={(v) => update("title", v)} placeholder={t("مثال: تويوتا كامري 2020 ممتازة")} placeholderTextColor={colors.textMuted} style={s.input} />
@@ -566,6 +704,16 @@ const s = StyleSheet.create({
     catCard: { width: "31.5%", backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: "center", padding: 14, gap: 8 },
     catIcon: { width: 50, height: 50, borderRadius: 14, backgroundColor: "rgba(79,182,230,0.12)", alignItems: "center", justifyContent: "center" },
     catName: { fontSize: 11.5, fontWeight: "800", color: colors.text, textAlign: "center" },
+    // Entry cards (6-card grid)
+    entryGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 16, gap: 10 },
+    entryCard: { width: "47%", aspectRatio: 1.1, borderRadius: 18, overflow: "hidden", borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", padding: 12, gap: 4 },
+    entryLabel: { fontSize: 14, fontWeight: "900", marginTop: 4 },
+    entrySub: { fontSize: 10.5, color: colors.textMuted, fontWeight: "600" },
+    // Story/Auction banner
+    storyBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, backgroundColor: "#FCE7F3", borderRadius: 14, borderWidth: 1, borderColor: "#EC4899", marginBottom: 14 },
+    storyBannerIcon: { fontSize: 24 },
+    storyBannerText: { fontSize: 13, fontWeight: "900", color: colors.text },
+    storyBannerSub: { fontSize: 10.5, color: colors.textMuted, marginTop: 2 },
     // Step 2
     catChip: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: "rgba(79,182,230,0.12)", borderColor: colors.primary, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 14 },
     catChipText: { color: colors.primary, fontSize: 11, fontWeight: "800" },

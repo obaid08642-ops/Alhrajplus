@@ -17,10 +17,28 @@ L.Icon.Default.mergeOptions({
     shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Hologram pin: floating, glowing price chip with concentric rings
-function buildHologramIcon({ price, currency }) {
+// Category emoji map (mirrors web categories)
+const CATEGORY_EMOJI = {
+    cars: "🚗", motors: "🚗", real_estate: "🏠", apartments: "🏢",
+    electronics: "📱", mobiles: "📱", computers: "💻",
+    furniture: "🛋️", fashion: "👗", jewelry: "💍",
+    jobs: "💼", services: "🛠️",
+    sports: "⚽", games: "🎮", books: "📚", food: "🍽️",
+    pets: "🐾", baby: "👶", beauty: "💄",
+    industrial: "🏗️", agricultural: "🌾", art: "🎨",
+    auction: "🔨", general: "🏷️",
+};
+
+function emojiForCategory(category) {
+    if (!category) return "🏷️";
+    return CATEGORY_EMOJI[category] || "🏷️";
+}
+
+// Hologram pin: floating, glowing price chip + category emoji
+function buildHologramIcon({ price, currency, category }) {
     const display = price ? Number(price).toLocaleString() : "★";
-    const sub = price ? (currency || "ر.س") : "إعلان";
+    const sub = price ? (currency || "ر.س") : emojiForCategory(category);
+    const emoji = emojiForCategory(category);
     return L.divIcon({
         className: "hologram-pin-wrap",
         iconSize: [78, 78],
@@ -31,6 +49,7 @@ function buildHologramIcon({ price, currency }) {
             <div class="hp-ring hp-ring-1"></div>
             <div class="hp-ring hp-ring-2"></div>
             <div class="hp-chip">
+              <div class="hp-emoji" style="font-size:18px;line-height:1;margin-bottom:2px">${emoji}</div>
               <div class="hp-price">${display}</div>
               <div class="hp-curr">${sub}</div>
             </div>
@@ -219,7 +238,7 @@ export function MapPage() {
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                     {myPos && <Marker position={myPos} icon={buildMyLocationIcon()}><Popup>{tr("موقعك الحالي")}</Popup></Marker>}
                     {items.map((it) => (
-                        <Marker key={it.id} position={[it.lat, it.lng]} icon={buildHologramIcon({ price: it.price, currency: it.currency })}>
+                        <Marker key={it.id} position={[it.lat, it.lng]} icon={buildHologramIcon({ price: it.price, currency: it.currency, category: it.category })}>
                             <Popup>
                                 <div className="font-arabic">
                                     <div className="font-bold text-sm">{it.title}</div>

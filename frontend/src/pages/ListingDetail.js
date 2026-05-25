@@ -295,7 +295,7 @@ export default function ListingDetail() {
                             <div className="h-72 mt-4">
                                 <MapContainer center={[listing.lat, listing.lng]} zoom={14} className="w-full h-full" scrollWheelZoom={false}>
                                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-                                    <Marker position={[listing.lat, listing.lng]} icon={buildHologramIcon({ price: listing.price, currency: listing.currency })}>
+                                    <Marker position={[listing.lat, listing.lng]} icon={buildHologramIcon({ price: listing.price, currency: listing.currency, category: listing.category })}>
                                         <Popup>
                                             <div className="font-arabic">
                                                 <div className="font-bold">{listing.title}</div>

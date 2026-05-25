@@ -5511,6 +5511,97 @@ async def geo_districts(
     return out
 
 
+@api.get("/geo/cities")
+async def geo_cities(
+    country: str = Query(..., min_length=2, max_length=2),
+    lang: str = Query("ar", max_length=2),
+    limit: int = Query(80, ge=10, le=200),
+):
+    """List ALL major cities + governorates within a country (no search needed).
+    Returns up to `limit` populated places (P-class) inside the country boundary.
+    """
+    cc = country.lower().strip()
+    if cc not in _ALLOWED_GEO_COUNTRIES:
+        return []
+    key = f"CITIES|{cc}|{lang}|{limit}"
+    now = time.time()
+    if key in _GEO_CACHE:
+        ts, cached = _GEO_CACHE[key]
+        if now - ts < _GEO_TTL:
+            return cached
+
+    # 1. Resolve country relation id via Nominatim (use country=NAME for proper relation match)
+    _country_names = {
+        "sa": "Saudi Arabia", "ae": "United Arab Emirates", "kw": "Kuwait",
+        "qa": "Qatar", "bh": "Bahrain", "om": "Oman", "eg": "Egypt",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as cli:
+            r = await cli.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"country": _country_names.get(cc, cc), "format": "json", "limit": "3"},
+                headers={"User-Agent": "HarajPlus/1.0 (https://alhraj.online)"},
+            )
+            r.raise_for_status()
+            found = r.json() or []
+    except Exception as e:
+        logger.warning(f"[geo/cities] nominatim failed: {e}")
+        return []
+    if not found:
+        return []
+    rel = next((x for x in found if (x.get("osm_type") or "").lower() == "relation"), found[0])
+    osm_id = rel.get("osm_id")
+    if not osm_id or (rel.get("osm_type") or "").lower() != "relation":
+        return []
+    area_id = int(osm_id) + 3600000000
+
+    # 2. Query Overpass for cities + towns + administrative centres
+    overpass_q = f"""
+    [out:json][timeout:30];
+    area({area_id})->.country;
+    (
+      node["place"~"^(city|town)$"](area.country);
+      relation["place"~"^(city|town)$"]["admin_level"~"^(4|5|6|7)$"](area.country);
+      node["admin_centre"="yes"](area.country);
+    );
+    out tags center {limit};
+    """
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as cli:
+            r = await cli.post(
+                "https://overpass-api.de/api/interpreter",
+                data={"data": overpass_q},
+                headers={"User-Agent": "HarajPlus/1.0 (https://alhraj.online)"},
+            )
+            r.raise_for_status()
+            data = r.json() or {}
+    except Exception as e:
+        logger.warning(f"[geo/cities] overpass failed: {e}")
+        return []
+
+    out, seen = [], set()
+    for el in (data.get("elements") or []):
+        tags = el.get("tags", {})
+        name = tags.get(f"name:{lang}") or tags.get("name:ar") or tags.get("name")
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        center = el.get("center") or {}
+        out.append({
+            "name": name,
+            "name_en": tags.get("name:en") or tags.get("name") or name,
+            "place": tags.get("place") or "city",
+            "lat": center.get("lat") or el.get("lat") or 0,
+            "lng": center.get("lon") or el.get("lon") or 0,
+        })
+        if len(out) >= limit:
+            break
+
+    out.sort(key=lambda x: x.get("name") or "")
+    _GEO_CACHE[key] = (now, out)
+    return out
+
+
 app.include_router(api)
 
 

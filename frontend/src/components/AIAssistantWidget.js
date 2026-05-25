@@ -58,19 +58,84 @@ export default function AIAssistantWidget() {
         setMessages([]);
     };
 
+    // FAB position (draggable + collapsible to side tab)
+    const [fabPos, setFabPos] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("hp_ai_fab_pos") || "null") || { side: "start", bottom: 80, collapsed: false }; }
+        catch { return { side: "start", bottom: 80, collapsed: false }; }
+    });
+    const dragRef = useRef({ start: null, moved: false, current: null });
+
+    useEffect(() => {
+        try { localStorage.setItem("hp_ai_fab_pos", JSON.stringify(fabPos)); } catch { /* noop */ }
+    }, [fabPos]);
+
+    const onPointerDown = (e) => {
+        dragRef.current = { start: { x: e.clientX, y: e.clientY, bottom: fabPos.bottom }, moved: false, current: { x: e.clientX, y: e.clientY } };
+    };
+    const onPointerMove = (e) => {
+        if (!dragRef.current.start) return;
+        const dx = e.clientX - dragRef.current.start.x;
+        const dy = e.clientY - dragRef.current.start.y;
+        if (Math.abs(dx) > 6 || Math.abs(dy) > 6) dragRef.current.moved = true;
+        dragRef.current.current = { x: e.clientX, y: e.clientY };
+    };
+    const onPointerUp = (e) => {
+        const drag = dragRef.current;
+        dragRef.current = { start: null, moved: false, current: null };
+        if (!drag.start) return;
+        if (!drag.moved) {
+            // Just a click: open or expand
+            if (fabPos.collapsed) setFabPos({ ...fabPos, collapsed: false });
+            else setOpen(true);
+            return;
+        }
+        // Compute new side based on horizontal position
+        const w = window.innerWidth;
+        const halfway = drag.current.x < w / 2;
+        const newSide = (document.dir === "rtl") ? (halfway ? "start" : "end") : (halfway ? "start" : "end");
+        // Compute new bottom (clamped 80..viewport-200)
+        const newBottom = Math.min(Math.max(window.innerHeight - drag.current.y - 26, 80), window.innerHeight - 200);
+        setFabPos({ ...fabPos, side: newSide, bottom: newBottom });
+    };
+
     return (
         <>
-            {/* Floating button */}
-            <button
-                data-testid="ai-assistant-fab"
-                onClick={() => setOpen(true)}
-                aria-label={tr("المساعد الذكي")}
-                className="fixed bottom-20 sm:bottom-6 start-4 z-40 w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] text-white shadow-2xl flex items-center justify-center hover:scale-105 transition-transform"
-                style={{ width: 52, height: 52 }}
-            >
-                <Sparkles className="w-6 h-6" />
-                <span className="absolute -top-1 -end-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full font-arabic">AI</span>
-            </button>
+            {/* Floating button — draggable + collapsible tab */}
+            {fabPos.collapsed ? (
+                <button
+                    data-testid="ai-assistant-expand"
+                    onClick={() => setFabPos({ ...fabPos, collapsed: false })}
+                    aria-label={tr("توسيع المساعد")}
+                    className={`fixed z-40 ${fabPos.side === "end" ? "end-0" : "start-0"} bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform`}
+                    style={{ bottom: fabPos.bottom, width: 18, height: 60, borderTopStartRadius: fabPos.side === "end" ? 14 : 0, borderBottomStartRadius: fabPos.side === "end" ? 14 : 0, borderTopEndRadius: fabPos.side === "start" ? 14 : 0, borderBottomEndRadius: fabPos.side === "start" ? 14 : 0 }}
+                >
+                    {fabPos.side === "end" ? "‹" : "›"}
+                </button>
+            ) : (
+                <div
+                    data-testid="ai-assistant-fab-wrap"
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    style={{ position: "fixed", bottom: fabPos.bottom, [fabPos.side === "end" ? "right" : "left"]: 16, zIndex: 40, width: 52, height: 52, touchAction: "none" }}
+                >
+                    <button
+                        data-testid="ai-assistant-fab"
+                        aria-label={tr("المساعد الذكي")}
+                        className="w-full h-full rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] text-white shadow-2xl flex items-center justify-center hover:scale-105 transition-transform relative cursor-grab active:cursor-grabbing"
+                    >
+                        <Sparkles className="w-6 h-6 pointer-events-none" />
+                        <span className="absolute -top-1 -end-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full font-arabic pointer-events-none">AI</span>
+                    </button>
+                    {/* Collapse-to-side handle */}
+                    <button
+                        data-testid="ai-assistant-collapse"
+                        onClick={(e) => { e.stopPropagation(); setFabPos({ ...fabPos, collapsed: true }); }}
+                        className="absolute -top-2 -start-2 w-5 h-5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)] text-[10px] font-bold flex items-center justify-center shadow"
+                        title={tr("إخفاء")}
+                    >×</button>
+                </div>
+            )}
 
             {/* Panel */}
             {open && (

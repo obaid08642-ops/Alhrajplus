@@ -1,7 +1,8 @@
 // AuctionsScreen — mirrors web /app/frontend/src/pages/AuctionsPage.js
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StyleSheet, Modal, TextInput, FlatList, Alert, Image } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StyleSheet, Modal, TextInput, FlatList, Alert, Image, KeyboardAvoidingView, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Gavel, Clock, TrendingUp, Users, X, Sparkles } from "lucide-react-native";
 import api from "../api";
@@ -138,8 +139,8 @@ function BidModal({ user, listing, onClose, onPlaced }) {
 
     return (
         <Modal animationType="slide" transparent visible onRequestClose={onClose}>
-            <View style={styles.modalBg}>
-                <View style={styles.modalSheet}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalBg}>
+                <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                     <View style={styles.modalHead}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
                             <Gavel size={18} color={colors.primary} />
@@ -181,7 +182,7 @@ function BidModal({ user, listing, onClose, onPlaced }) {
                         )}
                     </View>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }
@@ -233,4 +234,6 @@ const styles = StyleSheet.create({
     bidRowTop: { backgroundColor: "rgba(79,182,230,0.10)", borderWidth: 1, borderColor: "rgba(79,182,230,0.3)" },
     bidName: { fontSize: 11.5, color: colors.text },
     bidAmount: { fontSize: 13, fontWeight: "800", color: colors.text },
+});
+lor: colors.text },
 });

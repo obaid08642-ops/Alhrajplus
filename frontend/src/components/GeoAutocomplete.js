@@ -32,14 +32,22 @@ export default function GeoAutocomplete({
         return () => document.removeEventListener("mousedown", onDoc);
     }, []);
 
-    // Auto-load districts for a city on open
+    // Auto-load full list on open
     useEffect(() => {
-        if (!open || kind !== "district" || !parentCity || q.length > 1) return;
-        setLoading(true);
-        api.get("/geo/districts", { params: { city: parentCity, country, lang, limit: 60 } })
-            .then(({ data }) => setRemote(data || []))
-            .catch(() => setRemote([]))
-            .finally(() => setLoading(false));
+        if (!open || q.length > 1) return;
+        if (kind === "district" && parentCity) {
+            setLoading(true);
+            api.get("/geo/districts", { params: { city: parentCity, country, lang, limit: 100 } })
+                .then(({ data }) => setRemote(data || []))
+                .catch(() => setRemote([]))
+                .finally(() => setLoading(false));
+        } else if (kind === "city" && country) {
+            setLoading(true);
+            api.get("/geo/cities", { params: { country, lang, limit: 100 } })
+                .then(({ data }) => setRemote(data || []))
+                .catch(() => setRemote([]))
+                .finally(() => setLoading(false));
+        }
     }, [open, kind, parentCity, country, lang, q]);
 
     // Debounced search on typing

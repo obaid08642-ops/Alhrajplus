@@ -14,12 +14,14 @@ export default function ReelsScreen() {
 
     useEffect(() => {
         (async () => {
-            try {
-                const { data } = await api.get("/listings", { params: { limit: 30, sort: "newest" } });
-                // Prefer listings with videos or multiple images
-                const feed = (data.items || []).filter((i) => (i.videos?.length || 0) > 0 || (i.images?.length || 0) > 0);
-                setItems(feed);
-            } catch (_) {}
+        try {
+            const { data } = await api.get("/listings", { params: { limit: 50, sort: "newest" } });
+            // Show ONLY items with videos first, then items with multiple images
+            const items = data.items || [];
+            const withVideos = items.filter((i) => (i.videos?.length || 0) > 0);
+            const imageOnly = items.filter((i) => (i.videos?.length || 0) === 0 && (i.images?.length || 0) >= 2);
+            setItems([...withVideos, ...imageOnly]);
+        } catch (_) {}
             setLoading(false);
         })();
     }, []);
