@@ -160,9 +160,29 @@ export default function PostScreen({ navigation, route }) {
     const useMyLocation = async () => {
         const perm = await Location.requestForegroundPermissionsAsync();
         if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الموقع")); return; }
-        const loc = await Location.getCurrentPositionAsync({});
-        setForm((f) => ({ ...f, lat: loc.coords.latitude, lng: loc.coords.longitude }));
-        Alert.alert("✅", t("تم تحديد موقعك"));
+        try {
+            const loc = await Location.getCurrentPositionAsync({});
+            const lat = loc.coords.latitude, lng = loc.coords.longitude;
+            // Also reverse-geocode to auto-suggest city + district (user can still change).
+            try {
+                const { data } = await api.get("/geo/reverse", { params: { lat, lng, lang: "ar" } });
+                if (data?.out_of_area) {
+                    setForm((f) => ({ ...f, lat, lng }));
+                    Alert.alert("⚠️", t("موقعك خارج المنطقة المدعومة. اختر المدينة يدوياً."));
+                } else if (data?.city) {
+                    setForm((f) => ({ ...f, lat, lng, city: data.city, district: data.district || "" }));
+                    Alert.alert("✅", `${t("تم اقتراح:")} ${data.city}${data.district ? " — " + data.district : ""}\n${t("يمكنك تغييرها يدوياً.")}`);
+                } else {
+                    setForm((f) => ({ ...f, lat, lng }));
+                    Alert.alert("✅", t("تم تحديد موقعك. اختر المدينة يدوياً."));
+                }
+            } catch (_) {
+                setForm((f) => ({ ...f, lat, lng }));
+                Alert.alert("✅", t("تم تحديد موقعك"));
+            }
+        } catch (_) {
+            Alert.alert(t("خطأ"), t("تعذّر الوصول للموقع"));
+        }
     };
 
     const validateRequiredFields = () => {
@@ -386,9 +406,7 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
 // =============== STEP 1: Entry Cards (6 cards, mirrors web premium flow) ===============
 function Step1({ categories, onPick, onAI, aiBusy }) {
     const { t } = useI18n();
-    const nav = require("@react-navigation/native").useNavigation();
 
-    const isAdsCat = (k) => !["jobs", "services"].includes(k);
     const jobsCat = categories.find((c) => c.key === "jobs");
     const servicesCat = categories.find((c) => c.key === "services");
 
@@ -405,42 +423,54 @@ function Step1({ categories, onPick, onAI, aiBusy }) {
                 {aiBusy && <ActivityIndicator color="#fff" />}
             </TouchableOpacity>
 
-            {/* 6 entry cards in 2x3 grid */}
-            <View style={s.entryGrid}>
-                <EntryCard
-                    icon="📦" label={t("إضافة إعلان")} sub={t("كل الفئات")}
-                    bg={["#DBEAFE", "#EFF6FF"]} accent={colors.primary}
-                    onPress={() => onPick("")}
-                />
-                <EntryCard
-                    icon="🔨" label={t("رفع مزاد")} sub={t("ابدأ مزايدة حية")}
-                    bg={["#FEF3C7", "#FEF9C3"]} accent="#F59E0B"
-                    onPress={() => onPick("auction")}
-                />
-                {servicesCat && (
+            {/* Main entry layout per user spec:
+                1) Big "Add Listing" card (full width) with "كل الفئات" subtitle
+                2) Row: نشر ستوري + إنشاء مزاد
+                3) Row: وظائف + خدمات
+                Removed: "صفقات اليوم" card (per user request). */}
+            <View style={{ marginTop: 4 }}>
+                {/* Primary: Add Listing (full width) */}
+                <TouchableOpacity onPress={() => onPick("")} activeOpacity={0.9} style={s.primaryEntryCard}>
+                    <LinearGradient colors={["#DBEAFE", "#EFF6FF"]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                    <View style={s.primaryEntryIcon}><Text style={{ fontSize: 28 }}>📦</Text></View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.primaryEntryLabel}>{t("إضافة إعلان")}</Text>
+                        <Text style={s.primaryEntrySub} numberOfLines={2}>{t("كل الفئات — سيارات • عقارات • إلكترونيات • أثاث • أزياء ...")}</Text>
+                    </View>
+                    <Text style={s.primaryEntryChev}>‹</Text>
+                </TouchableOpacity>
+
+                {/* Row 1: Story + Auction */}
+                <View style={s.entryRow}>
                     <EntryCard
-                        icon="🛠️" label={servicesCat.name || t("خدمات")} sub={t("اعرض خدمتك")}
-                        bg={["#D1FAE5", "#ECFDF5"]} accent="#10B981"
-                        onPress={() => onPick("services")}
+                        icon="🎬" label={t("نشر ستوري")} sub={t("فيديو قصير")}
+                        bg={["#FCE7F3", "#FDF2F8"]} accent="#EC4899"
+                        onPress={() => onPick("__story__")}
                     />
-                )}
-                {jobsCat && (
                     <EntryCard
-                        icon="💼" label={jobsCat.name || t("وظائف")} sub={t("ابحث أو وظّف")}
-                        bg={["#EDE9FE", "#F5F3FF"]} accent="#8B5CF6"
-                        onPress={() => onPick("jobs")}
+                        icon="🔨" label={t("إنشاء مزاد")} sub={t("مزايدة حية")}
+                        bg={["#FEF3C7", "#FEF9C3"]} accent="#F59E0B"
+                        onPress={() => onPick("auction")}
                     />
-                )}
-                <EntryCard
-                    icon="🎬" label={t("نشر ستوري")} sub={t("فيديو قصير")}
-                    bg={["#FCE7F3", "#FDF2F8"]} accent="#EC4899"
-                    onPress={() => onPick("__story__")}
-                />
-                <EntryCard
-                    icon="🏷️" label={t("صفقات اليوم")} sub={t("سعر مميز")}
-                    bg={["#FEE2E2", "#FEF2F2"]} accent="#EF4444"
-                    onPress={() => { nav.navigate("Deals"); }}
-                />
+                </View>
+
+                {/* Row 2: Jobs + Services */}
+                <View style={s.entryRow}>
+                    {jobsCat && (
+                        <EntryCard
+                            icon="💼" label={jobsCat.name || t("وظائف")} sub={t("ابحث أو وظّف")}
+                            bg={["#D1FAE5", "#ECFDF5"]} accent="#10B981"
+                            onPress={() => onPick("jobs")}
+                        />
+                    )}
+                    {servicesCat && (
+                        <EntryCard
+                            icon="🛠️" label={servicesCat.name || t("خدمات")} sub={t("اعرض خدمتك")}
+                            bg={["#FED7AA", "#FFEDD5"]} accent="#EA580C"
+                            onPress={() => onPick("services")}
+                        />
+                    )}
+                </View>
             </View>
         </>
     );
@@ -781,9 +811,15 @@ const s = StyleSheet.create({
     catCard: { width: "31.5%", backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: "center", padding: 14, gap: 8 },
     catIcon: { width: 50, height: 50, borderRadius: 14, backgroundColor: "rgba(79,182,230,0.12)", alignItems: "center", justifyContent: "center" },
     catName: { fontSize: 11.5, fontWeight: "800", color: colors.text, textAlign: "center" },
-    // Entry cards (6-card grid)
+    // Entry cards (new layout: 1 big + 2 rows of 2)
+    primaryEntryCard: { position: "relative", overflow: "hidden", borderRadius: 22, borderWidth: 1.5, borderColor: "rgba(79,182,230,0.35)", paddingVertical: 18, paddingHorizontal: 16, marginTop: 14, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 14 },
+    primaryEntryIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.85)", alignItems: "center", justifyContent: "center" },
+    primaryEntryLabel: { fontSize: 18, fontWeight: "900", color: "#1D4ED8" },
+    primaryEntrySub: { fontSize: 11, color: colors.textMuted, marginTop: 3, fontWeight: "600" },
+    primaryEntryChev: { fontSize: 28, color: "#1D4ED8", fontWeight: "900", marginStart: 6 },
+    entryRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
     entryGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 16, gap: 10 },
-    entryCard: { width: "47%", aspectRatio: 1.1, borderRadius: 18, overflow: "hidden", borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", padding: 12, gap: 4 },
+    entryCard: { flex: 1, aspectRatio: 1.1, borderRadius: 18, overflow: "hidden", borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", padding: 12, gap: 4 },
     entryLabel: { fontSize: 14, fontWeight: "900", marginTop: 4 },
     entrySub: { fontSize: 10.5, color: colors.textMuted, fontWeight: "600" },
     // Story/Auction banner

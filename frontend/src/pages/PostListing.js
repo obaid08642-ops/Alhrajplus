@@ -199,6 +199,50 @@ export default function PostListing() {
 
     // Sell-with-AI: upload image and auto-fill listing fields
     const [aiBusy, setAiBusy] = useState(false);
+    const [geoBusy, setGeoBusy] = useState(false);
+    const [geoMsg, setGeoMsg] = useState("");
+
+    // Try to auto-fill city + district from the user's current GPS location.
+    // Falls back gracefully if the user denies permission or the area is outside our service zone.
+    const geoLocateAndFill = () => {
+        if (!navigator.geolocation) { setGeoMsg(tr("❌ المتصفح لا يدعم تحديد الموقع")); return; }
+        setGeoBusy(true); setGeoMsg("");
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const { data } = await api.get("/geo/reverse", {
+                        params: { lat: pos.coords.latitude, lng: pos.coords.longitude, lang: "ar" },
+                    });
+                    if (data.out_of_area) {
+                        setGeoMsg(tr("⚠️ موقعك خارج المنطقة المدعومة (الخليج + مصر). يرجى اختيار المدينة يدوياً."));
+                    } else if (!data.city) {
+                        setGeoMsg(tr("⚠️ تعذّر تحديد المدينة من موقعك. اختر يدوياً من القائمة."));
+                    } else {
+                        // Save lat/lng + city + district. User can change manually afterwards.
+                        setForm((f) => ({
+                            ...f,
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            city: data.city,
+                            district: data.district || "",
+                        }));
+                        setGeoMsg(`✓ ${tr("تم اقتراح:")} ${data.city}${data.district ? " — " + data.district : ""} ${tr("(يمكنك تغييرها)")}`);
+                    }
+                } catch (_) {
+                    setGeoMsg(tr("⚠️ تعذّر الاتصال بخدمة الموقع. حاول لاحقاً."));
+                } finally { setGeoBusy(false); }
+            },
+            (err) => {
+                setGeoBusy(false);
+                const msg = err?.code === 1
+                    ? tr("⚠️ رفضت الإذن للوصول للموقع. فعّل الموقع من إعدادات المتصفح ثم حاول مرة أخرى.")
+                    : tr("⚠️ تعذّر الوصول للموقع. تأكد من تفعيل GPS.");
+                setGeoMsg(msg);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+    };
+
     const sellWithAI = async (file) => {
         if (!file) return;
         if (file.size > 8 * 1024 * 1024) { alert(tr("حجم الصورة كبير جداً (الحد الأقصى 8MB)")); return; }
@@ -531,17 +575,36 @@ export default function PostListing() {
                     ))}
 
                     <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-sm font-arabic font-bold text-[var(--text)]">{tr("المدينة *")}</label>
-                            <button
-                                type="button"
-                                data-testid="post-change-country-btn"
-                                onClick={openPicker}
-                                className="text-[11px] font-arabic font-bold text-[var(--primary)] hover:underline flex items-center gap-1"
-                            >
-                                {country?.flag} {country?.name_ar || tr("اختر الدولة")} • {tr("تغيير")}
-                            </button>
+                        <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)]">{tr("المدينة")} <span className="text-red-500">*</span></label>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    data-testid="post-geo-locate-btn"
+                                    onClick={geoLocateAndFill}
+                                    disabled={geoBusy}
+                                    className="text-[11px] font-arabic font-bold text-emerald-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+                                    title={tr("اقترح المدينة والحي من موقعك الحالي")}
+                                >
+                                    {geoBusy
+                                        ? <><span className="inline-block w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></span> {tr("جاري التحديد...")}</>
+                                        : <><Locate className="w-3 h-3" /> {tr("📍 استخدم موقعي")}</>}
+                                </button>
+                                <button
+                                    type="button"
+                                    data-testid="post-change-country-btn"
+                                    onClick={openPicker}
+                                    className="text-[11px] font-arabic font-bold text-[var(--primary)] hover:underline flex items-center gap-1"
+                                >
+                                    {country?.flag} {country?.name_ar || tr("اختر الدولة")} • {tr("تغيير")}
+                                </button>
+                            </div>
                         </div>
+                        {geoMsg && (
+                            <div className="text-[11px] font-arabic-body mb-2 px-2 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                {geoMsg}
+                            </div>
+                        )}
                         <CitySelect
                             testId="post-city"
                             kind="city"

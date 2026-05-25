@@ -5258,6 +5258,76 @@ _GEO_CACHE: dict[str, tuple[float, list]] = {}
 _GEO_TTL = 86400  # 24h
 
 
+@api.get("/geo/reverse")
+async def geo_reverse(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    lang: str = Query("ar", max_length=2),
+):
+    """Reverse-geocode a lat/lng pair into {country, city, district} using Nominatim.
+    Used by the Post Listing screen to auto-suggest city/district from the user's
+    current GPS location. Restricted to our serviced countries (GCC + Egypt).
+    """
+    key = f"REV|{round(lat,4)}|{round(lng,4)}|{lang}"
+    now = time.time()
+    if key in _GEO_CACHE:
+        ts, cached = _GEO_CACHE[key]
+        if now - ts < _GEO_TTL:
+            return cached
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as cli:
+            r = await cli.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={
+                    "lat": str(lat), "lon": str(lng),
+                    "format": "jsonv2", "zoom": "14",
+                    "accept-language": lang,
+                    "addressdetails": "1",
+                },
+                headers={"User-Agent": "HarajPlus/1.0 (https://alhraj.online)"},
+            )
+            r.raise_for_status()
+            data = r.json() or {}
+    except Exception as e:
+        logger.warning(f"[geo/reverse] nominatim failed: {e}")
+        return {"country": None, "city": None, "district": None}
+
+    addr = data.get("address") or {}
+    cc = (addr.get("country_code") or "").lower()
+    if cc and cc not in _ALLOWED_GEO_COUNTRIES:
+        return {"country": cc.upper(), "city": None, "district": None, "out_of_area": True}
+
+    # City candidates in order of specificity
+    city = (
+        addr.get("city")
+        or addr.get("town")
+        or addr.get("village")
+        or addr.get("municipality")
+        or addr.get("county")
+        or addr.get("state_district")
+        or addr.get("state")
+    )
+    # District/neighbourhood candidates
+    district = (
+        addr.get("neighbourhood")
+        or addr.get("suburb")
+        or addr.get("quarter")
+        or addr.get("city_district")
+        or addr.get("residential")
+        or addr.get("hamlet")
+    )
+
+    result = {
+        "country": cc.upper() if cc else None,
+        "country_name": addr.get("country"),
+        "city": city,
+        "district": district,
+        "display_name": data.get("display_name"),
+    }
+    _GEO_CACHE[key] = (now, result)
+    return result
+
+
 @api.get("/geo/search")
 async def geo_search(
     q: str = Query(..., min_length=2, max_length=80),

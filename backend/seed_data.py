@@ -285,6 +285,9 @@ CATEGORIES = [
             {"key": "furniture_type", "label_ar": "نوع الأثاث", "label_en": "Type", "type": "select", "options": ["كنب", "سرير", "خزانة", "طاولة", "كراسي", "مكتب", "ركن", "تحفة", "سجاد", "ستائر", "آخر"], "required": True},
             {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد", "شبه جديد", "مستعمل ممتاز", "مستعمل جيد"], "required": True},
             {"key": "material", "label_ar": "الخامة", "label_en": "Material", "type": "select", "options": ["خشب", "معدن", "قماش", "جلد", "بلاستيك", "آخر"], "required": False},
+            {"key": "color", "label_ar": "اللون", "label_en": "Color", "type": "select", "options": ["أبيض", "أسود", "بني", "رمادي", "بيج", "أزرق", "أحمر", "أخضر", "ذهبي", "آخر"], "required": False},
+            {"key": "age_years", "label_ar": "عمر القطعة (بالسنوات)", "label_en": "Age (years)", "type": "number", "required": False},
+            {"key": "dimensions", "label_ar": "الأبعاد (طول×عرض×ارتفاع سم)", "label_en": "Dimensions", "type": "text", "required": False},
         ]
     },
     {
@@ -368,8 +371,11 @@ CATEGORIES = [
             {"key": "board_games", "name_ar": "ألعاب طاولة", "name_en": "Board Games"},
         ],
         "fields": [
+            {"key": "game_type", "label_ar": "نوع المنتج", "label_en": "Item Type", "type": "select", "options": ["جهاز كونسول", "لعبة فيديو", "ملحقات (يد تحكم/سماعة)", "لعبة طاولة", "لعبة أطفال", "كرت اشتراك"], "required": True},
             {"key": "platform", "label_ar": "المنصة", "label_en": "Platform", "type": "select", "options": ["PS5", "PS4", "Xbox Series X/S", "Xbox One", "Nintendo Switch", "PC", "Mobile", "آخر"], "required": False},
-            {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد", "مستعمل ممتاز", "مستعمل جيد"], "required": True},
+            {"key": "game_title", "label_ar": "اسم اللعبة", "label_en": "Game Title", "type": "text", "required": False, "placeholder": "FIFA 24 / GTA / EA Sports..."},
+            {"key": "region", "label_ar": "المنطقة", "label_en": "Region", "type": "select", "options": ["عربي", "إنجليزي", "آسيوي", "أوروبي", "أمريكي"], "required": False},
+            {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد بالعلبة", "مستعمل ممتاز", "مستعمل جيد"], "required": True},
         ]
     },
     {
@@ -380,7 +386,10 @@ CATEGORIES = [
             {"key": "outdoor_furniture", "name_ar": "أثاث خارجي", "name_en": "Outdoor Furniture"},
         ],
         "fields": [
-            {"key": "plant_type", "label_ar": "نوع النبات", "label_en": "Plant Type", "type": "text", "required": False},
+            {"key": "item_kind", "label_ar": "نوع المنتج", "label_en": "Item Kind", "type": "select", "options": ["نبات", "بذور وأشتال", "تربة وأسمدة", "أدوات حدائق", "نظام ري", "أثاث خارجي"], "required": True},
+            {"key": "plant_type", "label_ar": "نوع النبات (إن وُجد)", "label_en": "Plant Type", "type": "text", "required": False, "placeholder": "نخيل / ورد / صبار..."},
+            {"key": "size", "label_ar": "الحجم", "label_en": "Size", "type": "select", "options": ["صغير", "متوسط", "كبير", "ضخم"], "required": False},
+            {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد", "مستعمل ممتاز", "مستعمل جيد"], "required": False},
         ]
     },
     {
@@ -392,7 +401,9 @@ CATEGORIES = [
             {"key": "team_sports", "name_ar": "رياضات جماعية", "name_en": "Team Sports"},
         ],
         "fields": [
-            {"key": "sport_type", "label_ar": "نوع الرياضة", "label_en": "Sport", "type": "text", "required": True},
+            {"key": "sport_type", "label_ar": "نوع المنتج", "label_en": "Item Type", "type": "select", "options": ["دراجة هوائية", "دراجة كهربائية", "أجهزة لياقة", "ملابس رياضية", "أحذية رياضية", "أدوات تخييم", "كرات ومضارب", "آخر"], "required": True},
+            {"key": "brand", "label_ar": "الماركة", "label_en": "Brand", "type": "text", "required": False, "placeholder": "Nike / Adidas / Trek..."},
+            {"key": "size", "label_ar": "المقاس", "label_en": "Size", "type": "text", "required": False, "placeholder": "M / L / 42 / 26 inch..."},
             {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد", "مستعمل ممتاز", "مستعمل جيد"], "required": True},
         ]
     },
@@ -404,7 +415,10 @@ CATEGORIES = [
             {"key": "kids_furniture", "name_ar": "أثاث أطفال", "name_en": "Kids Furniture"},
         ],
         "fields": [
-            {"key": "age_range", "label_ar": "الفئة العمرية", "label_en": "Age Range", "type": "select", "options": ["0-1 سنة", "1-3 سنوات", "3-5 سنوات", "5-10 سنوات", "10+"], "required": False},
+            {"key": "item_type", "label_ar": "نوع المنتج", "label_en": "Item Type", "type": "select", "options": ["ملابس", "ألعاب", "أثاث (مهد/سرير)", "عربة أطفال", "كرسي سيارة", "حفاضات ومستلزمات", "كتب أطفال", "آخر"], "required": True},
+            {"key": "age_range", "label_ar": "الفئة العمرية", "label_en": "Age Range", "type": "select", "options": ["حديث الولادة", "0-1 سنة", "1-3 سنوات", "3-5 سنوات", "5-10 سنوات", "10+"], "required": True},
+            {"key": "gender", "label_ar": "الجنس", "label_en": "Gender", "type": "select", "options": ["ولد", "بنت", "محايد"], "required": False},
+            {"key": "brand", "label_ar": "الماركة", "label_en": "Brand", "type": "text", "required": False},
             {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد", "مستعمل ممتاز", "مستعمل جيد"], "required": True},
         ]
     },
