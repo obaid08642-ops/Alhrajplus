@@ -6,7 +6,8 @@ import {
     ScrollView, Modal, StatusBar, Dimensions, RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Search, X, ChevronLeft, SlidersHorizontal, Check, MapPin } from "lucide-react-native";
+import { Search, X, ChevronLeft, SlidersHorizontal, Check, MapPin, Mic } from "lucide-react-native";
+import { AudioModule, AudioRecorder, RecordingPresets } from "expo-audio";
 import api from "../api";
 import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
@@ -50,6 +51,41 @@ export default function SearchScreen({ navigation, route }) {
     });
 
     const debounceRef = useRef(null);
+    const [voiceRec, setVoiceRec] = useState(null);
+    const [voiceBusy, setVoiceBusy] = useState(false);
+
+    const toggleVoice = async () => {
+        if (voiceRec) {
+            // Stop + transcribe
+            try {
+                await voiceRec.stop();
+                const uri = voiceRec.uri;
+                setVoiceRec(null);
+                if (!uri) return;
+                setVoiceBusy(true);
+                // Upload audio and send to /api/ai/transcribe
+                const fd = new FormData();
+                fd.append("audio", { uri, type: "audio/m4a", name: `search_${Date.now()}.m4a` });
+                const { data } = await api.post("/ai/transcribe", fd, { headers: { "Content-Type": "multipart/form-data" } });
+                if (data?.text) {
+                    setQ(data.text);
+                    runSearch(data.text);
+                }
+            } catch (e) {
+                setVoiceRec(null);
+            } finally { setVoiceBusy(false); }
+        } else {
+            try {
+                const perm = await AudioModule.requestRecordingPermissionsAsync();
+                if (!perm.granted) return;
+                await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+                const rec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
+                await rec.prepareToRecordAsync();
+                rec.record();
+                setVoiceRec(rec);
+            } catch (_) {}
+        }
+    };
 
     // Load categories once
     useEffect(() => {
@@ -137,9 +173,13 @@ export default function SearchScreen({ navigation, route }) {
                         autoFocus={!initialQ}
                         returnKeyType="search"
                     />
-                    {q.length > 0 && (
+                    {q.length > 0 ? (
                         <TouchableOpacity onPress={() => { setQ(""); setResults([]); setSuggestions([]); }} hitSlop={6}>
                             <X size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity onPress={toggleVoice} hitSlop={6} disabled={voiceBusy}>
+                            {voiceBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <Mic size={16} color={voiceRec ? "#EF4444" : colors.primary} />}
                         </TouchableOpacity>
                     )}
                 </View>

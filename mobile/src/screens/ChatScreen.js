@@ -290,11 +290,14 @@ function ChatThread({ convoId, other, listing, onBack }) {
         if (!text) return;
         setInput("");
         sendTyping(false);
+        const replySnap = replyTo;
+        setReplyTo(null);
         try {
             const { data } = await api.post("/chat/send", {
                 receiver_id: other.id,
                 listing_id: listing?.id || null,
                 text,
+                reply_to: replySnap ? { id: replySnap.id, text: replySnap.text, sender_id: replySnap.sender_id, sender_name: replySnap.sender_id === user.id ? "أنت" : other.name } : null,
             });
             setMessages((m) => [...m, data]);
         } catch (e) {
@@ -442,7 +445,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                         return (
                             <>
                                 {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(item.created_at)}</Text></View>}
-                                <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} />
+                                <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setReplyTo} />
                             </>
                         );
                     }}
@@ -470,7 +473,20 @@ function ChatThread({ convoId, other, listing, onBack }) {
             )}
 
             {/* Composer */}
-            <View style={[s.composer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+            <View style={{ paddingBottom: Math.max(insets.bottom, 8), backgroundColor: "#EFEAE2" }}>
+                {replyTo && (
+                    <View style={s.replyBox}>
+                        <View style={[s.replyBar, { backgroundColor: colors.primary }]} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={s.replyBoxName}>{replyTo.sender_id === user.id ? "ردك على نفسك" : `رد على ${other.name}`}</Text>
+                            <Text style={s.replyBoxText} numberOfLines={1}>{(replyTo.text || "").slice(0, 80)}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setReplyTo(null)} style={s.replyBoxClose} hitSlop={6}>
+                            <X size={14} color={colors.textMuted} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+                <View style={[s.composer, { paddingBottom: 0 }]}>
                 <TouchableOpacity onPress={() => setShowActions((v) => !v)} style={s.composerIconBtn} hitSlop={8}>
                     <Plus size={22} color={colors.textMuted} style={{ transform: [{ rotate: showActions ? "45deg" : "0deg" }] }} />
                 </TouchableOpacity>
@@ -493,6 +509,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                         {uploading ? <ActivityIndicator color="#fff" size="small" /> : <Mic size={20} color="#fff" />}
                     </TouchableOpacity>
                 )}
+                </View>
             </View>
 
             {/* Image Lightbox */}
@@ -511,16 +528,34 @@ function ChatThread({ convoId, other, listing, onBack }) {
 }
 
 // =============== Message Bubble ===============
-function MessageBubble({ m, isMine, onImagePress }) {
+function MessageBubble({ m, isMine, onImagePress, onLongPress }) {
     const text = m.text || "";
     const isImage = text.startsWith("📷 ");
     const isVoice = text.startsWith("🎙️ ");
     const isLocation = text.startsWith("📍 ");
     const url = (isImage || isVoice || isLocation) ? text.slice(2).trim() : null;
+    const replyTo = m.reply_to;
 
     return (
-        <View style={[s.bubbleWrap, { alignItems: isMine ? "flex-end" : "flex-start" }]}>
+        <TouchableOpacity activeOpacity={0.85} onLongPress={() => onLongPress?.(m)} delayLongPress={350} style={[s.bubbleWrap, { alignItems: isMine ? "flex-end" : "flex-start" }]}>
             <View style={[s.bubble, isMine ? s.bubbleMine : s.bubbleOther, isImage && { padding: 3 }]}>
+                {/* Quoted reply preview */}
+                {replyTo && (
+                    <View style={[s.replyPreview, isMine && { backgroundColor: "rgba(255,255,255,0.12)" }]}>
+                        <View style={[s.replyBar, { backgroundColor: isMine ? "#FFD166" : colors.primary }]} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={[s.replyName, isMine && { color: "#FFD166" }]} numberOfLines={1}>
+                                {replyTo.sender_name || (replyTo.sender_id === m.sender_id ? "أنت" : "")}
+                            </Text>
+                            <Text style={[s.replyText, isMine && { color: "rgba(255,255,255,0.85)" }]} numberOfLines={1}>
+                                {(replyTo.text || "").startsWith("📷") ? "📷 صورة" :
+                                 (replyTo.text || "").startsWith("🎙️") ? "🎙️ رسالة صوتية" :
+                                 (replyTo.text || "").startsWith("📍") ? "📍 موقع" :
+                                 (replyTo.text || "")}
+                            </Text>
+                        </View>
+                    </View>
+                )}
                 {isImage && url ? (
                     <TouchableOpacity onPress={() => onImagePress?.(url)} activeOpacity={0.9}>
                         <Image source={{ uri: url }} style={s.bubbleImg} resizeMode="cover" />
@@ -543,7 +578,7 @@ function MessageBubble({ m, isMine, onImagePress }) {
                     )}
                 </View>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 }
 
@@ -689,4 +724,13 @@ const s = StyleSheet.create({
     lightboxBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", alignItems: "center", justifyContent: "center" },
     lightboxClose: { position: "absolute", top: 60, end: 20, width: 44, height: 44, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center", zIndex: 10 },
     lightboxImg: { width: "100%", height: "85%" },
+    // Reply
+    replyPreview: { flexDirection: "row", alignItems: "stretch", gap: 6, backgroundColor: "rgba(0,0,0,0.06)", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 4, marginBottom: 4, overflow: "hidden" },
+    replyBar: { width: 3, borderRadius: 2 },
+    replyName: { fontSize: 10, fontWeight: "800", color: colors.primary, marginBottom: 1 },
+    replyText: { fontSize: 11, color: colors.textMuted },
+    replyBox: { flexDirection: "row", alignItems: "stretch", gap: 8, backgroundColor: "#fff", borderRadius: 10, marginHorizontal: 8, marginTop: 6, paddingHorizontal: 6, paddingVertical: 6, paddingEnd: 10, ...shadow.card, shadowOpacity: 0.04 },
+    replyBoxName: { fontSize: 11, fontWeight: "800", color: colors.primary },
+    replyBoxText: { fontSize: 11.5, color: colors.textMuted, marginTop: 1 },
+    replyBoxClose: { width: 24, height: 24, borderRadius: 999, alignItems: "center", justifyContent: "center" },
 });

@@ -24,7 +24,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query, APIRouter, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import RedirectResponse, HTMLResponse, PlainTextResponse, JSONResponse, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
@@ -5194,12 +5194,66 @@ async def ai_assistant_history(session_id: str, limit: int = 30):
 
 
 # ============================================================
+# Voice → Text transcription (for voice search & voice notes)
+# Uses OpenAI Whisper via Emergent LLM key.
+# ============================================================
+@api.post("/ai/transcribe")
+async def ai_transcribe(audio: UploadFile = File(...), lang: Optional[str] = Form(None)):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "Service unavailable")
+    try:
+        from openai import OpenAI
+    except Exception:
+        raise HTTPException(503, "OpenAI SDK not available")
+
+    # Read audio bytes
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(400, "Empty audio")
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise HTTPException(413, "Audio too large (max 25MB)")
+
+    # Save to temp file (Whisper SDK needs a file-like with filename)
+    import tempfile
+    suffix = ".m4a"
+    if audio.filename and "." in audio.filename:
+        suffix = "." + audio.filename.rsplit(".", 1)[-1].lower()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+        f.write(audio_bytes)
+        tmp_path = f.name
+
+    try:
+        client = OpenAI(
+            api_key=EMERGENT_LLM_KEY,
+            base_url="https://integrations.emergentagent.com/llm",
+        )
+        with open(tmp_path, "rb") as fh:
+            kwargs = {"model": "whisper-1", "file": fh}
+            if lang:
+                kwargs["language"] = lang
+            resp = client.audio.transcriptions.create(**kwargs)
+        text = (resp.text or "").strip() if hasattr(resp, "text") else ""
+        return {"text": text}
+    except Exception as e:
+        logger.error(f"transcribe failed: {e}")
+        raise HTTPException(502, "Transcription failed")
+    finally:
+        try:
+            import os as _os
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
+# ============================================================
 # Geographic autocomplete — OpenStreetMap Nominatim proxy.
 # Lets us cover EVERY city and district in every country we serve
 # without maintaining a static list.
 # Cached for 24h to respect Nominatim's 1 req/sec policy.
 # ============================================================
 # Geo autocomplete uses httpx (already imported at top of file as `httpx`)
+# Restricted to countries we serve: GCC + Egypt
+_ALLOWED_GEO_COUNTRIES = {"sa", "ae", "kw", "qa", "bh", "om", "eg"}
 _GEO_CACHE: dict[str, tuple[float, list]] = {}
 _GEO_TTL = 86400  # 24h
 
@@ -5216,7 +5270,14 @@ async def geo_search(
     type=city → returns cities/towns/villages (administrative places)
     type=district → returns neighbourhoods/suburbs/quarters
     """
-    key = f"{q.lower()}|{country}|{type}|{lang}|{limit}"
+    # Reject countries outside our service area (GCC + Egypt only) — checked BEFORE cache
+    cc = country.lower().strip()
+    if cc and cc not in _ALLOWED_GEO_COUNTRIES:
+        return []
+    # If no country given, restrict search to the 7 countries we serve
+    countries_filter = cc if cc else ",".join(sorted(_ALLOWED_GEO_COUNTRIES))
+
+    key = f"{q.lower()}|{cc}|{type}|{lang}|{limit}"
     now = time.time()
     if key in _GEO_CACHE:
         ts, cached = _GEO_CACHE[key]
@@ -5258,6 +5319,9 @@ async def geo_search(
         }
     if country:
         params["countrycodes"] = country.lower()
+    else:
+        # Restrict to GCC + Egypt always
+        params["countrycodes"] = countries_filter
 
     try:
         async with httpx.AsyncClient(timeout=8.0) as cli:
@@ -5331,6 +5395,11 @@ async def geo_districts(
         if now - ts < _GEO_TTL:
             return cached
 
+    # Reject countries outside our service area
+    cc = country.lower().strip()
+    if cc and cc not in _ALLOWED_GEO_COUNTRIES:
+        return []
+
     # Step 1: Find the city's OSM relation/area (prefer relation for Overpass `area()`)
     try:
         async with httpx.AsyncClient(timeout=10.0) as cli:
@@ -5344,6 +5413,9 @@ async def geo_districts(
             }
             if country:
                 params["countrycodes"] = country.lower()
+            else:
+                # Always restrict to GCC + Egypt
+                params["countrycodes"] = ",".join(sorted(_ALLOWED_GEO_COUNTRIES))
             r = await cli.get(
                 "https://nominatim.openstreetmap.org/search",
                 params=params,

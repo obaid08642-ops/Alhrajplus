@@ -817,3 +817,11 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
   - ✅ All 4 new translation strings added across 5 languages (search map, no results, search city, search district).
   - ✅ Verified: Android export 4.51 MB, iOS export 4.50 MB, both pass.
   - 🟡 Backlog (future): MapScreen marker clustering, voice search in SearchScreen, chat reply/forward, listing voice search.
+
+- **Feb 2026 (Session N+6) — Phase 4 finalisation**:
+  - ✅ **Geo restricted to GCC + Egypt**: `_ALLOWED_GEO_COUNTRIES = {sa, ae, kw, qa, bh, om, eg}`. Both `/geo/search` and `/geo/districts` reject other countries and default to filtering across these 7 when no country is passed.
+  - ✅ **Chat reply (long-press)**: long-press a message → opens reply preview above composer; sending stores `reply_to` snapshot; received bubbles show quoted-text preview with vertical accent bar.
+  - ✅ **Voice search**: SearchScreen now has a mic icon (replaces clear icon when input empty). Records via `expo-audio` → uploads to `/api/ai/transcribe` → fills input + searches.
+  - ✅ **`POST /api/ai/transcribe`**: new endpoint using OpenAI Whisper (`whisper-1`) via Emergent LLM key (`base_url=integrations.emergentagent.com/llm`). Accepts multipart audio (max 25MB), returns `{text}`.
+  - ✅ Bug fix: stray `or.` syntax error left from a botched merge at the bottom of server.py.
+  - ✅ Verified: Android export 4.51 MB ✓, iOS export 4.50 MB ✓; Tehran/India rejected, Kuwait/Cairo/Dubai/Riyadh return full district lists.
