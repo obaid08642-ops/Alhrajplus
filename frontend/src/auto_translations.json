@@ -186,7 +186,7 @@
     "ur": "اپنا پیغام لکھیں...",
     "hi": "अपना संदेश लिखें...",
     "bn": "আপনার বার্তা লিখুন...",
-    "fr": "Tapez votre message..."
+    "fr": "Écrivez votre message..."
   },
   "تعذر الوصول للمساعد": {
     "en": "Cannot reach assistant",
@@ -1559,13 +1559,6 @@
     "hi": "दिशा-निर्देश खोलें",
     "bn": "দিকনির্দেশ খুলুন",
     "fr": "Ouvrir les itinéraires"
-  },
-  "اكتب رسالتك...": {
-    "en": "Type your message...",
-    "ur": "اپنا پیغام لکھیں...",
-    "hi": "अपना संदेश लिखें...",
-    "bn": "আপনার বার্তা লিখুন...",
-    "fr": "Écrivez votre message..."
   },
   "الحي / المنطقة": {
     "en": "Neighborhood / Area",
@@ -4358,5 +4351,257 @@
     "hi": "विज्ञापन साझा करें",
     "bn": "বিজ্ঞাপন শেয়ার করুন",
     "fr": "Partager l'annonce"
+  },
+  "ماذا تريد أن تنشر؟": {
+    "en": "What do you want to post?",
+    "ur": "آپ کیا پوسٹ کرنا چاہتے ہیں؟",
+    "hi": "आप क्या पोस्ट करना चाहते हैं?",
+    "bn": "আপনি কী পোস্ট করতে চান?",
+    "fr": "Que voulez-vous publier ?"
+  },
+  "إضافة إعلان": {
+    "en": "Add a Listing",
+    "ur": "نیا اشتہار شامل کریں",
+    "hi": "विज्ञापन जोड़ें",
+    "bn": "বিজ্ঞাপন যোগ করুন",
+    "fr": "Ajouter une annonce"
+  },
+  "كل الفئات — سيارات • عقارات • إلكترونيات • أثاث • أزياء ...": {
+    "en": "All categories — Cars • Real Estate • Electronics • Furniture • Fashion ...",
+    "ur": "تمام زمرے — گاڑیاں • جائیداد • الیکٹرانکس • فرنیچر • فیشن ...",
+    "hi": "सभी श्रेणियाँ — कारें • रियल एस्टेट • इलेक्ट्रॉनिक्स • फर्नीचर • फैशन ...",
+    "bn": "সমস্ত বিভাগ — গাড়ি • রিয়েল এস্টেট • ইলেকট্রনিক্স • আসবাব • ফ্যাশন ...",
+    "fr": "Toutes les catégories — Voitures • Immobilier • Électronique • Meubles • Mode ..."
+  },
+  "نشر ستوري": {
+    "en": "Post a Story",
+    "ur": "اسٹوری پوسٹ کریں",
+    "hi": "स्टोरी पोस्ट करें",
+    "bn": "স্টোরি পোস্ট করুন",
+    "fr": "Publier une story"
+  },
+  "فيديو قصير": {
+    "en": "Short video",
+    "ur": "مختصر ویڈیو",
+    "hi": "लघु वीडियो",
+    "bn": "ছোট ভিডিও",
+    "fr": "Courte vidéo"
+  },
+  "إنشاء مزاد": {
+    "en": "Create an Auction",
+    "ur": "نیلامی بنائیں",
+    "hi": "नीलामी बनाएं",
+    "bn": "নিলাম তৈরি করুন",
+    "fr": "Créer une enchère"
+  },
+  "ابدأ مزايدة حية": {
+    "en": "Start a live bidding",
+    "ur": "براہ راست بولی شروع کریں",
+    "hi": "लाइव बोली शुरू करें",
+    "bn": "লাইভ বিডিং শুরু করুন",
+    "fr": "Démarrer une enchère en direct"
+  },
+  "التصنيف": {
+    "en": "Category",
+    "ur": "زمرہ",
+    "hi": "श्रेणी",
+    "bn": "বিভাগ",
+    "fr": "Catégorie"
+  },
+  "— اختر التصنيف —": {
+    "en": "— Select category —",
+    "ur": "— زمرہ منتخب کریں —",
+    "hi": "— श्रेणी चुनें —",
+    "bn": "— বিভাগ নির্বাচন করুন —",
+    "fr": "— Sélectionner une catégorie —"
+  },
+  "سنقترح الفئة تلقائياً من العنوان أثناء الكتابة": {
+    "en": "We'll suggest a category from the title as you type",
+    "ur": "ہم ٹائپ کرتے وقت عنوان سے زمرہ تجویز کریں گے",
+    "hi": "टाइप करते समय हम शीर्षक से श्रेणी सुझाएँगे",
+    "bn": "টাইপ করার সময় আমরা শিরোনাম থেকে বিভাগ সুপারিশ করব",
+    "fr": "Nous suggérerons une catégorie d'après le titre"
+  },
+  "📍 استخدم موقعي": {
+    "en": "📍 Use my location",
+    "ur": "📍 میرا مقام استعمال کریں",
+    "hi": "📍 मेरा स्थान उपयोग करें",
+    "bn": "📍 আমার অবস্থান ব্যবহার করুন",
+    "fr": "📍 Utiliser ma position"
+  },
+  "اقترح المدينة والحي من موقعك الحالي": {
+    "en": "Suggest the city and district from your current location",
+    "ur": "اپنی موجودہ پوزیشن سے شہر اور علاقہ تجویز کریں",
+    "hi": "अपनी वर्तमान स्थिति से शहर और जिले का सुझाव दें",
+    "bn": "আপনার বর্তমান অবস্থান থেকে শহর ও জেলা সুপারিশ করুন",
+    "fr": "Suggérer la ville et le quartier depuis votre position"
+  },
+  "جاري التحديد...": {
+    "en": "Locating...",
+    "ur": "تلاش کر رہا ہے...",
+    "hi": "खोज रहा है...",
+    "bn": "অবস্থান নির্ণয় হচ্ছে...",
+    "fr": "Localisation..."
+  },
+  "تم اقتراح:": {
+    "en": "Suggested:",
+    "ur": "تجویز کردہ:",
+    "hi": "सुझाव:",
+    "bn": "সুপারিশ:",
+    "fr": "Suggéré :"
+  },
+  "(يمكنك تغييرها)": {
+    "en": "(you can change it)",
+    "ur": "(آپ اسے تبدیل کر سکتے ہیں)",
+    "hi": "(आप इसे बदल सकते हैं)",
+    "bn": "(আপনি পরিবর্তন করতে পারেন)",
+    "fr": "(vous pouvez le modifier)"
+  },
+  "اختر الدولة": {
+    "en": "Choose country",
+    "ur": "ملک منتخب کریں",
+    "hi": "देश चुनें",
+    "bn": "দেশ নির্বাচন করুন",
+    "fr": "Choisir le pays"
+  },
+  "تغيير": {
+    "en": "Change",
+    "ur": "تبدیل کریں",
+    "hi": "बदलें",
+    "bn": "পরিবর্তন",
+    "fr": "Modifier"
+  },
+  "❌ المتصفح لا يدعم تحديد الموقع": {
+    "en": "❌ Your browser does not support geolocation",
+    "ur": "❌ آپ کا براؤزر مقام کا تعین سپورٹ نہیں کرتا",
+    "hi": "❌ आपका ब्राउज़र भू-स्थान का समर्थन नहीं करता",
+    "bn": "❌ আপনার ব্রাউজার অবস্থান নির্ণয় সমর্থন করে না",
+    "fr": "❌ Votre navigateur ne prend pas en charge la géolocalisation"
+  },
+  "⚠️ موقعك خارج المنطقة المدعومة (الخليج + مصر). يرجى اختيار المدينة يدوياً.": {
+    "en": "⚠️ Your location is outside the supported area (Gulf + Egypt). Please choose the city manually.",
+    "ur": "⚠️ آپ کا مقام معاون علاقے سے باہر ہے۔ براہ کرم شہر دستی طور پر منتخب کریں۔",
+    "hi": "⚠️ आपका स्थान समर्थित क्षेत्र के बाहर है। कृपया शहर मैन्युअल रूप से चुनें।",
+    "bn": "⚠️ আপনার অবস্থান সমর্থিত এলাকার বাইরে। অনুগ্রহ করে শহর হাতে নির্বাচন করুন।",
+    "fr": "⚠️ Votre position est hors de la zone prise en charge. Choisissez la ville manuellement."
+  },
+  "⚠️ تعذّر تحديد المدينة من موقعك. اختر يدوياً من القائمة.": {
+    "en": "⚠️ Couldn't detect the city from your location. Pick manually from the list.",
+    "ur": "⚠️ آپ کے مقام سے شہر کا تعین نہیں ہو سکا۔ فہرست سے دستی طور پر منتخب کریں۔",
+    "hi": "⚠️ आपके स्थान से शहर का पता नहीं चला। सूची से चुनें।",
+    "bn": "⚠️ আপনার অবস্থান থেকে শহর শনাক্ত করা যায়নি। তালিকা থেকে নির্বাচন করুন।",
+    "fr": "⚠️ Impossible de détecter la ville depuis votre position. Choisissez dans la liste."
+  },
+  "⚠️ تعذّر الاتصال بخدمة الموقع. حاول لاحقاً.": {
+    "en": "⚠️ Could not connect to the location service. Try again later.",
+    "ur": "⚠️ مقام کی سروس سے رابطہ نہیں ہو سکا۔ بعد میں دوبارہ کوشش کریں۔",
+    "hi": "⚠️ स्थान सेवा से कनेक्ट नहीं हो सका। बाद में पुनः प्रयास करें।",
+    "bn": "⚠️ অবস্থান পরিষেবার সাথে সংযোগ স্থাপন করা যায়নি। পরে চেষ্টা করুন।",
+    "fr": "⚠️ Impossible de contacter le service de localisation. Réessayez plus tard."
+  },
+  "⚠️ رفضت الإذن للوصول للموقع. فعّل الموقع من إعدادات المتصفح ثم حاول مرة أخرى.": {
+    "en": "⚠️ Location permission denied. Enable it in your browser settings and try again.",
+    "ur": "⚠️ مقام کی اجازت مسترد ہوئی۔ براؤزر کی ترتیبات سے فعال کریں اور دوبارہ کوشش کریں۔",
+    "hi": "⚠️ स्थान अनुमति अस्वीकृत। ब्राउज़र सेटिंग्स से सक्षम करें और पुनः प्रयास करें।",
+    "bn": "⚠️ অবস্থান অনুমতি প্রত্যাখ্যাত। ব্রাউজার সেটিংস থেকে সক্রিয় করুন।",
+    "fr": "⚠️ Permission de localisation refusée. Activez-la dans les paramètres du navigateur."
+  },
+  "⚠️ تعذّر الوصول للموقع. تأكد من تفعيل GPS.": {
+    "en": "⚠️ Could not access your location. Make sure GPS is enabled.",
+    "ur": "⚠️ مقام تک رسائی نہیں ہو سکی۔ GPS فعال ہونے کی تصدیق کریں۔",
+    "hi": "⚠️ स्थान तक नहीं पहुँच सका। सुनिश्चित करें कि GPS सक्षम है।",
+    "bn": "⚠️ অবস্থান অ্যাক্সেস করা যায়নি। GPS সক্রিয় আছে কিনা নিশ্চিত করুন।",
+    "fr": "⚠️ Impossible d'accéder à votre position. Vérifiez que le GPS est activé."
+  },
+  "وضع الستوري — فيديو قصير مطلوب": {
+    "en": "Story mode — short video required",
+    "ur": "اسٹوری موڈ — مختصر ویڈیو ضروری ہے",
+    "hi": "स्टोरी मोड — लघु वीडियो आवश्यक",
+    "bn": "স্টোরি মোড — ছোট ভিডিও প্রয়োজন",
+    "fr": "Mode story — courte vidéo requise"
+  },
+  "ارفع فيديو + عنوان + سعر + مدينة. لا حاجة لتفاصيل كثيرة.": {
+    "en": "Upload a video + title + price + city. No need for many details.",
+    "ur": "ویڈیو + عنوان + قیمت + شہر اپ لوڈ کریں۔ زیادہ تفصیلات کی ضرورت نہیں۔",
+    "hi": "वीडियो + शीर्षक + मूल्य + शहर अपलोड करें। ज़्यादा विवरण की ज़रूरत नहीं।",
+    "bn": "ভিডিও + শিরোনাম + মূল্য + শহর আপলোড করুন।",
+    "fr": "Téléchargez vidéo + titre + prix + ville. Pas besoin de plus de détails."
+  },
+  "وضع المزاد": {
+    "en": "Auction mode",
+    "ur": "نیلامی موڈ",
+    "hi": "नीलामी मोड",
+    "bn": "নিলাম মোড",
+    "fr": "Mode enchère"
+  },
+  "السعر الذي تضعه هنا = السعر الابتدائي للمزايدة.": {
+    "en": "The price you set here = the starting bid.",
+    "ur": "آپ یہاں جو قیمت رکھیں گے = ابتدائی بولی۔",
+    "hi": "यहाँ आप जो मूल्य रखेंगे = प्रारंभिक बोली।",
+    "bn": "এখানে আপনি যে মূল্য সেট করবেন = প্রারম্ভিক বিড।",
+    "fr": "Le prix que vous définissez ici = la mise de départ."
+  },
+  "وضع صفقة اليوم": {
+    "en": "Today's deal mode",
+    "ur": "آج کے سودے کا موڈ",
+    "hi": "आज का सौदा मोड",
+    "bn": "আজকের ডিল মোড",
+    "fr": "Mode offre du jour"
+  },
+  "يظهر إعلانك في قسم الصفقات المميزة بسعر منافس.": {
+    "en": "Your listing will appear in the Featured Deals section at a competitive price.",
+    "ur": "آپ کا اشتہار خصوصی سودوں کے سیکشن میں دکھائی دے گا۔",
+    "hi": "आपका विज्ञापन फ़ीचर्ड डील्स सेक्शन में दिखेगा।",
+    "bn": "আপনার বিজ্ঞাপন বিশেষ অফার বিভাগে দেখাবে।",
+    "fr": "Votre annonce apparaîtra dans la section Offres spéciales."
+  },
+  "اختر مدينة من القائمة": {
+    "en": "Pick a city from the list",
+    "ur": "فہرست سے شہر منتخب کریں",
+    "hi": "सूची से शहर चुनें",
+    "bn": "তালিকা থেকে শহর নির্বাচন করুন",
+    "fr": "Choisir une ville dans la liste"
+  },
+  "اختر حياً من القائمة": {
+    "en": "Pick a district from the list",
+    "ur": "فہرست سے علاقہ منتخب کریں",
+    "hi": "सूची से जिला चुनें",
+    "bn": "তালিকা থেকে জেলা নির্বাচন করুন",
+    "fr": "Choisir un quartier dans la liste"
+  },
+  "لم تجدها؟ ابحث": {
+    "en": "Can't find it? Search",
+    "ur": "نہیں ملا؟ تلاش کریں",
+    "hi": "नहीं मिला? खोजें",
+    "bn": "পাচ্ছেন না? খুঁজুন",
+    "fr": "Pas trouvé ? Rechercher"
+  },
+  "اكتب اسم المدينة...": {
+    "en": "Type city name...",
+    "ur": "شہر کا نام لکھیں...",
+    "hi": "शहर का नाम लिखें...",
+    "bn": "শহরের নাম লিখুন...",
+    "fr": "Tapez le nom de la ville..."
+  },
+  "اكتب اسم الحي...": {
+    "en": "Type district name...",
+    "ur": "علاقے کا نام لکھیں...",
+    "hi": "जिले का नाम लिखें...",
+    "bn": "জেলার নাম লিখুন...",
+    "fr": "Tapez le nom du quartier..."
+  },
+  "اختر مدينة أولاً": {
+    "en": "Pick a city first",
+    "ur": "پہلے شہر منتخب کریں",
+    "hi": "पहले शहर चुनें",
+    "bn": "প্রথমে শহর নির্বাচন করুন",
+    "fr": "Choisissez d'abord une ville"
+  },
+  "اختر دولتك أولاً من الأعلى": {
+    "en": "Select your country from the top first",
+    "ur": "پہلے اوپر سے اپنا ملک منتخب کریں",
+    "hi": "पहले ऊपर से अपना देश चुनें",
+    "bn": "প্রথমে উপরে থেকে দেশ নির্বাচন করুন",
+    "fr": "Sélectionnez d'abord votre pays en haut"
   }
 }
