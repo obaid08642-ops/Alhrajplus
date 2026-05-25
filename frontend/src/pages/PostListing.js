@@ -15,7 +15,7 @@ export default function PostListing() {
     const [searchParams] = useSearchParams();
     const editId = searchParams.get("edit");
     const { user, loading } = useAuth();
-    const { t, pickName, pickLabel, tr, lang } = useI18n();
+    const { t, pickName, pickLabel, lang } = useI18n();
     const { country: ctxCountryCode, openPicker } = useCountry();
     const [step, setStep] = useState(editId ? 2 : 1);
     const [categories, setCategories] = useState([]);
@@ -48,6 +48,12 @@ export default function PostListing() {
         api.get("/meta/categories", { params: { lang } }).then(({ data }) => setCategories(data));
         api.get("/meta/countries").then(({ data }) => setCountries(data));
     }, [lang]);
+
+    // Derived values must be computed BEFORE any useEffect that depends on them
+    // (otherwise we get a "Cannot access ... before initialization" TDZ error).
+    const cat = categories.find((c) => c.key === form.category);
+    const activeCountryCode = (ctxCountryCode || user?.country_code || "").toUpperCase();
+    const country = countries.find((c) => c.code === activeCountryCode);
 
     // Load existing listing for editing
     useEffect(() => {
@@ -90,12 +96,31 @@ export default function PostListing() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeCountryCode, countries]);
 
-    const cat = categories.find((c) => c.key === form.category);
-    // FIX: country must respect the user's CURRENT country selection (CountryContext),
-    // not just the profile default. Otherwise switching country in the topbar
-    // doesn't change available cities — users saw Saudi cities for every country.
-    const activeCountryCode = (ctxCountryCode || user?.country_code || "").toUpperCase();
-    const country = countries.find((c) => c.code === activeCountryCode);
+    // Auto-suggest category from the title (keyword match). Runs only when no category yet.
+    useEffect(() => {
+        if (form.category) return;
+        if (!form.title || form.title.trim().length < 4) return;
+        const title = form.title.toLowerCase();
+        const KEYWORDS = {
+            cars: ["سيارة", "سياره", "كامري", "كرولا", "هوندا", "تويوتا", "نيسان", "بي ام", "بمب", "مرسيدس", "لكزس", "هيونداي", "كيا", "فورد", "car", "toyota", "honda", "bmw"],
+            real_estate: ["شقة", "فيلا", "أرض", "ارض", "بيت", "منزل", "عمارة", "محل", "مكتب", "إيجار", "للإيجار", "تمليك", "للبيع شقة", "دور", "استراحة"],
+            electronics: ["موبايل", "جوال", "ايفون", "آيفون", "سامسونج", "هواوي", "لاب توب", "لابتوب", "تلفزيون", "كمبيوتر", "ساعة", "سماعة", "بلايستيشن", "iphone", "samsung", "laptop"],
+            furniture: ["كنبة", "كنب", "كرسي", "طاولة", "غرفة نوم", "سرير", "ديكور", "مفروشات", "ستارة", "خزانة"],
+            fashion: ["ثوب", "عباية", "حذاء", "ملابس", "حقيبة", "شنطة", "جزمة", "فستان", "قميص", "بنطلون"],
+            jobs: ["وظيفة", "موظف", "موظفة", "للعمل", "للتوظيف", "مطلوب موظف", "مطلوب عامل"],
+            services: ["خدمة", "تركيب", "صيانة", "نقل عفش", "تنظيف", "سباك", "كهربائي", "دهان", "نجار"],
+        };
+        for (const [k, words] of Object.entries(KEYWORDS)) {
+            if (words.some((w) => title.includes(w))) {
+                const exists = categories.find((c) => c.key === k);
+                if (exists) {
+                    setForm((f) => ({ ...f, category: k }));
+                    break;
+                }
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.title]);
 
     const uploadImage = async (file) => {
         const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "image", folder: "listings" } });
@@ -260,93 +285,82 @@ export default function PostListing() {
                         </div>
                     </label>
 
-                    {/* SIX MAIN ENTRY CARDS (mirrors mobile redesign) */}
+                    {/* Main actions per user spec:
+                        1) Big "Add Listing" with "كل الفئات" subtitle  → goes to Step 2 to pick category
+                        2) Row of 2 big cards: نشر ستوري + إنشاء مزاد
+                        3) Row of 2 cards: وظائف + خدمات
+                    */}
                     <h2 className="font-arabic font-black text-lg text-[var(--text)] mb-3 flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-[var(--accent)]" /> {tr("ماذا تريد أن تنشر؟")}
                     </h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                        <EntryCard
-                            testId="entry-listing"
-                            icon={Megaphone}
-                            label={tr("إضافة إعلان")}
-                            sub={tr("كل الفئات")}
-                            color="from-blue-100 to-blue-50 dark:from-blue-900/30 dark:to-blue-900/10"
-                            accent="text-blue-600"
-                            border="border-blue-400/60"
-                            onClick={() => { setForm({ ...form, custom_fields: {} }); setStep(2); }}
-                        />
-                        <EntryCard
-                            testId="entry-auction"
-                            icon={Gavel}
-                            label={tr("رفع مزاد")}
-                            sub={tr("ابدأ مزايدة حية")}
-                            color="from-amber-100 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-900/10"
-                            accent="text-amber-600"
-                            border="border-amber-400/60"
-                            onClick={() => { setForm({ ...form, custom_fields: { ...form.custom_fields, is_auction: true } }); setStep(2); }}
-                        />
-                        <EntryCard
-                            testId="entry-services"
-                            icon={Wrench}
-                            label={tr("خدمات")}
-                            sub={tr("سباك • كهربائي • نقل")}
-                            color="from-orange-100 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/10"
-                            accent="text-orange-600"
-                            border="border-orange-400/60"
-                            onClick={() => { setForm({ ...form, category: "services", subcategory: "", custom_fields: {} }); setStep(2); }}
-                        />
-                        <EntryCard
-                            testId="entry-jobs"
-                            icon={Briefcase}
-                            label={tr("وظائف")}
-                            sub={tr("عرض وظيفة • طلب عمل")}
-                            color="from-emerald-100 to-green-50 dark:from-emerald-900/30 dark:to-green-900/10"
-                            accent="text-emerald-600"
-                            border="border-emerald-400/60"
-                            onClick={() => { setForm({ ...form, category: "jobs", subcategory: "", custom_fields: {} }); setStep(2); }}
-                        />
-                        <EntryCard
-                            testId="entry-story"
-                            icon={Film}
-                            label={tr("نشر ستوري")}
-                            sub={tr("فيديو قصير")}
-                            color="from-pink-100 to-rose-50 dark:from-pink-900/30 dark:to-rose-900/10"
-                            accent="text-pink-600"
-                            border="border-pink-400/60"
+
+                    {/* Primary CTA: Add Listing (full width) */}
+                    <button
+                        type="button"
+                        data-testid="entry-listing"
+                        onClick={() => { setForm({ ...form, custom_fields: {} }); setStep(2); }}
+                        className="w-full mb-3 relative overflow-hidden rounded-2xl border-2 border-[var(--primary)]/60 bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/30 dark:to-blue-900/10 p-5 text-start hover:scale-[1.01] hover:shadow-lg transition-all"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-white/80 dark:bg-black/30 flex items-center justify-center shadow-sm shrink-0">
+                                <Megaphone className="w-7 h-7 text-blue-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-arabic font-black text-lg text-blue-700 dark:text-blue-300">{tr("إضافة إعلان")}</h3>
+                                <p className="text-xs text-[var(--text-muted)] font-arabic-body mt-0.5">{tr("كل الفئات — سيارات • عقارات • إلكترونيات • أثاث • أزياء ...")}</p>
+                            </div>
+                            <ChevronLeft className="w-5 h-5 text-blue-600 shrink-0" />
+                        </div>
+                    </button>
+
+                    {/* Row 1: Story + Auction */}
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                        <button
+                            type="button"
+                            data-testid="entry-story"
                             onClick={() => { setForm({ ...form, subcategory: "story", custom_fields: { is_story: true } }); setStep(2); }}
-                        />
-                        <EntryCard
-                            testId="entry-deal"
-                            icon={Tag}
-                            label={tr("صفقات اليوم")}
-                            sub={tr("سعر مميز • عرض حصري")}
-                            color="from-red-100 to-rose-50 dark:from-red-900/30 dark:to-red-900/10"
-                            accent="text-red-600"
-                            border="border-red-400/60"
-                            onClick={() => { setForm({ ...form, custom_fields: { ...form.custom_fields, is_deal: true } }); setStep(2); }}
-                        />
+                            className="relative overflow-hidden rounded-2xl border-2 border-pink-400/60 bg-gradient-to-br from-pink-100 to-rose-50 dark:from-pink-900/30 dark:to-rose-900/10 p-4 text-start aspect-[5/4] flex flex-col justify-between hover:scale-[1.02] hover:shadow-lg transition-all"
+                        >
+                            <div className="w-11 h-11 rounded-2xl bg-white/70 dark:bg-black/30 flex items-center justify-center shadow-sm">
+                                <Film className="w-6 h-6 text-pink-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-arabic font-black text-base text-pink-600">{tr("نشر ستوري")}</h3>
+                                <p className="text-[11px] text-[var(--text-muted)] font-arabic-body line-clamp-1">{tr("فيديو قصير")}</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            data-testid="entry-auction"
+                            onClick={() => { setForm({ ...form, custom_fields: { is_auction: true } }); setStep(2); }}
+                            className="relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-br from-amber-100 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-900/10 p-4 text-start aspect-[5/4] flex flex-col justify-between hover:scale-[1.02] hover:shadow-lg transition-all"
+                        >
+                            <div className="w-11 h-11 rounded-2xl bg-white/70 dark:bg-black/30 flex items-center justify-center shadow-sm">
+                                <Gavel className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-arabic font-black text-base text-amber-600">{tr("إنشاء مزاد")}</h3>
+                                <p className="text-[11px] text-[var(--text-muted)] font-arabic-body line-clamp-1">{tr("ابدأ مزايدة حية")}</p>
+                            </div>
+                        </button>
                     </div>
 
-                    {/* Quick category grid (optional shortcut — still available) */}
-                    <details className="bg-[var(--surface-elevated)] rounded-2xl border border-[var(--border)]">
-                        <summary className="cursor-pointer px-4 py-3 text-sm font-arabic font-bold text-[var(--text)] flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-[var(--accent)]" /> {tr("أو اختر تصنيفاً مباشرة")}
-                        </summary>
-                        <div className="px-4 pb-4">
-                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-2">
-                                {categories.filter((c) => c.key !== "jobs" && c.key !== "services").map((c) => {
-                                    const Icon = Icons[c.icon] || Icons.Shapes;
-                                    return (
-                                        <button key={c.key} data-testid={`pick-cat-${c.key}`} onClick={() => { setForm({ ...form, category: c.key, subcategory: "", custom_fields: {} }); setStep(2); }}
-                                            className="aspect-square rounded-2xl border-2 border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)] p-3 flex flex-col items-center justify-center gap-2 transition-all">
-                                            <Icon className="w-6 h-6 text-[var(--text-muted)]" />
-                                            <span className="font-arabic text-xs sm:text-sm font-bold text-[var(--text)] text-center">{pickName(c)}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </details>
+                    {/* Row 2: Jobs + Services */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <button data-testid="quick-jobs" type="button" onClick={() => { setForm({ ...form, category: "jobs", subcategory: "", custom_fields: {} }); setStep(2); }}
+                            className="relative overflow-hidden rounded-2xl p-4 border-2 border-[var(--border)] bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 hover:border-emerald-400 text-start transition-all">
+                            <Briefcase className="w-7 h-7 text-emerald-600 mb-2" />
+                            <h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("وظائف 💼")}</h3>
+                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("عرض وظيفة • طلب عمل")}</p>
+                        </button>
+                        <button data-testid="quick-services" type="button" onClick={() => { setForm({ ...form, category: "services", subcategory: "", custom_fields: {} }); setStep(2); }}
+                            className="relative overflow-hidden rounded-2xl p-4 border-2 border-[var(--border)] bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 hover:border-orange-400 text-start transition-all">
+                            <Wrench className="w-7 h-7 text-orange-600 mb-2" />
+                            <h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("خدمات 🔧")}</h3>
+                            <p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("سباك • كهربائي • نظافة • نقل ...")}</p>
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -384,34 +398,37 @@ export default function PostListing() {
 
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)]">{t("listing_details")}</h2>
 
-                    {/* Category picker (when not preset) */}
-                    {!form.category && !form.custom_fields?.is_story && (
-                        <div>
-                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-2">{tr("التصنيف *")}</label>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                {categories.filter((c) => !["jobs", "services"].includes(c.key)).map((c) => {
-                                    const Icon = Icons[c.icon] || Icons.Shapes;
-                                    return (
-                                        <button key={c.key} type="button" data-testid={`step2-pick-cat-${c.key}`} onClick={() => setForm({ ...form, category: c.key, subcategory: "" })}
-                                            className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] hover:border-[var(--primary)] py-3 flex flex-col items-center gap-1.5 transition-all">
-                                            <Icon className="w-5 h-5 text-[var(--primary)]" />
-                                            <span className="text-[11px] font-arabic font-bold text-[var(--text)]">{pickName(c)}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                    {/* Category picker — DROPDOWN (per user spec). Always visible; allows manual change.
+                        Title triggers auto-suggestion above; user can still override here. */}
+                    <div>
+                        <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
+                            {tr("التصنيف")} <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                            <select
+                                data-testid="category-dropdown"
+                                value={form.category}
+                                onChange={(e) => setForm({ ...form, category: e.target.value, subcategory: "" })}
+                                className="w-full appearance-none bg-[var(--surface-elevated)] rounded-xl px-3 py-3 pr-10 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body cursor-pointer"
+                            >
+                                <option value="">{tr("— اختر التصنيف —")}</option>
+                                {categories.map((c) => (
+                                    <option key={c.key} value={c.key}>{pickName(c)}</option>
+                                ))}
+                            </select>
+                            <ChevronLeft className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] -rotate-90 pointer-events-none" />
                         </div>
-                    )}
-                    {form.category && (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30 self-start w-fit">
-                            <span className="text-xs font-arabic font-bold text-[var(--primary)]">
-                                {tr("التصنيف:")} {pickName(categories.find((c) => c.key === form.category)) || form.category}
-                            </span>
-                            <button type="button" data-testid="change-cat-btn" onClick={() => setForm({ ...form, category: "", subcategory: "" })} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] underline font-arabic">
-                                {tr("تغيير")}
-                            </button>
-                        </div>
-                    )}
+                        {!form.category && form.title && form.title.length >= 4 && (
+                            <p className="text-[11px] text-[var(--primary)] mt-1.5 font-arabic-body flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" /> {tr("سنقترح الفئة تلقائياً من العنوان أثناء الكتابة")}
+                            </p>
+                        )}
+                        {form.category && (
+                            <p className="text-[11px] text-emerald-600 mt-1.5 font-arabic-body flex items-center gap-1">
+                                ✓ {tr("الفئة:")} <span className="font-bold">{pickName(categories.find((c) => c.key === form.category))}</span>
+                            </p>
+                        )}
+                    </div>
 
                     {/* Job/Service post-type selector at TOP */}
                     {(form.category === "jobs" || form.category === "services") && (
