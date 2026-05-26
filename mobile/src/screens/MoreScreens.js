@@ -114,7 +114,7 @@ export function CategoriesScreen({ navigation }) {
             contentContainerStyle={{ padding: 10 }}
             renderItem={({ item }) => (
                 <TouchableOpacity
-                    onPress={() => navigation.navigate("CategoryListings", { key: item.key, name: item.name || item.name_ar })}
+                    onPress={() => navigation.navigate("CategoryListings", { categoryKey: item.key, name: item.name || item.name_ar })}
                     style={s.catCard}
                     testID={`mobile-cat-${item.key}`}
                 >
@@ -129,17 +129,18 @@ export function CategoriesScreen({ navigation }) {
 }
 
 export function CategoryListingsScreen({ route, navigation }) {
-    const { key, name } = route.params || {};
+    const { categoryKey, name } = route.params || {};
     const { t } = useI18n();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.get("/listings", { params: { category: key, limit: 30 } })
+        if (!categoryKey) { setLoading(false); return; }
+        api.get("/listings", { params: { category: categoryKey, limit: 30 } })
             .then(({ data }) => setItems(data?.items || []))
             .catch(() => setItems([]))
             .finally(() => setLoading(false));
-    }, [key]);
+    }, [categoryKey]);
 
     return (
         <View style={s.wrap}>
@@ -362,7 +363,7 @@ export function FollowingScreen({ navigation }) {
                 ? <Text style={{ padding: 16, color: theme.colors.textMuted, textAlign: "right" }}>{t("لا يوجد")}</Text>
                 : data.categories.map((c) => (
                     <View key={c.category} style={s.menuItem}>
-                        <TouchableOpacity onPress={() => navigation.navigate("CategoryListings", { key: c.category, name: c.category })} style={{ flex: 1 }}>
+                        <TouchableOpacity onPress={() => navigation.navigate("CategoryListings", { categoryKey: c.category, name: c.category })} style={{ flex: 1 }}>
                             <Text style={s.menuLabel}>📂 {c.category}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={async () => { await api.delete(`/follow/category/${c.category}`); setData((d) => ({ ...d, categories: d.categories.filter((x) => x.category !== c.category) })); }}>
