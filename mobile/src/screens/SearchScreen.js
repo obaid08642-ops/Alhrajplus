@@ -28,7 +28,7 @@ const SORT_OPTIONS = [
 export default function SearchScreen({ navigation, route }) {
     const insets = useSafeAreaInsets();
     const { t, lang } = useI18n();
-    const { current: country } = useCountry();
+    const { current: country, dataVersion } = useCountry();
     const initialQ = route.params?.q || "";
     const initialCat = route.params?.category || "";
 
@@ -143,6 +143,13 @@ export default function SearchScreen({ navigation, route }) {
 
     // Initial search if we got a query/category param
     useEffect(() => { if (initialQ || initialCat) runSearch(initialQ); /* eslint-disable-next-line */ }, []);
+
+    // Re-run last search whenever the user switches country, so results never
+    // leak across regions.
+    useEffect(() => {
+        if (q && dataVersion > 0) { runSearch(q); }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataVersion]);
 
     // Re-search when filters change (skip query field updates — keypress is handled below)
     useEffect(() => {

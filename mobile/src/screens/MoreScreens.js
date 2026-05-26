@@ -2,13 +2,17 @@
  * Search + Category browsing + Notifications + Static pages — bundle of
  * lightweight screens to bring the mobile app to feature parity with the web.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useI18n } from "../I18nContext";
 import { useAuth } from "../AuthContext";
+import { useCountry } from "../CountryContext";
 import ListingCard from "../components/ListingCard";
+
+// FlatList perf defaults — defined once at module scope.
+const FLAT_PERF = { initialNumToRender: 8, maxToRenderPerBatch: 8, windowSize: 7, removeClippedSubviews: true };
 
 // ---------- CATEGORIES SCREEN ----------
 export function CategoriesScreen({ navigation }) {
@@ -17,67 +21,81 @@ export function CategoriesScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let alive = true;
+        setLoading(true);
         api.get("/meta/categories", { params: { lang } })
-            .then(({ data }) => setCats(data))
-            .catch(() => setCats([]))
-            .finally(() => setLoading(false));
+            .then(({ data }) => { if (alive) setCats(Array.isArray(data) ? data : []); })
+            .catch(() => { if (alive) setCats([]); })
+            .finally(() => { if (alive) setLoading(false); });
+        return () => { alive = false; };
     }, [lang]);
 
-    if (loading) return <View style={s.center}><ActivityIndicator color={theme.colors.primary} /></View>;
+    if (loading) return <View style={s.center}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
+    if (!cats.length) return <View style={s.center}><Text style={s.muted}>{t("لا توجد تصنيفات")}</Text></View>;
+
+    const renderCat = useCallback(({ item }) => (
+        <TouchableOpacity
+            onPress={() => navigation?.navigate?.("CategoryListings", { categoryKey: item.key, name: item.name || item.name_ar })}
+            style={s.catCard}
+            testID={`mobile-cat-${item.key}`}
+        >
+            <Text style={s.catName}>{item.name || item.name_ar}</Text>
+            {item.subcategories?.length > 0 && (
+                <Text style={s.catSubs}>{item.subcategories.length} {t("تصنيف فرعي")}</Text>
+            )}
+        </TouchableOpacity>
+    ), [navigation, t]);
 
     return (
         <FlatList
             data={cats}
-            keyExtractor={(c) => c.key}
+            keyExtractor={(c) => String(c.key)}
             numColumns={2}
             contentContainerStyle={{ padding: 10 }}
-            renderItem={({ item }) => (
-                <TouchableOpacity
-                    onPress={() => navigation.navigate("CategoryListings", { categoryKey: item.key, name: item.name || item.name_ar })}
-                    style={s.catCard}
-                    testID={`mobile-cat-${item.key}`}
-                >
-                    <Text style={s.catName}>{item.name || item.name_ar}</Text>
-                    {item.subcategories?.length > 0 && (
-                        <Text style={s.catSubs}>{item.subcategories.length} {t("تصنيف فرعي")}</Text>
-                    )}
-                </TouchableOpacity>
-            )}
+            renderItem={renderCat}
+            {...FLAT_PERF}
         />
     );
 }
 
 export function CategoryListingsScreen({ route, navigation }) {
-    const { categoryKey, name } = route.params || {};
+    const { categoryKey, name } = route?.params || {};
     const { t } = useI18n();
+    const { dataVersion } = useCountry();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!categoryKey) { setLoading(false); return; }
+        if (!categoryKey) { setItems([]); setLoading(false); return; }
+        let alive = true;
+        setLoading(true);
         api.get("/listings", { params: { category: categoryKey, limit: 30 } })
-            .then(({ data }) => setItems(data?.items || []))
-            .catch(() => setItems([]))
-            .finally(() => setLoading(false));
-    }, [categoryKey]);
+            .then(({ data }) => { if (alive) setItems(data?.items || []); })
+            .catch(() => { if (alive) setItems([]); })
+            .finally(() => { if (alive) setLoading(false); });
+        return () => { alive = false; };
+    }, [categoryKey, dataVersion]);
+
+    const renderListing = useCallback(({ item }) => (
+        <View style={{ flex: 1, padding: 4 }}>
+            <ListingCard listing={item} onPress={() => navigation?.navigate?.("ListingDetail", { id: item.id })} />
+        </View>
+    ), [navigation]);
 
     return (
         <View style={s.wrap}>
-            <Text style={s.pageTitle}>{name}</Text>
+            <Text style={s.pageTitle}>{name || t("التصنيف")}</Text>
             {loading ? (
-                <View style={s.center}><ActivityIndicator color={theme.colors.primary} /></View>
+                <View style={s.center}><ActivityIndicator color={theme.colors.primary} size="large" /></View>
             ) : (
                 <FlatList
                     data={items}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item) => String(item?.id)}
                     numColumns={2}
-                    contentContainerStyle={{ padding: 8 }}
-                    renderItem={({ item }) => (
-                        <View style={{ flex: 1, padding: 4 }}>
-                            <ListingCard listing={item} onPress={() => navigation.navigate("ListingDetail", { id: item.id })} />
-                        </View>
-                    )}
-                    ListEmptyComponent={<Text style={s.muted}>{t("لا توجد بيانات")}</Text>}
+                    contentContainerStyle={{ padding: 8, paddingBottom: 130 }}
+                    renderItem={renderListing}
+                    ListEmptyComponent={<View style={{ padding: 40, alignItems: "center" }}><Text style={s.muted}>{t("لا توجد إعلانات في هذا التصنيف")}</Text></View>}
+                    {...FLAT_PERF}
                 />
             )}
         </View>

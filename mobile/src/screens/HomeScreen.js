@@ -12,6 +12,7 @@ import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, 
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
+import { useCountry } from "../CountryContext";
 import { colors, radius, shadow } from "../theme";
 import ListingCard from "../components/ListingCard";
 import NotificationBell from "../components/NotificationBell";
@@ -26,6 +27,7 @@ export default function HomeScreen() {
     const insets = useSafeAreaInsets();
     const { user } = useAuth();
     const { t, lang } = useI18n();
+    const { dataVersion } = useCountry();
     const [categories, setCategories] = useState([]);
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export default function HomeScreen() {
         finally { setLoading(false); setRefreshing(false); }
     }, [lang]);
 
-    useEffect(() => { fetchAll(); }, [fetchAll]);
+    useEffect(() => { fetchAll(); }, [fetchAll, dataVersion]);
 
     const loadMore = useCallback(async () => {
         if (loadingMore || !hasMore || inflightRef.current) return;
@@ -60,13 +62,21 @@ export default function HomeScreen() {
         setLoadingMore(true);
         try {
             const { data } = await api.get("/listings", { params: { limit: 20, page: page + 1 } });
-            const next = data.items || [];
+            const next = data?.items || [];
             setListings((prev) => [...prev, ...next]);
             setPage((p) => p + 1);
             if (next.length < 20) setHasMore(false);
         } catch (_) { setHasMore(false); }
         finally { setLoadingMore(false); inflightRef.current = false; }
     }, [page, hasMore, loadingMore]);
+
+    const renderItem = useCallback(({ item }) => (
+        <View style={{ width: CARD_W }}>
+            <ListingCard listing={item} />
+        </View>
+    ), []);
+
+    const keyExtractor = useCallback((item) => String(item?.id), []);
 
     const visibleCats = showAllCats ? categories : categories.slice(0, 8);
 
@@ -90,16 +100,16 @@ export default function HomeScreen() {
             <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
             <FlatList
                 data={listings}
-                keyExtractor={(item) => item.id}
+                keyExtractor={keyExtractor}
                 numColumns={2}
                 columnWrapperStyle={{ gap: CARD_GAP, paddingHorizontal: 12, marginBottom: CARD_GAP }}
                 contentContainerStyle={{ paddingBottom: 130 }}
                 ListHeaderComponent={Header}
-                renderItem={({ item }) => (
-                    <View style={{ width: CARD_W }}>
-                        <ListingCard listing={item} />
-                    </View>
-                )}
+                renderItem={renderItem}
+                initialNumToRender={8}
+                maxToRenderPerBatch={8}
+                windowSize={7}
+                removeClippedSubviews
                 ListEmptyComponent={loading ? (
                     <View style={{ padding: 32, alignItems: "center" }}>
                         <ActivityIndicator size="large" color={colors.primary} />

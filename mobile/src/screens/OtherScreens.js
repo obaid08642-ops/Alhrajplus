@@ -1,62 +1,167 @@
-import { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity } from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
+import { useCountry } from "../CountryContext";
 import ListingCard from "../components/ListingCard";
 
+// FlatList perf defaults reused across screens — defined ONCE so we don't
+// re-allocate inline objects on every render.
+const FLAT_PERF = {
+    initialNumToRender: 8,
+    maxToRenderPerBatch: 8,
+    windowSize: 7,
+    removeClippedSubviews: true,
+};
+const keyExtractor = (x) => String(x?.id || x?._tempKey || Math.random());
+
+function LoadingBlock() {
+    return <View style={styles.center}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
+}
+function EmptyBlock({ text }) {
+    return <View style={styles.empty}><Text style={styles.emptyText}>{text}</Text></View>;
+}
+
+// ---------- FAVORITES ----------
 export function FavoritesScreen() {
+    const { dataVersion } = useCountry();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    useEffect(() => { api.get("/favorites").then(({ data }) => setItems(data)).finally(() => setLoading(false)); }, []);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const load = useCallback(async (showSpinner = true) => {
+        if (showSpinner) setLoading(true);
+        try {
+            const { data } = await api.get("/favorites");
+            setItems(Array.isArray(data) ? data : (data?.items || []));
+        } catch (_) {
+            setItems([]);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
+
+    useEffect(() => { load(); }, [load, dataVersion]);
+    const onRefresh = () => { setRefreshing(true); load(false); };
+
+    const renderItem = useCallback(({ item }) => <ListingCard listing={item} />, []);
+
     return (
         <SafeAreaView style={styles.wrap}>
             <Text style={styles.title}>المفضلة</Text>
-            <FlatList data={items} numColumns={2} keyExtractor={(x) => x.id} renderItem={({ item }) => <ListingCard listing={item} />}
-                contentContainerStyle={{ padding: 8 }}
-                ListEmptyComponent={!loading && <View style={styles.empty}><Text style={styles.emptyText}>لا توجد إعلانات في المفضلة</Text></View>} />
+            {loading ? <LoadingBlock /> : (
+                <FlatList
+                    data={items}
+                    numColumns={2}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderItem}
+                    contentContainerStyle={{ padding: 8, paddingBottom: 130 }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    ListEmptyComponent={<EmptyBlock text="لا توجد إعلانات في المفضلة" />}
+                    {...FLAT_PERF}
+                />
+            )}
         </SafeAreaView>
     );
 }
 
+// ---------- MY LISTINGS ----------
 export function MyListingsScreen({ navigation }) {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const load = () => { setLoading(true); api.get("/listings/me/mine").then(({ data }) => setItems(data)).finally(() => setLoading(false)); };
-    useEffect(() => { load(); }, []);
-    const toggleBoost = async (item) => {
+    const [refreshing, setRefreshing] = useState(false);
+
+    const load = useCallback(async (showSpinner = true) => {
+        if (showSpinner) setLoading(true);
+        try {
+            const { data } = await api.get("/listings/me/mine");
+            setItems(Array.isArray(data) ? data : (data?.items || []));
+        } catch (_) {
+            setItems([]);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+    const onRefresh = () => { setRefreshing(true); load(false); };
+
+    const toggleBoost = useCallback(async (item) => {
         try {
             if (item.is_boosted) await api.delete(`/listings/${item.id}/boost`);
             else await api.post(`/listings/${item.id}/boost`);
-            load();
+            load(false);
         } catch (_) {}
-    };
+    }, [load]);
+
+    const renderItem = useCallback(({ item }) => (
+        <View style={{ flex: 1, padding: 4 }}>
+            <ListingCard listing={item} />
+            <TouchableOpacity
+                onPress={() => toggleBoost(item)}
+                style={[styles.boostBtn, item.is_boosted && styles.boostBtnActive]}
+                testID={`boost-${item.id}`}
+            >
+                <Text style={[styles.boostText, item.is_boosted && { color: "#fff" }]}>
+                    {item.is_boosted ? "⭐ مُروَّج" : "🚀 رَوِّج"}
+                </Text>
+            </TouchableOpacity>
+        </View>
+    ), [toggleBoost]);
+
     return (
         <SafeAreaView style={styles.wrap}>
             <View style={styles.titleRow}>
                 <Text style={styles.title}>إعلاناتي</Text>
-                <TouchableOpacity onPress={() => navigation.navigate("Post")} style={styles.addBtn}>
+                <TouchableOpacity onPress={() => navigation?.navigate?.("Post")} style={styles.addBtn} testID="mylistings-add-btn">
                     <Text style={styles.addText}>+ إضافة</Text>
                 </TouchableOpacity>
             </View>
-            <FlatList data={items} numColumns={2} keyExtractor={(x) => x.id} renderItem={({ item }) => (
-                <View style={{ flex: 1, padding: 4 }}>
-                    <ListingCard listing={item} />
-                    <TouchableOpacity onPress={() => toggleBoost(item)} style={[styles.boostBtn, item.is_boosted && styles.boostBtnActive]} testID={`boost-${item.id}`}>
-                        <Text style={[styles.boostText, item.is_boosted && { color: "#fff" }]}>
-                            {item.is_boosted ? "⭐ مُروَّج" : "🚀 رَوِّج"}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+            {loading ? <LoadingBlock /> : (
+                <FlatList
+                    data={items}
+                    numColumns={2}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderItem}
+                    contentContainerStyle={{ padding: 8, paddingBottom: 130 }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    ListEmptyComponent={<EmptyBlock text="لا توجد إعلانات بعد" />}
+                    {...FLAT_PERF}
+                />
             )}
-                contentContainerStyle={{ padding: 8 }}
-                ListEmptyComponent={!loading && <View style={styles.empty}><Text style={styles.emptyText}>لا توجد إعلانات بعد</Text></View>} />
         </SafeAreaView>
     );
 }
 
+// ---------- DEALS ----------
 export function DealsScreen() {
+    const { dataVersion } = useCountry();
     const [items, setItems] = useState([]);
-    useEffect(() => { api.get("/deals/today", { params: { limit: 30 } }).then(({ data }) => setItems(data)); }, []);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let alive = true;
+        setLoading(true);
+        api.get("/deals/today", { params: { limit: 30 } })
+            .then(({ data }) => { if (alive) setItems(Array.isArray(data) ? data : (data?.items || [])); })
+            .catch(() => { if (alive) setItems([]); })
+            .finally(() => { if (alive) setLoading(false); });
+        return () => { alive = false; };
+    }, [dataVersion]);
+
+    const renderItem = useCallback(({ item }) => (
+        <View style={{ flex: 1, padding: 4 }}>
+            <ListingCard listing={item} />
+            {item.discount_pct != null && (
+                <View style={styles.dealBadge}>
+                    <Text style={styles.dealBadgeText}>-{item.discount_pct}%</Text>
+                </View>
+            )}
+        </View>
+    ), []);
+
     return (
         <SafeAreaView style={styles.wrap}>
             <View style={styles.hero}>
@@ -66,16 +171,17 @@ export function DealsScreen() {
                     <Text style={styles.heroSub}>أفضل الأسعار تحت متوسط السوق</Text>
                 </View>
             </View>
-            <FlatList data={items} numColumns={2} keyExtractor={(x) => x.id} renderItem={({ item }) => (
-                <View style={{ flex: 1, padding: 4 }}>
-                    <ListingCard listing={item} />
-                    <View style={styles.dealBadge}>
-                        <Text style={styles.dealBadgeText}>-{item.discount_pct}%</Text>
-                    </View>
-                </View>
+            {loading ? <LoadingBlock /> : (
+                <FlatList
+                    data={items}
+                    numColumns={2}
+                    keyExtractor={keyExtractor}
+                    renderItem={renderItem}
+                    contentContainerStyle={{ padding: 4, paddingBottom: 130 }}
+                    ListEmptyComponent={<EmptyBlock text="لا توجد صفقات بارزة الآن" />}
+                    {...FLAT_PERF}
+                />
             )}
-                contentContainerStyle={{ padding: 4 }}
-                ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>لا توجد صفقات بارزة الآن</Text></View>} />
         </SafeAreaView>
     );
 }
@@ -86,8 +192,9 @@ const styles = StyleSheet.create({
     titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
     addBtn: { backgroundColor: theme.colors.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: theme.radius.full },
     addText: { color: theme.colors.primaryFg, fontWeight: "800", fontSize: 12 },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 60 },
     empty: { padding: 40, alignItems: "center" },
-    emptyText: { color: theme.colors.textMuted },
+    emptyText: { color: theme.colors.textMuted, fontSize: 13, fontWeight: "700" },
     hero: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, backgroundColor: "rgba(16,185,129,0.1)", borderBottomWidth: 1, borderBottomColor: theme.colors.border },
     heroIcon: { fontSize: 38 },
     heroTitle: { fontSize: 18, fontWeight: "900", color: theme.colors.text, textAlign: "right" },

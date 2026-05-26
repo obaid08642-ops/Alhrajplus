@@ -12,6 +12,9 @@ export function CountryProvider({ children }) {
     const [country, setCountryState] = useState("");
     const [countries, setCountries] = useState([]);
     const [hydrated, setHydrated] = useState(false);
+    // Monotonic counter — bumped on every country change so consumer screens
+    // can use it as a useEffect dependency to force a fresh fetch.
+    const [dataVersion, setDataVersion] = useState(0);
 
     useEffect(() => {
         (async () => {
@@ -58,6 +61,7 @@ export function CountryProvider({ children }) {
     const setCountry = useCallback(async (code) => {
         const c = (code || "").toUpperCase();
         setCountryState(c);
+        setDataVersion((v) => v + 1);
         await AsyncStorage.setItem(STORAGE_KEY, c).catch(() => {});
         try { await api.put("/users/me", { country_code: c }); } catch (_) {}
     }, []);
@@ -65,10 +69,10 @@ export function CountryProvider({ children }) {
     const current = countries.find((c) => c.code === country) || null;
 
     return (
-        <Ctx.Provider value={{ country, setCountry, current, countries }}>
+        <Ctx.Provider value={{ country, setCountry, current, countries, dataVersion }}>
             {children}
         </Ctx.Provider>
     );
 }
 
-export const useCountry = () => useContext(Ctx) || { country: "", current: null, countries: [], setCountry: () => {} };
+export const useCountry = () => useContext(Ctx) || { country: "", current: null, countries: [], setCountry: () => {}, dataVersion: 0 };
