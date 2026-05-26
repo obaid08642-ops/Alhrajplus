@@ -3,13 +3,18 @@ import { useState, useEffect } from "react";
 import { tr } from "@/contexts/I18nContext";
 
 /**
- * Smart App Banner — Shows on mobile web users only.
- * - Sticky bar above TopBar suggesting to install the mobile app.
- * - Dismissable (stored in localStorage, reappears after 7 days).
- * - Detects iOS/Android via user-agent and shows relevant store link.
+ * Smart App Banner — shown above the TopBar.
+ * - iOS UA → opens App Store
+ * - Android UA → opens Play Store
+ * - Desktop → opens marketing landing page
+ * - All URLs read from process.env (REACT_APP_APPSTORE_URL / PLAYSTORE_URL / LANDING_URL).
+ *   If the relevant ENV value is missing for the detected platform, the banner
+ *   hides itself entirely instead of falling back to a hardcoded link.
+ * - Dismiss persists in localStorage for 7 days.
  */
-const APP_STORE_URL = "https://apps.apple.com/app/haraj-plus";
-const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.harajplus.app";
+const APP_STORE_URL = process.env.REACT_APP_APPSTORE_URL || "";
+const PLAY_STORE_URL = process.env.REACT_APP_PLAYSTORE_URL || "";
+const LANDING_URL = process.env.REACT_APP_LANDING_URL || "";
 const STORAGE_KEY = "hp_app_banner_dismissed";
 const SNOOZE_DAYS = 7;
 
@@ -28,11 +33,10 @@ export default function SmartAppBanner() {
     useEffect(() => {
         const p = getPlatform();
         setPlatform(p);
-        if (p === "desktop" || p === "unknown") return;
         const dismissedAt = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
-        if (!dismissedAt || Date.now() - dismissedAt > SNOOZE_DAYS * 86400000) {
-            setVisible(true);
-        }
+        const stillSnoozed = dismissedAt && Date.now() - dismissedAt < SNOOZE_DAYS * 86400000;
+        if (stillSnoozed) return;
+        setVisible(true);
     }, []);
 
     const dismiss = (e) => {
@@ -41,9 +45,20 @@ export default function SmartAppBanner() {
         setVisible(false);
     };
 
-    if (!visible) return null;
-    const storeUrl = platform === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
-    const storeLabel = platform === "ios" ? tr("تحميل من App Store") : tr("تحميل من Google Play");
+    // Resolve the right store/landing URL for this platform.
+    const storeUrl =
+        platform === "ios" ? APP_STORE_URL
+            : platform === "android" ? PLAY_STORE_URL
+                : LANDING_URL;
+
+    // Hide if banner is dismissed OR if we don't have a URL for this platform —
+    // safer than showing a broken link.
+    if (!visible || !storeUrl) return null;
+
+    const storeLabel =
+        platform === "ios" ? tr("تحميل من App Store")
+            : platform === "android" ? tr("تحميل من Google Play")
+                : tr("اعرف المزيد");
 
     return (
         <div data-testid="smart-app-banner" className="relative bg-gradient-to-r from-[#4FB6E6] via-[#3AA9DD] to-[#2196D9] text-white shadow-md">
