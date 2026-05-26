@@ -133,7 +133,7 @@ export default function ProfileScreen() {
                 <QuickTile icon={Gavel} label="المزادات" tint="#F59E0B" tintBg="#FEF3C7" onPress={() => nav.navigate("Auctions")} />
                 <QuickTile icon={Plane} label="الطيران" tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Flights")} />
                 <QuickTile icon={Flame} label="الصفقات" tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Deals")} />
-                <QuickTile icon={MapPin} label="الخريطة" tint="#10B981" tintBg="#D1FAE5" onPress={() => nav.navigate("MapTab")} />
+                <QuickTile icon={MapPin} label="الخريطة" tint="#10B981" tintBg="#D1FAE5" onPress={() => nav.navigate("Map")} />
                 <QuickTile icon={Bookmark} label="محفوظات" tint="#8B5CF6" tintBg="#EDE9FE" onPress={() => nav.navigate("SavedSearches")} />
             </View>
 

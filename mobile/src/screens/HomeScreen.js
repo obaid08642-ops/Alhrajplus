@@ -164,7 +164,7 @@ function Hero({ nav }) {
                             <Plus size={15} color="#fff" strokeWidth={3} />
                             <Text style={styles.heroPrimaryText}>أنشر مجاناً</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => nav.navigate("MapTab")} style={styles.heroSecondaryBtn}>
+                        <TouchableOpacity onPress={() => nav.navigate("Map")} style={styles.heroSecondaryBtn}>
                             <Text style={styles.heroSecondaryText}>🗺️ خريطة قريبة</Text>
                         </TouchableOpacity>
                     </View>
@@ -181,7 +181,7 @@ function QuickActions({ nav }) {
         { to: "Auctions", icon: "🔨", label: "مزادات", bg: ["#FEF3C7", "#FEF9C3"] },
         { to: "ReelsTab", icon: "🎬", label: "قصص", bg: ["#FCE7F3", "#FDF2F8"] },
         { to: "Flights", icon: "✈️", label: "طيران", bg: ["#DBEAFE", "#F0F9FF"] },
-        { to: "MapTab", icon: "🗺️", label: "خريطة", bg: ["#D1FAE5", "#ECFDF5"] },
+        { to: "Map", icon: "🗺️", label: "خريطة", bg: ["#D1FAE5", "#ECFDF5"] },
     ];
     return (
         <View style={styles.quickWrap}>

@@ -130,7 +130,7 @@ function Navigation() {
                 <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("الإعدادات") }} />
                 <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
                 <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: t("الملف الشخصي للبائع") }} />
-                <Stack.Screen name="MapTab" component={MapScreen} options={{ title: t("الخريطة") }} />
+                <Stack.Screen name="Map" component={MapScreen} options={{ title: t("الخريطة") }} />
                 <Stack.Screen name="Deals" component={DealsScreen} options={{ title: t("صفقات اليوم") }} />
                 <Stack.Screen name="Auctions" component={AuctionsScreen} options={{ title: t("المزادات") }} />
                 <Stack.Screen name="Flights" component={FlightsScreen} options={{ title: t("حجز الطيران") }} />

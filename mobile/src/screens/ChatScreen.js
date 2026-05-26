@@ -204,6 +204,7 @@ function ConvoRow({ convo, onPress }) {
 // =============== Chat Thread (single conversation) ===============
 function ChatThread({ convoId, other, listing, onBack }) {
     const { user } = useAuth();
+    const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { send: wsSend, subscribe } = useChatSocket();
     const [messages, setMessages] = useState([]);
@@ -411,23 +412,69 @@ function ChatThread({ convoId, other, listing, onBack }) {
                         {otherTyping ? "يكتب الآن..." : presenceText}
                     </Text>
                 </View>
-                <TouchableOpacity style={s.headBtn} hitSlop={8}>
+                <TouchableOpacity
+                    onPress={() => {
+                        const phone = other.phone_full || other.phone;
+                        if (phone) {
+                            require("react-native").Linking.openURL(`tel:${phone}`);
+                        } else {
+                            Alert.alert("غير متاح", "رقم الهاتف غير متوفر");
+                        }
+                    }}
+                    style={s.headBtn}
+                    hitSlop={8}
+                    testID="chat-call-btn"
+                >
                     <Phone size={20} color="#fff" />
                 </TouchableOpacity>
-                <TouchableOpacity style={s.headBtn} hitSlop={8}>
+                <TouchableOpacity
+                    onPress={() => {
+                        Alert.alert("خيارات", `${other.name || "المستخدم"}`, [
+                            {
+                                text: "الإبلاغ عن المستخدم",
+                                onPress: async () => {
+                                    try {
+                                        await api.post("/reports", { target_type: "user", target_id: other.id, reason: "inappropriate" });
+                                        Alert.alert("✅", "تم استلام بلاغك");
+                                    } catch (_) { Alert.alert("خطأ", "تعذر إرسال البلاغ"); }
+                                },
+                            },
+                            {
+                                text: "حظر المستخدم",
+                                style: "destructive",
+                                onPress: async () => {
+                                    try {
+                                        await api.post(`/blocks/${other.id}`);
+                                        Alert.alert("🚫", "تم حظر المستخدم");
+                                        onBack?.();
+                                    } catch (_) { Alert.alert("خطأ", "تعذر الحظر"); }
+                                },
+                            },
+                            { text: "إلغاء", style: "cancel" },
+                        ]);
+                    }}
+                    style={s.headBtn}
+                    hitSlop={8}
+                    testID="chat-more-btn"
+                >
                     <MoreVertical size={20} color="#fff" />
                 </TouchableOpacity>
             </View>
 
             {/* Listing context pill */}
             {listing && (
-                <View style={s.listingPill}>
+                <TouchableOpacity
+                    onPress={() => listing.id && nav.navigate("ListingDetail", { id: listing.id })}
+                    activeOpacity={0.85}
+                    style={s.listingPill}
+                    testID="chat-listing-pill"
+                >
                     {listing.images?.[0] && <Image source={{ uri: listing.images[0] }} style={s.listingThumb} />}
                     <View style={{ flex: 1 }}>
                         <Text style={s.listingTitle} numberOfLines={1}>{listing.title}</Text>
                         {listing.price && <Text style={s.listingPrice}>{Number(listing.price).toLocaleString()} {listing.currency}</Text>}
                     </View>
-                </View>
+                </TouchableOpacity>
             )}
 
             {/* Messages */}

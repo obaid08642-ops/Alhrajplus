@@ -352,8 +352,28 @@ export function SavedSearchesScreen({ navigation }) {
 export function FollowingScreen({ navigation }) {
     const { t } = useI18n();
     const [data, setData] = useState({ categories: [], sellers: [] });
+    const [sellerMap, setSellerMap] = useState({}); // id -> { name, avatar }
     const [loading, setLoading] = useState(true);
-    useEffect(() => { api.get("/following").then(({ data }) => setData(data || { categories: [], sellers: [] })).finally(() => setLoading(false)); }, []);
+    useEffect(() => {
+        api.get("/following")
+            .then(async ({ data }) => {
+                const d = data || { categories: [], sellers: [] };
+                setData(d);
+                // Fetch seller details in parallel so we can show real names.
+                const ids = (d.sellers || []).map((x) => x.seller_id).filter(Boolean);
+                if (ids.length) {
+                    const results = await Promise.all(
+                        ids.map((id) => api.get(`/sellers/${id}`).then((r) => [id, r.data]).catch(() => [id, null])),
+                    );
+                    const map = {};
+                    for (const [id, info] of results) {
+                        if (info) map[id] = { name: info.name || info.username || id, avatar: info.avatar };
+                    }
+                    setSellerMap(map);
+                }
+            })
+            .finally(() => setLoading(false));
+    }, []);
     if (loading) return <View style={{ flex: 1, justifyContent: "center" }}><ActivityIndicator color={theme.colors.primary} /></View>;
     return (
         <ScrollView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
@@ -374,11 +394,15 @@ export function FollowingScreen({ navigation }) {
             <Text style={{ paddingHorizontal: 16, paddingTop: 12, fontSize: 13, fontWeight: "800", color: theme.colors.textMuted, textAlign: "right" }}>{t("البائعون")}</Text>
             {data.sellers.length === 0
                 ? <Text style={{ padding: 16, color: theme.colors.textMuted, textAlign: "right" }}>{t("لا يوجد")}</Text>
-                : data.sellers.map((s2) => (
-                    <TouchableOpacity key={s2.seller_id} style={s.menuItem} onPress={() => navigation.navigate("SellerProfile", { sellerId: s2.seller_id })}>
-                        <Text style={s.menuLabel}>👤 {s2.seller_id}</Text>
-                    </TouchableOpacity>
-                ))}
+                : data.sellers.map((s2) => {
+                    const info = sellerMap[s2.seller_id];
+                    const displayName = info?.name || t("بائع");
+                    return (
+                        <TouchableOpacity key={s2.seller_id} style={s.menuItem} onPress={() => navigation.navigate("SellerProfile", { sellerId: s2.seller_id })} testID={`following-seller-${s2.seller_id}`}>
+                            <Text style={s.menuLabel}>👤 {displayName}</Text>
+                        </TouchableOpacity>
+                    );
+                })}
         </ScrollView>
     );
 }
