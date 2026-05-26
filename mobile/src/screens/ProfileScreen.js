@@ -5,6 +5,7 @@ import {
     View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
     ActivityIndicator, StatusBar, Alert, Share,
 } from "react-native";
+import Constants from "expo-constants";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -19,12 +20,13 @@ import { colors, radius, shadow } from "../theme";
 import CountrySwitcher from "../components/CountrySwitcher";
 
 export default function ProfileScreen() {
-    const { user, logout } = useAuth();
+    const { user, logout, refresh: refreshUser } = useAuth();
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const [stats, setStats] = useState(null);
     const [referral, setReferral] = useState(null);
     const [walletBalance, setWalletBalance] = useState(null);
+    const [phoneBusy, setPhoneBusy] = useState(false);
 
     const load = useCallback(async () => {
         if (!user) return;
@@ -67,10 +69,24 @@ export default function ProfileScreen() {
     }
 
     const copyReferral = async () => {
-        const url = `https://alhraj.online/register?ref=${referral?.code || ""}`;
+        const code = referral?.code || "";
+        const url = `https://alhraj.online/register?ref=${code}`;
         try {
-            await Share.share({ message: `انضم لي على الحراج بلس واحصل على مكافأة!\n${url}` });
+            await Share.share({ message: `كود الإحالة: ${code}\nانضم لي على الحراج بلس واحصل على مكافأة!\n${url}` });
         } catch (_) {}
+    };
+
+    const togglePhoneVisibility = async () => {
+        if (!user) return;
+        setPhoneBusy(true);
+        try {
+            const next = user.show_phone === false ? true : false;
+            await api.put("/users/me", { show_phone: next });
+            await refreshUser?.();
+            Alert.alert("✅", next ? "أصبح رقم جوالك مرئياً للمشترين" : "تم إخفاء رقم جوالك");
+        } catch (e) {
+            Alert.alert("خطأ", e.response?.data?.detail || "تعذر التحديث");
+        } finally { setPhoneBusy(false); }
     };
 
     const onLogout = () => {
@@ -153,7 +169,7 @@ export default function ProfileScreen() {
                             <Text style={s.refInvited}>{referral.invited_count || 0} مدعوين</Text>
                         </View>
                     </View>
-                    <TouchableOpacity onPress={copyReferral} style={s.refShareBtn}>
+                    <TouchableOpacity onPress={copyReferral} style={s.refShareBtn} testID="profile-copy-referral">
                         <Copy size={14} color={colors.secondary} />
                         <Text style={s.refShareText}>مشاركة</Text>
                     </TouchableOpacity>
@@ -165,6 +181,13 @@ export default function ProfileScreen() {
                 <MenuRow icon={Bell} label="الإشعارات" onPress={() => nav.navigate("Notifications")} />
                 <MenuRow icon={Settings} label="الإعدادات" onPress={() => nav.navigate("Settings")} />
                 <MenuRow icon={UsersIcon} label="متابعاتي" onPress={() => nav.navigate("Following")} />
+                <TouchableOpacity onPress={togglePhoneVisibility} activeOpacity={0.65} disabled={phoneBusy} style={[s.menuRow, s.menuRowBorder]} testID="profile-toggle-phone">
+                    <MapPin size={18} color={colors.primary} />
+                    <Text style={s.menuLabel}>
+                        {user.show_phone === false ? "إظهار رقم جوالي للمشترين" : "إخفاء رقم جوالي عن المشترين"}
+                    </Text>
+                    {phoneBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronLeft size={14} color={colors.textMuted} />}
+                </TouchableOpacity>
                 <MenuRow icon={Info} label="عن التطبيق" onPress={() => nav.navigate("StaticPage", { slug: "about" })} />
                 <MenuRow icon={FileText} label="الشروط والأحكام" onPress={() => nav.navigate("StaticPage", { slug: "terms" })} />
                 <MenuRow icon={Shield} label="سياسة الخصوصية" onPress={() => nav.navigate("StaticPage", { slug: "privacy" })} />
@@ -172,7 +195,7 @@ export default function ProfileScreen() {
                 <MenuRow icon={LogOut} label="تسجيل الخروج" tint="#EF4444" onPress={onLogout} last />
             </View>
 
-            <Text style={s.versionText}>v1.0.0</Text>
+            <Text style={s.versionText} testID="profile-version">v{Constants.expoConfig?.version || Constants.manifest?.version || "1.0.0"}</Text>
         </ScrollView>
     );
 }

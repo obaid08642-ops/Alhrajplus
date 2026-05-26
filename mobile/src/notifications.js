@@ -22,6 +22,19 @@ Notifications.setNotificationHandler({
 let _navigationRef = null;
 export function setNotificationNavigationRef(ref) { _navigationRef = ref; }
 
+// Lightweight pub/sub so UI badges can refresh on every incoming push without
+// each consumer setting up its own Notifications.addNotificationReceivedListener.
+const _notifyListeners = new Set();
+export function onNotificationReceived(cb) {
+    _notifyListeners.add(cb);
+    return () => _notifyListeners.delete(cb);
+}
+function _emitReceived(notif) {
+    for (const cb of _notifyListeners) {
+        try { cb(notif); } catch (_) { /* noop */ }
+    }
+}
+
 function routeFromUrl(url) {
     if (!url) return;
     // Listing detail
@@ -65,6 +78,10 @@ function attachListenersOnce() {
     Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response?.notification?.request?.content?.data || {};
         routeFromUrl(data.url);
+    });
+    // Fired the moment a notification arrives — let UI badges refresh live.
+    Notifications.addNotificationReceivedListener((notif) => {
+        _emitReceived(notif);
     });
     // Cold start — app opened from a notification
     Notifications.getLastNotificationResponseAsync().then((response) => {

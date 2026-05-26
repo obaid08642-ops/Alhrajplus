@@ -1,12 +1,13 @@
 // NotificationBell — bell icon + red unread-count badge.
 // Polls GET /api/notifications/unread-count when the host screen comes into
 // focus so the badge stays fresh without a websocket.
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { TouchableOpacity, View, Text, StyleSheet } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Bell } from "lucide-react-native";
 import api from "../api";
 import { useAuth } from "../AuthContext";
+import { onNotificationReceived } from "../notifications";
 import { colors } from "../theme";
 
 export default function NotificationBell({ tintLight = false }) {
@@ -22,6 +23,12 @@ export default function NotificationBell({ tintLight = false }) {
     }, [user]);
 
     useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+
+    // Live refresh whenever a push notification arrives — no reload needed.
+    useEffect(() => {
+        const unsub = onNotificationReceived(() => refresh());
+        return () => unsub();
+    }, [refresh]);
 
     return (
         <TouchableOpacity

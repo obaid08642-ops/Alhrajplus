@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
     View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-    ScrollView, Modal, StatusBar, Dimensions, RefreshControl,
+    ScrollView, Modal, StatusBar, Dimensions, RefreshControl, Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Search, X, ChevronLeft, SlidersHorizontal, Check, MapPin, Mic } from "lucide-react-native";
+import { Search, X, ChevronLeft, SlidersHorizontal, Check, MapPin, Mic, Bookmark } from "lucide-react-native";
 import { AudioModule, AudioRecorder, RecordingPresets } from "expo-audio";
 import api from "../api";
 import { useI18n } from "../I18nContext";
@@ -164,6 +164,25 @@ export default function SearchScreen({ navigation, route }) {
 
     const clearFilters = () => setFilters({ category: "", city: "", priceMin: "", priceMax: "", condition: "", sort: "newest" });
 
+    const saveSearch = async () => {
+        if (!q.trim()) {
+            Alert.alert(t("تنبيه"), t("اكتب عبارة بحث أولاً"));
+            return;
+        }
+        try {
+            await api.post("/search/save", {
+                q: q.trim(),
+                category: filters.category || null,
+                country_code: country?.code || null,
+                min_price: filters.priceMin ? parseFloat(filters.priceMin) : null,
+                max_price: filters.priceMax ? parseFloat(filters.priceMax) : null,
+            });
+            Alert.alert("✅", t("تم حفظ البحث. سننبهك عند ظهور نتائج جديدة."));
+        } catch (e) {
+            Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر الحفظ"));
+        }
+    };
+
     return (
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
@@ -248,7 +267,21 @@ export default function SearchScreen({ navigation, route }) {
                         </View>
                     )}
                     ListHeaderComponent={results.length > 0 ? (
-                        <Text style={s.resultsCount}>{results.length} {t("نتيجة")}</Text>
+                        <View style={s.resultsHeader}>
+                            <Text style={s.resultsCount}>{results.length} {t("نتيجة")}</Text>
+                            <View style={{ flexDirection: "row", gap: 6 }}>
+                                {activeFiltersCount > 0 && (
+                                    <TouchableOpacity onPress={clearFilters} style={s.headerActionBtn} testID="search-clear-filters">
+                                        <X size={12} color={colors.text} />
+                                        <Text style={s.headerActionText}>{t("مسح الفلاتر")}</Text>
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity onPress={saveSearch} style={[s.headerActionBtn, s.headerActionPrimary]} testID="search-save-btn">
+                                    <Bookmark size={12} color="#fff" />
+                                    <Text style={[s.headerActionText, { color: "#fff" }]}>{t("حفظ البحث")}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     ) : null}
                 />
             )}
@@ -378,7 +411,11 @@ const s = StyleSheet.create({
     suggBox: { marginHorizontal: 12, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden", marginBottom: 8 },
     suggRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderColor: colors.border },
     suggText: { fontSize: 13, color: colors.text, fontWeight: "600" },
-    resultsCount: { paddingHorizontal: 14, paddingVertical: 6, fontSize: 11, fontWeight: "800", color: colors.textMuted },
+    resultsCount: { fontSize: 11, fontWeight: "800", color: colors.textMuted },
+    resultsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 6 },
+    headerActionBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+    headerActionPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
+    headerActionText: { fontSize: 11, fontWeight: "900", color: colors.text },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40, gap: 10 },
     emptyTitle: { fontSize: 15, fontWeight: "800", color: colors.text },

@@ -11,6 +11,9 @@ export default function ListingCard({ listing, wide = false }) {
     const nav = useNavigation();
     const { user } = useAuth();
     const [fav, setFav] = useState(false);
+    const isOwner = user && user.id === listing.user_id;
+    const status = listing.status;
+    const boosted = !!listing.is_boosted;
 
     useEffect(() => {
         let mounted = true;
@@ -61,13 +64,23 @@ export default function ListingCard({ listing, wide = false }) {
         <TouchableOpacity activeOpacity={0.85} onPress={() => nav.navigate("ListingDetail", { id: listing.id })} style={[styles.card, shadow.card]}>
             <View style={styles.imgBox}>
                 {img ? <Image source={{ uri: img }} style={styles.img} /> : <View style={styles.imgPlaceholder} />}
-                <TouchableOpacity onPress={toggleFav} style={styles.favBtn} hitSlop={8}>
+                <TouchableOpacity onPress={toggleFav} style={styles.favBtn} hitSlop={8} testID={`fav-btn-${listing.id}`}>
                     <Heart size={16} color={fav ? "#EF4444" : "#fff"} fill={fav ? "#EF4444" : "transparent"} strokeWidth={2.5} />
                 </TouchableOpacity>
-                {listing.is_boosted && (
+                {boosted && (
                     <View style={styles.boostBadge}>
                         <Flame size={10} color="#fff" />
                         <Text style={styles.boostText}>مميز</Text>
+                    </View>
+                )}
+                {isOwner && status === "paused" && (
+                    <View style={[styles.statusBadge, { backgroundColor: "#F59E0B" }]} testID={`badge-paused-${listing.id}`}>
+                        <Text style={styles.statusText}>⏸ موقوف</Text>
+                    </View>
+                )}
+                {status === "sold" && (
+                    <View style={[styles.statusBadge, { backgroundColor: "#10B981" }]} testID={`badge-sold-${listing.id}`}>
+                        <Text style={styles.statusText}>✓ تم البيع</Text>
                     </View>
                 )}
             </View>
@@ -115,6 +128,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6, paddingVertical: 3,
     },
     boostText: { fontSize: 9, fontWeight: "800", color: colors.secondary },
+    statusBadge: { position: "absolute", top: 8, end: 44, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+    statusText: { fontSize: 9, fontWeight: "900", color: "#fff" },
     body: { padding: 10 },
     title: { fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: 4, lineHeight: 18 },
     desc: { fontSize: 11, color: colors.textMuted, lineHeight: 16, marginTop: 2 },

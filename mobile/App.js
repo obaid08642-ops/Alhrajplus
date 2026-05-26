@@ -33,20 +33,19 @@ import { registerForNotifications, setNotificationNavigationRef } from "./src/no
 import { useI18n } from "./src/I18nContext";
 
 try {
-    if (!I18nManager.isRTL) {
+    // Only force RTL for Arabic UI. Other locales (en/hi/fr) need LTR.
+    const isArabic = (I18nManager.getConstants?.()?.localeIdentifier || "").startsWith("ar");
+    if (isArabic && !I18nManager.isRTL) {
         I18nManager.allowRTL(true);
         I18nManager.forceRTL(true);
+    } else if (!isArabic && I18nManager.isRTL) {
+        I18nManager.allowRTL(true);
+        I18nManager.forceRTL(false);
     }
 } catch (_) {}
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-function TabIcon({ icon, focused }) {
-    return (
-        <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{icon}</Text>
-    );
-}
 
 function TabsNavigator() {
     return (
@@ -79,6 +78,7 @@ function Navigation() {
                 Main: {
                     screens: {
                         HomeTab: "",
+                        ReelsTab: "reels",
                         ChatTab: "chat",
                         ProfileTab: "profile",
                     },
@@ -86,7 +86,28 @@ function Navigation() {
                 ListingDetail: "listing/:id",
                 SellerProfile: "seller/:sellerId",
                 Chat: "chat-thread/:to?",
+                CategoryListings: "category/:categoryKey",
+                Categories: "categories",
+                Search: "search",
+                Map: "map",
+                Wallet: "wallet",
+                Notifications: "notifications",
+                Auctions: "auctions",
+                Flights: "flights",
+                Deals: "deals",
+                MyListings: "my-listings",
+                Favorites: "favorites",
+                Post: "post",
+                AIAssistant: "ai",
+                Settings: "settings",
+                NotifSettings: "settings/notifications",
+                SavedSearches: "saved-searches",
+                Following: "following",
+                StaticPage: "page/:slug",
                 Login: "login",
+                Register: "register",
+                ForgotPassword: "forgot-password",
+                ResetPassword: "reset-password",
             },
         },
     };
