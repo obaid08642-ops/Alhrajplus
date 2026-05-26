@@ -4622,6 +4622,12 @@ async def mark_all_read(user: dict = Depends(get_current_user)):
     return {"success": True}
 
 
+@api.get("/notifications/unread-count")
+async def notifications_unread_count(user: dict = Depends(get_current_user)):
+    n = await db.notifications.count_documents({"user_id": user["id"], "read": {"$ne": True}})
+    return {"count": int(n)}
+
+
 # ============================================================
 # Smart Notifications — abandoned drafts + abandoned searches
 # + scheduled admin broadcasts. Background worker runs every minute.

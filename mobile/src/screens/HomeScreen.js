@@ -6,13 +6,16 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as LucideIcons from "lucide-react-native";
-import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Bell, Globe } from "lucide-react-native";
+import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin } from "lucide-react-native";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
 import { colors, radius, shadow } from "../theme";
 import ListingCard from "../components/ListingCard";
+import NotificationBell from "../components/NotificationBell";
+import CountrySwitcher from "../components/CountrySwitcher";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_GAP = 10;
@@ -20,6 +23,7 @@ const CARD_W = (SCREEN_W - 16 * 2 - CARD_GAP) / 2;
 
 export default function HomeScreen() {
     const nav = useNavigation();
+    const insets = useSafeAreaInsets();
     const { user } = useAuth();
     const { t, lang } = useI18n();
     const [categories, setCategories] = useState([]);
@@ -68,7 +72,7 @@ export default function HomeScreen() {
 
     const Header = useMemo(() => (
         <View>
-            <TopBar nav={nav} />
+            <TopBar nav={nav} insets={insets} />
             <Hero nav={nav} />
             <QuickActions nav={nav} />
             <CategoriesStrip cats={visibleCats} nav={nav} lang={lang} expanded={showAllCats} onToggle={() => setShowAllCats((s) => !s)} total={categories.length} />
@@ -79,7 +83,7 @@ export default function HomeScreen() {
                 </View>
             </View>
         </View>
-    ), [nav, visibleCats, categories.length, showAllCats, lang]);
+    ), [nav, insets, visibleCats, categories.length, showAllCats, lang]);
 
     return (
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -121,16 +125,15 @@ export default function HomeScreen() {
 }
 
 // ====================== TopBar ======================
-function TopBar({ nav }) {
+function TopBar({ nav, insets }) {
     return (
-        <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
+            <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
                 <SearchIcon size={16} color={colors.textMuted} />
                 <Text style={styles.searchPh} numberOfLines={1}>ابحث عن أي شيء... (مدعوم بالذكاء الاصطناعي)</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => nav.navigate("Notifications")} style={styles.iconBtn}>
-                <Bell size={20} color={colors.text} />
-            </TouchableOpacity>
+            <CountrySwitcher />
+            <NotificationBell />
         </View>
     );
 }
@@ -177,18 +180,18 @@ function Hero({ nav }) {
 // ====================== Quick Actions ======================
 function QuickActions({ nav }) {
     const items = [
-        { to: "Deals", icon: "🔥", label: "صفقات", bg: ["#D1FAE5", "#FEE2E2"] },
-        { to: "Auctions", icon: "🔨", label: "مزادات", bg: ["#FEF3C7", "#FEF9C3"] },
-        { to: "ReelsTab", icon: "🎬", label: "قصص", bg: ["#FCE7F3", "#FDF2F8"] },
-        { to: "Flights", icon: "✈️", label: "طيران", bg: ["#DBEAFE", "#F0F9FF"] },
-        { to: "Map", icon: "🗺️", label: "خريطة", bg: ["#D1FAE5", "#ECFDF5"] },
+        { to: "Deals", Icon: Flame, color: "#EF4444", label: "صفقات", bg: ["#D1FAE5", "#FEE2E2"] },
+        { to: "Auctions", Icon: Gavel, color: "#F59E0B", label: "مزادات", bg: ["#FEF3C7", "#FEF9C3"] },
+        { to: "ReelsTab", Icon: Film, color: "#EC4899", label: "قصص", bg: ["#FCE7F3", "#FDF2F8"] },
+        { to: "Flights", Icon: Plane, color: "#0EA5E9", label: "طيران", bg: ["#DBEAFE", "#F0F9FF"] },
+        { to: "Map", Icon: MapPin, color: "#10B981", label: "خريطة", bg: ["#D1FAE5", "#ECFDF5"] },
     ];
     return (
         <View style={styles.quickWrap}>
             {items.map((it) => (
-                <TouchableOpacity key={it.label} onPress={() => nav.navigate(it.to)} style={styles.quickItem} activeOpacity={0.85}>
+                <TouchableOpacity key={it.label} onPress={() => nav.navigate(it.to)} style={styles.quickItem} activeOpacity={0.85} testID={`home-quick-${it.to}`}>
                     <LinearGradient colors={it.bg} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                    <Text style={{ fontSize: 22 }}>{it.icon}</Text>
+                    <it.Icon size={22} color={it.color} strokeWidth={2.4} />
                     <Text style={styles.quickLabel}>{it.label}</Text>
                 </TouchableOpacity>
             ))}
@@ -253,7 +256,7 @@ const styles = StyleSheet.create({
     // TopBar
     topBar: {
         flexDirection: "row", alignItems: "center", gap: 8,
-        paddingHorizontal: 12, paddingTop: 50, paddingBottom: 10,
+        paddingHorizontal: 12, paddingBottom: 10,
         backgroundColor: colors.bg,
     },
     searchBox: {

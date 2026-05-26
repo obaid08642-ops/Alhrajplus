@@ -5,11 +5,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Wallet, TrendingUp, TrendingDown, Gift, Sparkles } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
+import { useCountry } from "../CountryContext";
 import api from "../api";
 import { colors, radius, shadow } from "../theme";
 
 export default function WalletScreen() {
     const { user } = useAuth();
+    const { current: country } = useCountry();
     const nav = useNavigation();
     const [data, setData] = useState({ balance: 0, currency: "SAR", transactions: [] });
     const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export default function WalletScreen() {
                         <Text style={styles.heroLabel}>رصيد محفظتك</Text>
                     </View>
                     <Text style={styles.heroBalance}>{Number(data.balance || 0).toLocaleString()}</Text>
-                    <Text style={styles.heroCurrency}>{data.currency === "SAR" ? "ريال سعودي" : data.currency}</Text>
+                    <Text style={styles.heroCurrency}>{data.currency || country?.currency_code || "SAR"}</Text>
                 </View>
             </View>
 

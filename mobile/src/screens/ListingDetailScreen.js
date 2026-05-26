@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -17,6 +17,10 @@ export default function ListingDetailScreen({ route, navigation }) {
     const [activeImg, setActiveImg] = useState(0);
     const [zoomImg, setZoomImg] = useState(null);
     const [show360, setShow360] = useState(false);
+    const [following, setFollowing] = useState(false);
+    const [watching, setWatching] = useState(false);
+    const [priceAlertOpen, setPriceAlertOpen] = useState(false);
+    const [priceAlertVal, setPriceAlertVal] = useState("");
     const carouselRef = useRef(null);
     const SCREEN_W = Dimensions.get("window").width;
 
@@ -39,6 +43,16 @@ export default function ListingDetailScreen({ route, navigation }) {
             }
         })();
     }, [id]);
+
+    // Load follow + watch status once we know who the seller is.
+    useEffect(() => {
+        if (!user || !listing?.seller?.id) return;
+        api.get(`/sellers/${listing.seller.id}/follow-status`)
+            .then(({ data }) => setFollowing(!!data?.following)).catch(() => {});
+        api.get("/watches").then(({ data }) => {
+            setWatching((data || []).some((w) => w.listing_id === id));
+        }).catch(() => {});
+    }, [user, listing?.seller?.id, id]);
 
     if (!listing) return <View style={styles.center}><Text>{t("جاري التحميل...")}</Text></View>;
 
@@ -84,6 +98,60 @@ export default function ListingDetailScreen({ route, navigation }) {
                 }
             },
         ]);
+    };
+
+    const togglePauseResume = async () => {
+        try {
+            const url = listing.status === "paused" ? `/listings/${id}/resume` : `/listings/${id}/pause`;
+            await api.post(url);
+            setListing((l) => ({ ...l, status: l.status === "paused" ? "active" : "paused" }));
+        } catch (e) {
+            Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر التحديث"));
+        }
+    };
+
+    const toggleFollowSeller = async () => {
+        if (!user) { navigation.navigate("Login"); return; }
+        if (!listing.seller?.id) return;
+        try {
+            const { data } = await api.post(`/sellers/${listing.seller.id}/follow`);
+            setFollowing(!!data?.following);
+        } catch (e) {
+            Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر التحديث"));
+        }
+    };
+
+    const submitWatchPrice = async () => {
+        const target = parseFloat(priceAlertVal);
+        if (!target || target <= 0) {
+            Alert.alert(t("خطأ"), t("أدخل سعراً صحيحاً"));
+            return;
+        }
+        try {
+            await api.post("/watches", { listing_id: id, target_price: target });
+            setWatching(true);
+            setPriceAlertOpen(false);
+            setPriceAlertVal("");
+            Alert.alert("✅", t("تم تفعيل التنبيه"));
+        } catch (e) {
+            Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر التفعيل"));
+        }
+    };
+
+    const removeWatch = async () => {
+        try {
+            await api.delete(`/watches/${id}`);
+            setWatching(false);
+            Alert.alert("✅", t("تم إلغاء التنبيه"));
+        } catch (_) {}
+    };
+
+    const openInMaps = () => {
+        if (!listing.lat || !listing.lng) {
+            Alert.alert(t("غير متاح"), t("لا توجد إحداثيات لهذا الإعلان"));
+            return;
+        }
+        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`);
     };
 
     return (
@@ -143,13 +211,16 @@ export default function ListingDetailScreen({ route, navigation }) {
 
             {isOwner && (
                 <View style={styles.ownerBar}>
-                    <TouchableOpacity onPress={() => navigation.navigate("Post", { editId: id })} style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]}>
+                    <TouchableOpacity onPress={() => navigation.navigate("Post", { editId: id })} style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]} testID="owner-edit-btn">
                         <Text style={styles.smallBtnText}>{t("تعديل")}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={republish} style={[styles.smallBtn, { backgroundColor: theme.colors.success }]}>
+                    <TouchableOpacity onPress={togglePauseResume} style={[styles.smallBtn, { backgroundColor: listing.status === "paused" ? "#10B981" : "#F59E0B" }]} testID="owner-pause-resume-btn">
+                        <Text style={styles.smallBtnText}>{listing.status === "paused" ? t("استئناف") : t("إيقاف مؤقت")}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={republish} style={[styles.smallBtn, { backgroundColor: theme.colors.success }]} testID="owner-republish-btn">
                         <Text style={styles.smallBtnText}>{t("تجديد")}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={markSold} style={[styles.smallBtn, { backgroundColor: theme.colors.accent }]}>
+                    <TouchableOpacity onPress={markSold} style={[styles.smallBtn, { backgroundColor: theme.colors.accent }]} testID="owner-sold-btn">
                         <Text style={[styles.smallBtnText, { color: theme.colors.secondary }]}>{t("تم البيع")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
@@ -160,13 +231,18 @@ export default function ListingDetailScreen({ route, navigation }) {
                                 catch (e) { Alert.alert(t("خطأ"), t("تعذر الحذف")); }
                             }},
                         ]);
-                    }} style={[styles.smallBtn, { backgroundColor: theme.colors.danger }]}>
+                    }} style={[styles.smallBtn, { backgroundColor: theme.colors.danger }]} testID="owner-delete-btn">
                         <Text style={styles.smallBtnText}>{t("حذف")}</Text>
                     </TouchableOpacity>
                 </View>
             )}
 
             <View style={styles.body}>
+                {listing.status === "paused" && (
+                    <View style={styles.pausedBanner} testID="listing-paused-banner">
+                        <Text style={styles.pausedBannerText}>⏸ {t("هذا الإعلان موقوف مؤقتاً")}</Text>
+                    </View>
+                )}
                 <Text style={styles.title}>{listing.title}</Text>
                 <View style={styles.priceRow}>
                     {listing.price ? (
@@ -199,7 +275,18 @@ export default function ListingDetailScreen({ route, navigation }) {
                         <Text style={styles.sellerName}>{listing.seller?.name}</Text>
                         <Text style={styles.sellerCity}>{listing.city}</Text>
                     </View>
-                    <Text style={{ color: theme.colors.primary, fontSize: 18 }}>›</Text>
+                    {!isOwner && listing.seller?.id && user && (
+                        <TouchableOpacity
+                            onPress={toggleFollowSeller}
+                            style={[styles.followBtn, following && styles.followBtnActive]}
+                            testID="mobile-follow-seller-btn"
+                        >
+                            <Text style={[styles.followBtnText, following && { color: theme.colors.text }]}>
+                                {following ? t("متابَع") : t("متابعة")}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                    <Text style={{ color: theme.colors.primary, fontSize: 18, marginStart: 4 }}>›</Text>
                 </TouchableOpacity>
 
                 {listing.show_phone !== false && listing.seller?.phone_full && !listing.is_demo && (
@@ -239,21 +326,22 @@ export default function ListingDetailScreen({ route, navigation }) {
                 {!isOwner && user && listing.price && (
                     <TouchableOpacity
                         onPress={() => {
-                            Alert.prompt
-                                ? Alert.prompt(t("تنبيه سعر"), t("نبّهني عند انخفاض السعر إلى:"), async (val) => {
-                                    const target = parseFloat(val);
-                                    if (!target || target <= 0) return;
-                                    try {
-                                        await api.post(`/price-alerts/${id}`, { target_price: target });
-                                        Alert.alert("✅", t("تم تفعيل التنبيه"));
-                                    } catch (_) { Alert.alert(t("خطأ"), t("تعذر التفعيل")); }
-                                }, "plain-text", String(Math.round((listing.price || 0) * 0.9)))
-                                : Alert.alert(t("تنبيه سعر"), t("متاح على iOS فقط حالياً"));
+                            if (watching) { removeWatch(); return; }
+                            setPriceAlertVal(String(Math.round((listing.price || 0) * 0.9)));
+                            setPriceAlertOpen(true);
                         }}
-                        style={styles.priceAlertBtn}
+                        style={[styles.priceAlertBtn, watching && styles.priceAlertBtnActive]}
                         testID="mobile-price-alert"
                     >
-                        <Text style={styles.priceAlertText}>🔔 {t("نبّهني عند انخفاض السعر")}</Text>
+                        <Text style={[styles.priceAlertText, watching && { color: "#fff" }]}>
+                            {watching ? t("🔔 يتم متابعة السعر — إلغاء") : t("🔔 نبّهني عند انخفاض السعر")}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+
+                {listing.lat && listing.lng && (
+                    <TouchableOpacity onPress={openInMaps} style={styles.openMapsBtn} testID="mobile-open-in-maps">
+                        <Text style={styles.openMapsText}>📍 {t("افتح في خرائط Google")}</Text>
                     </TouchableOpacity>
                 )}
 
@@ -354,4 +442,24 @@ const styles = StyleSheet.create({
     demoBadgeText: { color: "#92400E", fontWeight: "900", fontSize: 13 },
     spin360Btn: { position: "absolute", top: 12, right: 12, backgroundColor: theme.colors.primary, paddingHorizontal: 12, paddingVertical: 7, borderRadius: theme.radius.full, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
     spin360Text: { color: "#fff", fontWeight: "900", fontSize: 12 },
+    pausedBanner: { backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, padding: 10, borderRadius: theme.radius.md, marginBottom: 12, alignItems: "center" },
+    pausedBannerText: { color: "#92400E", fontWeight: "900", fontSize: 13 },
+    followBtn: { backgroundColor: theme.colors.primary, borderRadius: theme.radius.full, paddingHorizontal: 12, paddingVertical: 6 },
+    followBtnActive: { backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border },
+    followBtnText: { color: "#fff", fontWeight: "900", fontSize: 11 },
+    priceAlertBtnActive: { backgroundColor: "#F59E0B", borderColor: "#F59E0B" },
+    openMapsBtn: { marginTop: 8, padding: 12, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.primary, alignItems: "center", backgroundColor: theme.colors.surface },
+    openMapsText: { color: theme.colors.primary, fontWeight: "800", fontSize: 13 },
+    priceModalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 24 },
+    priceModalSheet: { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 18 },
+    priceModalTitle: { fontSize: 16, fontWeight: "900", color: theme.colors.text, textAlign: "right" },
+    priceModalSub: { fontSize: 12, color: theme.colors.textMuted, marginTop: 4, marginBottom: 12, textAlign: "right" },
+    priceModalInputWrap: { flexDirection: "row", alignItems: "center", backgroundColor: theme.colors.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, paddingHorizontal: 12 },
+    priceModalInput: { flex: 1, fontSize: 18, fontWeight: "900", color: theme.colors.text, paddingVertical: 12 },
+    priceModalCurrency: { fontSize: 12, fontWeight: "800", color: theme.colors.primary },
+    priceModalBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+    priceModalBtnCancel: { backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border },
+    priceModalBtnOk: { backgroundColor: theme.colors.primary },
+    priceModalBtnTextCancel: { color: theme.colors.text, fontWeight: "800", fontSize: 13 },
+    priceModalBtnTextOk: { color: "#fff", fontWeight: "900", fontSize: 13 },
 });

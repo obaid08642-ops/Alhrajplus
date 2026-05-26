@@ -42,6 +42,14 @@ export default function PostScreen({ navigation, route }) {
         city: "", district: "", lat: null, lng: null, show_phone: true,
     });
 
+    // Keep currency in sync if the user changes country after the form mounts.
+    useEffect(() => {
+        if (country?.currency_code && form.currency !== country.currency_code && !editId) {
+            setForm((f) => ({ ...f, currency: country.currency_code }));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [country?.currency_code]);
+
     useEffect(() => {
         api.get("/meta/categories", { params: { lang } }).then(({ data }) => setCategories(data || []));
     }, [lang]);

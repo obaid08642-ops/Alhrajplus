@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../AuthContext";
 import api from "../api";
 import { colors, radius, shadow } from "../theme";
+import CountrySwitcher from "../components/CountrySwitcher";
 
 export default function ProfileScreen() {
     const { user, logout } = useAuth();
@@ -90,6 +91,9 @@ export default function ProfileScreen() {
                 <View style={[s.heroBlob, { bottom: -50, left: -50, backgroundColor: "rgba(255,209,102,0.15)" }]} />
 
                 <View style={s.heroInner}>
+                    <View style={{ position: "absolute", top: 0, end: 14, zIndex: 5 }}>
+                        <CountrySwitcher tintLight />
+                    </View>
                     <View style={s.avatarBox}>
                         {user.avatar ? <Image source={{ uri: user.avatar }} style={s.avatarImg} /> : (
                             <LinearGradient colors={[colors.primary, "#7CCAEC"]} style={s.avatarImg}>
