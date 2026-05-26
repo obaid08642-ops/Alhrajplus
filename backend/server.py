@@ -2424,6 +2424,12 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     cat = next((c for c in CATEGORIES if c["key"] == body.category), None)
     if not cat:
         raise HTTPException(400, "فئة غير صالحة")
+    # Hard country-isolation guard. The user MUST have a country on file or
+    # we refuse to publish — otherwise the listing leaks into every country's
+    # feed (because the listings endpoint only filters when country_code is set).
+    user_cc = (user.get("country_code") or "").upper().strip()
+    if not user_cc:
+        raise HTTPException(400, "يرجى اختيار بلدك من الإعدادات قبل النشر")
     listing_id = str(uuid.uuid4())
     is_banned = any_banned_word(f"{body.title} {body.description}")
     doc = {
@@ -2439,7 +2445,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "custom_fields": body.custom_fields,
         "images": body.images,
         "videos": body.videos,
-        "country_code": user.get("country_code"),
+        "country_code": user_cc,
         "city": body.city,
         "district": body.district,
         "lat": body.lat,
@@ -5012,14 +5018,86 @@ async def _process_due_schedules(now_iso: str) -> int:
 _SMART_NOTIF_TASK: Optional[asyncio.Task] = None
 
 
+async def _process_viewed_no_action(now_iso: str, cutoff_iso: str) -> int:
+    """Users who viewed a listing >24h ago but never messaged the seller, favorited,
+    or returned. We send ONE "still interested?" nudge per (user, listing)."""
+    sent = 0
+    cursor = db.recently_viewed.find({
+        "ts": {"$lte": cutoff_iso},
+        "reminded": {"$ne": True},
+    }).limit(50)
+    async for rv in cursor:
+        try:
+            uid = rv.get("user_id"); lid = rv.get("listing_id")
+            if not uid or not lid:
+                await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+                continue
+            # Skip if user already messaged about this listing or favorited it.
+            already = await db.messages.find_one({"from_user": uid, "listing_id": lid})
+            if not already:
+                already = await db.favorites.find_one({"user_id": uid, "listing_id": lid})
+            if already:
+                await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+                continue
+            listing = await db.listings.find_one({"id": lid, "status": "active"}, {"_id": 0, "title": 1, "price": 1, "currency": 1})
+            if not listing:
+                await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+                continue
+            await _send_user_notification(
+                user_id=uid,
+                title="هل لا زلت مهتماً؟",
+                body=f"إعلان «{(listing.get('title') or '')[:50]}» ينتظرك — اضغط لإعادة فتحه.",
+                ntype="viewed_no_action",
+                url=f"/listing/{lid}",
+                extra_data={"deep_link": f"listing/{lid}", "listing_id": lid},
+                pref_key="broadcasts",
+            )
+            await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+            sent += 1
+        except Exception as e:
+            logger.warning(f"[smart-notif] viewed-no-action skip: {e}")
+    return sent
+
+
+async def _process_inactive_users(now_iso: str, cutoff_iso: str) -> int:
+    """Users whose last activity is >14 days ago — we re-engage them once."""
+    sent = 0
+    cursor = db.users.find({
+        "last_seen": {"$lte": cutoff_iso},
+        "reengaged_at": {"$exists": False},
+        "notifications_enabled": {"$ne": False},
+    }, {"_id": 0, "id": 1, "name": 1}).limit(30)
+    async for u in cursor:
+        try:
+            uid = u["id"]
+            await _send_user_notification(
+                user_id=uid,
+                title="اشتقنا لك 👋",
+                body="إعلانات جديدة وصفقات في بلدك بانتظارك — افتح الحراج بلس الآن.",
+                ntype="reengage",
+                url="/",
+                extra_data={"deep_link": ""},
+                pref_key="broadcasts",
+            )
+            await db.users.update_one({"id": uid}, {"$set": {"reengaged_at": now_iso}})
+            sent += 1
+        except Exception as e:
+            logger.warning(f"[smart-notif] inactive-user skip: {e}")
+    return sent
+
+
 async def _smart_notifications_worker():
     """Background loop. Runs every 60 seconds.
     - Sends abandoned-draft reminders (>10 min idle, never reminded).
     - Sends abandoned-search reminders (>30 min idle, never reminded).
+    - Sends viewed-no-action reminders (>24h, no follow-up).
+    - Sends re-engagement notifications to inactive users (>14 days).
     - Fires admin-scheduled broadcasts whose time has come.
     """
     DRAFT_DELAY_MIN = 10
     SEARCH_DELAY_MIN = 30
+    VIEW_DELAY_HOURS = 24
+    INACTIVE_DAYS = 14
     INTERVAL_S = 60
     logger.info("[smart-notif] worker starting (every 60s)")
     while True:
@@ -5028,11 +5106,15 @@ async def _smart_notifications_worker():
             now_iso = now.isoformat()
             d_cutoff = (now - timedelta(minutes=DRAFT_DELAY_MIN)).isoformat()
             s_cutoff = (now - timedelta(minutes=SEARCH_DELAY_MIN)).isoformat()
+            v_cutoff = (now - timedelta(hours=VIEW_DELAY_HOURS)).isoformat()
+            i_cutoff = (now - timedelta(days=INACTIVE_DAYS)).isoformat()
             d = await _process_abandoned_drafts(now_iso, d_cutoff)
             s = await _process_abandoned_searches(now_iso, s_cutoff)
+            v = await _process_viewed_no_action(now_iso, v_cutoff)
+            i = await _process_inactive_users(now_iso, i_cutoff)
             sch = await _process_due_schedules(now_iso)
-            if d or s or sch:
-                logger.info(f"[smart-notif] sent drafts={d} searches={s} scheduled={sch}")
+            if d or s or v or i or sch:
+                logger.info(f"[smart-notif] sent drafts={d} searches={s} viewed={v} reengage={i} scheduled={sch}")
         except Exception as e:
             logger.error(f"[smart-notif] worker error: {e}")
         await asyncio.sleep(INTERVAL_S)
