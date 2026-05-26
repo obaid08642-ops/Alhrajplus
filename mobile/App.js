@@ -14,7 +14,7 @@ import { CountryProvider } from "./src/CountryContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
 import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/PasswordReset";
-import { SearchScreen as _LegacySearch, CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen } from "./src/screens/MoreScreens";
+import { CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen } from "./src/screens/MoreScreens";
 import SearchScreen from "./src/screens/SearchScreen";
 import SellerProfileScreen from "./src/screens/SellerProfile";
 import ListingDetailScreen from "./src/screens/ListingDetailScreen";

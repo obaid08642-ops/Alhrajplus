@@ -5699,6 +5699,84 @@ async def wallet_topup(body: WalletTopupIn, user: dict = Depends(get_current_use
     return {"success": True, "balance": new_bal}
 
 
+@api.post("/wallet/claim-welcome-bonus")
+async def wallet_claim_welcome_bonus(user: dict = Depends(get_current_user)):
+    """Idempotent welcome-bonus endpoint. Backend owns the amount + label so
+    clients never hardcode payment numbers. Returns 409 if already claimed."""
+    BONUS_AMOUNT = 5.0
+    BONUS_LABEL = "مكافأة الانضمام"
+    already = await db.wallet_transactions.find_one({"user_id": user["id"], "type": "bonus"})
+    if already:
+        raise HTTPException(409, "تم استلام مكافأة الانضمام مسبقاً")
+    await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": BONUS_AMOUNT}})
+    await _wallet_log(user["id"], "bonus", BONUS_AMOUNT, BONUS_LABEL)
+    new_bal = await _wallet_balance(user["id"])
+    return {"success": True, "balance": new_bal, "amount": BONUS_AMOUNT, "label": BONUS_LABEL}
+
+
+# ============================================================
+# Static pages — single source of truth shared by web + mobile.
+# Content mirrors /app/frontend/src/pages/StaticPages.js so both
+# platforms display identical text without drift.
+# ============================================================
+STATIC_PAGES = {
+    "terms": {
+        "title": "الشروط والأحكام",
+        "body": (
+            "أهلاً بك في الحراج بلس. باستخدامك هذا التطبيق فإنك توافق على الشروط التالية:\n\n"
+            "1. الحراج بلس منصة وسيطة فقط لربط البائعين بالمشترين، ولا نتلقى أي مدفوعات أو نضمن أي صفقة.\n\n"
+            "2. يلتزم البائع بصحة المعلومات والصور المعروضة، ويتحمل وحده مسؤولية محتوى إعلانه.\n\n"
+            "3. يُمنع نشر أي محتوى مخالف للأنظمة أو الذوق العام، وستُحذف الإعلانات المخالفة فوراً.\n\n"
+            "4. ننصح بعقد الصفقات في أماكن عامة آمنة، والتحقق من المنتج قبل الدفع.\n\n"
+            "5. تحتفظ إدارة الحراج بلس بحقها في تعليق أو حذف أي حساب يخالف الشروط."
+        ),
+    },
+    "privacy": {
+        "title": "سياسة الخصوصية",
+        "body": (
+            "نحرص على حماية بياناتك. إليك ما نجمعه وكيف نستخدمه:\n\n"
+            "• البريد الإلكتروني ورقم الجوال — لإنشاء حسابك والتواصل معك.\n"
+            "• الموقع الجغرافي — لعرض الإعلانات القريبة منك (اختياري).\n"
+            "• الصور والوسائط — لرفع إعلاناتك فقط.\n"
+            "• لا نبيع بياناتك لأي طرف ثالث.\n"
+            "• يمكنك طلب حذف حسابك في أي وقت من الإعدادات."
+        ),
+    },
+    "about": {
+        "title": "عن الحراج بلس",
+        "body": (
+            "الحراج بلس هي منصة بيع وشراء عربية حديثة لدول الخليج، مدعومة بالذكاء الاصطناعي "
+            "لجعل عملية البيع والشراء أسرع وأذكى وأكثر أماناً.\n\n"
+            "نهدف إلى ربط البائعين والمشترين في الخليج العربي عبر تجربة فاخرة وسلسة، مع ميزات حصرية مثل:\n\n"
+            "• اقتراح السعر بالذكاء الاصطناعي\n"
+            "• عارض صور احترافي وفيديو\n"
+            "• شات مباشر بكل الوسائط\n"
+            "• خرائط وإعلانات قريبة منك\n"
+            "• 5+ لغات لخدمة كل المقيمين\n\n"
+            "الإصدار 1.5 — 2026"
+        ),
+    },
+    "contact": {
+        "title": "تواصل معنا",
+        "body": (
+            "للأعمال والإعلان وطلبات الشراكة:\n\n"
+            "📧 contact@alhraj.online\n"
+            "📧 support@alhraj.online\n"
+            "🌐 الموقع: alhraj.online\n\n"
+            "💬 آلية التواصل: نرد على رسائلكم خلال 24-48 ساعة."
+        ),
+    },
+}
+
+
+@api.get("/static-pages/{slug}")
+async def get_static_page(slug: str):
+    page = STATIC_PAGES.get(slug)
+    if not page:
+        raise HTTPException(404, "الصفحة غير موجودة")
+    return {"slug": slug, "title": page["title"], "body": page["body"]}
+
+
 @api.post("/wallet/spend")
 async def wallet_spend(body: WalletSpendIn, user: dict = Depends(get_current_user)):
     bal = await _wallet_balance(user["id"])

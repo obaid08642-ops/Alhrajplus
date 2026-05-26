@@ -30,8 +30,8 @@ export default function WalletScreen() {
     const claimBonus = async () => {
         setClaiming(true);
         try {
-            const { data: r } = await api.post("/wallet/topup", { amount: 5, note: "مكافأة الانضمام" });
-            Alert.alert("تم!", "تم استلام مكافأتك 5 ر.س 🎉");
+            const { data: r } = await api.post("/wallet/claim-welcome-bonus");
+            Alert.alert("تم!", `تم استلام مكافأتك ${r.amount} ر.س 🎉`);
             setData((d) => ({ ...d, balance: r.balance }));
             load();
         } catch (e) {
