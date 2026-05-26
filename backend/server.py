@@ -2431,7 +2431,8 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     if not user_cc:
         raise HTTPException(400, "يرجى اختيار بلدك من الإعدادات قبل النشر")
     listing_id = str(uuid.uuid4())
-    is_banned = any_banned_word(f"{body.title} {body.description}")
+    mod_flags = detect_moderation_flags(f"{body.title} {body.description}")
+    is_banned = bool(mod_flags)
     doc = {
         "id": listing_id,
         "user_id": user["id"],
@@ -2454,6 +2455,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "contact_phone": (body.contact_phone or "").strip() or None,
         "status": "active",
         "moderation": "pending" if is_banned else "approved",
+        "moderation_flags": mod_flags,
         "views": 0,
         "favorites": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -2468,19 +2470,20 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     doc.pop("_id", None)
     _cache_invalidate()
 
-    # If a banned word triggered moderation, ping all admins with an in-app
-    # notification so the queue at /admin/listings/pending stays actionable.
+    # If a banned word or suspicious pattern triggered moderation, ping all admins
+    # with the specific flag codes so the queue at /admin/listings/pending is actionable.
     if is_banned:
         try:
             admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).limit(10).to_list(length=10)
+            flags_summary = ", ".join(mod_flags[:3]) or "محتوى مشبوه"
             for adm in admins:
                 await _send_user_notification(
                     user_id=adm["id"],
                     title="🚩 إعلان بانتظار المراجعة",
-                    body=f"تم احتجاز إعلان «{(body.title or '')[:60]}» بسبب كلمة محظورة.",
+                    body=f"تم احتجاز إعلان «{(body.title or '')[:50]}» — السبب: {flags_summary}",
                     ntype="moderation_flagged",
                     url=f"/admin/listings/{listing_id}",
-                    extra_data={"listing_id": listing_id},
+                    extra_data={"listing_id": listing_id, "flags": mod_flags},
                     pref_key="broadcasts",
                 )
         except Exception as e:
@@ -2504,10 +2507,58 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     return doc
 
 
-BANNED_WORDS = ["مخدرات", "سلاح", "حشيش", "كوكايين", "احتيال", "نصب"]
+BANNED_WORDS = [
+    # Arabic — drugs / weapons / fraud
+    "مخدرات", "حشيش", "كوكايين", "هيروين", "كبتاجون", "كبتاغون", "ترامادول", "كرستال", "شبو",
+    "سلاح", "اسلحة", "أسلحة", "مسدس", "بندقية", "رشاش", "ذخيرة", "قنبلة",
+    "احتيال", "نصب", "قرض ربوي", "تسليف فوري", "غسيل اموال", "غسيل أموال",
+    # Arabic — adult / illegal services
+    "دعارة", "علاقة محرمة", "اشتراك +18",
+    # English — common spam / illegal
+    "drugs", "cocaine", "heroin", "weapons", "guns", "ammo",
+    "money laundering", "loan shark", "fast cash loan",
+    "porn", "adult only", "escort service",
+    # Crypto-scam vocabulary
+    "double your money", "guaranteed roi", "تضاعف رأس مالك",
+    # Urdu / Hindi / Bengali — drugs
+    "ड्रग्स", "ہیروئن", "মাদক",
+]
+
+
+# Spam-pattern regex. Order matters — kept small so it stays cheap (<1 ms).
+import re as _mod_re  # local alias to avoid clashing with module-level `re`
+_SUSPICIOUS_PATTERNS = [
+    # Phone numbers obviously hidden inside the description (10+ digits clustered).
+    (_mod_re.compile(r"(?:\+?\d[\s\-\u200f.\u00a0]?){10,}"), "phone_spam"),
+    # Off-platform contact requests with explicit cues.
+    (_mod_re.compile(r"(?i)(whatsapp|واتس\s*اب|واتساب|تيليجرام|telegram|سيجنال|signal)\s*[:\-]?\s*\+?\d"), "offsite_contact"),
+    # External URLs (we still allow them but flag for review).
+    (_mod_re.compile(r"(?i)https?://(?!alhraj\.online|alhrajplus\.com)[\w.\-]+"), "external_link"),
+    # IBAN / bank-transfer requests (common scam pattern).
+    (_mod_re.compile(r"(?i)(iban|آيبان|تحويل\s*بنكي|paypal\s*me|بايبال)"), "bank_request"),
+]
+
+
 def any_banned_word(text: str) -> bool:
-    t = text.lower()
-    return any(w in t for w in BANNED_WORDS)
+    """True if the text contains any banned keyword (case-insensitive)."""
+    t = (text or "").lower()
+    return any(w.lower() in t for w in BANNED_WORDS)
+
+
+def detect_moderation_flags(text: str) -> list:
+    """Return list of flag codes triggered by `text`. Empty list = clean.
+    Used by listing create/update to mark `moderation=pending` AND tell the admin
+    exactly what tripped the filter (so they can act in one click)."""
+    flags = []
+    t_lower = (text or "").lower()
+    for w in BANNED_WORDS:
+        if w.lower() in t_lower:
+            flags.append(f"banned_word:{w}")
+            break
+    for rx, code in _SUSPICIOUS_PATTERNS:
+        if rx.search(text or ""):
+            flags.append(code)
+    return flags
 
 @api.get("/listings")
 async def list_listings(
@@ -4008,7 +4059,9 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     # Re-moderate if title/description changed
     if "title" in update_data or "description" in update_data:
         text_check = f"{update_data.get('title', item['title'])} {update_data.get('description', item['description'])}"
-        update_data["moderation"] = "pending" if any_banned_word(text_check) else "approved"
+        new_flags = detect_moderation_flags(text_check)
+        update_data["moderation"] = "pending" if new_flags else "approved"
+        update_data["moderation_flags"] = new_flags
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     old_price = item.get("price") or 0
     new_price = update_data.get("price", old_price)
