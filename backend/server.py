@@ -2468,6 +2468,24 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     doc.pop("_id", None)
     _cache_invalidate()
 
+    # If a banned word triggered moderation, ping all admins with an in-app
+    # notification so the queue at /admin/listings/pending stays actionable.
+    if is_banned:
+        try:
+            admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).limit(10).to_list(length=10)
+            for adm in admins:
+                await _send_user_notification(
+                    user_id=adm["id"],
+                    title="🚩 إعلان بانتظار المراجعة",
+                    body=f"تم احتجاز إعلان «{(body.title or '')[:60]}» بسبب كلمة محظورة.",
+                    ntype="moderation_flagged",
+                    url=f"/admin/listings/{listing_id}",
+                    extra_data={"listing_id": listing_id},
+                    pref_key="broadcasts",
+                )
+        except Exception as e:
+            logger.warning(f"[mod] admin notify failed: {e}")
+
     # Instant search-engine submission (IndexNow → Bing, Yandex, Seznam, Naver).
     # Fire-and-forget; never blocks listing creation.
     try:
@@ -4292,6 +4310,31 @@ async def admin_stats():
 async def admin_pending():
     return await db.listings.find({"moderation": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
 
+
+@admin_router.get("/listings")
+async def admin_listings(
+    status: Optional[str] = None,
+    moderation: Optional[str] = None,
+    country_code: Optional[str] = None,
+    q: Optional[str] = None,
+    limit: int = 50,
+    skip: int = 0,
+):
+    """Full admin listing browser. Supports filter + lightweight search."""
+    limit = max(1, min(int(limit or 50), 200))
+    skip = max(0, int(skip or 0))
+    query: dict = {}
+    if status: query["status"] = status
+    if moderation: query["moderation"] = moderation
+    if country_code: query["country_code"] = country_code.upper()
+    if q:
+        import re as _re
+        rx = {"$regex": _re.escape(q.strip()), "$options": "i"}
+        query["$or"] = [{"title": rx}, {"description": rx}]
+    total = await db.listings.count_documents(query)
+    items = await db.listings.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(length=limit)
+    return {"items": items, "total": total, "limit": limit, "skip": skip}
+
 @admin_router.post("/listings/{lid}/approve")
 async def admin_approve(lid: str, user: dict = Depends(require_admin)):
     r = await db.listings.update_one({"id": lid}, {"$set": {"moderation": "approved"}})
@@ -4394,6 +4437,62 @@ async def admin_delete_listing(lid: str, user: dict = Depends(require_admin)):
     return {"deleted": r.deleted_count}
 
 # Theme settings
+@admin_router.get("/data-integrity")
+async def admin_data_integrity():
+    """Snapshot of data-integrity issues so an admin can spot any cross-country
+    leakage from legacy rows. Read-only."""
+    listings_no_cc = await db.listings.count_documents({
+        "$or": [
+            {"country_code": {"$exists": False}},
+            {"country_code": None},
+            {"country_code": ""},
+        ]
+    })
+    users_no_cc = await db.users.count_documents({
+        "$or": [
+            {"country_code": {"$exists": False}},
+            {"country_code": None},
+            {"country_code": ""},
+        ]
+    })
+    # Show a sample of offenders so the admin can act quickly.
+    sample_listings = await db.listings.find(
+        {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]},
+        {"_id": 0, "id": 1, "title": 1, "user_id": 1, "created_at": 1},
+    ).sort("created_at", -1).limit(10).to_list(length=10)
+    return {
+        "listings_without_country": listings_no_cc,
+        "users_without_country": users_no_cc,
+        "sample_offending_listings": sample_listings,
+    }
+
+
+@admin_router.post("/data-integrity/fix")
+async def admin_data_integrity_fix(default_country: str = "SA"):
+    """One-off cleanup: copy the user's country onto their orphan listings.
+    Listings whose owner ALSO has no country get `default_country` so they stop
+    leaking into every feed. Returns the counts touched."""
+    default_country = (default_country or "SA").upper()
+    # 1) Patch users with no country to the default.
+    users_fixed = await db.users.update_many(
+        {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]},
+        {"$set": {"country_code": default_country}},
+    )
+    # 2) For each listing without country, copy from owner.
+    fixed_listings = 0
+    cursor = db.listings.find(
+        {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]},
+        {"_id": 0, "id": 1, "user_id": 1},
+    )
+    async for l_doc in cursor:
+        owner = await db.users.find_one({"id": l_doc.get("user_id")}, {"_id": 0, "country_code": 1})
+        cc = ((owner or {}).get("country_code") or default_country).upper()
+        await db.listings.update_one({"id": l_doc["id"]}, {"$set": {"country_code": cc}})
+        fixed_listings += 1
+    _cache_invalidate()
+    return {"users_fixed": users_fixed.modified_count, "listings_fixed": fixed_listings, "default_country": default_country}
+
+
 @admin_router.post("/theme")
 async def admin_set_theme(body: ThemeIn):
     current = await db.settings.find_one({"_key": "theme"}, {"_id": 0}) or {"_key": "theme", "value": DEFAULT_THEME.copy()}
