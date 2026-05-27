@@ -299,7 +299,7 @@ function ListingsPanel() {
     const [items, setItems] = useState([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [filters, setFilters] = useState({ status: "", moderation: "", country_code: "", q: "", flagged: false });
+    const [filters, setFilters] = useState({ status: "", moderation: "", country_code: "", q: "", flagged: false, flag_kind: "" });
     const [skip, setSkip] = useState(0);
     const LIMIT = 30;
 
@@ -311,6 +311,7 @@ function ListingsPanel() {
                 if (filters[k]) params[k] = filters[k];
             }
             if (filters.flagged) params.flagged = true;
+            if (filters.flag_kind) params.flag_kind = filters.flag_kind;
             const { data } = await api.get("/admin/listings", { params });
             setItems(data?.items || []);
             setTotal(data?.total || 0);
@@ -318,7 +319,7 @@ function ListingsPanel() {
             setItems([]); setTotal(0);
         } finally { setLoading(false); }
     };
-    useEffect(() => { load(); /* eslint-disable-next-line */ }, [filters.status, filters.moderation, filters.country_code, filters.flagged, skip]);
+    useEffect(() => { load(); /* eslint-disable-next-line */ }, [filters.status, filters.moderation, filters.country_code, filters.flagged, filters.flag_kind, skip]);
 
     const onSearch = (e) => { e.preventDefault(); setSkip(0); load(); };
     const del = async (id) => {
@@ -348,6 +349,13 @@ function ListingsPanel() {
                     <button type="button" data-testid="filter-flagged-toggle" onClick={() => { setSkip(0); setFilters({ ...filters, flagged: !filters.flagged }); }} className={`px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1.5 border ${filters.flagged ? "bg-red-500 text-white border-red-600" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}>
                         <Flag className="w-3 h-3" /> {tr("الإعلانات المرفوع عنها علامات فقط")}
                     </button>
+                    <select data-testid="filter-flag-kind" value={filters.flag_kind} onChange={(e) => { setSkip(0); setFilters({ ...filters, flag_kind: e.target.value }); }} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-full px-3 py-1.5 text-xs font-arabic font-bold">
+                        <option value="">{tr("كل أنواع العلامات")}</option>
+                        <option value="banned_words">{tr("كلمات محظورة")}</option>
+                        <option value="suspicious">{tr("روابط/IBAN/خارج التطبيق")}</option>
+                        <option value="phone_spam">{tr("سبام جوال")}</option>
+                        <option value="ai">🤖 {tr("AI رصدها")}</option>
+                    </select>
                     <button type="submit" data-testid="listings-search-btn" className="flex-1 min-w-[120px] bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl py-2 text-sm font-arabic font-bold">{tr("بحث")}</button>
                 </div>
             </form>

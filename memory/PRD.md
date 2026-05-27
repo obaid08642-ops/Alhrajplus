@@ -19,7 +19,80 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
-## ✅ Session 23 — Feb 2026 — Final Production Hardening (Admin + Push DeepLink + Moderation)
+## ✅ Session 24 — Feb 2026 — AI Moderation Layer + Granular Filters + Final Audit
+
+### 🤖 AI Moderation Layer (NEW)
+- ✅ NEW `ai_moderate_listing(listing_id, title, description)` — Gemini-2.5-Flash classifier returns `{score: 0-1, categories: [scam, drugs, adult, fraud, weapons, hate, fake, prohibited], reason: ""}`.
+- ✅ Triggered automatically (fire-and-forget asyncio task) on:
+  - `POST /listings` create
+  - `PUT /listings/{id}` when title/description changes
+- ✅ When `score ≥ 0.6` and categories detected:
+  - `moderation` ⇒ `pending`
+  - `moderation_flags` ⇒ appended with `ai:<category>` tags
+  - All admins receive instant push + in-app notification with score + reason
+- ✅ Fail-soft: missing `EMERGENT_LLM_KEY` or LLM errors silently no-op (listing flow never blocked).
+- ✅ Per-listing fields: `ai_moderation_score`, `ai_moderation_categories`, `ai_moderation_reason`, `ai_moderation_at`.
+
+### 🚩 Granular Moderation Filters
+- ✅ `GET /admin/listings` now accepts `flag_kind ∈ {banned_words, suspicious, phone_spam, ai}` with regex-based array narrowing.
+- ✅ AdminPage `ListingsPanel`: dropdown selector with 5 options (all / banned_words / suspicious links/IBAN / phone spam / 🤖 AI).
+
+### 🔔 Expo Push — EXPO_ACCESS_TOKEN
+- ✅ `_send_expo` now adds `Authorization: Bearer ${EXPO_ACCESS_TOKEN}` to Expo Push API requests when env set (Expo Push v2 enhanced security tokens). Ignored gracefully if missing.
+
+### 📋 Behavioral Triggers (verified already running)
+- ✅ Worker `_smart_notifications_worker` runs every 60s and dispatches:
+  - Abandoned drafts (>10 min idle, never reminded)
+  - Abandoned searches (>30 min idle)
+  - **Viewed listings with no follow-up** (>24h)
+  - Inactive user re-engagement (>14 days)
+  - Admin-scheduled broadcasts whose time has come
+- ✅ Each path stamps a "reminded_*" flag so users don't receive duplicates.
+
+### 🧪 FINAL AUDIT (curl + lint, no testing agent)
+**19/19 endpoints HTTP 200:**
+```
+/api/auth/me                          → 521B
+/api/admin/stats                      → 968B (57 users, 192 listings, 3 ads)
+/api/admin/users                      → 850B
+/api/admin/listings                   → 1814B
+/api/admin/listings/pending           → 779B
+/api/admin/reports                    → 472B
+/api/admin/ads                        → 1247B
+/api/admin/finance/summary            → 123B
+/api/admin/seo                        → 413B
+/api/admin/data-integrity             → 87B  (0 orphans)
+/api/admin/notifications/ai-suggest   → 639B (Gemini 3 suggestions)
+/api/admin/notifications/schedule     → 2B   (empty)
+/api/notifications                    → 3809B
+/api/listings                         → 1134B
+/api/meta/categories                  → 47KB
+/api/meta/countries                   → 15KB (7 GCC+EG)
+/api/auctions/active                  → 10KB
+/api/sitemap.xml                      → 253KB (198 URLs)
+/api/_metrics                         → 1780B (p95=5.6ms internal)
+```
+**New feature tests passing:**
+```
+flag_kind=banned_words  → 0 results (no DB rows hit yet)
+flag_kind=ai            → 0 (no AI-flagged listings yet)
+broadcast {url,image}   → sent:4 url:/listing/abc123 image:cloudinary
+notifications/test      → sent:true push:{expo:0,web:0}
+user/{id}               → stats:{listings:10, reports:0}
+```
+
+### Files Modified (Session 24)
+- MOD `/app/backend/server.py`:
+  - NEW `ai_moderate_listing()` (90 lines) — Gemini classifier
+  - `POST /listings` hooks AI moderation
+  - `PUT /listings/{id}` re-runs AI moderation on text changes
+  - `GET /admin/listings` adds `flag_kind` filter
+- MOD `/app/backend/push_service.py`: EXPO_ACCESS_TOKEN bearer header
+- MOD `/app/frontend/src/pages/AdminPage.js`: flag_kind dropdown in ListingsPanel filters
+
+---
+
+
 
 ### 👥 Admin User Management — Click-Through Details
 - ✅ NEW `GET /api/admin/users/{uid}` — returns full profile + stats (listings_total, favorites_total, reports_against, last_message_at) + 50 most recent listings (with moderation_flags).

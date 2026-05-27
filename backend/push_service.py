@@ -23,6 +23,7 @@ from pywebpush import webpush, WebPushException
 logger = logging.getLogger("haraj_plus.push")
 
 EXPO_API = "https://exp.host/--/api/v2/push/send"
+EXPO_ACCESS_TOKEN = os.environ.get("EXPO_ACCESS_TOKEN", "").strip()
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n").strip()
 VAPID_CLAIM_EMAIL = os.environ.get("VAPID_CLAIM_EMAIL", "mailto:admin@alhrajplus.com").strip()
@@ -35,6 +36,11 @@ async def _send_expo(tokens: list[str], title: str, body: str, data: dict, image
     # Expo accepts up to 100 messages per request.
     sent = 0
     chunks = [tokens[i : i + 100] for i in range(0, len(tokens), 100)]
+    # Build headers — include Authorization with EXPO_ACCESS_TOKEN when set
+    # (required for enhanced security project tokens; ignored on public projects).
+    expo_headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if EXPO_ACCESS_TOKEN:
+        expo_headers["Authorization"] = f"Bearer {EXPO_ACCESS_TOKEN}"
     for chunk in chunks:
         def _msg(t):
             m = {
@@ -54,7 +60,7 @@ async def _send_expo(tokens: list[str], title: str, body: str, data: dict, image
         messages = [_msg(t) for t in chunk]
         try:
             async with httpx.AsyncClient(timeout=15.0) as cx:
-                await cx.post(EXPO_API, json=messages, headers={"Content-Type": "application/json", "Accept": "application/json"})
+                await cx.post(EXPO_API, json=messages, headers=expo_headers)
             sent += len(chunk)
         except Exception as e:
             logger.warning(f"[push.expo] {e}")

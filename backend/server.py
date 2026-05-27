@@ -2497,12 +2497,14 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         host = _up(fe).hostname or "alhraj.online"
         _seo_submit_bg(db, [f"{fe}/listing/{doc['slug']}", f"{fe}/listing/{doc['id']}"], host)
         _google_idx_updated(f"{fe}/listing/{doc['slug']}")
-    except Exception as _e:
-        logger.warning(f"[IndexNow] enqueue failed: {_e}")
+    except Exception as _e:        logger.warning(f"[IndexNow] enqueue failed: {_e}")
 
     # Smart notification: tell users who recently viewed the same category.
     if doc.get("moderation") == "approved":
         asyncio.create_task(_notify_category_watchers(doc))
+
+    # Async AI moderation pass (Gemini classifier). Re-flags risky listings.
+    asyncio.create_task(ai_moderate_listing(doc["id"], doc.get("title", ""), doc.get("description", "")))
 
     return doc
 
@@ -2559,6 +2561,81 @@ def detect_moderation_flags(text: str) -> list:
         if rx.search(text or ""):
             flags.append(code)
     return flags
+
+
+async def ai_moderate_listing(listing_id: str, title: str, description: str) -> None:
+    """Best-effort AI moderation pass using Gemini. Classifies listings against
+    sensitive categories (scam, drugs, adult, fraud, weapons, hate). Writes back:
+      ai_moderation_score: float 0..1  (higher = more risky)
+      ai_moderation_categories: ["scam", ...]
+      moderation_flags: appended with 'ai:<category>' for any with score >= 0.6
+    On error or missing LLM key, silently no-op so listing flow is never blocked.
+    """
+    if not EMERGENT_LLM_KEY:
+        return
+    blob = (title or "")[:300] + "\n" + (description or "")[:1500]
+    if not blob.strip():
+        return
+    try:
+        from llm_shim import LlmChat, UserMessage
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"mod-{listing_id[:8]}",
+            system_message=(
+                "أنت نظام كشف محتوى لتطبيق إعلانات مبوّبة عربي يعمل في دول الخليج ومصر. "
+                "صنّف الإعلان عبر إرجاع JSON فقط بهذا الشكل بدون أي شرح إضافي: "
+                "{\"score\":0.0-1.0,\"categories\":[],\"reason\":\"...\"} "
+                "categories ممكن أن تحتوي: scam, drugs, adult, fraud, weapons, hate, fake, prohibited. "
+                "score = أعلى احتمال للمحتوى الضار (0=آمن، 1=مؤكد). reason ≤ 80 حرف عربي."
+            ),
+        ).with_model("gemini", "gemini-2.5-flash")
+        text = await chat.send_message(UserMessage(text=f"إعلان للتصنيف:\n{blob}"))
+        import re as _re, json as _json
+        m = _re.search(r"\{.*\}", text or "", _re.DOTALL)
+        if not m:
+            return
+        result = _json.loads(m.group(0))
+        score = float(result.get("score") or 0)
+        cats = [c for c in (result.get("categories") or []) if isinstance(c, str)][:6]
+        reason = (result.get("reason") or "")[:120]
+        update: dict = {
+            "ai_moderation_score": round(score, 3),
+            "ai_moderation_categories": cats,
+            "ai_moderation_reason": reason,
+            "ai_moderation_at": datetime.now(timezone.utc).isoformat(),
+        }
+        risky = score >= 0.6 and len(cats) > 0
+        if risky:
+            # Force re-review by an admin
+            update["moderation"] = "pending"
+            # Append AI categories to existing flags (deduped)
+            existing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "moderation_flags": 1}) or {}
+            current_flags = list(existing.get("moderation_flags") or [])
+            for c in cats:
+                tag = f"ai:{c}"
+                if tag not in current_flags:
+                    current_flags.append(tag)
+            update["moderation_flags"] = current_flags
+        await db.listings.update_one({"id": listing_id}, {"$set": update})
+        _cache_invalidate()
+        # Notify admins for risky AI flags (cap at 10 admins)
+        if risky:
+            try:
+                admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).limit(10).to_list(length=10)
+                for adm in admins:
+                    await _send_user_notification(
+                        user_id=adm["id"],
+                        title="🤖 AI رصد إعلاناً مشتبهاً",
+                        body=f"درجة الخطر {int(score*100)}% — {', '.join(cats[:3])}",
+                        ntype="ai_moderation_flagged",
+                        url=f"/admin/listings/{listing_id}",
+                        extra_data={"listing_id": listing_id, "score": score, "categories": cats, "reason": reason},
+                        pref_key="broadcasts",
+                    )
+            except Exception as _ae:
+                logger.warning(f"[ai-mod] admin notify failed: {_ae}")
+    except Exception as e:
+        logger.warning(f"[ai-mod] {e}")
 
 @api.get("/listings")
 async def list_listings(
@@ -4097,6 +4174,12 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     if "price" in update_data:
         asyncio.create_task(_check_price_alerts(listing_id, update_data.get("price")))
 
+    # Re-run AI moderation when title or description changed (fire-and-forget)
+    if "title" in update_data or "description" in update_data:
+        new_title = update_data.get("title", item.get("title") or "")
+        new_desc = update_data.get("description", item.get("description") or "")
+        asyncio.create_task(ai_moderate_listing(listing_id, new_title, new_desc))
+
     # Re-submit to IndexNow when meaningful content changes (so search engines re-crawl)
     try:
         if any(k in update_data for k in ("title", "description", "price", "media_urls")):
@@ -4389,11 +4472,13 @@ async def admin_listings(
     country_code: Optional[str] = None,
     q: Optional[str] = None,
     flagged: Optional[bool] = None,
+    flag_kind: Optional[str] = None,  # banned_words | suspicious | phone_spam | ai
     limit: int = 50,
     skip: int = 0,
 ):
     """Full admin listing browser. Supports filter + lightweight search.
-    `flagged=true` → only listings with at least one moderation_flag.
+    `flagged=true`  → only listings with at least one moderation_flag.
+    `flag_kind` ∈ {banned_words, suspicious, phone_spam, ai} narrows the type.
     """
     limit = max(1, min(int(limit or 50), 200))
     skip = max(0, int(skip or 0))
@@ -4401,8 +4486,19 @@ async def admin_listings(
     if status: query["status"] = status
     if moderation: query["moderation"] = moderation
     if country_code: query["country_code"] = country_code.upper()
-    if flagged:
+    if flagged or flag_kind:
         query["moderation_flags"] = {"$exists": True, "$not": {"$size": 0}}
+    # Narrow by flag kind via $regex on the array element (Mongo allows this on each entry)
+    if flag_kind:
+        kind_map = {
+            "banned_words": "^banned_word:",
+            "suspicious": "^(offsite_contact|bank_request|external_link)$",
+            "phone_spam": "^phone_spam$",
+            "ai": "^ai:",
+        }
+        rx = kind_map.get(flag_kind)
+        if rx:
+            query["moderation_flags"] = {"$elemMatch": {"$regex": rx}}
     if q:
         import re as _re
         rx = {"$regex": _re.escape(q.strip()), "$options": "i"}
