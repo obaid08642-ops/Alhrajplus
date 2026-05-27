@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api, { formatApiError } from "@/lib/api";
-import { Gavel, Clock, TrendingUp, Users, X, Sparkles } from "lucide-react";
+import { Gavel, Clock, TrendingUp, Users, X, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
+import { useAuctionLive } from "@/hooks/useAuctionLive";
 
 export default function AuctionsPage() {
     const { user } = useAuth();
@@ -120,12 +121,23 @@ function BidDialog({ listing, onClose, onPlaced }) {
     const [amount, setAmount] = useState("");
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
-    const top = bids[0];
+    // Live subscription — replaces 2-3s polling. Returns latest top bid + count
+    // pushed directly from the server via WebSocket. Falls back to REST bids
+    // history below for the timeline list.
+    const live = useAuctionLive(listing.id);
+    const top = live.topBid || bids[0] || null;
+    const liveCount = live.bidCount || bids.length;
     const minRequired = (top?.amount || listing.price || 0) + 1;
 
     useEffect(() => {
         api.get(`/auctions/${listing.id}/bids`).then(({ data }) => setBids(data || []));
     }, [listing.id]);
+
+    // Whenever a new live event arrives, refresh the history list so names appear.
+    useEffect(() => {
+        if (!live.lastEventAt) return;
+        api.get(`/auctions/${listing.id}/bids`).then(({ data }) => setBids(data || [])).catch(() => { });
+    }, [live.lastEventAt, listing.id]);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -147,7 +159,13 @@ function BidDialog({ listing, onClose, onPlaced }) {
             <div data-testid="bid-dialog" onClick={(e) => e.stopPropagation()} className="bg-[var(--surface)] rounded-t-3xl sm:rounded-3xl w-full max-w-md border border-[var(--border)] shadow-2xl overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
                     <h3 className="font-arabic font-black text-lg text-[var(--text)] flex items-center gap-2"><Gavel className="w-5 h-5 text-[var(--primary)]" /> المزايدة على {listing.title}</h3>
-                    <button data-testid="bid-close-btn" onClick={onClose} className="w-8 h-8 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)]"><X className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-1.5">
+                        <span data-testid="bid-live-status" title={live.connected ? "Live updates ON" : "Reconnecting..."} className={`inline-flex items-center gap-1 text-[10px] font-arabic font-bold px-2 py-1 rounded-full ${live.connected ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600"}`}>
+                            {live.connected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                            {live.connected ? tr("مباشر") : tr("جاري الاتصال")}
+                        </span>
+                        <button data-testid="bid-close-btn" onClick={onClose} className="w-8 h-8 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)]"><X className="w-4 h-4" /></button>
+                    </div>
                 </div>
                 <div className="p-4 space-y-4">
                     <div className="bg-[var(--surface-elevated)] rounded-xl p-3 flex items-center justify-between">
@@ -157,7 +175,7 @@ function BidDialog({ listing, onClose, onPlaced }) {
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] text-[var(--text-muted)] font-arabic-body">{tr("عدد المزايدات")}</div>
-                            <div className="font-arabic font-black text-xl text-[var(--text)]">{bids.length}</div>
+                            <div className="font-arabic font-black text-xl text-[var(--text)]" data-testid="bid-live-count">{liveCount}</div>
                         </div>
                     </div>
 

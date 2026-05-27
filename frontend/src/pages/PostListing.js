@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import imageCompression from "browser-image-compression";
 import api, { formatApiError } from "@/lib/api";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate, Megaphone, Gavel, Briefcase, Wrench, Film, Tag } from "lucide-react";
@@ -147,19 +148,61 @@ export default function PostListing() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form.title]);
 
-    const uploadImage = async (file) => {
+    // ===== Upload pipeline (parallel + client compression + per-file progress) =====
+    // OLX-grade: each picked file is compressed to ~1.6MB max, 1920px max
+    // dimension, then uploaded in parallel via XHR so we can report progress.
+    // Heavy lifting (Canvas + WebP encode) is done by browser-image-compression
+    // which itself uses a Web Worker — keeps the UI buttery while images upload.
+    //
+    // Limits (enforced client-side, mirrored by backend):
+    //   • image: ≤ 15 MB raw, compresses to ~1.5 MB / 1920px
+    //   • video: ≤ 60 MB raw, max 60s recommended
+    const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+    const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
+    const [uploads, setUploads] = useState([]); // [{ id, name, type, progress, status, url, error }]
+
+    const xhrUpload = (url, formData, onProgress) =>
+        new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", url);
+            xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+            xhr.onload = () => { try { resolve(JSON.parse(xhr.responseText)); } catch (err) { reject(err); } };
+            xhr.onerror = () => reject(new Error("network"));
+            xhr.send(formData);
+        });
+
+    const uploadImage = async (file, onProgress) => {
+        // 1. Validate
+        if (file.size > MAX_IMAGE_BYTES) throw new Error(tr("الصورة أكبر من 15 ميجابايت"));
+        // 2. Compress (Web Worker → no UI freeze). Output is WebP when possible.
+        let compressed = file;
+        try {
+            compressed = await imageCompression(file, {
+                maxSizeMB: 1.5,
+                maxWidthOrHeight: 1920,
+                useWebWorker: true,
+                fileType: "image/webp",
+                initialQuality: 0.82,
+            });
+        } catch (_) {
+            // Compression failed (e.g., HEIC on some browsers). Fall back to original.
+            compressed = file;
+        }
+        // 3. Get signed upload params from backend
         const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "image", folder: "listings" } });
         const fd = new FormData();
-        fd.append("file", file);
+        fd.append("file", compressed);
         fd.append("api_key", sig.api_key);
         fd.append("timestamp", sig.timestamp);
         fd.append("signature", sig.signature);
         fd.append("folder", sig.folder);
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`, { method: "POST", body: fd });
-        const out = await res.json();
+        // 4. XHR upload with progress
+        const out = await xhrUpload(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`, fd, onProgress);
         return out.secure_url;
     };
-    const uploadVideo = async (file) => {
+
+    const uploadVideo = async (file, onProgress) => {
+        if (file.size > MAX_VIDEO_BYTES) throw new Error(tr("الفيديو أكبر من 60 ميجابايت"));
         const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "video", folder: "listings" } });
         const fd = new FormData();
         fd.append("file", file);
@@ -167,24 +210,58 @@ export default function PostListing() {
         fd.append("timestamp", sig.timestamp);
         fd.append("signature", sig.signature);
         fd.append("folder", sig.folder);
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/video/upload`, { method: "POST", body: fd });
-        const out = await res.json();
+        const out = await xhrUpload(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/video/upload`, fd, onProgress);
         return out.secure_url;
     };
 
     const onFiles = async (files, type = "image") => {
-        setBusy(true); setErr("");
-        try {
-            const urls = [];
-            for (const file of Array.from(files)) {
-                const url = type === "image" ? await uploadImage(file) : await uploadVideo(file);
-                if (url) urls.push(url);
+        setErr("");
+        const arr = Array.from(files);
+        if (!arr.length) return;
+        // Seed the progress tracker so the UI shows all files at 0% immediately.
+        const seeds = arr.map((f, i) => ({
+            id: `${Date.now()}-${i}`,
+            name: f.name,
+            type,
+            progress: 0,
+            status: "uploading",
+            url: null,
+            error: null,
+        }));
+        setUploads((u) => [...u, ...seeds]);
+        setBusy(true);
+        // 🚀 Parallel — Promise.all so 5 photos go in 5 lanes, not one after another.
+        const results = await Promise.all(seeds.map(async (seed, idx) => {
+            const file = arr[idx];
+            const setProg = (p) => setUploads((u) => u.map((it) => it.id === seed.id ? { ...it, progress: p } : it));
+            try {
+                const url = type === "image"
+                    ? await uploadImage(file, setProg)
+                    : await uploadVideo(file, setProg);
+                setUploads((u) => u.map((it) => it.id === seed.id ? { ...it, progress: 100, status: "done", url } : it));
+                return url;
+            } catch (e) {
+                setUploads((u) => u.map((it) => it.id === seed.id ? { ...it, status: "error", error: e?.message || "failed" } : it));
+                return null;
             }
-            setForm((f) => ({ ...f, [type === "image" ? "images" : "videos"]: [...f[type === "image" ? "images" : "videos"], ...urls] }));
-        } catch (e) {
-            setErr("فشل رفع الملف. حاول مرة أخرى");
-        } finally { setBusy(false); }
+        }));
+        const okUrls = results.filter(Boolean);
+        if (okUrls.length) {
+            setForm((f) => ({
+                ...f,
+                [type === "image" ? "images" : "videos"]: [...f[type === "image" ? "images" : "videos"], ...okUrls],
+            }));
+        }
+        if (okUrls.length !== arr.length) {
+            setErr(tr("بعض الملفات فشل رفعها"));
+        }
+        setBusy(false);
+        // Auto-clear completed entries after 2.5s so the row list doesn't grow.
+        setTimeout(() => {
+            setUploads((u) => u.filter((it) => it.status === "uploading" || it.status === "error"));
+        }, 2500);
     };
+
 
     const submit = async () => {
         setErr(""); setBusy(true);
@@ -728,7 +805,30 @@ export default function PostListing() {
                             </div>
                         )}
                     </div>
-                    {busy && <div className="text-center text-sm font-arabic text-[var(--primary)]">{tr("جاري الرفع...")}</div>}
+                    {/* Per-file upload progress — replaces the generic busy spinner.
+                        Shows live percentage from XHR upload events, including failed rows. */}
+                    {uploads.length > 0 && (
+                        <div data-testid="upload-progress-list" className="space-y-1.5">
+                            {uploads.map((u) => (
+                                <div key={u.id} className={`bg-[var(--surface-elevated)] rounded-xl px-3 py-2 border ${u.status === "error" ? "border-red-300" : u.status === "done" ? "border-emerald-300" : "border-[var(--border)]"}`}>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        {u.type === "image" ? <ImageIcon className="w-3.5 h-3.5 text-[var(--text-muted)]" /> : <Video className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+                                        <span className="font-arabic-body text-xs text-[var(--text)] truncate flex-1">{u.name}</span>
+                                        <span className="font-latin font-bold text-[10px] tabular-nums" data-testid={`progress-${u.id}`}>
+                                            {u.status === "error" ? tr("فشل") : u.status === "done" ? "✓" : `${u.progress}%`}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-[var(--border)]/40 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-200 ${u.status === "error" ? "bg-red-500" : u.status === "done" ? "bg-emerald-500" : "bg-[var(--primary)]"}`}
+                                            style={{ width: `${u.status === "error" ? 100 : u.progress}%` }}
+                                        />
+                                    </div>
+                                    {u.error && <div className="text-[10px] text-red-500 mt-1 font-arabic-body">{u.error}</div>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {form.images.length > 0 && (
                         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                             {form.images.map((src, i) => (

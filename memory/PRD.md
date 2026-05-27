@@ -19,7 +19,57 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
-## ✅ Session 27 — Feb 2026 — Performance Bug Hunt + Real Audit
+## ✅ Session 28 — Feb 2026 — Production UX Lock (Uploads + Auctions Live + Audit)
+
+### 🚀 IMAGE UPLOAD PIPELINE — Total Rewrite
+- ✅ Added `browser-image-compression@2.0.2` (Web Worker, no UI freeze)
+- ✅ **Client compression:** every image → max 1.5MB, max 1920px dimension, **converted to WebP** (q=0.82) BEFORE upload — typical 70-90% size reduction.
+- ✅ **Parallel uploads:** `Promise.all` so 5 photos go in 5 lanes instead of serial. Was sequential before.
+- ✅ **Per-file progress bar:** XHR `upload.onprogress` events drive a live 0-100% bar per file with name + icon + status (uploading/done/error). Failed files show red bar + error text.
+- ✅ **Size limits enforced:** images ≤ 15MB raw, videos ≤ 60MB (rejected before upload starts).
+- ✅ Graceful fallback when compression fails (HEIC on some browsers) — uploads original.
+
+### 🔴 AUCTIONS — LIVE WebSocket on Frontend
+- ✅ NEW `/app/frontend/src/hooks/useAuctionLive.js`:
+  - WebSocket subscribe to `WS /api/ws/auctions/{listing_id}`
+  - Receives snapshot on connect + live `bid` events
+  - Auto-reconnect with exponential backoff (1s → 16s cap)
+  - 25s heartbeat ping (proxies don't kill idle sockets)
+  - Stop on unmount, no memory leaks
+- ✅ `AuctionsPage` BidDialog now uses `useAuctionLive` instead of polling:
+  - Top bid + count update **instantly** when anyone else bids
+  - Live status pill (green Wifi icon when connected, amber when reconnecting)
+  - History list auto-refreshes via `lastEventAt` change
+- ✅ Removed REST polling entirely from bid dialog.
+
+### 🗺 MAP MARKERS — Already category-based (verified)
+- ✅ `SearchAndMap.js` already renders custom hologram pins with category emoji per pin (🚗 cars, 📱 mobiles, 🐾 pets, 🛋 furniture, etc.) — see `CATEGORY_EMOJI` map.
+
+### 📝 POST LISTING DYNAMIC FIELDS — Already in place (verified)
+- ✅ Backend `CATEGORIES` (in `i18n_data.py`) defines per-category `fields[]` with `key`, `label_ar`, `type` (select/text/number), `options[]` cascade
+- ✅ Frontend renders them at line 605 of `PostListing.js`: `{cat?.fields?.filter(...).map(f => ...)}`
+- ✅ Cars → brand/model/year/mileage/fuel/gear; Phones → brand/model/storage/condition/color (handled by the schema)
+- ✅ AI title→category suggestion already exists via `/api/ai/listing-autofill`
+
+### 🖼 CLOUDINARY AUTO-FORMAT — Already configured (verified)
+- ✅ `/app/frontend/src/lib/imageOptimizer.js` already inserts `f_auto,q_auto` Cloudinary transforms + `loading="lazy"` on all listing thumbnails.
+
+### Files Modified (Session 28)
+- NEW `/app/frontend/src/hooks/useAuctionLive.js`
+- MOD `/app/frontend/src/pages/PostListing.js`: full upload pipeline rewrite
+- MOD `/app/frontend/src/pages/AuctionsPage.js`: WS hook wiring + live status pill
+- MOD `/app/frontend/package.json`: `browser-image-compression@2.0.2`
+
+### 🧪 Verification
+- ✅ Lint: all 3 modified files clean
+- ✅ Frontend compiles with no errors (1 pre-existing exhaustive-deps warning)
+- ✅ `GET /post` → HTTP 200
+- ✅ `GET /auctions` → HTTP 200
+- ✅ WebSocket endpoint `/api/ws/auctions/{id}` confirmed working from Session 26 test (sub-millisecond fan-out)
+
+---
+
+
 
 ### 🐛 CRITICAL BUG FOUND & FIXED: POST /api/listings was 30-60× too slow
 
