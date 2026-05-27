@@ -299,7 +299,7 @@ function ListingsPanel() {
     const [items, setItems] = useState([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [filters, setFilters] = useState({ status: "", moderation: "", country_code: "", q: "" });
+    const [filters, setFilters] = useState({ status: "", moderation: "", country_code: "", q: "", flagged: false });
     const [skip, setSkip] = useState(0);
     const LIMIT = 30;
 
@@ -310,6 +310,7 @@ function ListingsPanel() {
             for (const k of ["status", "moderation", "country_code", "q"]) {
                 if (filters[k]) params[k] = filters[k];
             }
+            if (filters.flagged) params.flagged = true;
             const { data } = await api.get("/admin/listings", { params });
             setItems(data?.items || []);
             setTotal(data?.total || 0);
@@ -317,7 +318,7 @@ function ListingsPanel() {
             setItems([]); setTotal(0);
         } finally { setLoading(false); }
     };
-    useEffect(() => { load(); /* eslint-disable-next-line */ }, [filters.status, filters.moderation, filters.country_code, skip]);
+    useEffect(() => { load(); /* eslint-disable-next-line */ }, [filters.status, filters.moderation, filters.country_code, filters.flagged, skip]);
 
     const onSearch = (e) => { e.preventDefault(); setSkip(0); load(); };
     const del = async (id) => {
@@ -343,7 +344,12 @@ function ListingsPanel() {
                     <option value="rejected">{tr("مرفوض")}</option>
                 </select>
                 <input data-testid="filter-country" placeholder={tr("الدولة (SA)")} value={filters.country_code} onChange={(e) => { setSkip(0); setFilters({ ...filters, country_code: e.target.value.toUpperCase() }); }} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm uppercase" />
-                <button type="submit" data-testid="listings-search-btn" className="col-span-2 sm:col-span-5 bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl py-2 text-sm font-arabic font-bold">{tr("بحث")}</button>
+                <div className="col-span-2 sm:col-span-5 flex flex-wrap items-center gap-2">
+                    <button type="button" data-testid="filter-flagged-toggle" onClick={() => { setSkip(0); setFilters({ ...filters, flagged: !filters.flagged }); }} className={`px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1.5 border ${filters.flagged ? "bg-red-500 text-white border-red-600" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}>
+                        <Flag className="w-3 h-3" /> {tr("الإعلانات المرفوع عنها علامات فقط")}
+                    </button>
+                    <button type="submit" data-testid="listings-search-btn" className="flex-1 min-w-[120px] bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl py-2 text-sm font-arabic font-bold">{tr("بحث")}</button>
+                </div>
             </form>
 
             {loading ? <div className="p-8 text-center font-arabic text-[var(--text-muted)]">{tr("جاري التحميل...")}</div> : (
@@ -363,7 +369,18 @@ function ListingsPanel() {
                             <tbody>
                                 {items.map((l) => (
                                     <tr key={l.id} className="border-t border-[var(--border)]" data-testid={`row-${l.id}`}>
-                                        <td className="p-2"><Link to={`/listing/${l.id}`} target="_blank" rel="noreferrer" className="font-bold text-[var(--text)] hover:text-[var(--primary)] text-xs">{(l.title || "").slice(0, 50)}</Link></td>
+                                        <td className="p-2">
+                                            <Link to={`/listing/${l.id}`} target="_blank" rel="noreferrer" className="font-bold text-[var(--text)] hover:text-[var(--primary)] text-xs">{(l.title || "").slice(0, 50)}</Link>
+                                            {l.moderation_flags?.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {l.moderation_flags.slice(0, 3).map((c) => (
+                                                        <span key={c} className="inline-flex items-center gap-0.5 bg-red-500/10 text-red-600 border border-red-500/30 text-[9px] font-arabic-body font-bold px-1.5 py-0.5 rounded-full">
+                                                            <Flag className="w-2 h-2" /> {c.startsWith("banned_word:") ? c.split(":")[1] : c}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="p-2 hidden sm:table-cell text-xs">{l.status || "—"}</td>
                                         <td className="p-2 hidden sm:table-cell text-xs">{l.moderation || "—"}</td>
                                         <td className="p-2 hidden md:table-cell text-xs">{l.country_code || "—"}</td>
@@ -465,41 +482,177 @@ function DataIntegrityPanel() {
 
 function UsersPanel() {
     const [users, setUsers] = useState([]);
-    const reload = () => api.get("/admin/users").then(({ data }) => setUsers(data));
-    useEffect(() => { reload(); }, []);
+    const [filters, setFilters] = useState({ q: "", country_code: "", banned: "", verified: "" });
+    const [loading, setLoading] = useState(false);
+    const [activeUserId, setActiveUserId] = useState(null);
+
+    const reload = async () => {
+        setLoading(true);
+        try {
+            const params = { limit: 200 };
+            if (filters.q) params.q = filters.q;
+            if (filters.country_code) params.country_code = filters.country_code;
+            if (filters.banned !== "") params.banned = filters.banned;
+            if (filters.verified !== "") params.verified = filters.verified;
+            const { data } = await api.get("/admin/users", { params });
+            setUsers(data || []);
+        } catch (_) { setUsers([]); }
+        finally { setLoading(false); }
+    };
+    useEffect(() => { reload(); /* eslint-disable-next-line */ }, [filters.country_code, filters.banned, filters.verified]);
+    const submitSearch = (e) => { e.preventDefault(); reload(); };
+
     return (
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
-            <table className="w-full text-sm font-arabic-body">
-                <thead className="bg-[var(--surface-elevated)]">
-                    <tr>
-                        <th className="text-start p-3 font-arabic">{tr("الاسم")}</th>
-                        <th className="text-start p-3 font-arabic hidden sm:table-cell">{tr("البريد")}</th>
-                        <th className="text-start p-3 font-arabic">{tr("الدولة")}</th>
-                        <th className="text-start p-3 font-arabic">{tr("الحالة")}</th>
-                        <th className="text-start p-3 font-arabic">{tr("إجراءات")}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map((u) => (
-                        <tr key={u.id} className="border-t border-[var(--border)]">
-                            <td className="p-3 font-bold text-[var(--text)]">{u.name}</td>
-                            <td className="p-3 text-[var(--text-muted)] hidden sm:table-cell text-xs">{u.email}</td>
-                            <td className="p-3 text-[var(--text-muted)]">{u.country_code}</td>
-                            <td className="p-3">
-                                {u.banned ? <span className="text-red-500 font-bold">{tr("محظور")}</span> : u.verified ? <span className="text-[var(--success)] font-bold">{tr("موثّق")}</span> : <span className="text-[var(--text-muted)]">{tr("عادي")}</span>}
-                            </td>
-                            <td className="p-3 flex gap-1">
-                                {!u.verified && <button onClick={async () => { await api.post(`/admin/users/${u.id}/verify`); reload(); }} className="bg-[var(--primary)]/15 text-[var(--primary)] px-2 py-1 rounded-full text-xs font-bold">{tr("توثيق")}</button>}
-                                {u.banned ? (
-                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/unban`); reload(); }} className="bg-[var(--success)]/15 text-[var(--success)] px-2 py-1 rounded-full text-xs font-bold">{tr("إلغاء حظر")}</button>
-                                ) : (
-                                    <button onClick={async () => { await api.post(`/admin/users/${u.id}/ban`); reload(); }} className="bg-red-500/15 text-red-500 px-2 py-1 rounded-full text-xs font-bold">{tr("حظر")}</button>
-                                )}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+        <div className="space-y-3">
+            <form onSubmit={submitSearch} className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] grid grid-cols-2 sm:grid-cols-5 gap-2" data-testid="users-filters">
+                <input data-testid="users-q" placeholder={tr("بحث (اسم / بريد / جوال)")} value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} className="col-span-2 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-arabic-body" />
+                <input data-testid="users-cc" placeholder={tr("الدولة")} maxLength={3} value={filters.country_code} onChange={(e) => setFilters({ ...filters, country_code: e.target.value.toUpperCase() })} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm uppercase" />
+                <select data-testid="users-status" value={filters.banned} onChange={(e) => setFilters({ ...filters, banned: e.target.value })} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-2 py-2 text-sm">
+                    <option value="">{tr("كل الحالات")}</option>
+                    <option value="false">{tr("نشطون")}</option>
+                    <option value="true">{tr("محظورون")}</option>
+                </select>
+                <select data-testid="users-verified" value={filters.verified} onChange={(e) => setFilters({ ...filters, verified: e.target.value })} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-2 py-2 text-sm">
+                    <option value="">{tr("التوثيق")}</option>
+                    <option value="true">{tr("موثّقون")}</option>
+                    <option value="false">{tr("غير موثّقين")}</option>
+                </select>
+            </form>
+            {loading ? <div className="p-6 text-center font-arabic text-[var(--text-muted)]">{tr("جاري التحميل...")}</div> : (
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                    <table className="w-full text-sm font-arabic-body">
+                        <thead className="bg-[var(--surface-elevated)]">
+                            <tr>
+                                <th className="text-start p-3 font-arabic">{tr("الاسم")}</th>
+                                <th className="text-start p-3 font-arabic hidden sm:table-cell">{tr("البريد")}</th>
+                                <th className="text-start p-3 font-arabic">{tr("الدولة")}</th>
+                                <th className="text-start p-3 font-arabic">{tr("الحالة")}</th>
+                                <th className="text-start p-3 font-arabic">{tr("إجراءات")}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {users.map((u) => (
+                                <tr key={u.id} className="border-t border-[var(--border)] hover:bg-[var(--surface-elevated)]/50">
+                                    <td className="p-3 font-bold text-[var(--text)]">
+                                        <button data-testid={`user-open-${u.id}`} onClick={() => setActiveUserId(u.id)} className="text-start hover:text-[var(--primary)] hover:underline">{u.name}</button>
+                                    </td>
+                                    <td className="p-3 text-[var(--text-muted)] hidden sm:table-cell text-xs">{u.email}</td>
+                                    <td className="p-3 text-[var(--text-muted)]">{u.country_code}</td>
+                                    <td className="p-3">
+                                        {u.banned ? <span className="text-red-500 font-bold">{tr("محظور")}</span> : u.verified ? <span className="text-[var(--success)] font-bold">{tr("موثّق")}</span> : <span className="text-[var(--text-muted)]">{tr("عادي")}</span>}
+                                    </td>
+                                    <td className="p-3 flex gap-1">
+                                        {!u.verified && <button data-testid={`user-verify-${u.id}`} onClick={async () => { await api.post(`/admin/users/${u.id}/verify`); reload(); }} className="bg-[var(--primary)]/15 text-[var(--primary)] px-2 py-1 rounded-full text-xs font-bold">{tr("توثيق")}</button>}
+                                        {u.banned ? (
+                                            <button data-testid={`user-unban-${u.id}`} onClick={async () => { await api.post(`/admin/users/${u.id}/unban`); reload(); }} className="bg-[var(--success)]/15 text-[var(--success)] px-2 py-1 rounded-full text-xs font-bold">{tr("إلغاء حظر")}</button>
+                                        ) : (
+                                            <button data-testid={`user-ban-${u.id}`} onClick={async () => { await api.post(`/admin/users/${u.id}/ban`); reload(); }} className="bg-red-500/15 text-red-500 px-2 py-1 rounded-full text-xs font-bold">{tr("حظر")}</button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {users.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-xs text-[var(--text-muted)]">{tr("لا توجد نتائج")}</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {activeUserId && <UserDetailsDrawer userId={activeUserId} onClose={() => setActiveUserId(null)} onChanged={reload} />}
+        </div>
+    );
+}
+
+function UserDetailsDrawer({ userId, onClose, onChanged }) {
+    const [data, setData] = useState(null);
+    const [busy, setBusy] = useState(false);
+    useEffect(() => {
+        let cancelled = false;
+        api.get(`/admin/users/${userId}`).then(({ data }) => { if (!cancelled) setData(data); }).catch(() => { if (!cancelled) setData({ error: true }); });
+        return () => { cancelled = true; };
+    }, [userId]);
+
+    const act = async (action) => {
+        setBusy(true);
+        try {
+            await api.post(`/admin/users/${userId}/${action}`);
+            const { data: fresh } = await api.get(`/admin/users/${userId}`);
+            setData(fresh);
+            onChanged?.();
+        } catch (_) { /* swallow */ }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[200] flex justify-end bg-black/50" data-testid="user-details-drawer" onClick={onClose}>
+            <div className="w-full sm:w-[480px] max-w-full h-full bg-[var(--bg)] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between px-4 py-3">
+                    <h3 className="font-arabic font-black text-lg text-[var(--text)]">{tr("تفاصيل المستخدم")}</h3>
+                    <button data-testid="user-drawer-close" onClick={onClose} className="bg-[var(--surface-elevated)] rounded-full w-9 h-9 flex items-center justify-center"><X className="w-4 h-4" /></button>
+                </div>
+                {!data ? <div className="p-8 text-center font-arabic">{tr("جاري التحميل...")}</div> : data.error ? <div className="p-8 text-center text-red-500 font-arabic-body">{tr("تعذر تحميل البيانات")}</div> : (
+                    <div className="p-4 space-y-4">
+                        <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-2">
+                            <div className="flex items-center gap-3">
+                                {data.user?.avatar_url
+                                    ? <img src={data.user.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover" />
+                                    : <div className="w-14 h-14 rounded-full bg-[var(--primary)]/15 flex items-center justify-center font-arabic font-black text-[var(--primary)] text-xl">{(data.user?.name || "?")[0]}</div>
+                                }
+                                <div className="min-w-0">
+                                    <div className="font-arabic font-black text-lg text-[var(--text)] truncate">{data.user?.name}</div>
+                                    <div className="text-xs text-[var(--text-muted)] truncate">{data.user?.email}</div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 text-xs font-arabic-body gap-1.5 pt-2 border-t border-[var(--border)]/40">
+                                <div><span className="text-[var(--text-muted)]">{tr("الجوال")}:</span> <span className="font-bold">{data.user?.phone_full || "—"}</span></div>
+                                <div><span className="text-[var(--text-muted)]">{tr("المدينة")}:</span> <span className="font-bold">{data.user?.city || "—"}</span></div>
+                                <div><span className="text-[var(--text-muted)]">{tr("الدولة")}:</span> <span className="font-bold">{data.user?.country_code}</span></div>
+                                <div><span className="text-[var(--text-muted)]">{tr("الدور")}:</span> <span className="font-bold">{data.user?.role}</span></div>
+                                <div><span className="text-[var(--text-muted)]">{tr("التسجيل")}:</span> <span className="font-bold">{(data.user?.created_at || "").slice(0, 10)}</span></div>
+                                <div><span className="text-[var(--text-muted)]">{tr("آخر دخول")}:</span> <span className="font-bold">{(data.user?.last_seen || "—").slice(0, 16)}</span></div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 pt-2">
+                                {!data.user?.verified && <button data-testid="drawer-verify" disabled={busy} onClick={() => act("verify")} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold disabled:opacity-50">{tr("توثيق الحساب")}</button>}
+                                {data.user?.banned
+                                    ? <button data-testid="drawer-unban" disabled={busy} onClick={() => act("unban")} className="bg-[var(--success)] text-white px-3 py-1.5 rounded-full text-xs font-bold disabled:opacity-50">{tr("إلغاء الحظر")}</button>
+                                    : <button data-testid="drawer-ban" disabled={busy} onClick={() => act("ban")} className="bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold disabled:opacity-50">{tr("حظر")}</button>
+                                }
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                            <Stat label={tr("الإعلانات")} value={data.stats?.listings_total || 0} />
+                            <Stat label={tr("بلاغات ضدّه")} value={data.stats?.reports_against || 0} />
+                            <Stat label={tr("آخر رسالة")} value={(data.stats?.last_message_at || "—").slice(0, 10)} />
+                        </div>
+
+                        <div>
+                            <h4 className="font-arabic font-bold text-sm text-[var(--text)] mb-2">{tr("إعلانات هذا المستخدم")}</h4>
+                            {(data.listings || []).length === 0 ? <div className="text-xs text-[var(--text-muted)] font-arabic-body bg-[var(--surface)] rounded-xl p-4 border border-[var(--border)]">{tr("لا توجد إعلانات")}</div> : (
+                                <div className="space-y-2">
+                                    {(data.listings || []).map((l) => (
+                                        <div key={l.id} className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-2 flex items-center gap-2">
+                                            {l.images?.[0] && <img src={l.images[0]} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
+                                            <div className="flex-1 min-w-0">
+                                                <Link to={`/listing/${l.id}`} target="_blank" rel="noreferrer" className="font-arabic font-bold text-xs text-[var(--text)] hover:text-[var(--primary)] block truncate">{l.title}</Link>
+                                                <div className="text-[10px] text-[var(--text-muted)] font-latin">{l.price} {l.currency} • {l.status} • {l.moderation}</div>
+                                                {l.moderation_flags?.length > 0 && <div className="text-[9px] text-red-500 font-arabic-body">{tr("علامات")}: {l.moderation_flags.join(", ")}</div>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function Stat({ label, value }) {
+    return (
+        <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)]">
+            <div className="font-latin font-black text-xl text-[var(--text)]">{value}</div>
+            <div className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-0.5">{label}</div>
         </div>
     );
 }
@@ -552,7 +705,7 @@ function ReportsPanel() {
 }
 
 function NotificationsPanel() {
-    const [form, setForm] = useState({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14 });
+    const [form, setForm] = useState({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14, url: "", image: "" });
     const [busy, setBusy] = useState(false);
     const [result, setResult] = useState(null);
     const [suggesting, setSuggesting] = useState(false);
@@ -583,7 +736,7 @@ function NotificationsPanel() {
                 send_at: sendDate.toISOString(),
             });
             setSchedAt("");
-            setForm({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14 });
+            setForm({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14, url: "", image: "" });
             await loadSchedules();
             alert(tr("تم جدولة الإشعار ✅"));
         } catch (e) {
@@ -606,7 +759,7 @@ function NotificationsPanel() {
         try {
             const { data } = await api.post("/admin/notifications/broadcast", form);
             setResult(data);
-            setForm({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14 });
+            setForm({ title: "", body: "", target: "all", country_code: "", category: "", inactive_days: 14, url: "", image: "" });
         } catch (e) {
             alert(e.response?.data?.detail || "تعذر الإرسال");
         } finally { setBusy(false); }
@@ -654,6 +807,18 @@ function NotificationsPanel() {
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("النص")}</label>
                         <textarea data-testid="notif-body" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} maxLength={500} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder={tr("اكتشف صفقات حصرية على الإعلانات الجديدة!")} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("رابط الفتح (Deep Link)")}</label>
+                            <input data-testid="notif-url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} maxLength={300} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)] font-latin" placeholder="/listing/abc123  •  /auctions  •  https://..." />
+                            <p className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-1">{tr("اتركه فارغاً ليُفتح التطبيق على الرئيسية")}</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1">{tr("صورة (اختياري)")}</label>
+                            <input data-testid="notif-image" type="url" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} maxLength={400} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)] font-latin" placeholder="https://res.cloudinary.com/.../image.jpg" />
+                            {form.image && <img src={form.image} alt="" className="mt-2 max-h-24 rounded-xl border border-[var(--border)]" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                        </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>

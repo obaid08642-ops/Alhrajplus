@@ -13,13 +13,14 @@ self.addEventListener("push", (event) => {
         payload = { title: "الحراج بلس", body: event.data ? event.data.text() : "" };
     }
     const title = payload.title || "الحراج بلس";
+    const richImage = payload.image || payload.data?.image || null;
     const options = {
         body: payload.body || "",
         icon: "/icon-192.png",
         badge: "/icon-192.png",
         dir: "rtl",
         lang: "ar",
-        data: { url: payload.url || "/", ...(payload.data || {}) },
+        data: { url: payload.url || "/", image: richImage, ...(payload.data || {}) },
         // Native vibration pattern — Android only (iOS Safari ignores).
         vibrate: payload.data?.type === "new_message" ? [80, 40, 80] : [40, 20, 40],
         tag: payload.data?.type || "haraj-plus",
@@ -29,6 +30,8 @@ self.addEventListener("push", (event) => {
         sound: "/notif.mp3",
         requireInteraction: false,
     };
+    // Rich notification image (Chrome desktop + Android). iOS / Safari ignore.
+    if (richImage) options.image = richImage;
     event.waitUntil(self.registration.showNotification(title, options));
 });
 

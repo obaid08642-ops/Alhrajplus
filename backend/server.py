@@ -4062,6 +4062,24 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         new_flags = detect_moderation_flags(text_check)
         update_data["moderation"] = "pending" if new_flags else "approved"
         update_data["moderation_flags"] = new_flags
+        # Notify admins if new flags appeared on this update (best-effort)
+        if new_flags and not (item.get("moderation_flags") == new_flags):
+            try:
+                admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).limit(10).to_list(length=10)
+                flags_summary = ", ".join(new_flags[:3]) or "محتوى مشبوه"
+                edited_title = update_data.get("title", item.get("title") or "")
+                for adm in admins:
+                    await _send_user_notification(
+                        user_id=adm["id"],
+                        title="🚩 تعديل إعلان بانتظار المراجعة",
+                        body=f"«{edited_title[:50]}» — {flags_summary}",
+                        ntype="moderation_flagged",
+                        url=f"/admin/listings/{listing_id}",
+                        extra_data={"listing_id": listing_id, "flags": new_flags, "kind": "update"},
+                        pref_key="broadcasts",
+                    )
+            except Exception as _ne:
+                logger.warning(f"[mod-update] admin notify failed: {_ne}")
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     old_price = item.get("price") or 0
     new_price = update_data.get("price", old_price)
@@ -4370,16 +4388,21 @@ async def admin_listings(
     moderation: Optional[str] = None,
     country_code: Optional[str] = None,
     q: Optional[str] = None,
+    flagged: Optional[bool] = None,
     limit: int = 50,
     skip: int = 0,
 ):
-    """Full admin listing browser. Supports filter + lightweight search."""
+    """Full admin listing browser. Supports filter + lightweight search.
+    `flagged=true` → only listings with at least one moderation_flag.
+    """
     limit = max(1, min(int(limit or 50), 200))
     skip = max(0, int(skip or 0))
     query: dict = {}
     if status: query["status"] = status
     if moderation: query["moderation"] = moderation
     if country_code: query["country_code"] = country_code.upper()
+    if flagged:
+        query["moderation_flags"] = {"$exists": True, "$not": {"$size": 0}}
     if q:
         import re as _re
         rx = {"$regex": _re.escape(q.strip()), "$options": "i"}
@@ -4446,8 +4469,49 @@ async def admin_reject(lid: str, user: dict = Depends(require_admin)):
     return {"updated": r.modified_count}
 
 @admin_router.get("/users")
-async def admin_users(limit: int = 100):
-    return await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+async def admin_users(limit: int = 100, q: Optional[str] = None, country_code: Optional[str] = None, banned: Optional[bool] = None, verified: Optional[bool] = None):
+    """List users with simple filters."""
+    query: dict = {}
+    if country_code: query["country_code"] = country_code.upper()
+    if banned is True: query["banned"] = True
+    elif banned is False: query["$or"] = [{"banned": False}, {"banned": {"$exists": False}}]
+    if verified is True: query["verified"] = True
+    elif verified is False: query["$or"] = [{"verified": False}, {"verified": {"$exists": False}}]
+    if q:
+        import re as _re
+        rx = {"$regex": _re.escape(q.strip()), "$options": "i"}
+        # We use $and so that the user-filter $or above is preserved if both apply
+        existing_or = query.pop("$or", None)
+        ors = [{"name": rx}, {"email": rx}, {"phone_full": rx}, {"phone": rx}]
+        query["$and"] = [{"$or": ors}] + ([{"$or": existing_or}] if existing_or else [])
+    return await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+
+
+@admin_router.get("/users/{uid}")
+async def admin_user_details(uid: str):
+    """Full profile + activity for a single user (admin view)."""
+    u = await db.users.find_one({"id": uid}, {"_id": 0, "password_hash": 0})
+    if not u:
+        raise HTTPException(404, "User not found")
+    listings = await db.listings.find({"user_id": uid}, {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "status": 1, "moderation": 1, "moderation_flags": 1, "created_at": 1, "images": 1, "country_code": 1}).sort("created_at", -1).limit(50).to_list(length=50)
+    listings_total = await db.listings.count_documents({"user_id": uid})
+    favorites_total = await db.favorites.count_documents({"user_id": uid}) if hasattr(db, "favorites") else 0
+    reports_against = await db.reports.count_documents({"target_id": uid, "target_type": "user"})
+    last_message = None
+    try:
+        last_message = await db.messages.find_one({"$or": [{"sender_id": uid}, {"receiver_id": uid}]}, {"_id": 0, "ts": 1}, sort=[("ts", -1)])
+    except Exception:
+        pass
+    return {
+        "user": u,
+        "stats": {
+            "listings_total": listings_total,
+            "favorites_total": favorites_total,
+            "reports_against": reports_against,
+            "last_message_at": (last_message or {}).get("ts"),
+        },
+        "listings": listings,
+    }
 
 @admin_router.post("/users/{uid}/ban")
 async def admin_ban(uid: str, user: dict = Depends(require_admin)):
@@ -4622,6 +4686,13 @@ class BroadcastIn(BaseModel):
     country_code: Optional[str] = None
     category: Optional[str] = None  # used when target=category
     inactive_days: Optional[int] = None  # used when target=inactive (default 14)
+    # NEW: optional deep-link URL the notification should open (e.g. /listing/<id>,
+    # /chat, /auctions, or an absolute https URL). Mobile uses Linking, web uses
+    # window.location. Empty string → default to "/".
+    url: Optional[str] = None
+    # NEW: optional image URL (rich push). Expo supports `richContent.image`,
+    # web push uses the icon. If omitted, no image is attached.
+    image: Optional[str] = None
 
 # ============================================================
 # Admin Finance + SEO
@@ -4698,9 +4769,12 @@ async def broadcast_notification(body: BroadcastIn):
             {"last_seen": {"$exists": False}},
         ]
     user_ids = [u["id"] async for u in db.users.find(q, {"_id": 0, "id": 1})]
+    deep_url = (body.url or "/").strip() or "/"
     docs = [
         {"id": str(uuid.uuid4()), "user_id": uid, "title": body.title, "body": body.body,
-         "type": "admin_broadcast", "read": False, "ts": datetime.now(timezone.utc).isoformat()}
+         "type": "admin_broadcast", "read": False, "ts": datetime.now(timezone.utc).isoformat(),
+         "url": deep_url, "image": body.image or None,
+         "data": {"type": "admin_broadcast", "url": deep_url, "image": body.image or None}}
         for uid in user_ids
     ]
     if docs:
@@ -4711,11 +4785,13 @@ async def broadcast_notification(body: BroadcastIn):
             db, user_ids,
             title=body.title,
             body=body.body,
-            url="/",
-            data={"type": "admin_broadcast"},
+            url=deep_url,
+            data={"type": "admin_broadcast", "url": deep_url, "image": body.image or None},
             pref_key="broadcasts",
+            image=body.image or None,
         ))
-    return {"sent": len(docs), "target": body.target, "push_devices": await db.push_tokens.count_documents({"user_id": {"$in": user_ids}}) if user_ids else 0}
+    return {"sent": len(docs), "target": body.target, "url": deep_url, "image": body.image or None,
+            "push_devices": await db.push_tokens.count_documents({"user_id": {"$in": user_ids}}) if user_ids else 0}
 
 
 @admin_router.post("/notifications/test")

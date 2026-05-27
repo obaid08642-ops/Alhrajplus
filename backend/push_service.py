@@ -29,15 +29,15 @@ VAPID_CLAIM_EMAIL = os.environ.get("VAPID_CLAIM_EMAIL", "mailto:admin@alhrajplus
 
 
 # ---------- Expo ----------
-async def _send_expo(tokens: list[str], title: str, body: str, data: dict) -> int:
+async def _send_expo(tokens: list[str], title: str, body: str, data: dict, image: Optional[str] = None) -> int:
     if not tokens:
         return 0
     # Expo accepts up to 100 messages per request.
     sent = 0
     chunks = [tokens[i : i + 100] for i in range(0, len(tokens), 100)]
     for chunk in chunks:
-        messages = [
-            {
+        def _msg(t):
+            m = {
                 "to": t,
                 "sound": "default",
                 "title": title,
@@ -46,8 +46,12 @@ async def _send_expo(tokens: list[str], title: str, body: str, data: dict) -> in
                 "priority": "high",
                 "channelId": "default",
             }
-            for t in chunk
-        ]
+            if image:
+                # iOS rich notifications (mutable-content + attachment) + Android big-picture.
+                m["richContent"] = {"image": image}
+                m["mutableContent"] = True
+            return m
+        messages = [_msg(t) for t in chunk]
         try:
             async with httpx.AsyncClient(timeout=15.0) as cx:
                 await cx.post(EXPO_API, json=messages, headers={"Content-Type": "application/json", "Accept": "application/json"})
@@ -115,6 +119,7 @@ async def send_push_to_users(
     url: str = "",
     data: Optional[dict] = None,
     pref_key: Optional[str] = None,
+    image: Optional[str] = None,
 ) -> dict:
     """Fan out push to every Expo + Web token registered for the given users.
 
@@ -122,6 +127,8 @@ async def send_push_to_users(
     will be skipped. Defaults: all prefs True.
     `url`: deep-link target. Web service-worker uses it on notification click;
     mobile clients should read it from `data.url`.
+    `image`: optional HTTPS image URL — Expo supports it via `richContent.image`,
+    web push relays it through `data.image` so the SW can render it.
     """
     uids = [u for u in {*user_ids} if u]
     if not uids:
@@ -140,6 +147,8 @@ async def send_push_to_users(
         return {"expo": 0, "web": 0}
 
     payload_data = {**(data or {}), "url": url, "title": title, "body": body}
+    if image:
+        payload_data["image"] = image
 
     docs = await db.push_tokens.find(
         {"user_id": {"$in": uids}},
@@ -153,8 +162,8 @@ async def send_push_to_users(
         await db.push_tokens.delete_one({"kind": "web", "web_subscription.endpoint": endpoint})
 
     expo_sent, web_sent = await asyncio.gather(
-        _send_expo(expo_tokens, title, body, payload_data),
-        _send_web(web_subs, {"title": title, "body": body, "url": url, "data": payload_data}, _on_gone),
+        _send_expo(expo_tokens, title, body, payload_data, image=image),
+        _send_web(web_subs, {"title": title, "body": body, "url": url, "image": image, "data": payload_data}, _on_gone),
     )
     return {"expo": expo_sent, "web": web_sent}
 

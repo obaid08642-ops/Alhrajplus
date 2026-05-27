@@ -19,7 +19,73 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
-## ✅ Session 22 — Feb 2026 — Production Hardening (Smart Banner + Admin Test + Chat Listing Card)
+## ✅ Session 23 — Feb 2026 — Final Production Hardening (Admin + Push DeepLink + Moderation)
+
+### 👥 Admin User Management — Click-Through Details
+- ✅ NEW `GET /api/admin/users/{uid}` — returns full profile + stats (listings_total, favorites_total, reports_against, last_message_at) + 50 most recent listings (with moderation_flags).
+- ✅ `GET /api/admin/users` upgraded with filters: `q` (name/email/phone), `country_code`, `banned`, `verified`.
+- ✅ Frontend `UsersPanel` rewritten with filter form + clickable user names that open a slide-in **UserDetailsDrawer** showing:
+  - Avatar, contact info, registration + last-seen
+  - Stats grid (listings, reports, last message)
+  - **Inline ban / unban / verify actions**
+  - List of user's listings with thumbnails + moderation_flags badges
+
+### 🚩 Listings Moderation — Flagged Tab + Update Notifications
+- ✅ `GET /api/admin/listings` now accepts `flagged=true` to surface only listings with at least one `moderation_flags`.
+- ✅ Listings rows now display **red flag badges** under the title (up to 3 visible, including banned_word labels).
+- ✅ NEW: when a listing UPDATE introduces new moderation flags, admins receive an in-app + push notification (mirrors the existing create-path behavior).
+
+### 🔔 Push Notifications — Deep Link + Rich Image
+- ✅ `BroadcastIn` schema extended with optional `url` (deep link) + `image` (rich content URL).
+- ✅ `send_push_to_users()` now accepts `image=` and propagates to:
+  - Expo: `richContent.image` + `mutableContent=true` (iOS attachment + Android big-picture)
+  - Web Push payload (carried via `data.image`)
+- ✅ Service worker (`/app/frontend/public/sw.js`) now displays `options.image` for rich notifications on Chrome desktop + Android.
+- ✅ Frontend `NotificationsPanel` got two new fields: **Deep Link URL** (with helper text + examples) and **Image URL** (with live preview thumbnail).
+- ✅ Broadcast notifications are now stored with `url` + `image` + structured `data` so deep-link routing works on click for both web and mobile.
+
+### 🤖 AI Suggestions Button
+- ✅ Verified `GET /api/admin/notifications/ai-suggest` is wired and returns 3 suggestions via Gemini 2.5 Flash. The "اقتراحات AI" button in `NotificationsPanel` already consumes them and populates the title/body inputs.
+
+### 🌐 SEO Automation — Already Live (verified)
+- ✅ `ListingSEO` component renders dynamic per-listing meta on `/listing/{id}`: title, description, keywords (auto-built from title+category+tokens), Open Graph image, Twitter card, JSON-LD Product schema, hreflang alternates (6 langs), Apple Smart Banner + custom-scheme deep link.
+- ✅ `/api/sitemap.xml` returns 198 URLs (192 listings + 6 static). Verified live.
+- ✅ Firebase Hosting rewrite (`/sitemap.xml` → `/api/sitemap.xml`) already in `/app/firebase.json` for production.
+- ✅ IndexNow auto-ping on create/update (Bing, Yandex, Seznam, Naver) + Google IndexNow + Google sitemap ping on broadcast.
+
+### Files Modified (Session 23)
+**Backend:**
+- MOD `/app/backend/server.py`
+  - `BroadcastIn`: added `url` + `image`
+  - `/admin/notifications/broadcast`: stores + propagates url/image
+  - `/admin/users`: filters (q, country_code, banned, verified)
+  - NEW `/admin/users/{uid}` (details + stats + listings)
+  - `/admin/listings`: added `flagged` filter
+  - `update_listing`: notify admins when new moderation flags appear on update
+- MOD `/app/backend/push_service.py`: `image` param threaded through Expo + Web Push
+
+**Frontend:**
+- MOD `/app/frontend/src/pages/AdminPage.js`:
+  - `UsersPanel` rewrite (filters + clickable rows)
+  - NEW `UserDetailsDrawer` + `Stat` mini-component
+  - `ListingsPanel`: Flagged toggle + red flag badges
+  - `NotificationsPanel`: URL + Image fields, form state reset includes new fields
+- MOD `/app/frontend/public/sw.js`: rich-image push display
+
+### 🧪 Verification (curl + lint, no testing agent)
+```
+/admin/listings?flagged=true  → total:0 (correct — none in DB)
+/admin/users?q=ad             → 1 result (مدير الموقع)
+/admin/users/{admin_id}       → stats {listings:10, reports:0, last_msg:2026-05-14}
+/admin/notifications/ai-suggest → 3 suggestions  (first: "مزادات الحراج بلس بانتظارك!")
+/admin/notifications/broadcast  → {sent:4, url:"/auctions", image:"...", target:verified}
+/api/sitemap.xml               → 198 URLs (192 listings + statics)
+```
+All lints clean. Backend startup logs ENV warnings correctly.
+
+---
+
+
 
 ### 📲 Smart Banner + /download Landing Page
 - ✅ NEW `/app/frontend/src/lib/platform.js` — shared `detectPlatform()` (iOS/Android/**Huawei**/Desktop) + `storeUrlFor(platform)` + `STORE_URLS` constants.
