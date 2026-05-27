@@ -149,6 +149,33 @@ export default function ChatPage() {
         api.get(`/listings/${lid}`).then(({ data }) => setListingCtx(data)).catch(() => {});
     }, [activeConvoId, messages, initialListing, listingCtx]);
 
+    // ----------- Auto-send "listing card" first message -----------
+    // When the user opens the chat from a listing detail page (?to=<seller>&listing=<id>)
+    // and the conversation has NO prior message referencing this listing,
+    // send a templated intro message so both buyer and seller have a clear
+    // anchor of which ad is being discussed. Runs exactly once per (convo,listing).
+    const autoSentRef = useRef(new Set());
+    useEffect(() => {
+        if (!user || !activeConvoId || !activeOther?.id) return;
+        if (!initialListing || !listingCtx) return;
+        const key = `${activeConvoId}::${initialListing}`;
+        if (autoSentRef.current.has(key)) return;
+        // If any existing message already references this listing, skip — we
+        // don't want to spam on every page reload.
+        const alreadyRefs = (messages || []).some((m) => m.listing_id === initialListing);
+        if (alreadyRefs) { autoSentRef.current.add(key); return; }
+        // Only auto-send for buyers (current user is NOT the listing owner).
+        if (listingCtx.user_id && listingCtx.user_id === user.id) { autoSentRef.current.add(key); return; }
+        autoSentRef.current.add(key);
+        const origin = (typeof window !== "undefined" && window.location?.origin) || "";
+        const text = `📌 ${tr("استفسار عن")}: ${listingCtx.title}\n${origin}/listing/${listingCtx.id}`;
+        api.post("/chat/send", {
+            receiver_id: activeOther.id,
+            listing_id: initialListing,
+            text,
+        }).catch(() => { /* WS broadcast or next reload will reconcile */ });
+    }, [user, activeConvoId, activeOther?.id, initialListing, listingCtx, messages, tr]);
+
     const scrollRef = useRef(null);
     const inputRef = useRef(null);
     const isAtBottomRef = useRef(true);

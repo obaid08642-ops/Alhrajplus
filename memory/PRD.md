@@ -19,6 +19,60 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
+## ✅ Session 22 — Feb 2026 — Production Hardening (Smart Banner + Admin Test + Chat Listing Card)
+
+### 📲 Smart Banner + /download Landing Page
+- ✅ NEW `/app/frontend/src/lib/platform.js` — shared `detectPlatform()` (iOS/Android/**Huawei**/Desktop) + `storeUrlFor(platform)` + `STORE_URLS` constants.
+- ✅ Huawei detection via `HMSCore`, `HuaweiBrowser`, `; HUAWEI`, `; HONOR` UA tokens.
+- ✅ UPDATED `/app/frontend/src/components/SmartAppBanner.js` — now uses shared helper, supports Huawei → AppGallery. Hides banner if env URL is empty (no broken links).
+- ✅ NEW `/app/frontend/src/pages/DownloadPage.js` route `/download`:
+  - 3 store cards (App Store / Google Play / AppGallery) with QR codes (`qrcode.react@4.2.0`)
+  - **Mobile auto-redirect** to the matching store with a 250ms grace period + manual fallback link
+  - **Desktop stays on the page** and sees the QR grid
+  - Cards with empty env render as "قريباً" placeholders (no broken QR / dead links)
+  - Clickable buttons always render alongside QR as fallback for failed scans
+- ✅ NEW env var: `REACT_APP_APPGALLERY_URL` added to `/app/frontend/.env`
+
+### 🔔 Push Notifications — Production Verification
+- ✅ NEW endpoint `POST /api/admin/notifications/test` — sends an admin-only test push (DB insert + Expo + Web Push) so admins can verify the full pipeline.
+- ✅ NEW button in Admin → Notifications panel: **«إشعار تجريبي»** → calls the test endpoint and shows the Expo + Web push counts in an alert.
+
+### 🛡 Backend ENV Validation (Fail-Soft)
+- ✅ On startup, the backend now logs `[env] ✅ <KEY>` or `[env] ⚠️  <KEY> is NOT set — <reason>` for: JWT_SECRET, MONGO_URL, EMERGENT_LLM_KEY, RESEND_API_KEY, BACKEND_PUBLIC_URL, EXPO_PROJECT_ID, EXPO_ACCESS_TOKEN, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CLOUDINARY_*. Logs warnings — never crashes.
+
+### 💬 Chat — Auto Listing Card First Message
+- ✅ `/app/frontend/src/pages/ChatPage.js`: when buyer opens chat via `?to=<seller>&listing=<id>` AND no prior message references that listing, the frontend auto-sends a templated intro:
+  - `📌 استفسار عن: <title>\n<origin>/listing/<id>`
+  - Includes `listing_id` so the existing **listing context card** sticky pins at the top of the thread.
+  - Runs **exactly once** per (convo, listing) via `autoSentRef` Set guard — survives reloads without re-sending.
+  - Skipped if the current user IS the listing owner.
+
+### Files Modified (Session 22)
+- NEW `/app/frontend/src/lib/platform.js`
+- NEW `/app/frontend/src/pages/DownloadPage.js`
+- MOD `/app/frontend/src/components/SmartAppBanner.js` (Huawei support)
+- MOD `/app/frontend/src/App.js` (added `/download` lazy route)
+- MOD `/app/frontend/.env` (REACT_APP_APPGALLERY_URL)
+- MOD `/app/frontend/package.json` (qrcode.react@4.2.0)
+- MOD `/app/frontend/src/pages/ChatPage.js` (auto listing card)
+- MOD `/app/frontend/src/pages/AdminPage.js` (test notification button)
+- MOD `/app/backend/server.py` (ENV validation, /admin/notifications/test endpoint)
+
+### 🧪 Verification (curl + lint, no testing agent)
+- ✅ Lint: all modified files clean
+- ✅ `POST /api/admin/notifications/test` → `{sent:true, push:{expo:0,web:0}}` (200)
+- ✅ `GET /api/admin/listings?limit=2` → 192 total, 2 items
+- ✅ `GET /api/admin/data-integrity` → `{listings_no_cc:0, users_no_cc:0}`
+- ✅ `GET /api/admin/stats` → all counters populated (57 users, 192 listings, 3 ads)
+- ✅ `GET /download` → HTTP 200
+- ✅ Backend startup logs: `[env] ⚠️  EXPO_PROJECT_ID is NOT set — ...` warnings appear correctly
+
+---
+
+
+
+---
+
 ## ✅ Session 21 — Feb 2026 — Performance & Scalability (Haraj/OLX Grade)
 
 ### 🚀 New Performance Layer

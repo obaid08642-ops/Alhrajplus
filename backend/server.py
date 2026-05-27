@@ -4717,6 +4717,40 @@ async def broadcast_notification(body: BroadcastIn):
         ))
     return {"sent": len(docs), "target": body.target, "push_devices": await db.push_tokens.count_documents({"user_id": {"$in": user_ids}}) if user_ids else 0}
 
+
+@admin_router.post("/notifications/test")
+async def admin_notification_test(user: dict = Depends(require_admin)):
+    """Send a quick test notification (in-app + push) to the calling admin so
+    they can verify the full pipeline (DB insert → Expo Push → Web Push) end
+    to end without spamming users."""
+    title = "🔔 إشعار تجريبي من لوحة الأدمن"
+    body = "إذا وصلك هذا الإشعار، فإن نظام الإشعارات يعمل بشكل سليم ✅"
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "title": title,
+        "body": body,
+        "type": "admin_test",
+        "read": False,
+        "ts": now,
+        "created_at": now,
+    }
+    await db.notifications.insert_one(doc)
+    push_result = {}
+    try:
+        push_result = await _send_push(
+            db, [user["id"]],
+            title=title,
+            body=body,
+            url="/admin",
+            data={"type": "admin_test"},
+            pref_key=None,  # ignore prefs for test
+        ) or {}
+    except Exception as e:
+        push_result = {"error": str(e)}
+    return {"sent": True, "notification_id": doc["id"], "push": push_result}
+
 @admin_router.get("/notifications/ai-suggest")
 async def ai_suggest_notifications():
     """Use Gemini to suggest 3 engaging push notifications based on app activity."""
@@ -6680,6 +6714,27 @@ async def startup():
     the container to be listening within ~240s; blocking on Mongo here would
     surface as 'failed to start and listen on the port'.
     """
+    # ----- ENV validation (production hardening). Log warnings only, never crash. -----
+    _env_advice = {
+        "JWT_SECRET": "JWT signing secret — set to a 32+ random string in production.",
+        "MONGO_URL": "MongoDB connection string.",
+        "EMERGENT_LLM_KEY": "Unlocks Gemini/Claude/OpenAI AI features. Get it from Profile → Universal Key.",
+        "RESEND_API_KEY": "Required to send real emails (verification, password reset, digest). Optional in dev.",
+        "BACKEND_PUBLIC_URL": "Public HTTPS URL of this backend — used by mobile OAuth callbacks and Apple Sign-In.",
+        "EXPO_PROJECT_ID": "Expo project id — required to send push to the mobile app via Expo Push.",
+        "EXPO_ACCESS_TOKEN": "Optional, only needed for Expo Push v2 enhanced rate limits.",
+        "VAPID_PUBLIC_KEY": "Web Push public key — required for browser push subscriptions.",
+        "VAPID_PRIVATE_KEY": "Web Push private key — required to actually deliver browser push.",
+        "CLOUDINARY_CLOUD_NAME": "Cloudinary cloud name — required for image/video uploads.",
+        "CLOUDINARY_API_KEY": "Cloudinary API key — required for signed uploads.",
+        "CLOUDINARY_API_SECRET": "Cloudinary API secret — required for signed uploads.",
+    }
+    for k, advice in _env_advice.items():
+        if not os.environ.get(k, "").strip():
+            logger.warning(f"[env] ⚠️  {k} is NOT set — {advice}")
+        else:
+            logger.info(f"[env] ✅ {k} configured")
+
     try:
         # Probe Mongo with a short timeout — if it fails we still come up so
         # the platform can show a useful error in the response body.

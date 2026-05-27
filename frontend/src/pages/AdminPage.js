@@ -623,6 +623,17 @@ function NotificationsPanel() {
         } finally { setSuggesting(false); }
     };
 
+    const [testing, setTesting] = useState(false);
+    const sendTest = async () => {
+        setTesting(true);
+        try {
+            const { data } = await api.post("/admin/notifications/test");
+            alert(`${tr("✅ تم إرسال الإشعار التجريبي إلى حسابك")}\n\nExpo: ${data?.push?.expo ?? 0}  •  Web: ${data?.push?.web ?? 0}`);
+        } catch (e) {
+            alert(e?.response?.data?.detail || tr("تعذر إرسال الإشعار التجريبي"));
+        } finally { setTesting(false); }
+    };
+
     return (
         <div className="space-y-4">
             <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
@@ -681,6 +692,9 @@ function NotificationsPanel() {
                         </button>
                         <button data-testid="notif-ai-suggest" onClick={suggest} disabled={suggesting} className="bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] text-white px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center gap-2 disabled:opacity-50">
                             <Sparkles className="w-4 h-4" /> {suggesting ? "AI يفكر..." : "اقتراحات AI"}
+                        </button>
+                        <button data-testid="notif-test-btn" onClick={sendTest} disabled={testing} className="bg-[var(--success)] text-white px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center gap-2 disabled:opacity-50" title={tr("إرسال إشعار تجريبي لحسابك فقط")}>
+                            <Bell className="w-4 h-4" /> {testing ? tr("جاري...") : tr("إشعار تجريبي")}
                         </button>
                         <div className="flex items-center gap-2 ms-auto">
                             <input
