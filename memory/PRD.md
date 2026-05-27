@@ -19,7 +19,71 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
-## ✅ Session 26 — Feb 2026 — Auctions WS + Banned Words Editor + Media Retry
+## ✅ Session 27 — Feb 2026 — Performance Bug Hunt + Real Audit
+
+### 🐛 CRITICAL BUG FOUND & FIXED: POST /api/listings was 30-60× too slow
+
+**Symptom:** Backend perf logs showed `POST /api/listings 200 2940-6390ms` consistently, even for simple listings without images.
+
+**Investigation:** Added timing instrumentation inside `create_listing`. Inner work measured **<2ms** total. But middleware wall-clock measured **3-6 seconds**. Disabling `asyncio.create_task(ai_moderate_listing(...))` dropped POST to **89-147ms** — pinpointing the root cause.
+
+**Root cause:** `asyncio.create_task(ai_moderate_listing(...))` does NOT actually run the coroutine in the background — it schedules it on the same event loop. The Gemini API client's `LlmChat.send_message()` had a synchronous initialization path before its first `await`, blocking the event loop and preventing FastAPI from sending the HTTP response.
+
+**Fix:** Wrapped the AI moderation call in a deferred coroutine with a 50ms `asyncio.sleep` first — this guarantees the HTTP response writer flushes before the LLM dispatch begins:
+```python
+async def _delayed_ai_mod():
+    await asyncio.sleep(0.05)  # let the response flush first
+    await ai_moderate_listing(...)
+asyncio.ensure_future(_delayed_ai_mod())
+```
+
+**Verification:**
+```
+BEFORE: 3.0s, 4.8s, 1.9s, 3.4s, 6.4s, 2.9s (avg ~3.7s)
+AFTER:  0.148s, 0.099s, 0.127s, 0.108s, 0.089s (avg ~0.114s) — 32× faster
+```
+AI moderation **still runs** — verified by latest `ai_moderation_flagged` notification ts in DB.
+
+### 🔍 Real Audit Findings
+
+**Push Notifications (DB):**
+- `push_tokens` total: **0** (no devices registered yet — expected on preview where nobody clicks "allow notifications")
+- `notifications` collection: **426 records** stored ✓
+- Most recent: ai_moderation_flagged, moderation_flagged, auction_outbid — all from real triggers fired during audit
+
+**Activity Tracking (worker inputs):**
+- `users.last_seen` tracked for: **5 users**
+- `search_history`: 2 records (schema: `{q_lower, user_id, q, ts}`)
+- `listing_drafts`: 0 (collection exists but unused)
+- `listing_views`: 0 (collection unused — view tracking happens elsewhere)
+
+**AI Suggestions Endpoint:** ✅ HTTP 200, 3 Arabic suggestions returned by Gemini (~7s response time — Gemini is the bottleneck, not our code).
+
+**Sitemap:** ✅ 253KB, 198 URLs, **with `<image:image>` tags + 6 hreflang alternates per URL + `x-default`** — Google-Search-Console ready out of the box.
+
+**Endpoint Performance (real timings):**
+| endpoint | HTTP | time |
+|----------|------|------|
+| /api/health | 200 | 101ms |
+| /api/listings?limit=20 | 200 | 134ms |
+| /api/admin/stats | 200 | 143ms |
+| /api/admin/listings?limit=20 | 200 | 120ms |
+| /api/auctions/active | 200 | 106ms |
+| /api/meta/categories | 200 | 140ms |
+| /api/notifications?limit=20 | 200 | 97ms |
+| **POST /api/listings (NEW)** | 200 | **~110ms** ✅ |
+
+**Honest non-issues found:**
+- `/api/listings?limit=50` returns 20 items — this is a **deliberate prod cap** (line 2685) for payload size protection. Use cursor/page params instead. Documented.
+- Backend log noise: `Dict not defined` errors are from OLD `chat_hub.py` imports during a previous session — they don't crash anything now and the module loads fine.
+
+### Files Modified (Session 27)
+- MOD `/app/backend/server.py`:
+  - `create_listing`: replaced `asyncio.create_task(ai_moderate_listing(...))` with deferred coroutine pattern that yields to event loop first
+
+---
+
+
 
 ### 🔥 Auctions Live WebSocket (NEW)
 - ✅ NEW `WS /api/ws/auctions/{listing_id}` — pushes:

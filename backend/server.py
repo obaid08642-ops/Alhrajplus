@@ -2505,7 +2505,17 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         asyncio.create_task(_notify_category_watchers(doc))
 
     # Async AI moderation pass (Gemini classifier). Re-flags risky listings.
-    asyncio.create_task(ai_moderate_listing(doc["id"], doc.get("title", ""), doc.get("description", "")))
+    # CRITICAL: must NOT block the HTTP response. We use asyncio.ensure_future
+    # with a small initial sleep so the event loop yields to the response writer
+    # before Gemini's first network call kicks in. Otherwise the LLM dispatch
+    # can hold up the response by 3-6s on every create.
+    async def _delayed_ai_mod():
+        await asyncio.sleep(0.05)  # let the response flush first
+        try:
+            await ai_moderate_listing(doc["id"], doc.get("title", ""), doc.get("description", ""))
+        except Exception as e:
+            logger.warning(f"[ai-mod.deferred] {e}")
+    asyncio.ensure_future(_delayed_ai_mod())
 
     return doc
 
