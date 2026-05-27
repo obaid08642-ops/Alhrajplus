@@ -13,9 +13,6 @@ const CAR_OPTS = {
     condition: ["جديدة", "مستعملة", "ممتازة", "تحتاج إصلاحات"],
     listing_type: ["للبيع", "تحويل بنكي", "أقساط"],
     color: ["أبيض", "أسود", "فضي", "رمادي", "أزرق", "أحمر", "أخضر", "ذهبي", "بني", "أخرى"],
-    body_type: ["سيدان", "SUV", "كوبيه", "هاتشباك", "بيك أب", "فان", "كابريوليه", "كروس أوفر"],
-    seller_type: ["فرد", "معرض"],
-    seal_status: ["مدفوع", "معروض للتنازل"],
 };
 
 const PHONE_OPTS = {
@@ -108,14 +105,6 @@ export function CarCascadeMobile({ value, onChange }) {
             <View style={s.row}>
                 <Lab text={t("نوع الإعلان")}><Picker value={v.listing_type || ""} options={CAR_OPTS.listing_type} placeholder="—" onChange={(x) => set({ listing_type: x })} /></Lab>
                 <Lab text={t("اللون")}><Picker value={v.color || ""} options={CAR_OPTS.color} placeholder="—" onChange={(x) => set({ color: x })} /></Lab>
-            </View>
-            <View style={s.row}>
-                <Lab text={t("نوع الهيكل")}><Picker value={v.body_type || ""} options={CAR_OPTS.body_type} placeholder="—" onChange={(x) => set({ body_type: x })} /></Lab>
-                <Lab text={t("البائع")}><Picker value={v.seller_type || ""} options={CAR_OPTS.seller_type} placeholder="—" onChange={(x) => set({ seller_type: x })} /></Lab>
-            </View>
-            <View style={s.row}>
-                <Lab text={t("الجمرك")}><Picker value={v.seal_status || ""} options={CAR_OPTS.seal_status} placeholder="—" onChange={(x) => set({ seal_status: x })} /></Lab>
-                <View style={{ flex: 1 }} />
             </View>
         </View>
     );

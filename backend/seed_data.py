@@ -393,6 +393,7 @@ CATEGORIES = [
             {"key": "magazines", "name_ar": "مجلات", "name_en": "Magazines"},
         ],
         "fields": [
+            {"key": "title", "label_ar": "اسم الكتاب", "label_en": "Title", "type": "text", "required": True},
             {"key": "author", "label_ar": "المؤلف", "label_en": "Author", "type": "text", "required": False},
             {"key": "language", "label_ar": "اللغة", "label_en": "Language", "type": "select", "options": ["عربي", "إنجليزي", "آخر"], "required": False},
             {"key": "condition", "label_ar": "الحالة", "label_en": "Condition", "type": "select", "options": ["جديد", "ممتاز", "جيد"], "required": True},

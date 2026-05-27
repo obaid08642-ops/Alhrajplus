@@ -21,9 +21,6 @@ const CAR_STATIC_OPTIONS = {
     fuel_type: ["بنزين", "ديزل", "هايبرد", "كهرباء"],
     condition: ["جديدة", "مستعملة", "ممتازة", "تحتاج إصلاحات"],
     listing_type: ["للبيع", "تحويل بنكي", "أقساط"],
-    body_type: ["سيدان", "SUV", "كوبيه", "هاتشباك", "بيك أب", "فان", "كابريوليه", "كروس أوفر"],
-    seller_type: ["فرد", "معرض"],
-    seal_status: ["مدفوع", "معروض للتنازل"],
 };
 
 const PHONE_STATIC_OPTIONS = {
@@ -77,9 +74,6 @@ export function CarCascade({ value, onChange, tr = TR }) {
                 <Pick label={tr("الحالة")} value={v.condition || ""} options={CAR_STATIC_OPTIONS.condition} onChange={(x) => set({ condition: x })} testid="car-condition" />
                 <Field label={tr("اللون")} value={v.color || ""} onChange={(x) => set({ color: x })} placeholder={tr("مثال: أبيض / أسود")} testid="car-color" />
                 <Pick label={tr("نوع الإعلان")} value={v.listing_type || ""} options={CAR_STATIC_OPTIONS.listing_type} onChange={(x) => set({ listing_type: x })} testid="car-listing-type" />
-                <Pick label={tr("نوع الهيكل")} value={v.body_type || ""} options={CAR_STATIC_OPTIONS.body_type} onChange={(x) => set({ body_type: x })} testid="car-body-type" />
-                <Pick label={tr("البائع")} value={v.seller_type || ""} options={CAR_STATIC_OPTIONS.seller_type} onChange={(x) => set({ seller_type: x })} testid="car-seller-type" />
-                <Pick label={tr("الجمرك")} value={v.seal_status || ""} options={CAR_STATIC_OPTIONS.seal_status} onChange={(x) => set({ seal_status: x })} testid="car-seal-status" />
             </div>
         </div>
     );

@@ -19,31 +19,56 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
-## ✅ Session 30 — Feb 2026 — Post Listing UX Cleanup (100% Coverage)
+## ✅ Session 30 — Feb 2026 — Post Listing UX (Surgical Scope: Phones + Services Only)
 
-### 🎯 What was fixed (the actual UX scope the user was waiting on)
-- ✅ **Cascade gate fixed (Web + Mobile)**: `cars` cascade now only triggers for `category === "cars"`; phones cascade now only triggers for `category === "phones"` (was leaking onto laptops/TVs via `electronics`, and was MISSING from the real `phones` category because of the wrong `mobiles` key).
-- ✅ **Cars cascade completed**: added 3 missing seed_data fields → `body_type` (نوع الهيكل), `seller_type` (فرد/معرض), `seal_status` (الجمرك). Now matches the seed_data spec 100%.
-- ✅ **Removed duplicate `title` field from `books` category** in `seed_data.py` — it duplicated the global top-level title input.
-- ✅ **Unified "Details Box"** (Web + Mobile) — every non-cars/non-phones category now renders its custom fields inside a single titled container with a clean 2-column grid (OLX/Haraj-style):
-  - Web: `data-testid="details-box"`, `grid grid-cols-1 sm:grid-cols-2 gap-2`
-  - Mobile: `s.detailsBox` + `s.detailsGrid` flex-wrap row, `s.detailsCellHalf` (50%) / `s.detailsCellFull` (100% for long text fields like skills, languages, schedule, addresses, dimensions, etc.)
-  - Title is auto-generated: `📋 تفاصيل {pickName(cat)}`
-- ✅ **Mobile post_type segmented control at TOP** for jobs/services (was completely missing — mobile users could not set post_type at all). Mirrors the web flow exactly: 2 large pills (عرض/طلب) with sub-label.
-- ✅ **ListingTypeBadge** wired into `ListingCard.js` (corner overlay) + `ListingDetail.js` (title row, size="lg").
+### Reverted from earlier broad-scope attempt
+- ❌ Reverted: generic 2-column "DetailsBox" for all categories (web + mobile)
+- ❌ Reverted: extra car cascade fields (body_type / seller_type / seal_status)
+- ❌ Reverted: removal of `books.title` (out of scope)
 
-### Files touched
-- `/app/backend/seed_data.py` — removed `books.title`
-- `/app/frontend/src/components/CategoryCascades.js` — added body_type/seller_type/seal_status pickers
-- `/app/frontend/src/pages/PostListing.js` — cascade gate fix + DetailsBox wrapper
-- `/app/mobile/src/components/CategoryCascadesMobile.js` — same 3 extra car fields
-- `/app/mobile/src/screens/PostScreen.js` — gate fix + post_type top selector + DetailsBox styles
+### 📱 PHONES — Details Box at TOP (Web + Mobile)
+- `<PhoneCascade>` (web) / `<PhoneCascadeMobile>` (mobile) is now rendered at the very TOP of step 2, ABOVE title + description + price.
+- Strict 2-column grid (web `grid-cols-2`, mobile `s.row` with 2 `Lab` per row).
+- Fields: brand → model → storage → color + condition / RAM / warranty.
+- Generic renderer is fully suppressed for `category === "phones"` → zero duplicates anywhere on the page.
 
-### Verification (manual, no testing agent per user constraint)
-- `eslint` on all 4 touched JS files → ✅ no issues
-- `curl /api/meta/categories?lang=ar` → 23 categories, `books` now has 3 fields (was 4 with duplicate title)
-- `curl /api/meta/car-brands` → 20 brands, 31 years OK
-- `curl /api/meta/phone-brands` → 10 brands OK
+### 🛠️ SERVICES — Listing Type at TOP (Web + Mobile)
+- New top-of-step segmented control with 2 pills: `🟢 تقديم خدمة` / `🔵 طلب خدمة`, rendered ABOVE title + description.
+- Old combined jobs+services post-type block in the middle of the form was split: jobs keeps its mid-form location; services moved to TOP.
+- Generic renderer still renders the rest of services fields (service_type, frequency, schedule, pickup/dropoff, pricing_type, rate, experience, certified, available_24_7) but filters out `post_type` so it never duplicates the top selector.
+- `<ListingTypeBadge>` already wired in `ListingCard.js` (corner overlay) + `ListingDetail.js` (size="lg" pill in title row) — renders coloured badge based on `custom_fields.post_type`.
+
+### Final UI structure (Step 2)
+**Phones:**
+1. PhoneCascade (2-col) ← TOP
+2. Title
+3. Category dropdown
+4. Description
+5. Price
+
+**Services:**
+1. Services Listing Type (2 buttons) ← TOP
+2. Title
+3. Category dropdown
+4. Description
+5. (no price — skip list)
+6. Generic renderer (post_type filtered out)
+
+### Files touched (this round)
+- `/app/frontend/src/pages/PostListing.js` — moved PhoneCascade + services post_type to TOP; split jobs vs services blocks.
+- `/app/mobile/src/screens/PostScreen.js` — same as above + styles.
+- `/app/frontend/src/components/CategoryCascades.js` — reverted to original 10 fields.
+- `/app/mobile/src/components/CategoryCascadesMobile.js` — reverted to original layout.
+- `/app/backend/seed_data.py` — restored `books.title`.
+
+### Verification (manual)
+- ESLint on all 4 JS files → ✅ clean
+- `curl /api/meta/categories?lang=ar` →
+  - phones: 7 fields (brand, model, storage, ram, color, condition, warranty)
+  - services: 11 fields (post_type included — but UI filters it out, renders at top instead)
+  - books: 4 fields (title back, as expected)
+
+
 
 
 

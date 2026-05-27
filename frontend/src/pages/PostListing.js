@@ -568,6 +568,50 @@ export default function PostListing() {
 
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)]">{t("listing_details")}</h2>
 
+                    {/* ===== Phones-only details box at TOP =====
+                        Strict 2-column cascade with brand → model → storage → color +
+                        condition / RAM / warranty. Sits ABOVE title + description so the
+                        user fills the structured fields first. Generic field renderer
+                        below is skipped for `phones`, so there are zero duplicates. */}
+                    {form.category === "phones" && (
+                        <PhoneCascade
+                            value={form.custom_fields}
+                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                            tr={tr}
+                        />
+                    )}
+
+                    {/* ===== Services-only Listing Type selector at TOP =====
+                        User explicitly requested this before title + description so the
+                        intent (Offer vs Request) is the first decision. */}
+                    {form.category === "services" && (
+                        <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10 border-2 border-[var(--primary)]/30 rounded-2xl p-3" data-testid="services-post-type-top">
+                            <label className="block text-sm font-arabic font-black text-[var(--text)] mb-2 text-center">
+                                🔧 {tr("ما نوع الإعلان؟")}
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    data-testid="post-type-service-offer"
+                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "تقديم خدمة" } })}
+                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "تقديم خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                >
+                                    🟢 {tr("تقديم خدمة")}
+                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا مقدّم خدمة")}</div>
+                                </button>
+                                <button
+                                    type="button"
+                                    data-testid="post-type-service-request"
+                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "طلب خدمة" } })}
+                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "طلب خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                >
+                                    🔵 {tr("طلب خدمة")}
+                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أحتاج هذه الخدمة")}</div>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* TITLE FIRST — so auto-suggest can fill the category dropdown below. */}
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("title")} *</label>
@@ -605,11 +649,8 @@ export default function PostListing() {
                         )}
                     </div>
 
-                    {/* Cascading brand→model→year→trim for cars, brand→model→storage→color for phones.
-                        Stored under form.custom_fields so they flow through the backend untouched.
-                        Gated on the actual category keys ("cars" / "phones") — `motors`/`mobiles`
-                        do NOT exist in seed_data, the previous wider gate was leaking the phone
-                        cascade onto laptops/TVs and hiding it from the real `phones` category. */}
+                    {/* Cascading brand→model→year→trim for cars only. Phones cascade is
+                        rendered at the TOP of step 2 (above title) per the latest UX brief. */}
                     {form.category === "cars" && (
                         <CarCascade
                             value={form.custom_fields}
@@ -617,64 +658,32 @@ export default function PostListing() {
                             tr={tr}
                         />
                     )}
-                    {form.category === "phones" && (
-                        <PhoneCascade
-                            value={form.custom_fields}
-                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
-                            tr={tr}
-                        />
-                    )}
 
-                    {/* Job/Service post-type selector at TOP */}
-                    {(form.category === "jobs" || form.category === "services") && (
+                    {/* Jobs post-type selector (services has its own selector at the TOP) */}
+                    {form.category === "jobs" && (
                         <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10 border-2 border-[var(--primary)]/30 rounded-2xl p-3">
                             <label className="block text-sm font-arabic font-black text-[var(--text)] mb-2 text-center">
-                                {form.category === "jobs" ? tr("💼 ما نوع الإعلان؟") : tr("🔧 ما نوع الإعلان؟")}
+                                {tr("💼 ما نوع الإعلان؟")}
                             </label>
                             <div className="grid grid-cols-2 gap-2">
-                                {form.category === "jobs" ? (
-                                    <>
-                                        <button
-                                            type="button"
-                                            data-testid="post-type-job-offer"
-                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "عرض وظيفة" }, subcategory: "job_offer" })}
-                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "عرض وظيفة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
-                                        >
-                                            🟢 {tr("عرض وظيفة")}
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أوظّف شخص")}</div>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            data-testid="post-type-job-seeker"
-                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "باحث عن عمل" }, subcategory: "job_seeker" })}
-                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "باحث عن عمل" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
-                                        >
-                                            🔵 {tr("باحث عن عمل")}
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أبحث عن وظيفة")}</div>
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <button
-                                            type="button"
-                                            data-testid="post-type-service-offer"
-                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "تقديم خدمة" } })}
-                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "تقديم خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
-                                        >
-                                            🟢 {tr("تقديم خدمة")}
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا مقدّم خدمة")}</div>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            data-testid="post-type-service-request"
-                                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "طلب خدمة" } })}
-                                            className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "طلب خدمة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
-                                        >
-                                            🔵 {tr("طلب خدمة")}
-                                            <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أحتاج هذه الخدمة")}</div>
-                                        </button>
-                                    </>
-                                )}
+                                <button
+                                    type="button"
+                                    data-testid="post-type-job-offer"
+                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "عرض وظيفة" }, subcategory: "job_offer" })}
+                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "عرض وظيفة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                >
+                                    🟢 {tr("عرض وظيفة")}
+                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أوظّف شخص")}</div>
+                                </button>
+                                <button
+                                    type="button"
+                                    data-testid="post-type-job-seeker"
+                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "باحث عن عمل" }, subcategory: "job_seeker" })}
+                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "باحث عن عمل" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                >
+                                    🔵 {tr("باحث عن عمل")}
+                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أبحث عن وظيفة")}</div>
+                                </button>
                             </div>
                         </div>
                     )}
@@ -704,45 +713,27 @@ export default function PostListing() {
                         We skip the entire block when one of our richer cascades is mounted
                         (cars/phones) so the user never sees duplicate brand/model/year inputs
                         below the price. We also still skip post_type because it has its own
-                        segmented control above.
-
-                        For EVERY other category we wrap the fields in a unified "Details Box":
-                        a titled container with a 2-column grid layout so the post form looks
-                        consistent (OLX/Haraj-style) across furniture, real estate, jobs,
-                        services, electronics, pets, etc. */}
-                    {!(form.category === "cars" || form.category === "phones") && cat?.fields?.length > 0 && (() => {
-                        const fields = cat.fields.filter((f) => !((form.category === "jobs" || form.category === "services") && f.key === "post_type"));
-                        if (!fields.length) return null;
-                        return (
-                            <div className="bg-[var(--surface-elevated)]/40 rounded-2xl p-3 border border-[var(--border)]" data-testid="details-box">
-                                <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-2 flex items-center gap-1">
-                                    📋 {tr("تفاصيل")} {pickName(cat)}
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {fields.map((f) => (
-                                        <div key={f.key} className={f.type === "text" && (f.key === "skills" || f.key === "languages" || f.key === "benefits" || f.key === "dimensions" || f.key === "schedule" || f.key === "pickup_address" || f.key === "dropoff_address") ? "sm:col-span-2" : ""}>
-                                            <label className="block text-[10px] font-arabic font-bold text-[var(--text-muted)] mb-1">
-                                                {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}
-                                            </label>
-                                            {f.type === "select" ? (
-                                                <select data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
-                                                    <option value="">{tr("اختر...")}</option>
-                                                    {(f.options_ar || f.options || []).map((canonical, i) => {
-                                                        const label = (f.options && f.options[i]) || canonical;
-                                                        return <option key={canonical} value={canonical}>{label}</option>;
-                                                    })}
-                                                </select>
-                                            ) : f.type === "number" ? (
-                                                <input data-testid={`field-${f.key}`} type="number" value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-latin" />
-                                            ) : (
-                                                <input data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={f.placeholder || ""} />
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })()}
+                        segmented control above. */}
+                    {!(form.category === "cars" || form.category === "phones") && cat?.fields?.filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
+                        <div key={f.key}>
+                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
+                                {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}
+                            </label>
+                            {f.type === "select" ? (
+                                <select data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
+                                    <option value="">{tr("اختر...")}</option>
+                                    {(f.options_ar || f.options || []).map((canonical, i) => {
+                                        const label = (f.options && f.options[i]) || canonical;
+                                        return <option key={canonical} value={canonical}>{label}</option>;
+                                    })}
+                                </select>
+                            ) : f.type === "number" ? (
+                                <input data-testid={`field-${f.key}`} type="number" value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                            ) : (
+                                <input data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={f.placeholder || ""} />
+                            )}
+                        </div>
+                    ))}
 
                     <div>
                         <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
