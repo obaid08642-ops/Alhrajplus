@@ -703,7 +703,12 @@ export default function PostListing() {
                     )}
 
                     {/* Custom fields for category — skip post_type since it's at the top for jobs/services */}
-                    {cat?.fields?.filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
+                    {/* Generic dynamic fields renderer (from i18n_data CATEGORIES.fields).
+                        We skip the entire block when one of our richer cascades is mounted
+                        (cars/motors/mobiles/electronics) so the user never sees duplicate
+                        brand/model/year inputs below the price. We also still skip post_type
+                        because it has its own segmented control above. */}
+                    {!(form.category === "cars" || form.category === "motors" || form.category === "mobiles" || form.category === "electronics") && cat?.fields?.filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                                 {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}

@@ -8,6 +8,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
+import ListingTypeBadge from "@/components/ListingTypeBadge";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
@@ -231,6 +232,7 @@ export default function ListingDetail() {
 
                     {/* Title + price */}
                     <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
+                        <div className="mb-2"><ListingTypeBadge listing={listing} size="lg" /></div>
                         <div className="flex items-start justify-between gap-3 mb-3">
                             <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)] flex-1">{listing.title}</h1>
                             <button data-testid="share-btn" onClick={async () => {

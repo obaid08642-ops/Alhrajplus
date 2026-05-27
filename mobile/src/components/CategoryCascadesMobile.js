@@ -6,6 +6,21 @@ import api from "../api";
 import { useI18n } from "../I18nContext";
 import { colors } from "../theme";
 
+const CAR_OPTS = {
+    mileage: ["أقل من 10,000 كم", "10,000 - 50,000 كم", "50,000 - 100,000 كم", "100,000 - 200,000 كم", "أكثر من 200,000 كم"],
+    transmission: ["أوتوماتيك", "عادي (يدوي)"],
+    fuel_type: ["بنزين", "ديزل", "هايبرد", "كهرباء"],
+    condition: ["جديدة", "مستعملة", "ممتازة", "تحتاج إصلاحات"],
+    listing_type: ["للبيع", "تحويل بنكي", "أقساط"],
+    color: ["أبيض", "أسود", "فضي", "رمادي", "أزرق", "أحمر", "أخضر", "ذهبي", "بني", "أخرى"],
+};
+
+const PHONE_OPTS = {
+    condition: ["جديد", "مستعمل", "كالجديد"],
+    ram: ["4GB", "6GB", "8GB", "12GB", "16GB"],
+    warranty: ["نعم", "لا", "منتهي"],
+};
+
 function Picker({ value, options, placeholder, onChange, disabled }) {
     const [open, setOpen] = useState(false);
     const valid = !disabled && (options || []).length > 0;
@@ -79,6 +94,18 @@ export function CarCascadeMobile({ value, onChange }) {
                 <Lab text={t("السنة")}><Picker value={v.car_year || ""} options={years} placeholder="—" onChange={(y) => set({ car_year: y })} /></Lab>
                 <Lab text={t("الفئة")}><Picker value={v.car_trim || ""} options={trims} placeholder="—" disabled={!v.car_model} onChange={(tx) => set({ car_trim: tx })} /></Lab>
             </View>
+            <View style={s.row}>
+                <Lab text={t("الممشى (كم)")}><Picker value={v.mileage || ""} options={CAR_OPTS.mileage} placeholder="—" onChange={(x) => set({ mileage: x })} /></Lab>
+                <Lab text={t("ناقل الحركة")}><Picker value={v.transmission || ""} options={CAR_OPTS.transmission} placeholder="—" onChange={(x) => set({ transmission: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("نوع الوقود")}><Picker value={v.fuel_type || ""} options={CAR_OPTS.fuel_type} placeholder="—" onChange={(x) => set({ fuel_type: x })} /></Lab>
+                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={CAR_OPTS.condition} placeholder="—" onChange={(x) => set({ condition: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("نوع الإعلان")}><Picker value={v.listing_type || ""} options={CAR_OPTS.listing_type} placeholder="—" onChange={(x) => set({ listing_type: x })} /></Lab>
+                <Lab text={t("اللون")}><Picker value={v.color || ""} options={CAR_OPTS.color} placeholder="—" onChange={(x) => set({ color: x })} /></Lab>
+            </View>
         </View>
     );
 }
@@ -121,6 +148,14 @@ export function PhoneCascadeMobile({ value, onChange }) {
             <View style={s.row}>
                 <Lab text={t("السعة")}><Picker value={v.phone_storage || ""} options={storages} placeholder="—" disabled={!v.phone_model} onChange={(x) => set({ phone_storage: x })} /></Lab>
                 <Lab text={t("اللون")}><Picker value={v.phone_color || ""} options={palette} placeholder="—" disabled={!v.phone_model} onChange={(x) => set({ phone_color: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={PHONE_OPTS.condition} placeholder="—" onChange={(x) => set({ condition: x })} /></Lab>
+                <Lab text={t("الذاكرة (RAM)")}><Picker value={v.ram || ""} options={PHONE_OPTS.ram} placeholder="—" onChange={(x) => set({ ram: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("الضمان")}><Picker value={v.warranty || ""} options={PHONE_OPTS.warranty} placeholder="—" onChange={(x) => set({ warranty: x })} /></Lab>
+                <View style={{ flex: 1 }} />
             </View>
         </View>
     );

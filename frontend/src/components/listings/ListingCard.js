@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
 import { optimizeImage, buildSrcSet, lqipUrl } from "@/lib/imageOptimizer";
+import ListingTypeBadge from "@/components/ListingTypeBadge";
 
 export default function ListingCard({ listing, compact = true }) {
     const { user } = useAuth();
@@ -47,6 +48,11 @@ export default function ListingCard({ listing, compact = true }) {
                         <TrendingUp className="w-2.5 h-2.5" /> صفقة
                     </span>
                 )}
+                {/* Jobs / services intent badge — shown on top-right corner of the image overlay.
+                    Auto-hidden for non-job/service listings via the component itself. */}
+                <div className="absolute bottom-2 right-2 z-[1]">
+                    <ListingTypeBadge listing={listing} />
+                </div>
             </div>
             <div className="p-2.5 flex-1 flex flex-col justify-between">
                 <h3 className="font-arabic font-bold text-sm text-[var(--text)] line-clamp-2 mb-1.5 group-hover:text-[var(--primary)] transition-colors min-h-[2.5em]">{listing.title}</h3>

@@ -639,7 +639,9 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
             )}
 
             {/* Dynamic category fields */}
-            {(cat?.fields || []).filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
+            {/* Same suppression rule as web: hide the generic field renderer when one
+                of the structured cascades is shown so the user never sees duplicates. */}
+            {!(form.category === "cars" || form.category === "motors" || form.category === "mobiles" || form.category === "electronics") && (cat?.fields || []).filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
                 <Field key={f.key} label={`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}>
                     {f.type === "select" ? (
                         <SelectInput
