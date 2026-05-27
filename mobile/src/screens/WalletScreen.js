@@ -8,6 +8,7 @@ import { useAuth } from "../AuthContext";
 import { useCountry } from "../CountryContext";
 import api from "../api";
 import { colors, radius, shadow } from "../theme";
+import { useI18n } from "../I18nContext";
 
 export default function WalletScreen() {
     const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function WalletScreen() {
     const [claiming, setClaiming] = useState(false);
 
     const load = useCallback(async () => {
+    const { t } = useI18n();
         if (!user) { setLoading(false); return; }
         try {
             const { data: r } = await api.get("/wallet/me");
@@ -33,12 +35,12 @@ export default function WalletScreen() {
         setClaiming(true);
         try {
             const { data: r } = await api.post("/wallet/claim-welcome-bonus");
-            Alert.alert("تم!", `تم استلام مكافأتك ${r.amount} ر.س 🎉`);
+            Alert.alert(t("تم!"), `تم استلام مكافأتك ${r.amount} ر.س 🎉`);
             setData((d) => ({ ...d, balance: r.balance }));
             load();
         } catch (e) {
-            const msg = e.response?.data?.detail || "تعذر استلام المكافأة";
-            Alert.alert("تنبيه", typeof msg === "string" ? msg : "تعذر استلام المكافأة");
+            const msg = e.response?.data?.detail || t("تعذر استلام المكافأة");
+            Alert.alert(t("تنبيه"), typeof msg === "string" ? msg : t("تعذر استلام المكافأة"));
         } finally { setClaiming(false); }
     };
 
@@ -46,9 +48,9 @@ export default function WalletScreen() {
         return (
             <View style={styles.centerWrap}>
                 <Wallet size={48} color={colors.textMuted} />
-                <Text style={styles.guestText}>سجّل دخولك لعرض محفظتك</Text>
+                <Text style={styles.guestText}>{t("سجّل دخولك لعرض محفظتك")}</Text>
                 <TouchableOpacity onPress={() => nav.navigate("Login")} style={styles.signInBtn}>
-                    <Text style={styles.signInText}>تسجيل الدخول</Text>
+                    <Text style={styles.signInText}>{t("تسجيل الدخول")}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -68,7 +70,7 @@ export default function WalletScreen() {
                 <View style={{ padding: 22 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <Wallet size={18} color="#fff" />
-                        <Text style={styles.heroLabel}>رصيد محفظتك</Text>
+                        <Text style={styles.heroLabel}>{t("رصيد محفظتك")}</Text>
                     </View>
                     <Text style={styles.heroBalance}>{Number(data.balance || 0).toLocaleString()}</Text>
                     <Text style={styles.heroCurrency}>{data.currency || country?.currency_code || "SAR"}</Text>
@@ -80,12 +82,12 @@ export default function WalletScreen() {
                 <View style={styles.bonusCard}>
                     <View style={styles.bonusIcon}><Gift size={22} color={colors.accent} /></View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.bonusTitle}>مكافأة الانضمام</Text>
-                        <Text style={styles.bonusSub}>احصل على 5 ر.س مجاناً لتجربة التعزيز</Text>
+                        <Text style={styles.bonusTitle}>{t("مكافأة الانضمام")}</Text>
+                        <Text style={styles.bonusSub}>{t("احصل على 5 ر.س مجاناً لتجربة التعزيز")}</Text>
                     </View>
                     <TouchableOpacity onPress={claimBonus} disabled={claiming} style={styles.bonusBtn}>
                         {claiming ? <ActivityIndicator color={colors.secondary} size="small" /> : <Sparkles size={14} color={colors.secondary} />}
-                        <Text style={styles.bonusBtnText}>استلم</Text>
+                        <Text style={styles.bonusBtnText}>{t("استلم")}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -94,23 +96,23 @@ export default function WalletScreen() {
             <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
                 <TouchableOpacity onPress={() => nav.navigate("MyListings")} style={[styles.quickCard, { flex: 1 }]}>
                     <Sparkles size={22} color={colors.primary} />
-                    <Text style={styles.quickTitle}>عزّز إعلاناً</Text>
-                    <Text style={styles.quickSub}>5 ر.س / أسبوع</Text>
+                    <Text style={styles.quickTitle}>{t("عزّز إعلاناً")}</Text>
+                    <Text style={styles.quickSub}>{t("5 ر.س / أسبوع")}</Text>
                 </TouchableOpacity>
                 <View style={[styles.quickCard, { flex: 1, opacity: 0.55 }]}>
                     <Wallet size={22} color={colors.textMuted} />
-                    <Text style={styles.quickTitle}>شحن المحفظة</Text>
-                    <Text style={styles.quickSub}>قريباً</Text>
+                    <Text style={styles.quickTitle}>{t("شحن المحفظة")}</Text>
+                    <Text style={styles.quickSub}>{t("قريباً")}</Text>
                 </View>
             </View>
 
             {/* Transactions */}
             <View style={[styles.txWrap, { marginTop: 14 }]}>
-                <View style={styles.txHead}><Text style={styles.txHeadText}>سجل العمليات</Text></View>
+                <View style={styles.txHead}><Text style={styles.txHeadText}>{t("سجل العمليات")}</Text></View>
                 {loading ? (
                     <ActivityIndicator color={colors.primary} style={{ padding: 24 }} />
                 ) : (data.transactions || []).length === 0 ? (
-                    <Text style={styles.emptyText}>لا توجد عمليات بعد</Text>
+                    <Text style={styles.emptyText}>{t("لا توجد عمليات بعد")}</Text>
                 ) : (
                     data.transactions.map((tx, i) => {
                         const positive = (tx.amount || 0) > 0;

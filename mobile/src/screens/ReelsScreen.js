@@ -6,6 +6,7 @@ import { Volume2, VolumeX, Play } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useNavigation } from "@react-navigation/native";
+import { useI18n } from "../I18nContext";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 const REEL_H = SCREEN_H - 120;
@@ -73,9 +74,9 @@ export default function ReelsScreen() {
         return (
             <View style={styles.center}>
                 <Text style={styles.emptyIcon}>🎬</Text>
-                <Text style={styles.emptyText}>لا توجد قصص بعد</Text>
+                <Text style={styles.emptyText}>{t("لا توجد قصص بعد")}</Text>
                 <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.postCta} testID="reels-empty-post-btn">
-                    <Text style={styles.postCtaText}>انشر أول ستوري</Text>
+                    <Text style={styles.postCtaText}>{t("انشر أول ستوري")}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -144,7 +145,7 @@ function ReelItem({ item, active, muted, onToggleMute, onOpen }) {
 
             <View style={styles.overlay} pointerEvents="box-none">
                 <View style={styles.topBar}>
-                    <Text style={styles.brandText}>الحراج <Text style={styles.brandAccent}>بلس</Text></Text>
+                    <Text style={styles.brandText}>الحراج <Text style={styles.brandAccent}>{t("بلس")}</Text></Text>
                     {videoUrl && (
                         <TouchableOpacity onPress={onToggleMute} hitSlop={12} style={styles.muteBtn} testID={`reel-mute-${item.id}`}>
                             {muted ? <VolumeX size={18} color="#fff" /> : <Volume2 size={18} color="#fff" />}
@@ -161,11 +162,11 @@ function ReelItem({ item, active, muted, onToggleMute, onOpen }) {
                 <View style={styles.bottomBar}>
                     <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
                     {item.price ? (
-                        <Text style={styles.price}>{Number(item.price).toLocaleString()} <Text style={styles.currency}>{item.currency || "ر.س"}</Text></Text>
+                        <Text style={styles.price}>{Number(item.price).toLocaleString()} <Text style={styles.currency}>{item.currency || t("ر.س")}</Text></Text>
                     ) : null}
                     {item.city ? <Text style={styles.meta}>📍 {item.city}</Text> : null}
                     <TouchableOpacity style={styles.cta} onPress={onOpen} testID={`reel-open-${item.id}`}>
-                        <Text style={styles.ctaText}>عرض الإعلان</Text>
+                        <Text style={styles.ctaText}>{t("عرض الإعلان")}</Text>
                     </TouchableOpacity>
                 </View>
             </View>

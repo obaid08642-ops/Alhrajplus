@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Image, Text, TouchableOpacity, StyleSheet, Dimensions, PanResponder } from "react-native";
 import { X, RotateCw } from "lucide-react-native";
+import { useI18n } from "../I18nContext";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const PX_PER_FRAME = 14;
@@ -71,7 +72,7 @@ export default function Viewer360Mobile({ images = [], onClose }) {
             </TouchableOpacity>
 
             <View style={styles.helpChip} pointerEvents="none">
-                <Text style={styles.helpText}>↔️ اسحب للدوران</Text>
+                <Text style={styles.helpText}>{t("↔️ اسحب للدوران")}</Text>
             </View>
 
             <View style={styles.bottomBar}>

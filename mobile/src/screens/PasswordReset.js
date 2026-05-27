@@ -73,7 +73,7 @@ export function ResetPasswordScreen({ navigation }) {
         setErr(""); setBusy(true);
         try {
             await api.post("/auth/reset-password", { token, new_password: pw });
-            Alert.alert(t("تم تغيير كلمة المرور بنجاح"));
+            Alert.alert("تم تغيير كلمة المرور بنجاح");
             navigation.navigate("Login");
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));

@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Send, Bot, Sparkles, RotateCcw } from "lucide-react-native";
 import api from "../api";
 import { colors, radius } from "../theme";
+import { useI18n } from "../I18nContext";
 
 const SESSION_KEY = "hp_ai_session_id";
 const HIST_KEY = "hp_ai_history";
@@ -20,9 +21,9 @@ async function getSessionId() {
 }
 
 const SUGGESTIONS = [
-    "كيف أنشر إعلاناً جديداً؟",
-    "ما متوسط سعر سيارة كامري 2020؟",
-    "هل البيع آمن؟ نصائح للحماية من الاحتيال",
+    t("كيف أنشر إعلاناً جديداً؟"),
+    t("ما متوسط سعر سيارة كامري 2020؟"),
+    t("هل البيع آمن؟ نصائح للحماية من الاحتيال"),
 ];
 
 export default function AIAssistantScreen() {
@@ -45,6 +46,7 @@ export default function AIAssistantScreen() {
     }, [messages]);
 
     const send = async (textOverride) => {
+    const { t } = useI18n();
         const text = (textOverride ?? input).trim();
         if (!text || busy) return;
         setInput("");
@@ -57,8 +59,8 @@ export default function AIAssistantScreen() {
             const { data } = await api.post("/ai/assistant", { message: text, session_id: sid, lang });
             setMessages([...next, { role: "assistant", text: data.reply || "" }]);
         } catch (e) {
-            const err = e.response?.data?.detail || "تعذر الوصول للمساعد";
-            setMessages([...next, { role: "assistant", text: `⚠️ ${typeof err === "string" ? err : "خطأ"}` }]);
+            const err = e.response?.data?.detail || t("تعذر الوصول للمساعد");
+            setMessages([...next, { role: "assistant", text: `⚠️ ${typeof err === "string" ? err : t("خطأ")}` }]);
         } finally { setBusy(false); }
     };
 
@@ -76,8 +78,8 @@ export default function AIAssistantScreen() {
                 <View style={styles.headerInner}>
                     <View style={styles.botIcon}><Bot size={20} color={colors.primary} /></View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.headerTitle}>المساعد الذكي</Text>
-                        <Text style={styles.headerSub}>اسألني عن أي شيء في الحراج بلس</Text>
+                        <Text style={styles.headerTitle}>{t("المساعد الذكي")}</Text>
+                        <Text style={styles.headerSub}>{t("اسألني عن أي شيء في الحراج بلس")}</Text>
                     </View>
                     {messages.length > 0 && (
                         <TouchableOpacity onPress={reset} style={styles.resetBtn}>
@@ -91,7 +93,7 @@ export default function AIAssistantScreen() {
             {messages.length === 0 ? (
                 <View style={styles.empty}>
                     <Sparkles size={40} color={colors.primary} style={{ opacity: 0.5 }} />
-                    <Text style={styles.emptyTitle}>اقتراحات سريعة:</Text>
+                    <Text style={styles.emptyTitle}>{t("اقتراحات سريعة:")}</Text>
                     {SUGGESTIONS.map((s, i) => (
                         <TouchableOpacity key={i} onPress={() => send(s)} style={styles.suggBtn}>
                             <Text style={styles.suggText}>{s}</Text>
@@ -118,7 +120,7 @@ export default function AIAssistantScreen() {
                         <View style={[styles.bubbleWrap, { alignItems: "flex-start" }]}>
                             <View style={[styles.bubble, styles.botBubble, { flexDirection: "row", gap: 5, alignItems: "center" }]}>
                                 <ActivityIndicator size="small" color={colors.textMuted} />
-                                <Text style={{ color: colors.textMuted, fontSize: 12 }}>يكتب...</Text>
+                                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t("يكتب...")}</Text>
                             </View>
                         </View>
                     ) : null}
@@ -130,7 +132,7 @@ export default function AIAssistantScreen() {
                 <TextInput
                     value={input}
                     onChangeText={setInput}
-                    placeholder="اكتب رسالتك..."
+                    placeholder={t("اكتب رسالتك...")}
                     placeholderTextColor={colors.textMuted}
                     style={styles.input}
                     editable={!busy}

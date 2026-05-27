@@ -5,6 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Plane, MapPin, Calendar, Users, Search, ExternalLink, Globe, X } from "lucide-react-native";
 import { colors, radius, shadow } from "../theme";
+import { useI18n } from "../I18nContext";
 
 // Top 60 airports — Arabic + IATA codes
 const AIRPORTS = [
@@ -54,6 +55,7 @@ const PROVIDERS = [
 function fmtYYMMDD(d) { return d ? d.replace(/-/g, "").slice(2) : ""; }
 
 function AirportPickerModal({ visible, onClose, onPick, current }) {
+    const { t } = useI18n();
     const [q, setQ] = useState("");
     const filtered = useMemo(() => {
         if (!q) return AIRPORTS;
@@ -66,7 +68,7 @@ function AirportPickerModal({ visible, onClose, onPick, current }) {
                 <View style={pStyles.sheet}>
                     <View style={pStyles.head}>
                         <Search size={16} color={colors.textMuted} />
-                        <TextInput value={q} onChangeText={setQ} placeholder="ابحث عن مدينة أو رمز (مثل RUH, DXB)" placeholderTextColor={colors.textMuted} style={pStyles.input} autoFocus />
+                        <TextInput value={q} onChangeText={setQ} placeholder={t("ابحث عن مدينة أو رمز (مثل RUH, DXB)")} placeholderTextColor={colors.textMuted} style={pStyles.input} autoFocus />
                         <TouchableOpacity onPress={onClose} style={pStyles.closeBtn}><X size={16} color={colors.textMuted} /></TouchableOpacity>
                     </View>
                     <FlatList
@@ -101,6 +103,7 @@ const pStyles = StyleSheet.create({
 });
 
 export default function FlightsScreen() {
+    const { t } = useI18n();
     const [from, setFrom] = useState("RUH");
     const [to, setTo] = useState("DXB");
     const [date, setDate] = useState("");
@@ -114,8 +117,8 @@ export default function FlightsScreen() {
     const toAirport = AIRPORTS.find((a) => a.code === to);
 
     const search = (provider) => {
-        if (!from || !to || !date) { Alert.alert("تنبيه", "الرجاء اختيار المطار والتاريخ"); return; }
-        if (from === to) { Alert.alert("تنبيه", "لا يمكن أن يكون المغادرة والوصول متشابهين"); return; }
+        if (!from || !to || !date) { Alert.alert(t("تنبيه"), t("الرجاء اختيار المطار والتاريخ")); return; }
+        if (from === to) { Alert.alert(t("تنبيه"), t("لا يمكن أن يكون المغادرة والوصول متشابهين")); return; }
         const dDay = fmtYYMMDD(date);
         const rDay = fmtYYMMDD(returnDate);
         let url = "";
@@ -144,8 +147,8 @@ export default function FlightsScreen() {
                 <View style={styles.heroRow}>
                     <View style={styles.heroIconBox}><Plane size={22} color="#fff" /></View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.heroTitle}>احجز رحلتك</Text>
-                        <Text style={styles.heroSub}>قارن أسعار 5 محركات بحث في ضغطة واحدة</Text>
+                        <Text style={styles.heroTitle}>{t("احجز رحلتك")}</Text>
+                        <Text style={styles.heroSub}>{t("قارن أسعار 5 محركات بحث في ضغطة واحدة")}</Text>
                     </View>
                 </View>
             </View>
@@ -155,24 +158,24 @@ export default function FlightsScreen() {
                 {/* Trip type */}
                 <View style={styles.tripTypeRow}>
                     <TouchableOpacity onPress={() => setTripType("oneway")} style={[styles.tripBtn, tripType === "oneway" && styles.tripBtnActive]}>
-                        <Text style={[styles.tripText, tripType === "oneway" && styles.tripTextActive]}>ذهاب فقط</Text>
+                        <Text style={[styles.tripText, tripType === "oneway" && styles.tripTextActive]}>{t("ذهاب فقط")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setTripType("round")} style={[styles.tripBtn, tripType === "round" && styles.tripBtnActive]}>
-                        <Text style={[styles.tripText, tripType === "round" && styles.tripTextActive]}>ذهاب وعودة</Text>
+                        <Text style={[styles.tripText, tripType === "round" && styles.tripTextActive]}>{t("ذهاب وعودة")}</Text>
                     </TouchableOpacity>
                 </View>
 
                 {/* From/To */}
                 <View style={{ gap: 10 }}>
                     <View>
-                        <View style={styles.fieldLabel}><MapPin size={11} color={colors.text} /><Text style={styles.fieldLabelText}>من</Text></View>
+                        <View style={styles.fieldLabel}><MapPin size={11} color={colors.text} /><Text style={styles.fieldLabelText}>{t("من")}</Text></View>
                         <TouchableOpacity onPress={() => setPickerFor("from")} style={styles.fieldBtn}>
                             <Text style={styles.fieldValue}>{fromAirport?.ar} ({from})</Text>
                             <Text style={styles.fieldHint}>{fromAirport?.country}</Text>
                         </TouchableOpacity>
                     </View>
                     <View>
-                        <View style={styles.fieldLabel}><MapPin size={11} color={colors.text} /><Text style={styles.fieldLabelText}>إلى</Text></View>
+                        <View style={styles.fieldLabel}><MapPin size={11} color={colors.text} /><Text style={styles.fieldLabelText}>{t("إلى")}</Text></View>
                         <TouchableOpacity onPress={() => setPickerFor("to")} style={styles.fieldBtn}>
                             <Text style={styles.fieldValue}>{toAirport?.ar} ({to})</Text>
                             <Text style={styles.fieldHint}>{toAirport?.country}</Text>
@@ -185,7 +188,7 @@ export default function FlightsScreen() {
                     <View style={{ flex: 1 }}>
                         <View style={styles.fieldLabel}><Calendar size={11} color={colors.text} /><Text style={styles.fieldLabelText}>تاريخ الذهاب</Text></View>
                         <TouchableOpacity onPress={() => setShowDate("go")} style={styles.fieldBtn}>
-                            <Text style={styles.fieldValue}>{date || "اختر تاريخ"}</Text>
+                            <Text style={styles.fieldValue}>{date || t("اختر تاريخ")}</Text>
                         </TouchableOpacity>
                     </View>
                     {tripType === "round" ? (
@@ -208,7 +211,7 @@ export default function FlightsScreen() {
                 </View>
                 {tripType === "round" && (
                     <View style={{ marginTop: 10 }}>
-                        <View style={styles.fieldLabel}><Users size={11} color={colors.text} /><Text style={styles.fieldLabelText}>عدد المسافرين</Text></View>
+                        <View style={styles.fieldLabel}><Users size={11} color={colors.text} /><Text style={styles.fieldLabelText}>{t("عدد المسافرين")}</Text></View>
                         <View style={styles.paxRow}>
                             <TouchableOpacity onPress={() => setPax((p) => Math.max(1, p - 1))} style={styles.paxBtn}><Text style={styles.paxBtnText}>−</Text></TouchableOpacity>
                             <Text style={styles.paxValue}>{pax}</Text>
@@ -220,7 +223,7 @@ export default function FlightsScreen() {
                 {/* Providers */}
                 <View style={styles.providersHead}>
                     <Globe size={14} color={colors.primary} />
-                    <Text style={styles.providersTitle}>ابحث في:</Text>
+                    <Text style={styles.providersTitle}>{t("ابحث في:")}</Text>
                 </View>
                 <View style={styles.providersGrid}>
                     {PROVIDERS.map((p) => (
@@ -228,13 +231,13 @@ export default function FlightsScreen() {
                             <LinearGradient colors={p.bg} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
                             <Text style={styles.providerIcon}>{p.icon}</Text>
                             <Text style={styles.providerName}>{p.name}</Text>
-                            {p.full && <View style={styles.recommend}><Text style={styles.recommendText}>⭐ موصى به</Text></View>}
+                            {p.full && <View style={styles.recommend}><Text style={styles.recommendText}>⭐ {t("موصى به")}</Text></View>}
                             <ExternalLink size={13} color="rgba(255,255,255,0.7)" />
                         </TouchableOpacity>
                     ))}
                 </View>
 
-                <Text style={styles.disclaimer}>🤝 الحراج بلس وسيط فقط • النتائج من المحركات أعلاه</Text>
+                <Text style={styles.disclaimer}>🤝 {t("الحراج بلس وسيط فقط • النتائج من المحركات أعلاه")}</Text>
             </View>
 
             <AirportPickerModal visible={pickerFor !== null} current={pickerFor === "from" ? from : to} onPick={(c) => { if (pickerFor === "from") setFrom(c); else setTo(c); }} onClose={() => setPickerFor(null)} />

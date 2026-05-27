@@ -8,6 +8,7 @@ import { Gavel, Clock, TrendingUp, Users, X, Sparkles } from "lucide-react-nativ
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { colors, radius, shadow } from "../theme";
+import { useI18n } from "../I18nContext";
 
 export default function AuctionsScreen() {
     const nav = useNavigation();
@@ -18,6 +19,7 @@ export default function AuctionsScreen() {
     const [active, setActive] = useState(null);
 
     const load = useCallback(async () => {
+    const { t } = useI18n();
         try {
             const { data } = await api.get("/auctions/active", { params: { limit: 30 } });
             setItems(data || []);
@@ -39,13 +41,13 @@ export default function AuctionsScreen() {
                 <View style={styles.heroRow}>
                     <View style={styles.heroIconBox}><Gavel size={26} color={colors.secondary} /></View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.heroTitle}>المزادات الحية</Text>
-                        <Text style={styles.heroSub}>سيارات نادرة • عقارات مميزة • مقتنيات تراثية</Text>
+                        <Text style={styles.heroTitle}>{t("المزادات الحية")}</Text>
+                        <Text style={styles.heroSub}>{t("سيارات نادرة • عقارات مميزة • مقتنيات تراثية")}</Text>
                     </View>
                 </View>
                 <View style={styles.chipsRow}>
-                    <View style={styles.chip}><Sparkles size={11} color={colors.accent} /><Text style={styles.chipText}>مزايدة فورية</Text></View>
-                    <View style={styles.chip}><Users size={11} color={colors.primary} /><Text style={styles.chipText}>من جميع الدول</Text></View>
+                    <View style={styles.chip}><Sparkles size={11} color={colors.accent} /><Text style={styles.chipText}>{t("مزايدة فورية")}</Text></View>
+                    <View style={styles.chip}><Users size={11} color={colors.primary} /><Text style={styles.chipText}>{t("من جميع الدول")}</Text></View>
                 </View>
             </View>
 
@@ -56,7 +58,7 @@ export default function AuctionsScreen() {
                     <Text style={styles.listTitle}>المزادات النشطة <Text style={styles.muted}>({items.length})</Text></Text>
                 </View>
                 <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.createBtn}>
-                    <Text style={styles.createBtnText}>+ أنشئ مزاد</Text>
+                    <Text style={styles.createBtnText}>{t("+ أنشئ مزاد")}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -65,7 +67,7 @@ export default function AuctionsScreen() {
             ) : items.length === 0 ? (
                 <View style={styles.empty}>
                     <Gavel size={40} color={colors.textMuted} />
-                    <Text style={styles.emptyText}>لا توجد مزادات نشطة الآن</Text>
+                    <Text style={styles.emptyText}>{t("لا توجد مزادات نشطة الآن")}</Text>
                 </View>
             ) : (
                 items.map((l) => <AuctionCard key={l.id} listing={l} onBid={() => setActive(l)} />)
@@ -87,7 +89,7 @@ function AuctionCard({ listing, onBid }) {
                     {listing.images?.[0] ? <Image source={{ uri: listing.images[0] }} style={{ width: "100%", height: "100%" }} /> : <View style={{ flex: 1, backgroundColor: colors.surfaceElevated }} />}
                     <View style={styles.liveBadge}>
                         <View style={styles.liveDot} />
-                        <Text style={styles.liveText}>مباشر</Text>
+                        <Text style={styles.liveText}>{t("مباشر")}</Text>
                     </View>
                     <View style={styles.bidsBadge}>
                         <Clock size={10} color="#fff" />
@@ -100,12 +102,12 @@ function AuctionCard({ listing, onBid }) {
                 <Text style={styles.cardCity} numberOfLines={1}>{listing.city}</Text>
                 <View style={styles.cardFoot}>
                     <View>
-                        <Text style={styles.cardLabel}>{top ? "أعلى مزايدة" : "السعر الابتدائي"}</Text>
-                        <Text style={styles.cardPrice}>{Number(currentPrice).toLocaleString()} <Text style={styles.cardCurrency}>{listing.currency || "ر.س"}</Text></Text>
+                        <Text style={styles.cardLabel}>{top ? t("أعلى مزايدة") : t("السعر الابتدائي")}</Text>
+                        <Text style={styles.cardPrice}>{Number(currentPrice).toLocaleString()} <Text style={styles.cardCurrency}>{listing.currency || t("ر.س")}</Text></Text>
                     </View>
                     <TouchableOpacity onPress={onBid} style={styles.bidBtn}>
                         <Gavel size={13} color="#fff" />
-                        <Text style={styles.bidBtnText}>زايد الآن</Text>
+                        <Text style={styles.bidBtnText}>{t("زايد الآن")}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -133,7 +135,7 @@ function BidModal({ user, listing, onClose, onPlaced }) {
             await api.post(`/auctions/${listing.id}/bid`, { amount: parseFloat(amount) });
             onPlaced();
         } catch (e) {
-            Alert.alert("تنبيه", e.response?.data?.detail || "تعذر إيداع المزايدة");
+            Alert.alert(t("تنبيه"), e.response?.data?.detail || t("تعذر إيداع المزايدة"));
         } finally { setBusy(false); }
     };
 
@@ -151,29 +153,29 @@ function BidModal({ user, listing, onClose, onPlaced }) {
                     <View style={{ padding: 14, gap: 12 }}>
                         <View style={styles.topBidBox}>
                             <View>
-                                <Text style={styles.cardLabel}>{top ? "أعلى مزايدة" : "السعر الابتدائي"}</Text>
-                                <Text style={styles.modalPrice}>{Number(top?.amount || listing.price || 0).toLocaleString()} <Text style={styles.cardCurrency}>{listing.currency || "ر.س"}</Text></Text>
+                                <Text style={styles.cardLabel}>{top ? t("أعلى مزايدة") : t("السعر الابتدائي")}</Text>
+                                <Text style={styles.modalPrice}>{Number(top?.amount || listing.price || 0).toLocaleString()} <Text style={styles.cardCurrency}>{listing.currency || t("ر.س")}</Text></Text>
                             </View>
                             <View style={{ alignItems: "flex-end" }}>
-                                <Text style={styles.cardLabel}>عدد المزايدات</Text>
+                                <Text style={styles.cardLabel}>{t("عدد المزايدات")}</Text>
                                 <Text style={styles.modalBidsCount}>{bids.length}</Text>
                             </View>
                         </View>
                         <Text style={styles.label}>مبلغ المزايدة <Text style={styles.muted}>(الحد الأدنى: {minRequired.toLocaleString()})</Text></Text>
                         <TextInput value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder={String(minRequired)} placeholderTextColor={colors.textMuted} style={styles.bidInput} />
                         <TouchableOpacity onPress={submit} disabled={busy || !amount} style={[styles.submitBtn, (busy || !amount) && { opacity: 0.5 }]}>
-                            {busy ? <ActivityIndicator color="#fff" /> : <><Gavel size={14} color="#fff" /><Text style={styles.submitBtnText}>أكد المزايدة</Text></>}
+                            {busy ? <ActivityIndicator color="#fff" /> : <><Gavel size={14} color="#fff" /><Text style={styles.submitBtnText}>{t("أكد المزايدة")}</Text></>}
                         </TouchableOpacity>
                         {bids.length > 0 && (
                             <View style={{ marginTop: 6 }}>
-                                <Text style={styles.label}>تاريخ المزايدات</Text>
+                                <Text style={styles.label}>{t("تاريخ المزايدات")}</Text>
                                 <FlatList
                                     data={bids}
                                     keyExtractor={(b) => b.id}
                                     style={{ maxHeight: 180, marginTop: 6 }}
                                     renderItem={({ item, index }) => (
                                         <View style={[styles.bidRow, index === 0 && styles.bidRowTop]}>
-                                            <Text style={styles.bidName}>{item.bidder_name} {item.verified && "✓"} {index === 0 && <Text style={{ color: colors.primary }}>(الأعلى)</Text>}</Text>
+                                            <Text style={styles.bidName}>{item.bidder_name} {item.verified && "✓"} {index === 0 && <Text style={{ color: colors.primary }}>{t("(الأعلى)")}</Text>}</Text>
                                             <Text style={styles.bidAmount}>{Number(item.amount).toLocaleString()}</Text>
                                         </View>
                                     )}

@@ -722,6 +722,14 @@ const SUPPORTED = ["ar", "en", "hi", "ur", "bn", "fr"];
 let _currentLang = "ar";
 export function currentLang() { return _currentLang; }
 
+// Global translator for utility files (helpers, axios interceptors, etc.) that
+// can't use the useI18n() hook. Falls back to the original Arabic key if no
+// translation is found — same behavior as t() inside components.
+export function tr(key) {
+    if (_currentLang === "ar") return key;
+    return (STRINGS[_currentLang] && STRINGS[_currentLang][key]) || key;
+}
+
 export function I18nProvider({ children }) {
     const [lang, setLangState] = useState("ar");
 

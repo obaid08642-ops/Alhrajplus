@@ -146,7 +146,7 @@ export function NotificationsScreen({ navigation }) {
 // ---------- SETTINGS + STATIC PAGES ----------
 export function SettingsScreen({ navigation }) {
     const { t, lang, setLang, supported } = useI18n();
-    const LANG_LABELS = { ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳", ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷" };
+    const LANG_LABELS = { ar: t("العربية 🇸🇦"), en: "English 🇬🇧", hi: "हिन्दी 🇮🇳", ur: t("اردو 🇵🇰"), bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷" };
     const nextLang = () => {
         const i = supported.indexOf(lang);
         return supported[(i + 1) % supported.length];
@@ -189,10 +189,10 @@ export function SettingsScreen({ navigation }) {
 
 // Local fallback used only when the network call fails — keeps UX intact offline.
 const STATIC_FALLBACK = {
-    terms: { title: "الشروط والأحكام", body: "باستخدامك تطبيق الحراج بلس فإنك توافق على شروط الاستخدام." },
-    privacy: { title: "سياسة الخصوصية", body: "نلتزم بحماية بياناتك ولا نشاركها مع أطراف ثالثة." },
-    about: { title: "عن التطبيق", body: "الحراج بلس — منصة بيع وشراء عربية مدعومة بالذكاء الاصطناعي." },
-    contact: { title: "تواصل معنا", body: "📧 support@alhraj.online\n📧 contact@alhraj.online" },
+    terms: { title: t("الشروط والأحكام"), body: t("باستخدامك تطبيق الحراج بلس فإنك توافق على شروط الاستخدام.") },
+    privacy: { title: t("سياسة الخصوصية"), body: t("نلتزم بحماية بياناتك ولا نشاركها مع أطراف ثالثة.") },
+    about: { title: t("عن التطبيق"), body: t("الحراج بلس — منصة بيع وشراء عربية مدعومة بالذكاء الاصطناعي.") },
+    contact: { title: t("تواصل معنا"), body: "📧 support@alhraj.online\n📧 contact@alhraj.online" },
 };
 
 export function StaticPageScreen({ route }) {

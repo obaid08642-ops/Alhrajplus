@@ -6,6 +6,7 @@ import { colors, radius, shadow } from "../theme";
 import { useEffect, useState } from "react";
 import api from "../api";
 import { useAuth } from "../AuthContext";
+import { useI18n } from "../I18nContext";
 
 export default function ListingCard({ listing, wide = false }) {
     const nav = useNavigation();
@@ -26,6 +27,7 @@ export default function ListingCard({ listing, wide = false }) {
     }, [user, listing?.id]);
 
     const toggleFav = async (e) => {
+    const { t } = useI18n();
         e?.stopPropagation?.();
         if (!user) { nav.navigate("Login"); return; }
         try {
@@ -48,8 +50,8 @@ export default function ListingCard({ listing, wide = false }) {
                     {listing.description ? <Text style={styles.desc} numberOfLines={2}>{listing.description}</Text> : null}
                     <View style={styles.wideFoot}>
                         {price ? (
-                            <Text style={styles.price}>{price} <Text style={styles.currency}>{listing.currency || "ر.س"}</Text></Text>
-                        ) : <Text style={styles.muted}>على السوم</Text>}
+                            <Text style={styles.price}>{price} <Text style={styles.currency}>{listing.currency || t("ر.س")}</Text></Text>
+                        ) : <Text style={styles.muted}>{t("على السوم")}</Text>}
                         <View style={styles.cityRow}>
                             <MapPin size={11} color={colors.textMuted} />
                             <Text style={styles.muted} numberOfLines={1}>{listing.city || ""}</Text>
@@ -70,17 +72,17 @@ export default function ListingCard({ listing, wide = false }) {
                 {boosted && (
                     <View style={styles.boostBadge}>
                         <Flame size={10} color="#fff" />
-                        <Text style={styles.boostText}>مميز</Text>
+                        <Text style={styles.boostText}>{t("مميز")}</Text>
                     </View>
                 )}
                 {isOwner && status === "paused" && (
                     <View style={[styles.statusBadge, { backgroundColor: "#F59E0B" }]} testID={`badge-paused-${listing.id}`}>
-                        <Text style={styles.statusText}>⏸ موقوف</Text>
+                        <Text style={styles.statusText}>{t("⏸ موقوف")}</Text>
                     </View>
                 )}
                 {status === "sold" && (
                     <View style={[styles.statusBadge, { backgroundColor: "#10B981" }]} testID={`badge-sold-${listing.id}`}>
-                        <Text style={styles.statusText}>✓ تم البيع</Text>
+                        <Text style={styles.statusText}>{t("✓ تم البيع")}</Text>
                     </View>
                 )}
             </View>
@@ -88,8 +90,8 @@ export default function ListingCard({ listing, wide = false }) {
                 <Text style={styles.title} numberOfLines={2}>{listing.title}</Text>
                 <View style={styles.footer}>
                     {price ? (
-                        <Text style={styles.price}>{price} <Text style={styles.currency}>{listing.currency || "ر.س"}</Text></Text>
-                    ) : <Text style={styles.muted}>على السوم</Text>}
+                        <Text style={styles.price}>{price} <Text style={styles.currency}>{listing.currency || t("ر.س")}</Text></Text>
+                    ) : <Text style={styles.muted}>{t("على السوم")}</Text>}
                 </View>
                 <View style={styles.cityRow}>
                     <MapPin size={10} color={colors.textMuted} />

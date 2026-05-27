@@ -1,6 +1,7 @@
 // ChatScreen — Premium WhatsApp-grade design with typing/presence/last-seen/read receipts.
 // Two views: conversations list  +  chat thread (selected by route.params.to or list tap).
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useI18n } from "../I18nContext";
 import {
     View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator,
     KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl,
@@ -25,10 +26,10 @@ import { colors, radius, shadow } from "../theme";
 import { useAudioPlayer } from "expo-audio";
 
 function fmtLastSeen(iso) {
-    if (!iso) return "متصل الآن";
+    if (!iso) return t("متصل الآن");
     const d = new Date(iso); const now = new Date();
     const diff = (now - d) / 1000;
-    if (diff < 60) return "آخر ظهور قبل لحظات";
+    if (diff < 60) return t("آخر ظهور قبل لحظات");
     if (diff < 3600) return `آخر ظهور قبل ${Math.floor(diff / 60)} دقيقة`;
     if (diff < 86400) return `آخر ظهور قبل ${Math.floor(diff / 3600)} ساعة`;
     if (diff < 604800) return `آخر ظهور قبل ${Math.floor(diff / 86400)} يوم`;
@@ -45,12 +46,13 @@ function fmtDay(iso) {
     if (!iso) return "";
     const d = new Date(iso); const today = new Date();
     const diff = (today - d) / 86400000;
-    if (diff < 1 && d.getDate() === today.getDate()) return "اليوم";
-    if (diff < 2) return "أمس";
+    if (diff < 1 && d.getDate() === today.getDate()) return t("اليوم");
+    if (diff < 2) return t("أمس");
     return d.toLocaleDateString("ar");
 }
 
 export default function ChatScreen() {
+    const { t } = useI18n();
     const route = useRoute();
     const nav = useNavigation();
     const { user } = useAuth();
@@ -72,10 +74,10 @@ export default function ChatScreen() {
                 <View style={s.guestIcon}>
                     <Send size={32} color={colors.primary} />
                 </View>
-                <Text style={s.guestTitle}>الرسائل</Text>
-                <Text style={s.guestSub}>سجّل دخولك للتواصل مع البائعين والمشترين</Text>
+                <Text style={s.guestTitle}>{t("الرسائل")}</Text>
+                <Text style={s.guestSub}>{t("سجّل دخولك للتواصل مع البائعين والمشترين")}</Text>
                 <TouchableOpacity onPress={() => nav.navigate("Login")} style={s.guestBtn}>
-                    <Text style={s.guestBtnText}>تسجيل الدخول</Text>
+                    <Text style={s.guestBtnText}>{t("تسجيل الدخول")}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -97,7 +99,7 @@ export default function ChatScreen() {
         (async () => {
             try {
                 const { data: u } = await api.get(`/users/${initialTo}`);
-                const otherUser = { id: initialTo, name: u?.name || "مستخدم", avatar: u?.avatar, verified: u?.verified };
+                const otherUser = { id: initialTo, name: u?.name || t("مستخدم"), avatar: u?.avatar, verified: u?.verified };
                 openThread(otherUser);
             } catch (_) {}
         })();
@@ -129,13 +131,13 @@ export default function ChatScreen() {
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
             <View style={[s.listHeader, { paddingTop: insets.top + 8 }]}>
-                <Text style={s.listTitle}>الرسائل</Text>
+                <Text style={s.listTitle}>{t("الرسائل")}</Text>
                 <TouchableOpacity style={s.searchPillBtn}>
                     <Search size={15} color={colors.textMuted} />
                     <TextInput
                         value={search}
                         onChangeText={setSearch}
-                        placeholder="ابحث عن محادثة..."
+                        placeholder={t("ابحث عن محادثة...")}
                         placeholderTextColor={colors.textMuted}
                         style={s.searchInput}
                     />
@@ -146,8 +148,8 @@ export default function ChatScreen() {
             ) : filtered.length === 0 ? (
                 <View style={s.empty}>
                     <View style={s.emptyIcon}><Send size={32} color={colors.primary} /></View>
-                    <Text style={s.emptyTitle}>{search ? "لا نتائج" : "لا توجد محادثات بعد"}</Text>
-                    <Text style={s.emptySub}>تواصل مع البائعين من صفحة الإعلان</Text>
+                    <Text style={s.emptyTitle}>{search ? t("لا نتائج") : t("لا توجد محادثات بعد")}</Text>
+                    <Text style={s.emptySub}>{t("تواصل مع البائعين من صفحة الإعلان")}</Text>
                 </View>
             ) : (
                 <FlatList
@@ -180,14 +182,14 @@ function ConvoRow({ convo, onPress }) {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={s.convoTop}>
-                    <Text style={s.convoName} numberOfLines={1}>{convo.other_name || "مستخدم"}</Text>
+                    <Text style={s.convoName} numberOfLines={1}>{convo.other_name || t("مستخدم")}</Text>
                     <Text style={s.convoTime}>{fmtTime(convo.last_message_at)}</Text>
                 </View>
                 <View style={s.convoBottom}>
                     <Text style={[s.convoMsg, unread > 0 && { fontWeight: "800", color: colors.text }]} numberOfLines={1}>
-                        {convo.last_message_type === "image" ? "📷 صورة" :
-                         convo.last_message_type === "voice" ? "🎙️ رسالة صوتية" :
-                         convo.last_message_type === "location" ? "📍 موقع" :
+                        {convo.last_message_type === "image" ? t("📷 صورة") :
+                         convo.last_message_type === "voice" ? t("🎙️ رسالة صوتية") :
+                         convo.last_message_type === "location" ? t("📍 موقع") :
                          convo.last_message || "..."}
                     </Text>
                     {unread > 0 && (
@@ -298,11 +300,11 @@ function ChatThread({ convoId, other, listing, onBack }) {
                 receiver_id: other.id,
                 listing_id: listing?.id || null,
                 text,
-                reply_to: replySnap ? { id: replySnap.id, text: replySnap.text, sender_id: replySnap.sender_id, sender_name: replySnap.sender_id === user.id ? "أنت" : other.name } : null,
+                reply_to: replySnap ? { id: replySnap.id, text: replySnap.text, sender_id: replySnap.sender_id, sender_name: replySnap.sender_id === user.id ? t("أنت") : other.name } : null,
             });
             setMessages((m) => [...m, data]);
         } catch (e) {
-            Alert.alert("خطأ", "تعذر إرسال الرسالة");
+            Alert.alert(t("خطأ"), t("تعذر إرسال الرسالة"));
         }
     };
 
@@ -333,7 +335,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                 });
                 setMessages((m) => [...m, data]);
             }
-        } catch (_) { Alert.alert("خطأ", "تعذر إرسال الصورة"); }
+        } catch (_) { Alert.alert(t("خطأ"), t("تعذر إرسال الصورة")); }
         finally { setUploading(false); }
     };
 
@@ -341,7 +343,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
         setShowActions(false);
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== "granted") { Alert.alert("إذن", "نحتاج صلاحية الموقع"); return; }
+            if (status !== "granted") { Alert.alert(t("إذن"), t("نحتاج صلاحية الموقع")); return; }
             const loc = await Location.getCurrentPositionAsync({});
             const url = `https://maps.google.com/?q=${loc.coords.latitude},${loc.coords.longitude}`;
             const { data } = await api.post("/chat/send", {
@@ -350,7 +352,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                 text: `📍 ${url}`,
             });
             setMessages((m) => [...m, data]);
-        } catch (_) { Alert.alert("خطأ", "تعذر إرسال الموقع"); }
+        } catch (_) { Alert.alert(t("خطأ"), t("تعذر إرسال الموقع")); }
     };
 
     const toggleRecording = async () => {
@@ -380,17 +382,17 @@ function ChatThread({ convoId, other, listing, onBack }) {
                 setUploading(false);
             } else {
                 const perm = await AudioModule.requestRecordingPermissionsAsync();
-                if (!perm.granted) { Alert.alert("إذن", "نحتاج صلاحية الميكروفون"); return; }
+                if (!perm.granted) { Alert.alert(t("إذن"), t("نحتاج صلاحية الميكروفون")); return; }
                 await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
                 const rec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
                 await rec.prepareToRecordAsync();
                 rec.record();
                 setRecording(rec);
             }
-        } catch (_) { setRecording(null); setUploading(false); Alert.alert("خطأ", "تعذر التسجيل"); }
+        } catch (_) { setRecording(null); setUploading(false); Alert.alert(t("خطأ"), t("تعذر التسجيل")); }
     };
 
-    const presenceText = presence.online ? "متصل الآن" : fmtLastSeen(presence.last_seen);
+    const presenceText = presence.online ? t("متصل الآن") : fmtLastSeen(presence.last_seen);
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: "#E5DDD5" }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}>
@@ -409,7 +411,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                         {other.verified && <View style={s.verifiedDot} />}
                     </View>
                     <Text style={s.threadStatus} numberOfLines={1}>
-                        {otherTyping ? "يكتب الآن..." : presenceText}
+                        {otherTyping ? t("يكتب الآن...") : presenceText}
                     </Text>
                 </View>
                 <TouchableOpacity
@@ -418,7 +420,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                         if (phone) {
                             require("react-native").Linking.openURL(`tel:${phone}`);
                         } else {
-                            Alert.alert("غير متاح", "رقم الهاتف غير متوفر");
+                            Alert.alert(t("غير متاح"), t("رقم الهاتف غير متوفر"));
                         }
                     }}
                     style={s.headBtn}
@@ -429,28 +431,28 @@ function ChatThread({ convoId, other, listing, onBack }) {
                 </TouchableOpacity>
                 <TouchableOpacity
                     onPress={() => {
-                        Alert.alert("خيارات", `${other.name || "المستخدم"}`, [
+                        Alert.alert(t("خيارات"), `${other.name || t("المستخدم")}`, [
                             {
-                                text: "الإبلاغ عن المستخدم",
+                                text: t("الإبلاغ عن المستخدم"),
                                 onPress: async () => {
                                     try {
                                         await api.post("/reports", { target_type: "user", target_id: other.id, reason: "inappropriate" });
-                                        Alert.alert("✅", "تم استلام بلاغك");
-                                    } catch (_) { Alert.alert("خطأ", "تعذر إرسال البلاغ"); }
+                                        Alert.alert("✅", t("تم استلام بلاغك"));
+                                    } catch (_) { Alert.alert(t("خطأ"), t("تعذر إرسال البلاغ")); }
                                 },
                             },
                             {
-                                text: "حظر المستخدم",
+                                text: t("حظر المستخدم"),
                                 style: "destructive",
                                 onPress: async () => {
                                     try {
                                         await api.post(`/blocks/${other.id}`);
-                                        Alert.alert("🚫", "تم حظر المستخدم");
+                                        Alert.alert("🚫", t("تم حظر المستخدم"));
                                         onBack?.();
-                                    } catch (_) { Alert.alert("خطأ", "تعذر الحظر"); }
+                                    } catch (_) { Alert.alert(t("خطأ"), t("تعذر الحظر")); }
                                 },
                             },
-                            { text: "إلغاء", style: "cancel" },
+                            { text: t("إلغاء"), style: "cancel" },
                         ]);
                     }}
                     style={s.headBtn}
@@ -506,15 +508,15 @@ function ChatThread({ convoId, other, listing, onBack }) {
                 <View style={s.actionSheet}>
                     <TouchableOpacity onPress={sendImage} style={s.actionBtn}>
                         <View style={[s.actionIcon, { backgroundColor: "#10B981" }]}><ImageIcon size={20} color="#fff" /></View>
-                        <Text style={s.actionLabel}>صورة</Text>
+                        <Text style={s.actionLabel}>{t("صورة")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={sendLocation} style={s.actionBtn}>
                         <View style={[s.actionIcon, { backgroundColor: "#EF4444" }]}><MapPin size={20} color="#fff" /></View>
-                        <Text style={s.actionLabel}>الموقع</Text>
+                        <Text style={s.actionLabel}>{t("الموقع")}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => { setShowActions(false); }} style={s.actionBtn}>
                         <View style={[s.actionIcon, { backgroundColor: colors.textMuted }]}><X size={20} color="#fff" /></View>
-                        <Text style={s.actionLabel}>إغلاق</Text>
+                        <Text style={s.actionLabel}>{t("إغلاق")}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -525,7 +527,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                     <View style={s.replyBox}>
                         <View style={[s.replyBar, { backgroundColor: colors.primary }]} />
                         <View style={{ flex: 1 }}>
-                            <Text style={s.replyBoxName}>{replyTo.sender_id === user.id ? "ردك على نفسك" : `رد على ${other.name}`}</Text>
+                            <Text style={s.replyBoxName}>{replyTo.sender_id === user.id ? t("ردك على نفسك") : `رد على ${other.name}`}</Text>
                             <Text style={s.replyBoxText} numberOfLines={1}>{(replyTo.text || "").slice(0, 80)}</Text>
                         </View>
                         <TouchableOpacity onPress={() => setReplyTo(null)} style={s.replyBoxClose} hitSlop={6}>
@@ -540,7 +542,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                 <TextInput
                     value={input}
                     onChangeText={handleInputChange}
-                    placeholder="رسالة..."
+                    placeholder={t("رسالة...")}
                     placeholderTextColor={colors.textMuted}
                     style={s.composerInput}
                     multiline
@@ -592,12 +594,12 @@ function MessageBubble({ m, isMine, onImagePress, onLongPress }) {
                         <View style={[s.replyBar, { backgroundColor: isMine ? "#FFD166" : colors.primary }]} />
                         <View style={{ flex: 1 }}>
                             <Text style={[s.replyName, isMine && { color: "#FFD166" }]} numberOfLines={1}>
-                                {replyTo.sender_name || (replyTo.sender_id === m.sender_id ? "أنت" : "")}
+                                {replyTo.sender_name || (replyTo.sender_id === m.sender_id ? t("أنت") : "")}
                             </Text>
                             <Text style={[s.replyText, isMine && { color: "rgba(255,255,255,0.85)" }]} numberOfLines={1}>
-                                {(replyTo.text || "").startsWith("📷") ? "📷 صورة" :
-                                 (replyTo.text || "").startsWith("🎙️") ? "🎙️ رسالة صوتية" :
-                                 (replyTo.text || "").startsWith("📍") ? "📍 موقع" :
+                                {(replyTo.text || "").startsWith("📷") ? t("📷 صورة") :
+                                 (replyTo.text || "").startsWith("🎙️") ? t("🎙️ رسالة صوتية") :
+                                 (replyTo.text || "").startsWith("📍") ? t("📍 موقع") :
                                  (replyTo.text || "")}
                             </Text>
                         </View>
@@ -612,7 +614,7 @@ function MessageBubble({ m, isMine, onImagePress, onLongPress }) {
                 ) : isLocation && url ? (
                     <TouchableOpacity onPress={() => require("react-native").Linking.openURL(url)} style={s.locationBubble}>
                         <MapPin size={14} color={isMine ? "#fff" : colors.primary} />
-                        <Text style={[s.bubbleText, isMine && { color: "#fff" }]}>📍 الموقع المشترك</Text>
+                        <Text style={[s.bubbleText, isMine && { color: "#fff" }]}>{t("📍 الموقع المشترك")}</Text>
                     </TouchableOpacity>
                 ) : (
                     <Text style={[s.bubbleText, isMine && { color: "#fff" }]} selectable>{text}</Text>
@@ -664,7 +666,7 @@ function VoicePlayer({ url, isMine }) {
                 ))}
             </View>
             <Text style={[s.voiceTime, { color: isMine ? "rgba(255,255,255,0.85)" : colors.textMuted }]}>
-                {player?.duration ? `${Math.floor(player.duration)}s` : "صوت"}
+                {player?.duration ? `${Math.floor(player.duration)}s` : t("صوت")}
             </Text>
         </View>
     );

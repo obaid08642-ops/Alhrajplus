@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
 import { colors } from "../theme";
+import { useI18n } from "../I18nContext";
 
 const ACTIVE = "#4FB6E6";
 const INACTIVE = "#9AA8B5";
@@ -30,14 +31,15 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
     const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] });
 
     const TABS = [
-        { name: "HomeTab", icon: Home, label: "الرئيسية" },
-        { name: "ReelsTab", icon: Film, label: "ستوري" },
+        { name: "HomeTab", icon: Home, label: t("الرئيسية") },
+        { name: "ReelsTab", icon: Film, label: t("ستوري") },
         { name: "_SPACER", icon: null, label: "" },
-        { name: "ChatTab", icon: MessageCircle, label: "المحادثات" },
-        { name: "ProfileTab", icon: User, label: "حسابي" },
+        { name: "ChatTab", icon: MessageCircle, label: t("المحادثات") },
+        { name: "ProfileTab", icon: User, label: t("حسابي") },
     ];
 
     const goToPost = () => {
+    const { t } = useI18n();
         Animated.sequence([
             Animated.spring(fabPress, { toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 0 }),
             Animated.spring(fabPress, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 8 }),
@@ -59,7 +61,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                         activeOpacity={0.85}
                         style={styles.fab}
                         testID="tab-fab-post"
-                        accessibilityLabel="نشر إعلان"
+                        accessibilityLabel={t("نشر إعلان")}
                     >
                         <LinearGradient
                             colors={["#5DC4F0", "#4FB6E6", "#2F95C9"]}

@@ -5,6 +5,7 @@ import * as Location from "expo-location";
 import api from "../api";
 import { theme } from "../theme";
 import { useNavigation } from "@react-navigation/native";
+import { useI18n } from "../I18nContext";
 
 // Hologram-pin Leaflet map rendered inside a WebView. Works in Expo Go.
 export default function MapScreen() {
@@ -16,6 +17,7 @@ export default function MapScreen() {
 
     useEffect(() => {
         (async () => {
+    const { t } = useI18n();
             try {
                 const { data } = await api.get("/listings/map/nearby", { params: { limit: 200 } });
                 setItems(data || []);
@@ -46,7 +48,7 @@ export default function MapScreen() {
         return (
             <View style={styles.center}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>جاري تحميل الخريطة...</Text>
+                <Text style={styles.loadingText}>{t("جاري تحميل الخريطة...")}</Text>
             </View>
         );
     }
@@ -54,8 +56,8 @@ export default function MapScreen() {
     return (
         <SafeAreaView style={styles.wrap}>
             <View style={styles.header}>
-                <Text style={styles.title}>🗺️ خريطة الإعلانات</Text>
-                <Text style={styles.sub}>{items.length} إعلان بالقرب منك</Text>
+                <Text style={styles.title}>{t("🗺️ خريطة الإعلانات")}</Text>
+                <Text style={styles.sub}>{items.length} {t("إعلان بالقرب منك")}</Text>
             </View>
             <WebView
                 ref={ref}
@@ -81,7 +83,7 @@ function buildHtml(items, myPos) {
             lng: i.lng,
             title: (i.title || "").replace(/"/g, "'"),
             price: i.price ? Number(i.price).toLocaleString() : "",
-            currency: i.currency || "ر.س",
+            currency: i.currency || t("ر.س"),
         }));
 
     return `<!DOCTYPE html>
@@ -131,7 +133,7 @@ function buildHtml(items, myPos) {
     var icon = L.divIcon({
       className: 'hp-wrap',
       iconSize: [78, 78], iconAnchor: [39, 70], popupAnchor: [0, -64],
-      html: '<div class="hp"><div class="chip"><div class="price">' + (m.price || '★') + '</div><div class="curr">' + (m.price ? m.currency : 'إعلان') + '</div></div><div class="stem"></div><div class="base"></div></div>'
+      html: '<div class="hp"><div class="chip"><div class="price">' + (m.price || '★') + '</div><div class="curr">' + (m.price ? m.currency : '•') + '</div></div><div class="stem"></div><div class="base"></div></div>'
     });
     var mk = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
     mk.on('click', function() {

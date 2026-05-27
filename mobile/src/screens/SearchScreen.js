@@ -18,11 +18,11 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_W = (SCREEN_W - 16 * 2 - 10) / 2;
 
 const SORT_OPTIONS = [
-    { key: "newest", label: "الأحدث" },
-    { key: "oldest", label: "الأقدم" },
-    { key: "price_asc", label: "السعر: الأقل" },
-    { key: "price_desc", label: "السعر: الأعلى" },
-    { key: "popular", label: "الأكثر مشاهدة" },
+    { key: "newest", label: t("الأحدث") },
+    { key: "oldest", label: t("الأقدم") },
+    { key: "price_asc", label: t("السعر: الأقل") },
+    { key: "price_desc", label: t("السعر: الأعلى") },
+    { key: "popular", label: t("الأكثر مشاهدة") },
 ];
 
 export default function SearchScreen({ navigation, route }) {
@@ -230,9 +230,9 @@ export default function SearchScreen({ navigation, route }) {
                     {filters.category && <Chip label={categories.find(c => c.key === filters.category)?.name || filters.category} onClose={() => setFilters({ ...filters, category: "" })} />}
                     {filters.city && <Chip label={`📍 ${filters.city}`} onClose={() => setFilters({ ...filters, city: "" })} />}
                     {(filters.priceMin || filters.priceMax) && <Chip label={`💰 ${filters.priceMin || "0"} - ${filters.priceMax || "∞"}`} onClose={() => setFilters({ ...filters, priceMin: "", priceMax: "" })} />}
-                    {filters.condition && <Chip label={filters.condition === "new" ? "جديد" : "مستعمل"} onClose={() => setFilters({ ...filters, condition: "" })} />}
+                    {filters.condition && <Chip label={filters.condition === "new" ? t("جديد") : t("مستعمل")} onClose={() => setFilters({ ...filters, condition: "" })} />}
                     {filters.sort !== "newest" && <Chip label={SORT_OPTIONS.find(o => o.key === filters.sort)?.label} onClose={() => setFilters({ ...filters, sort: "newest" })} />}
-                    <TouchableOpacity onPress={clearFilters} style={s.clearAllBtn}><Text style={s.clearAllText}>مسح الكل</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={clearFilters} style={s.clearAllBtn}><Text style={s.clearAllText}>{t("مسح الكل")}</Text></TouchableOpacity>
                 </ScrollView>
             )}
 
@@ -347,19 +347,19 @@ function FiltersModal({ visible, onClose, filters, setFilters, categories, count
                         <Text style={s.sectionLabel}>{t("الحالة")}</Text>
                         <View style={s.tagsRow}>
                             <TouchableOpacity onPress={() => setLocal({ ...local, condition: local.condition === "new" ? "" : "new" })} style={[s.tag, local.condition === "new" && s.tagActive]}>
-                                <Text style={[s.tagText, local.condition === "new" && s.tagTextActive]}>جديد</Text>
+                                <Text style={[s.tagText, local.condition === "new" && s.tagTextActive]}>{t("جديد")}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => setLocal({ ...local, condition: local.condition === "used" ? "" : "used" })} style={[s.tag, local.condition === "used" && s.tagActive]}>
-                                <Text style={[s.tagText, local.condition === "used" && s.tagTextActive]}>مستعمل</Text>
+                                <Text style={[s.tagText, local.condition === "used" && s.tagTextActive]}>{t("مستعمل")}</Text>
                             </TouchableOpacity>
                         </View>
 
                         {/* Price range */}
                         <Text style={s.sectionLabel}>{t("نطاق السعر")}</Text>
                         <View style={{ flexDirection: "row", gap: 8 }}>
-                            <TextInput value={local.priceMin} onChangeText={(v) => setLocal({ ...local, priceMin: v.replace(/[^0-9.]/g, "") })} placeholder="من" placeholderTextColor={colors.textMuted} keyboardType="numeric" style={s.priceInput} />
+                            <TextInput value={local.priceMin} onChangeText={(v) => setLocal({ ...local, priceMin: v.replace(/[^0-9.]/g, "") })} placeholder={t("من")} placeholderTextColor={colors.textMuted} keyboardType="numeric" style={s.priceInput} />
                             <Text style={s.priceDash}>—</Text>
-                            <TextInput value={local.priceMax} onChangeText={(v) => setLocal({ ...local, priceMax: v.replace(/[^0-9.]/g, "") })} placeholder="إلى" placeholderTextColor={colors.textMuted} keyboardType="numeric" style={s.priceInput} />
+                            <TextInput value={local.priceMax} onChangeText={(v) => setLocal({ ...local, priceMax: v.replace(/[^0-9.]/g, "") })} placeholder={t("إلى")} placeholderTextColor={colors.textMuted} keyboardType="numeric" style={s.priceInput} />
                         </View>
 
                         {/* City */}

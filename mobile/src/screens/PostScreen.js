@@ -396,12 +396,12 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
                     <Text style={s.modalTitle}>{title}</Text>
                     <View style={s.searchPill}>
                         <Search size={14} color={colors.textMuted} />
-                        <TextInput value={q} onChangeText={setQ} placeholder={kind === "city" ? "ابحث أو اختر من القائمة..." : "ابحث أو اختر الحي..."} placeholderTextColor={colors.textMuted} style={s.searchInput} />
+                        <TextInput value={q} onChangeText={setQ} placeholder={kind === "city" ? t("ابحث أو اختر من القائمة...") : t("ابحث أو اختر الحي...")} placeholderTextColor={colors.textMuted} style={s.searchInput} />
                         {loading && <ActivityIndicator size="small" color={colors.primary} />}
                     </View>
                     {items.length === 0 && !loading && (
                         <Text style={{ padding: 30, textAlign: "center", color: colors.textMuted, fontSize: 12 }}>
-                            {q ? "لا نتائج" : (kind === "district" ? "اختر مدينة أولاً" : "اكتب اسم المدينة")}
+                            {q ? t("لا نتائج") : (kind === "district" ? t("اختر مدينة أولاً") : t("اكتب اسم المدينة"))}
                         </Text>
                     )}
                     <FlatList
@@ -423,7 +423,7 @@ function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, co
                         style={{ maxHeight: 420 }}
                     />
                     <TouchableOpacity onPress={onClose} style={s.modalCloseBtn}>
-                        <Text style={s.modalCloseText}>إلغاء</Text>
+                        <Text style={s.modalCloseText}>{t("إلغاء")}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -452,10 +452,10 @@ function Step1({ categories, onPick, onAI, aiBusy }) {
             </TouchableOpacity>
 
             {/* Main entry layout per user spec:
-                1) Big "Add Listing" card (full width) with "كل الفئات" subtitle
+                1) Big "Add Listing" card (full width) with t("كل الفئات") subtitle
                 2) Row: نشر ستوري + إنشاء مزاد
                 3) Row: وظائف + خدمات
-                Removed: "صفقات اليوم" card (per user request). */}
+                Removed: t("صفقات اليوم") card (per user request). */}
             <View style={{ marginTop: 4 }}>
                 {/* Primary: Add Listing (full width) */}
                 <TouchableOpacity onPress={() => onPick("")} activeOpacity={0.9} style={s.primaryEntryCard}>
@@ -527,13 +527,13 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
         if (form.category || !form.title || form.title.length < 4) return;
         const title = form.title.toLowerCase();
         const KEYWORDS = {
-            cars: ["سيارة", "سياره", "كامري", "كرولا", "هوندا", "تويوتا", "نيسان", "بي ام", "مرسيدس", "car"],
-            real_estate: ["شقة", "فيلا", "أرض", "ارض", "بيت", "عمارة", "محل", "مكتب", "إيجار", "تمليك"],
-            electronics: ["موبايل", "جوال", "ايفون", "آيفون", "سامسونج", "لاب توب", "تلفزيون", "كمبيوتر", "iphone", "samsung"],
-            furniture: ["كنبة", "كرسي", "طاولة", "غرفة نوم", "سرير", "ديكور"],
-            fashion: ["ثوب", "عباية", "حذاء", "ملابس", "حقيبة"],
-            jobs: ["وظيفة", "موظف", "موظفة", "مطلوب", "للعمل"],
-            services: ["خدمة", "تركيب", "صيانة", "نقل", "تنظيف"],
+            cars: [t("سيارة"), t("سياره"), t("كامري"), t("كرولا"), t("هوندا"), t("تويوتا"), t("نيسان"), t("بي ام"), t("مرسيدس"), "car"],
+            real_estate: [t("شقة"), t("فيلا"), t("أرض"), t("ارض"), t("بيت"), t("عمارة"), t("محل"), t("مكتب"), t("إيجار"), t("تمليك")],
+            electronics: [t("موبايل"), t("جوال"), t("ايفون"), t("آيفون"), t("سامسونج"), t("لاب توب"), t("تلفزيون"), t("كمبيوتر"), "iphone", "samsung"],
+            furniture: [t("كنبة"), t("كرسي"), t("طاولة"), t("غرفة نوم"), t("سرير"), t("ديكور")],
+            fashion: [t("ثوب"), t("عباية"), t("حذاء"), t("ملابس"), t("حقيبة")],
+            jobs: [t("وظيفة"), t("موظف"), t("موظفة"), t("مطلوب"), t("للعمل")],
+            services: [t("خدمة"), t("تركيب"), t("صيانة"), t("نقل"), t("تنظيف")],
         };
         for (const [k, words] of Object.entries(KEYWORDS)) {
             if (words.some((w) => title.includes(w))) {
@@ -607,7 +607,7 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                             }}
                         />
                         <TouchableOpacity onPress={() => setCatPickerOpen(false)} style={s.modalCloseBtn}>
-                            <Text style={s.modalCloseText}>إلغاء</Text>
+                            <Text style={s.modalCloseText}>{t("إلغاء")}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -770,7 +770,7 @@ function SelectInput({ value, options, placeholder, onChange }) {
                             style={{ maxHeight: "70%" }}
                         />
                         <TouchableOpacity onPress={() => setOpen(false)} style={s.modalCloseBtn}>
-                            <Text style={s.modalCloseText}>{value ? "إغلاق" : "إلغاء"}</Text>
+                            <Text style={s.modalCloseText}>{value ? t("إغلاق") : t("إلغاء")}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -790,7 +790,7 @@ function PickerModal({ visible, onClose, title, items, getLabel, onPick, current
                     <Text style={s.modalTitle}>{title}</Text>
                     <View style={s.searchPill}>
                         <Search size={14} color={colors.textMuted} />
-                        <TextInput value={q} onChangeText={setQ} placeholder="ابحث..." placeholderTextColor={colors.textMuted} style={s.searchInput} />
+                        <TextInput value={q} onChangeText={setQ} placeholder={t("ابحث...")} placeholderTextColor={colors.textMuted} style={s.searchInput} />
                     </View>
                     <FlatList
                         data={filtered}
@@ -808,7 +808,7 @@ function PickerModal({ visible, onClose, title, items, getLabel, onPick, current
                         style={{ maxHeight: 400 }}
                     />
                     <TouchableOpacity onPress={onClose} style={s.modalCloseBtn}>
-                        <Text style={s.modalCloseText}>إلغاء</Text>
+                        <Text style={s.modalCloseText}>{t("إلغاء")}</Text>
                     </TouchableOpacity>
                 </View>
             </View>

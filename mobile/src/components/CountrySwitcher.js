@@ -7,8 +7,10 @@ import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet } from "react
 import { Globe2, Check, X } from "lucide-react-native";
 import { useCountry } from "../CountryContext";
 import { colors, radius } from "../theme";
+import { useI18n } from "../I18nContext";
 
 export default function CountrySwitcher({ tintLight = false }) {
+    const { t } = useI18n();
     const { current, countries, setCountry } = useCountry();
     const [open, setOpen] = useState(false);
 
@@ -37,7 +39,7 @@ export default function CountrySwitcher({ tintLight = false }) {
                 <View style={styles.sheetBg}>
                     <View style={styles.sheet}>
                         <View style={styles.sheetHead}>
-                            <Text style={styles.sheetTitle}>اختر الدولة</Text>
+                            <Text style={styles.sheetTitle}>{t("اختر الدولة")}</Text>
                             <TouchableOpacity onPress={() => setOpen(false)} hitSlop={8} testID="country-switcher-close">
                                 <X size={20} color={colors.textMuted} />
                             </TouchableOpacity>

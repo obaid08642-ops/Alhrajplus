@@ -4,6 +4,7 @@ import api from "../api";
 import { theme } from "../theme";
 import { useCountry } from "../CountryContext";
 import ListingCard from "../components/ListingCard";
+import { useI18n } from "../I18nContext";
 
 // FlatList perf defaults reused across screens — defined ONCE so we don't
 // re-allocate inline objects on every render.
@@ -30,6 +31,7 @@ export function FavoritesScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async (showSpinner = true) => {
+    const { t } = useI18n();
         if (showSpinner) setLoading(true);
         try {
             const { data } = await api.get("/favorites");
@@ -49,7 +51,7 @@ export function FavoritesScreen() {
 
     return (
         <SafeAreaView style={styles.wrap}>
-            <Text style={styles.title}>المفضلة</Text>
+            <Text style={styles.title}>{t("المفضلة")}</Text>
             {loading ? <LoadingBlock /> : (
                 <FlatList
                     data={items}
@@ -58,7 +60,7 @@ export function FavoritesScreen() {
                     renderItem={renderItem}
                     contentContainerStyle={{ padding: 8, paddingBottom: 130 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    ListEmptyComponent={<EmptyBlock text="لا توجد إعلانات في المفضلة" />}
+                    ListEmptyComponent={<EmptyBlock text={t("لا توجد إعلانات في المفضلة")} />}
                     {...FLAT_PERF}
                 />
             )}
@@ -105,7 +107,7 @@ export function MyListingsScreen({ navigation }) {
                 testID={`boost-${item.id}`}
             >
                 <Text style={[styles.boostText, item.is_boosted && { color: "#fff" }]}>
-                    {item.is_boosted ? "⭐ مُروَّج" : "🚀 رَوِّج"}
+                    {item.is_boosted ? t("⭐ مُروَّج") : t("🚀 رَوِّج")}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -114,9 +116,9 @@ export function MyListingsScreen({ navigation }) {
     return (
         <SafeAreaView style={styles.wrap}>
             <View style={styles.titleRow}>
-                <Text style={styles.title}>إعلاناتي</Text>
+                <Text style={styles.title}>{t("إعلاناتي")}</Text>
                 <TouchableOpacity onPress={() => navigation?.navigate?.("Post")} style={styles.addBtn} testID="mylistings-add-btn">
-                    <Text style={styles.addText}>+ إضافة</Text>
+                    <Text style={styles.addText}>{t("+ إضافة")}</Text>
                 </TouchableOpacity>
             </View>
             {loading ? <LoadingBlock /> : (
@@ -127,7 +129,7 @@ export function MyListingsScreen({ navigation }) {
                     renderItem={renderItem}
                     contentContainerStyle={{ padding: 8, paddingBottom: 130 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    ListEmptyComponent={<EmptyBlock text="لا توجد إعلانات بعد" />}
+                    ListEmptyComponent={<EmptyBlock text={t("لا توجد إعلانات بعد")} />}
                     {...FLAT_PERF}
                 />
             )}
@@ -167,8 +169,8 @@ export function DealsScreen() {
             <View style={styles.hero}>
                 <Text style={styles.heroIcon}>🔥</Text>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.heroTitle}>صفقات اليوم الذهبية</Text>
-                    <Text style={styles.heroSub}>أفضل الأسعار تحت متوسط السوق</Text>
+                    <Text style={styles.heroTitle}>{t("صفقات اليوم الذهبية")}</Text>
+                    <Text style={styles.heroSub}>{t("أفضل الأسعار تحت متوسط السوق")}</Text>
                 </View>
             </View>
             {loading ? <LoadingBlock /> : (
@@ -178,7 +180,7 @@ export function DealsScreen() {
                     keyExtractor={keyExtractor}
                     renderItem={renderItem}
                     contentContainerStyle={{ padding: 4, paddingBottom: 130 }}
-                    ListEmptyComponent={<EmptyBlock text="لا توجد صفقات بارزة الآن" />}
+                    ListEmptyComponent={<EmptyBlock text={t("لا توجد صفقات بارزة الآن")} />}
                     {...FLAT_PERF}
                 />
             )}

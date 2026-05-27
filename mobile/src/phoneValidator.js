@@ -21,12 +21,12 @@ const RULES = {
 
 export function validatePhone(rawPhone, countryCode = "SA") {
     const digits = String(rawPhone || "").replace(/\D/g, "");
-    if (!digits) return { ok: false, error: "أدخل رقم الجوال" };
+    if (!digits) return { ok: false, error: tr(tr(tr(tr(tr("أدخل رقم الجوال"))))) };
     const rule = RULES[countryCode];
     if (!rule) {
         // Fallback: 6-15 digits per ITU E.164 baseline.
         if (digits.length < 6 || digits.length > 15) {
-            return { ok: false, error: "رقم غير صحيح" };
+            return { ok: false, error: tr(tr(tr(tr(tr("رقم غير صحيح"))))) };
         }
         return { ok: true, normalized: digits };
     }

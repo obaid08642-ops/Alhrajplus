@@ -227,7 +227,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                         Alert.alert(t("تأكيد الحذف"), t("هل تريد حذف هذا الإعلان نهائياً؟"), [
                             { text: t("إلغاء"), style: "cancel" },
                             { text: t("حذف"), style: "destructive", onPress: async () => {
-                                try { await api.delete(`/listings/${id}`); Alert.alert(t("تم الحذف")); navigation.goBack(); }
+                                try { await api.delete(`/listings/${id}`); Alert.alert("تم الحذف"); navigation.goBack(); }
                                 catch (e) { Alert.alert(t("خطأ"), t("تعذر الحذف")); }
                             }},
                         ]);

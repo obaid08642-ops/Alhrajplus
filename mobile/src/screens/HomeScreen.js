@@ -88,8 +88,8 @@ export default function HomeScreen() {
             <CategoriesStrip cats={visibleCats} nav={nav} lang={lang} expanded={showAllCats} onToggle={() => setShowAllCats((s) => !s)} total={categories.length} />
             <View style={styles.sectionHead}>
                 <View>
-                    <Text style={styles.sectionTitle}>قريب منك</Text>
-                    <Text style={styles.sectionSub}>إعلانات في مدينتك ومدن قريبة</Text>
+                    <Text style={styles.sectionTitle}>{t("قريب منك")}</Text>
+                    <Text style={styles.sectionSub}>{t("إعلانات في مدينتك ومدن قريبة")}</Text>
                 </View>
             </View>
         </View>
@@ -116,7 +116,7 @@ export default function HomeScreen() {
                     </View>
                 ) : (
                     <View style={styles.empty}>
-                        <Text style={styles.mutedCenter}>لا توجد نتائج</Text>
+                        <Text style={styles.mutedCenter}>{t("لا توجد نتائج")}</Text>
                     </View>
                 )}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchAll(true)} tintColor={colors.primary} />}
@@ -125,7 +125,7 @@ export default function HomeScreen() {
                 ListFooterComponent={loadingMore ? (
                     <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
                 ) : (!hasMore && listings.length > 0 ? (
-                    <Text style={[styles.mutedCenter, { marginVertical: 16 }]}>وصلت لنهاية القائمة</Text>
+                    <Text style={[styles.mutedCenter, { marginVertical: 16 }]}>{t("وصلت لنهاية القائمة")}</Text>
                 ) : null)}
                 showsVerticalScrollIndicator={false}
             />
@@ -140,7 +140,7 @@ function TopBar({ nav, insets }) {
         <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
             <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
                 <SearchIcon size={16} color={colors.textMuted} />
-                <Text style={styles.searchPh} numberOfLines={1}>ابحث عن أي شيء... (مدعوم بالذكاء الاصطناعي)</Text>
+                <Text style={styles.searchPh} numberOfLines={1}>{t("ابحث عن أي شيء... (مدعوم بالذكاء الاصطناعي)")}</Text>
             </TouchableOpacity>
             <CountrySwitcher />
             <NotificationBell />
@@ -165,20 +165,20 @@ function Hero({ nav }) {
                 <View style={styles.heroInner}>
                     <View style={styles.aiBadge}>
                         <Sparkles size={11} color={colors.primary} />
-                        <Text style={styles.aiBadgeText}>مدعوم بالذكاء الاصطناعي</Text>
+                        <Text style={styles.aiBadgeText}>{t("مدعوم بالذكاء الاصطناعي")}</Text>
                     </View>
                     <Text style={styles.heroTitle}>
                         بيع، اشترِ، استأجر،{" "}
-                        <Text style={{ color: colors.primary }}>وظّف</Text>
+                        <Text style={{ color: colors.primary }}>{t("وظّف")}</Text>
                     </Text>
-                    <Text style={styles.heroSubtitle}>أكبر سوق رقمي للخليج العربي — كل شيء في مكان واحد</Text>
+                    <Text style={styles.heroSubtitle}>{t("أكبر سوق رقمي للخليج العربي — كل شيء في مكان واحد")}</Text>
                     <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
                         <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.heroPrimaryBtn}>
                             <Plus size={15} color="#fff" strokeWidth={3} />
-                            <Text style={styles.heroPrimaryText}>أنشر مجاناً</Text>
+                            <Text style={styles.heroPrimaryText}>{t("أنشر مجاناً")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => nav.navigate("Map")} style={styles.heroSecondaryBtn}>
-                            <Text style={styles.heroSecondaryText}>🗺️ خريطة قريبة</Text>
+                            <Text style={styles.heroSecondaryText}>{t("🗺️ خريطة قريبة")}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -190,11 +190,11 @@ function Hero({ nav }) {
 // ====================== Quick Actions ======================
 function QuickActions({ nav }) {
     const items = [
-        { to: "Deals", Icon: Flame, color: "#EF4444", label: "صفقات", bg: ["#D1FAE5", "#FEE2E2"] },
-        { to: "Auctions", Icon: Gavel, color: "#F59E0B", label: "مزادات", bg: ["#FEF3C7", "#FEF9C3"] },
-        { to: "ReelsTab", Icon: Film, color: "#EC4899", label: "قصص", bg: ["#FCE7F3", "#FDF2F8"] },
-        { to: "Flights", Icon: Plane, color: "#0EA5E9", label: "طيران", bg: ["#DBEAFE", "#F0F9FF"] },
-        { to: "Map", Icon: MapPin, color: "#10B981", label: "خريطة", bg: ["#D1FAE5", "#ECFDF5"] },
+        { to: "Deals", Icon: Flame, color: "#EF4444", label: t("صفقات"), bg: ["#D1FAE5", "#FEE2E2"] },
+        { to: "Auctions", Icon: Gavel, color: "#F59E0B", label: t("مزادات"), bg: ["#FEF3C7", "#FEF9C3"] },
+        { to: "ReelsTab", Icon: Film, color: "#EC4899", label: t("قصص"), bg: ["#FCE7F3", "#FDF2F8"] },
+        { to: "Flights", Icon: Plane, color: "#0EA5E9", label: t("طيران"), bg: ["#DBEAFE", "#F0F9FF"] },
+        { to: "Map", Icon: MapPin, color: "#10B981", label: t("خريطة"), bg: ["#D1FAE5", "#ECFDF5"] },
     ];
     return (
         <View style={styles.quickWrap}>
@@ -214,10 +214,10 @@ function CategoriesStrip({ cats, nav, lang, expanded, onToggle, total }) {
     return (
         <View style={{ paddingHorizontal: 12, marginTop: 16 }}>
             <View style={styles.sectionHead}>
-                <Text style={styles.sectionTitle}>الأقسام</Text>
+                <Text style={styles.sectionTitle}>{t("الأقسام")}</Text>
                 {total > 8 && (
                     <TouchableOpacity onPress={onToggle} style={styles.toggleBtn}>
-                        <Text style={styles.toggleText}>{expanded ? "عرض أقل" : "عرض الكل"}</Text>
+                        <Text style={styles.toggleText}>{expanded ? t("عرض أقل") : t("عرض الكل")}</Text>
                         <ChevronDown size={13} color={colors.primary} style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }} />
                     </TouchableOpacity>
                 )}
@@ -251,10 +251,10 @@ function CTASection({ nav }) {
         <View style={styles.ctaWrap}>
             <LinearGradient colors={["#0F1A35", "#1A2952"]} style={StyleSheet.absoluteFillObject} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} />
             <View style={{ padding: 18 }}>
-                <Text style={styles.ctaTitle}>انضم اليوم — مجاناً تماماً</Text>
-                <Text style={styles.ctaSub}>سجّل في دقيقة وابدأ البيع والشراء</Text>
+                <Text style={styles.ctaTitle}>{t("انضم اليوم — مجاناً تماماً")}</Text>
+                <Text style={styles.ctaSub}>{t("سجّل في دقيقة وابدأ البيع والشراء")}</Text>
                 <TouchableOpacity onPress={() => nav.navigate("Login")} style={styles.ctaBtn}>
-                    <Text style={styles.ctaBtnText}>إنشاء حساب</Text>
+                    <Text style={styles.ctaBtnText}>{t("إنشاء حساب")}</Text>
                 </TouchableOpacity>
             </View>
         </View>

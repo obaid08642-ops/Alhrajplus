@@ -2,6 +2,7 @@ import axios from "axios";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { tr } from "./I18nContext";
 
 const BACKEND_URL =
     Constants.expoConfig?.extra?.backendUrl ||
@@ -117,7 +118,7 @@ export async function clearToken() {
 }
 
 export function formatApiError(err) {
-    if (!err) return "خطأ غير متوقع";
+    if (!err) return tr(tr(tr(tr(tr("خطأ غير متوقع")))));
     if (typeof err === "string") return err;
     if (Array.isArray(err)) return err.map(formatApiError).join(", ");
     if (err.msg) return err.msg;

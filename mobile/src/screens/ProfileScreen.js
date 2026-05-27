@@ -1,6 +1,7 @@
 // ProfileScreen — rebuilt to match web ProfilePage visual polish.
 // Shows: header card (avatar + name + verified + stats), quick actions grid, full menu list.
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "../I18nContext";
 import {
     View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
     ActivityIndicator, StatusBar, Alert, Share,
@@ -29,6 +30,7 @@ export default function ProfileScreen() {
     const [phoneBusy, setPhoneBusy] = useState(false);
 
     const load = useCallback(async () => {
+    const { t } = useI18n();
         if (!user) return;
         try {
             const [s, r, w] = await Promise.all([
@@ -53,14 +55,14 @@ export default function ProfileScreen() {
                         <LinearGradient colors={[colors.primary, "#7CCAEC"]} style={StyleSheet.absoluteFillObject} />
                         <User size={36} color="#fff" />
                     </View>
-                    <Text style={s.guestTitle}>مرحباً بك في الحراج بلس</Text>
-                    <Text style={s.guestSub}>سجّل دخولك لإدارة إعلاناتك ومحفظتك</Text>
+                    <Text style={s.guestTitle}>{t("مرحباً بك في الحراج بلس")}</Text>
+                    <Text style={s.guestSub}>{t("سجّل دخولك لإدارة إعلاناتك ومحفظتك")}</Text>
                     <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
                         <TouchableOpacity onPress={() => nav.navigate("Login")} style={s.guestPrimaryBtn}>
-                            <Text style={s.guestPrimaryText}>تسجيل الدخول</Text>
+                            <Text style={s.guestPrimaryText}>{t("تسجيل الدخول")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => nav.navigate("Register")} style={s.guestSecondaryBtn}>
-                            <Text style={s.guestSecondaryText}>حساب جديد</Text>
+                            <Text style={s.guestSecondaryText}>{t("حساب جديد")}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -83,16 +85,16 @@ export default function ProfileScreen() {
             const next = user.show_phone === false ? true : false;
             await api.put("/users/me", { show_phone: next });
             await refreshUser?.();
-            Alert.alert("✅", next ? "أصبح رقم جوالك مرئياً للمشترين" : "تم إخفاء رقم جوالك");
+            Alert.alert("✅", next ? t("أصبح رقم جوالك مرئياً للمشترين") : t("تم إخفاء رقم جوالك"));
         } catch (e) {
-            Alert.alert("خطأ", e.response?.data?.detail || "تعذر التحديث");
+            Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر التحديث"));
         } finally { setPhoneBusy(false); }
     };
 
     const onLogout = () => {
-        Alert.alert("تأكيد", "هل تريد تسجيل الخروج؟", [
-            { text: "إلغاء", style: "cancel" },
-            { text: "خروج", style: "destructive", onPress: async () => { await logout(); nav.navigate("HomeTab"); } },
+        Alert.alert(t("تأكيد"), t("هل تريد تسجيل الخروج؟"), [
+            { text: t("إلغاء"), style: "cancel" },
+            { text: t("خروج"), style: "destructive", onPress: async () => { await logout(); nav.navigate("HomeTab"); } },
         ]);
     };
 
@@ -120,16 +122,16 @@ export default function ProfileScreen() {
                             <View style={s.verifiedBadge}><Award size={11} color="#fff" /></View>
                         )}
                     </View>
-                    <Text style={s.heroName} numberOfLines={1}>{user.name || "مستخدم"}</Text>
+                    <Text style={s.heroName} numberOfLines={1}>{user.name || t("مستخدم")}</Text>
                     <Text style={s.heroEmail} numberOfLines={1}>{user.email}</Text>
 
                     {/* Stats */}
                     <View style={s.statsRow}>
-                        <Stat label="إعلانات" value={stats?.listings_count ?? "—"} />
+                        <Stat label={t("إعلانات")} value={stats?.listings_count ?? "—"} />
                         <View style={s.statDivider} />
-                        <Stat label="مفضلة" value={stats?.favorites_count ?? "—"} />
+                        <Stat label={t("مفضلة")} value={stats?.favorites_count ?? "—"} />
                         <View style={s.statDivider} />
-                        <Stat label="تقييم" value={user.rating ? user.rating.toFixed(1) : "5.0"} />
+                        <Stat label={t("تقييم")} value={user.rating ? user.rating.toFixed(1) : "5.0"} />
                     </View>
                 </View>
             </View>
@@ -139,22 +141,22 @@ export default function ProfileScreen() {
                 <LinearGradient colors={[colors.primary, "#2A8CBD", colors.accent]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
                 <View style={s.walletIcon}><Wallet size={22} color="#fff" /></View>
                 <View style={{ flex: 1 }}>
-                    <Text style={s.walletLabel}>رصيد محفظتي</Text>
-                    <Text style={s.walletAmount}>{walletBalance !== null ? Number(walletBalance).toLocaleString() : "—"} <Text style={s.walletCurrency}>ر.س</Text></Text>
+                    <Text style={s.walletLabel}>{t("رصيد محفظتي")}</Text>
+                    <Text style={s.walletAmount}>{walletBalance !== null ? Number(walletBalance).toLocaleString() : "—"} <Text style={s.walletCurrency}>{t("ر.س")}</Text></Text>
                 </View>
                 <ChevronLeft size={20} color="#fff" />
             </TouchableOpacity>
 
             {/* Quick actions grid */}
             <View style={s.quickGrid}>
-                <QuickTile icon={ListIcon} label="إعلاناتي" tint="#3B82F6" tintBg="#DBEAFE" onPress={() => nav.navigate("MyListings")} />
-                <QuickTile icon={Heart} label="المفضلة" tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Favorites")} />
-                <QuickTile icon={Sparkles} label="المساعد" tint={colors.primary} tintBg="rgba(79,182,230,0.18)" onPress={() => nav.navigate("AIAssistant")} />
-                <QuickTile icon={Gavel} label="المزادات" tint="#F59E0B" tintBg="#FEF3C7" onPress={() => nav.navigate("Auctions")} />
-                <QuickTile icon={Plane} label="الطيران" tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Flights")} />
-                <QuickTile icon={Flame} label="الصفقات" tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Deals")} />
-                <QuickTile icon={MapPin} label="الخريطة" tint="#10B981" tintBg="#D1FAE5" onPress={() => nav.navigate("Map")} />
-                <QuickTile icon={Bookmark} label="محفوظات" tint="#8B5CF6" tintBg="#EDE9FE" onPress={() => nav.navigate("SavedSearches")} />
+                <QuickTile icon={ListIcon} label={t("إعلاناتي")} tint="#3B82F6" tintBg="#DBEAFE" onPress={() => nav.navigate("MyListings")} />
+                <QuickTile icon={Heart} label={t("المفضلة")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Favorites")} />
+                <QuickTile icon={Sparkles} label={t("المساعد")} tint={colors.primary} tintBg="rgba(79,182,230,0.18)" onPress={() => nav.navigate("AIAssistant")} />
+                <QuickTile icon={Gavel} label={t("المزادات")} tint="#F59E0B" tintBg="#FEF3C7" onPress={() => nav.navigate("Auctions")} />
+                <QuickTile icon={Plane} label={t("الطيران")} tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Flights")} />
+                <QuickTile icon={Flame} label={t("الصفقات")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Deals")} />
+                <QuickTile icon={MapPin} label={t("الخريطة")} tint="#10B981" tintBg="#D1FAE5" onPress={() => nav.navigate("Map")} />
+                <QuickTile icon={Bookmark} label={t("محفوظات")} tint="#8B5CF6" tintBg="#EDE9FE" onPress={() => nav.navigate("SavedSearches")} />
             </View>
 
             {/* Referral card */}
@@ -162,8 +164,8 @@ export default function ProfileScreen() {
                 <View style={[s.refCard, shadow.card]}>
                     <View style={s.refIcon}><UsersIcon size={20} color={colors.accent} /></View>
                     <View style={{ flex: 1 }}>
-                        <Text style={s.refTitle}>برنامج الإحالة</Text>
-                        <Text style={s.refSub}>دعوة الأصدقاء = مكافآت لك</Text>
+                        <Text style={s.refTitle}>{t("برنامج الإحالة")}</Text>
+                        <Text style={s.refSub}>{t("دعوة الأصدقاء = مكافآت لك")}</Text>
                         <View style={s.refCodeRow}>
                             <Text style={s.refCode}>{referral.code}</Text>
                             <Text style={s.refInvited}>{referral.invited_count || 0} مدعوين</Text>
@@ -171,28 +173,28 @@ export default function ProfileScreen() {
                     </View>
                     <TouchableOpacity onPress={copyReferral} style={s.refShareBtn} testID="profile-copy-referral">
                         <Copy size={14} color={colors.secondary} />
-                        <Text style={s.refShareText}>مشاركة</Text>
+                        <Text style={s.refShareText}>{t("مشاركة")}</Text>
                     </TouchableOpacity>
                 </View>
             )}
 
             {/* Menu list */}
             <View style={[s.menuCard, shadow.card]}>
-                <MenuRow icon={Bell} label="الإشعارات" onPress={() => nav.navigate("Notifications")} />
-                <MenuRow icon={Settings} label="الإعدادات" onPress={() => nav.navigate("Settings")} />
-                <MenuRow icon={UsersIcon} label="متابعاتي" onPress={() => nav.navigate("Following")} />
+                <MenuRow icon={Bell} label={t("الإشعارات")} onPress={() => nav.navigate("Notifications")} />
+                <MenuRow icon={Settings} label={t("الإعدادات")} onPress={() => nav.navigate("Settings")} />
+                <MenuRow icon={UsersIcon} label={t("متابعاتي")} onPress={() => nav.navigate("Following")} />
                 <TouchableOpacity onPress={togglePhoneVisibility} activeOpacity={0.65} disabled={phoneBusy} style={[s.menuRow, s.menuRowBorder]} testID="profile-toggle-phone">
                     <MapPin size={18} color={colors.primary} />
                     <Text style={s.menuLabel}>
-                        {user.show_phone === false ? "إظهار رقم جوالي للمشترين" : "إخفاء رقم جوالي عن المشترين"}
+                        {user.show_phone === false ? t("إظهار رقم جوالي للمشترين") : t("إخفاء رقم جوالي عن المشترين")}
                     </Text>
                     {phoneBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronLeft size={14} color={colors.textMuted} />}
                 </TouchableOpacity>
-                <MenuRow icon={Info} label="عن التطبيق" onPress={() => nav.navigate("StaticPage", { slug: "about" })} />
-                <MenuRow icon={FileText} label="الشروط والأحكام" onPress={() => nav.navigate("StaticPage", { slug: "terms" })} />
-                <MenuRow icon={Shield} label="سياسة الخصوصية" onPress={() => nav.navigate("StaticPage", { slug: "privacy" })} />
-                <MenuRow icon={Mail} label="تواصل معنا" onPress={() => nav.navigate("StaticPage", { slug: "contact" })} />
-                <MenuRow icon={LogOut} label="تسجيل الخروج" tint="#EF4444" onPress={onLogout} last />
+                <MenuRow icon={Info} label={t("عن التطبيق")} onPress={() => nav.navigate("StaticPage", { slug: "about" })} />
+                <MenuRow icon={FileText} label={t("الشروط والأحكام")} onPress={() => nav.navigate("StaticPage", { slug: "terms" })} />
+                <MenuRow icon={Shield} label={t("سياسة الخصوصية")} onPress={() => nav.navigate("StaticPage", { slug: "privacy" })} />
+                <MenuRow icon={Mail} label={t("تواصل معنا")} onPress={() => nav.navigate("StaticPage", { slug: "contact" })} />
+                <MenuRow icon={LogOut} label={t("تسجيل الخروج")} tint="#EF4444" onPress={onLogout} last />
             </View>
 
             <Text style={s.versionText} testID="profile-version">v{Constants.expoConfig?.version || Constants.manifest?.version || "1.0.0"}</Text>

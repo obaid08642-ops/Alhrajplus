@@ -17,7 +17,7 @@ function SocialButtons({ onSuccess }) {
             await fn();
             onSuccess?.();
         } catch (e) {
-            if (!String(e?.message || "").includes("إلغاء") && !String(e?.message || "").toLowerCase().includes("cancel")) {
+            if (!String(e?.message || "").includes(t("إلغاء")) && !String(e?.message || "").toLowerCase().includes("cancel")) {
                 Alert.alert(t("خطأ"), e.message || `${t("حدث خطأ. حاول مرة أخرى.")} (${provider})`);
             }
         } finally { setBusy(null); }
@@ -120,8 +120,8 @@ export function LoginScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scroll}>
                 <View style={styles.card}>
                     <View style={styles.logo}>
-                        <Text style={styles.logoMain}>الحراج</Text>
-                        <Text style={styles.logoSub}>بلس</Text>
+                        <Text style={styles.logoMain}>{t("الحراج")}</Text>
+                        <Text style={styles.logoSub}>{t("بلس")}</Text>
                     </View>
                     <Text style={styles.title}>{t("تسجيل الدخول")}</Text>
 
@@ -214,8 +214,8 @@ export function RegisterScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scroll}>
                 <View style={styles.card}>
                     <View style={styles.logo}>
-                        <Text style={styles.logoMain}>الحراج</Text>
-                        <Text style={styles.logoSub}>بلس</Text>
+                        <Text style={styles.logoMain}>{t("الحراج")}</Text>
+                        <Text style={styles.logoSub}>{t("بلس")}</Text>
                     </View>
                     <Text style={styles.title}>{t("إنشاء حساب")}</Text>
 
