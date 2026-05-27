@@ -48,7 +48,8 @@ export default function ListingDetailScreen({ route, navigation }) {
     // Load follow + watch status once we know who the seller is.
     useEffect(() => {
         if (!user || !listing?.seller?.id) return;
-        api.get(`/sellers/${listing.seller.id}/follow-status`)
+        const sellerId = listing.seller.id;
+        api.get(`/sellers/${sellerId}/follow-status`)
             .then(({ data }) => setFollowing(!!data?.following)).catch(() => {});
         api.get("/watches").then(({ data }) => {
             setWatching((data || []).some((w) => w.listing_id === id));
@@ -113,9 +114,10 @@ export default function ListingDetailScreen({ route, navigation }) {
 
     const toggleFollowSeller = async () => {
         if (!user) { navigation.navigate("Login"); return; }
-        if (!listing.seller?.id) return;
+        const sellerId = listing?.seller?.id;
+        if (!sellerId) return;
         try {
-            const { data } = await api.post(`/sellers/${listing.seller.id}/follow`);
+            const { data } = await api.post(`/sellers/${sellerId}/follow`);
             setFollowing(!!data?.following);
         } catch (e) {
             Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر التحديث"));

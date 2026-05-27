@@ -5,7 +5,7 @@ import { useI18n } from "../I18nContext";
 import {
     View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator,
     KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl,
-    Modal,
+    Modal, Linking,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -418,7 +418,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
                     onPress={() => {
                         const phone = other.phone_full || other.phone;
                         if (phone) {
-                            require("react-native").Linking.openURL(`tel:${phone}`);
+                            Linking.openURL(`tel:${phone}`);
                         } else {
                             Alert.alert(t("غير متاح"), t("رقم الهاتف غير متوفر"));
                         }
@@ -612,7 +612,7 @@ function MessageBubble({ m, isMine, onImagePress, onLongPress }) {
                 ) : isVoice && url ? (
                     <VoicePlayer url={url} isMine={isMine} />
                 ) : isLocation && url ? (
-                    <TouchableOpacity onPress={() => require("react-native").Linking.openURL(url)} style={s.locationBubble}>
+                    <TouchableOpacity onPress={() => Linking.openURL(url)} style={s.locationBubble}>
                         <MapPin size={14} color={isMine ? "#fff" : colors.primary} />
                         <Text style={[s.bubbleText, isMine && { color: "#fff" }]}>{t("📍 الموقع المشترك")}</Text>
                     </TouchableOpacity>

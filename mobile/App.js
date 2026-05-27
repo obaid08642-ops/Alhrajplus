@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
 import FloatingTabBar from "./src/components/FloatingTabBar";
 import { AuthProvider, useAuth } from "./src/AuthContext";
+import ErrorBoundary from "./src/ErrorBoundary";
 import { I18nProvider } from "./src/I18nContext";
 import { CountryProvider } from "./src/CountryContext";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -175,15 +176,17 @@ function Navigation() {
 
 export default function App() {
     return (
-        <SafeAreaProvider>
-            <I18nProvider>
-                <AuthProvider>
-                    <CountryProvider>
-                        <Navigation />
-                        <StatusBar style="dark" />
-                    </CountryProvider>
-                </AuthProvider>
-            </I18nProvider>
-        </SafeAreaProvider>
+        <ErrorBoundary>
+            <SafeAreaProvider>
+                <I18nProvider>
+                    <AuthProvider>
+                        <CountryProvider>
+                            <Navigation />
+                            <StatusBar style="dark" />
+                        </CountryProvider>
+                    </AuthProvider>
+                </I18nProvider>
+            </SafeAreaProvider>
+        </ErrorBoundary>
     );
 }
