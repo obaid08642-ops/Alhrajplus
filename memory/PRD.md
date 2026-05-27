@@ -19,6 +19,34 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
+## ✅ Session 30 — Feb 2026 — Post Listing UX Cleanup (100% Coverage)
+
+### 🎯 What was fixed (the actual UX scope the user was waiting on)
+- ✅ **Cascade gate fixed (Web + Mobile)**: `cars` cascade now only triggers for `category === "cars"`; phones cascade now only triggers for `category === "phones"` (was leaking onto laptops/TVs via `electronics`, and was MISSING from the real `phones` category because of the wrong `mobiles` key).
+- ✅ **Cars cascade completed**: added 3 missing seed_data fields → `body_type` (نوع الهيكل), `seller_type` (فرد/معرض), `seal_status` (الجمرك). Now matches the seed_data spec 100%.
+- ✅ **Removed duplicate `title` field from `books` category** in `seed_data.py` — it duplicated the global top-level title input.
+- ✅ **Unified "Details Box"** (Web + Mobile) — every non-cars/non-phones category now renders its custom fields inside a single titled container with a clean 2-column grid (OLX/Haraj-style):
+  - Web: `data-testid="details-box"`, `grid grid-cols-1 sm:grid-cols-2 gap-2`
+  - Mobile: `s.detailsBox` + `s.detailsGrid` flex-wrap row, `s.detailsCellHalf` (50%) / `s.detailsCellFull` (100% for long text fields like skills, languages, schedule, addresses, dimensions, etc.)
+  - Title is auto-generated: `📋 تفاصيل {pickName(cat)}`
+- ✅ **Mobile post_type segmented control at TOP** for jobs/services (was completely missing — mobile users could not set post_type at all). Mirrors the web flow exactly: 2 large pills (عرض/طلب) with sub-label.
+- ✅ **ListingTypeBadge** wired into `ListingCard.js` (corner overlay) + `ListingDetail.js` (title row, size="lg").
+
+### Files touched
+- `/app/backend/seed_data.py` — removed `books.title`
+- `/app/frontend/src/components/CategoryCascades.js` — added body_type/seller_type/seal_status pickers
+- `/app/frontend/src/pages/PostListing.js` — cascade gate fix + DetailsBox wrapper
+- `/app/mobile/src/components/CategoryCascadesMobile.js` — same 3 extra car fields
+- `/app/mobile/src/screens/PostScreen.js` — gate fix + post_type top selector + DetailsBox styles
+
+### Verification (manual, no testing agent per user constraint)
+- `eslint` on all 4 touched JS files → ✅ no issues
+- `curl /api/meta/categories?lang=ar` → 23 categories, `books` now has 3 fields (was 4 with duplicate title)
+- `curl /api/meta/car-brands` → 20 brands, 31 years OK
+- `curl /api/meta/phone-brands` → 10 brands OK
+
+
+
 ## ✅ Session 29 — Feb 2026 — Cascading Catalogs (Web + Mobile) + SVG Map Markers
 
 ### 🚗📱 Cascading Catalogs — Single Source of Truth (Web + Mobile)

@@ -606,26 +606,23 @@ export default function PostListing() {
                     </div>
 
                     {/* Cascading brand→model→year→trim for cars, brand→model→storage→color for phones.
-                        Stored under form.custom_fields so they flow through the backend untouched. */}
-                    {(form.category === "cars" || form.category === "motors") && (
-                        <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)]" data-testid="cars-cascade-wrap">
-                            <h4 className="text-xs font-arabic font-bold text-[var(--text)] mb-2 flex items-center gap-1">🚗 {tr("تفاصيل السيارة")}</h4>
-                            <CarCascade
-                                value={form.custom_fields}
-                                onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
-                                tr={tr}
-                            />
-                        </div>
+                        Stored under form.custom_fields so they flow through the backend untouched.
+                        Gated on the actual category keys ("cars" / "phones") — `motors`/`mobiles`
+                        do NOT exist in seed_data, the previous wider gate was leaking the phone
+                        cascade onto laptops/TVs and hiding it from the real `phones` category. */}
+                    {form.category === "cars" && (
+                        <CarCascade
+                            value={form.custom_fields}
+                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                            tr={tr}
+                        />
                     )}
-                    {(form.category === "mobiles" || form.category === "electronics") && (
-                        <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)]" data-testid="phones-cascade-wrap">
-                            <h4 className="text-xs font-arabic font-bold text-[var(--text)] mb-2 flex items-center gap-1">📱 {tr("تفاصيل الجوال")}</h4>
-                            <PhoneCascade
-                                value={form.custom_fields}
-                                onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
-                                tr={tr}
-                            />
-                        </div>
+                    {form.category === "phones" && (
+                        <PhoneCascade
+                            value={form.custom_fields}
+                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                            tr={tr}
+                        />
                     )}
 
                     {/* Job/Service post-type selector at TOP */}
@@ -705,29 +702,47 @@ export default function PostListing() {
                     {/* Custom fields for category — skip post_type since it's at the top for jobs/services */}
                     {/* Generic dynamic fields renderer (from i18n_data CATEGORIES.fields).
                         We skip the entire block when one of our richer cascades is mounted
-                        (cars/motors/mobiles/electronics) so the user never sees duplicate
-                        brand/model/year inputs below the price. We also still skip post_type
-                        because it has its own segmented control above. */}
-                    {!(form.category === "cars" || form.category === "motors" || form.category === "mobiles" || form.category === "electronics") && cat?.fields?.filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
-                        <div key={f.key}>
-                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
-                                {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}
-                            </label>
-                            {f.type === "select" ? (
-                                <select data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
-                                    <option value="">{tr("اختر...")}</option>
-                                    {(f.options_ar || f.options || []).map((canonical, i) => {
-                                        const label = (f.options && f.options[i]) || canonical;
-                                        return <option key={canonical} value={canonical}>{label}</option>;
-                                    })}
-                                </select>
-                            ) : f.type === "number" ? (
-                                <input data-testid={`field-${f.key}`} type="number" value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
-                            ) : (
-                                <input data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={f.placeholder || ""} />
-                            )}
-                        </div>
-                    ))}
+                        (cars/phones) so the user never sees duplicate brand/model/year inputs
+                        below the price. We also still skip post_type because it has its own
+                        segmented control above.
+
+                        For EVERY other category we wrap the fields in a unified "Details Box":
+                        a titled container with a 2-column grid layout so the post form looks
+                        consistent (OLX/Haraj-style) across furniture, real estate, jobs,
+                        services, electronics, pets, etc. */}
+                    {!(form.category === "cars" || form.category === "phones") && cat?.fields?.length > 0 && (() => {
+                        const fields = cat.fields.filter((f) => !((form.category === "jobs" || form.category === "services") && f.key === "post_type"));
+                        if (!fields.length) return null;
+                        return (
+                            <div className="bg-[var(--surface-elevated)]/40 rounded-2xl p-3 border border-[var(--border)]" data-testid="details-box">
+                                <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-2 flex items-center gap-1">
+                                    📋 {tr("تفاصيل")} {pickName(cat)}
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {fields.map((f) => (
+                                        <div key={f.key} className={f.type === "text" && (f.key === "skills" || f.key === "languages" || f.key === "benefits" || f.key === "dimensions" || f.key === "schedule" || f.key === "pickup_address" || f.key === "dropoff_address") ? "sm:col-span-2" : ""}>
+                                            <label className="block text-[10px] font-arabic font-bold text-[var(--text-muted)] mb-1">
+                                                {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}
+                                            </label>
+                                            {f.type === "select" ? (
+                                                <select data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body">
+                                                    <option value="">{tr("اختر...")}</option>
+                                                    {(f.options_ar || f.options || []).map((canonical, i) => {
+                                                        const label = (f.options && f.options[i]) || canonical;
+                                                        return <option key={canonical} value={canonical}>{label}</option>;
+                                                    })}
+                                                </select>
+                                            ) : f.type === "number" ? (
+                                                <input data-testid={`field-${f.key}`} type="number" value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-latin" />
+                                            ) : (
+                                                <input data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={f.placeholder || ""} />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     <div>
                         <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">

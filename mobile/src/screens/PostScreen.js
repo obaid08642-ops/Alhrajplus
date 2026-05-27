@@ -623,40 +623,94 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 </View>
             </Field>
 
+            {/* Job/Service post-type segmented control at the TOP — mirrors web. Stored under
+                custom_fields.post_type so the listing card + detail page can show a coloured
+                badge (عرض/طلب). Hidden for all other categories. */}
+            {(form.category === "jobs" || form.category === "services") && (
+                <View style={s.postTypeBox}>
+                    <Text style={s.postTypeTitle}>
+                        {form.category === "jobs" ? `💼 ${t("ما نوع الإعلان؟")}` : `🔧 ${t("ما نوع الإعلان؟")}`}
+                    </Text>
+                    <View style={s.postTypeRow}>
+                        {(form.category === "jobs"
+                            ? [
+                                { key: "عرض وظيفة", sub: t("أنا أوظّف شخص"), sub_label: "🟢" },
+                                { key: "باحث عن عمل", sub: t("أنا أبحث عن وظيفة"), sub_label: "🔵" },
+                            ]
+                            : [
+                                { key: "تقديم خدمة", sub: t("أنا مقدّم خدمة"), sub_label: "🟢" },
+                                { key: "طلب خدمة", sub: t("أحتاج هذه الخدمة"), sub_label: "🔵" },
+                            ]
+                        ).map((opt) => {
+                            const active = form.custom_fields?.post_type === opt.key;
+                            return (
+                                <TouchableOpacity
+                                    key={opt.key}
+                                    onPress={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: opt.key } })}
+                                    style={[s.postTypeBtn, active && s.postTypeBtnActive]}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={[s.postTypeBtnLabel, active && { color: "#fff" }]}>{opt.sub_label} {opt.key}</Text>
+                                    <Text style={[s.postTypeBtnSub, active && { color: "rgba(255,255,255,0.85)" }]}>{opt.sub}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+            )}
+
             {/* Cascading brand→model→year→trim (cars) / brand→model→storage→color (phones).
-                Single source of truth: /meta/car-* and /meta/phone-* endpoints shared with web. */}
-            {(form.category === "cars" || form.category === "motors") && (
+                Single source of truth: /meta/car-* and /meta/phone-* endpoints shared with web.
+                Gated strictly on the real category keys; `motors`/`mobiles`/`electronics` were
+                wrong (phones cascade was leaking onto TVs and missing from the real `phones`
+                category). */}
+            {form.category === "cars" && (
                 <CarCascadeMobile
                     value={form.custom_fields}
                     onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
                 />
             )}
-            {(form.category === "mobiles" || form.category === "electronics") && (
+            {form.category === "phones" && (
                 <PhoneCascadeMobile
                     value={form.custom_fields}
                     onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
                 />
             )}
 
-            {/* Dynamic category fields */}
-            {/* Same suppression rule as web: hide the generic field renderer when one
-                of the structured cascades is shown so the user never sees duplicates. */}
-            {!(form.category === "cars" || form.category === "motors" || form.category === "mobiles" || form.category === "electronics") && (cat?.fields || []).filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
-                <Field key={f.key} label={`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}>
-                    {f.type === "select" ? (
-                        <SelectInput
-                            value={form.custom_fields[f.key] || ""}
-                            options={(f.options_ar || f.options || []).map((opt, i) => ({ value: (f.options_ar?.[i] || opt), label: opt }))}
-                            placeholder={t("اختر...")}
-                            onChange={(v) => updateCF(f.key, v)}
-                        />
-                    ) : f.type === "number" ? (
-                        <TextInput value={String(form.custom_fields[f.key] || "")} onChangeText={(v) => updateCF(f.key, v)} keyboardType="numeric" placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} />
-                    ) : (
-                        <TextInput value={form.custom_fields[f.key] || ""} onChangeText={(v) => updateCF(f.key, v)} placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} />
-                    )}
-                </Field>
-            ))}
+            {/* Unified "Details Box" — structured 2-column grid for every other category.
+                Mirrors the OLX/Haraj feel from the web client. We skip the entire block when
+                a richer cascade is mounted, and we always skip post_type (handled by the top
+                segmented control above). */}
+            {!(form.category === "cars" || form.category === "phones") && (() => {
+                const fields = (cat?.fields || []).filter((f) => f.key !== "post_type");
+                if (!fields.length) return null;
+                const isFull = (f) => ["skills", "languages", "benefits", "dimensions", "schedule", "pickup_address", "dropoff_address", "company_name"].includes(f.key);
+                const catName = cat?.name || cat?.name_ar || "";
+                return (
+                    <View style={s.detailsBox} testID="details-box">
+                        <Text style={s.detailsBoxTitle}>📋 {t("تفاصيل")} {catName}</Text>
+                        <View style={s.detailsGrid}>
+                            {fields.map((f) => (
+                                <View key={f.key} style={isFull(f) ? s.detailsCellFull : s.detailsCellHalf}>
+                                    <Text style={s.fieldLabel}>{`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}</Text>
+                                    {f.type === "select" ? (
+                                        <SelectInput
+                                            value={form.custom_fields[f.key] || ""}
+                                            options={(f.options_ar || f.options || []).map((opt, i) => ({ value: (f.options_ar?.[i] || opt), label: opt }))}
+                                            placeholder={t("اختر...")}
+                                            onChange={(v) => updateCF(f.key, v)}
+                                        />
+                                    ) : f.type === "number" ? (
+                                        <TextInput value={String(form.custom_fields[f.key] || "")} onChangeText={(v) => updateCF(f.key, v)} keyboardType="numeric" placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} />
+                                    ) : (
+                                        <TextInput value={form.custom_fields[f.key] || ""} onChangeText={(v) => updateCF(f.key, v)} placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} />
+                                    )}
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                );
+            })()}
 
             {/* City / District (geo autocomplete + fallback to local list) */}
             <Field label={t("المدينة") + " *"}>
@@ -918,4 +972,18 @@ const s = StyleSheet.create({
     modalRowText: { fontSize: 14, color: colors.text },
     modalCloseBtn: { padding: 12, alignItems: "center", marginTop: 8 },
     modalCloseText: { color: colors.textMuted, fontWeight: "700" },
+    // Post-type selector (jobs/services) shown at the TOP of step 2.
+    postTypeBox: { backgroundColor: "rgba(79,182,230,0.07)", borderColor: "rgba(79,182,230,0.35)", borderWidth: 1.2, borderRadius: 16, padding: 12, marginBottom: 14 },
+    postTypeTitle: { fontSize: 13, fontWeight: "900", color: colors.text, textAlign: "center", marginBottom: 10 },
+    postTypeRow: { flexDirection: "row", gap: 8 },
+    postTypeBtn: { flex: 1, borderRadius: 12, borderWidth: 1.4, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, alignItems: "center" },
+    postTypeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    postTypeBtnLabel: { fontSize: 13, fontWeight: "900", color: colors.text },
+    postTypeBtnSub: { fontSize: 10, color: colors.textMuted, marginTop: 3, fontWeight: "600" },
+    // Unified "Details Box" for generic categories — 2-column grid.
+    detailsBox: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 14 },
+    detailsBoxTitle: { fontSize: 12.5, fontWeight: "900", color: colors.text, marginBottom: 10 },
+    detailsGrid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -4 },
+    detailsCellHalf: { width: "50%", paddingHorizontal: 4, marginBottom: 10 },
+    detailsCellFull: { width: "100%", paddingHorizontal: 4, marginBottom: 10 },
 });
