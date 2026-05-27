@@ -20,6 +20,7 @@ import re
 import cloudinary
 import cloudinary.utils
 import cloudinary.uploader
+import cloudinary.api
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from pathlib import Path
@@ -2888,6 +2889,12 @@ def _cache_invalidate():
                 _REDIS.delete(k)
         except Exception:
             pass
+    # Also force sitemap rebuild so newly created/updated/deleted listings
+    # appear in /sitemap.xml within seconds (was capped to 1h TTL before).
+    try:
+        _sitemap_cache_invalidate()
+    except Exception:
+        pass
 
 
 # ============================================================
@@ -3350,8 +3357,15 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
         raise HTTPException(404)
     if item["user_id"] != user["id"] and user.get("role") != "admin":
         raise HTTPException(403)
+    # Capture media URLs BEFORE delete so we can clean Cloudinary asynchronously.
+    media_to_clean = {
+        "images": list(item.get("images") or []),
+        "videos": list(item.get("videos") or []),
+    }
     await db.listings.delete_one({"id": listing_id})
     _cache_invalidate()
+    # Fire-and-forget Cloudinary cleanup so the API response stays fast.
+    asyncio.create_task(_cleanup_listing_media(listing_id, media_to_clean))
     # Tell Google to deindex — best-effort, never blocks the response.
     try:
         fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
@@ -3361,7 +3375,88 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
         _google_idx_deleted(f"{fe}/listing/{listing_id}")
     except Exception as _e:
         logger.warning(f"[google_indexing] delete enqueue failed: {_e}")
-    return {"success": True}
+    return {"success": True, "media_queued": len(media_to_clean["images"]) + len(media_to_clean["videos"])}
+
+
+def _cloudinary_extract_public_id(url: str) -> Optional[tuple]:
+    """Parse a Cloudinary URL → (public_id, resource_type).
+    Supports:
+      .../image/upload/v123/folder/name.jpg          → ("folder/name", "image")
+      .../video/upload/v123/folder/name.mp4          → ("folder/name", "video")
+      .../image/upload/c_fill,w_300/v123/foo/bar.png → ("foo/bar", "image")
+    Returns None for non-Cloudinary URLs.
+    """
+    if not url or "res.cloudinary.com" not in url:
+        return None
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        # path = /<cloud>/image/upload/<transforms?>/v<ver>/<folder>/<id>.<ext>
+        parts = [p for p in parsed.path.split("/") if p]
+        if len(parts) < 4:
+            return None
+        # parts[0]=cloud, parts[1]=resource_type, parts[2]=upload, then maybe transforms then v<ver> then folder/id
+        resource_type = parts[1] if parts[1] in ("image", "video", "raw") else "image"
+        # Skip everything up to and including the version segment (v\d+)
+        import re as _re
+        rest = parts[3:]
+        while rest and not _re.match(r"^v\d+$", rest[0]):
+            rest = rest[1:]
+        if rest and _re.match(r"^v\d+$", rest[0]):
+            rest = rest[1:]
+        if not rest:
+            return None
+        # Strip extension from last segment
+        last = rest[-1]
+        if "." in last:
+            last = last.rsplit(".", 1)[0]
+        public_id = "/".join(rest[:-1] + [last])
+        return public_id, resource_type
+    except Exception:
+        return None
+
+
+async def _cleanup_listing_media(listing_id: str, media: dict) -> dict:
+    """Delete Cloudinary images + videos associated with a deleted listing.
+    Records the outcome in db.media_cleanup_log so an admin can audit.
+    Returns a summary dict (image_count, video_count, deleted, failed).
+    """
+    summary = {"images_deleted": 0, "videos_deleted": 0, "failed": 0, "details": []}
+    images = media.get("images") or []
+    videos = media.get("videos") or []
+    for url in images + videos:
+        info = _cloudinary_extract_public_id(url)
+        if not info:
+            continue
+        public_id, rtype = info
+        try:
+            res = await asyncio.to_thread(cloudinary.uploader.destroy, public_id, resource_type=rtype, invalidate=True)
+            status = (res or {}).get("result", "unknown")
+            summary["details"].append({"public_id": public_id, "resource_type": rtype, "status": status})
+            if status == "ok":
+                if rtype == "video":
+                    summary["videos_deleted"] += 1
+                else:
+                    summary["images_deleted"] += 1
+            else:
+                summary["failed"] += 1
+        except Exception as e:
+            summary["failed"] += 1
+            summary["details"].append({"public_id": public_id, "resource_type": rtype, "error": str(e)[:120]})
+    # Persist audit log
+    try:
+        await db.media_cleanup_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "listing_id": listing_id,
+            "summary": {k: v for k, v in summary.items() if k != "details"},
+            "details": summary["details"][:50],
+            "at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as _e:
+        logger.warning(f"[media-cleanup] audit log failed: {_e}")
+    logger.info(f"[media-cleanup] listing={listing_id} img={summary['images_deleted']} vid={summary['videos_deleted']} fail={summary['failed']}")
+    return summary
+
 
 @api.get("/listings/me/mine")
 async def my_listings(user: dict = Depends(get_current_user)):
@@ -4643,11 +4738,85 @@ async def admin_close_report(rid: str, user: dict = Depends(require_admin)):
 
 @admin_router.delete("/listings/{lid}")
 async def admin_delete_listing(lid: str, user: dict = Depends(require_admin)):
+    item = await db.listings.find_one({"id": lid}, {"_id": 0, "images": 1, "videos": 1})
     r = await db.listings.delete_one({"id": lid})
+    media_queued = 0
     if r.deleted_count:
         await _admin_log(user["id"], "listing_delete", lid)
         _cache_invalidate()
-    return {"deleted": r.deleted_count}
+        if item:
+            media = {"images": list(item.get("images") or []), "videos": list(item.get("videos") or [])}
+            media_queued = len(media["images"]) + len(media["videos"])
+            asyncio.create_task(_cleanup_listing_media(lid, media))
+    return {"deleted": r.deleted_count, "media_queued": media_queued}
+
+
+@admin_router.get("/media-cleanup/log")
+async def admin_media_cleanup_log(limit: int = 50):
+    """Recent media-cleanup audit entries (newest first)."""
+    items = await db.media_cleanup_log.find({}, {"_id": 0}).sort("at", -1).limit(limit).to_list(length=limit)
+    return {"items": items, "count": len(items)}
+
+
+@admin_router.post("/media-cleanup/scan")
+async def admin_media_cleanup_scan(folder: str = "listings", max_resources: int = 200):
+    """Scan Cloudinary for orphan media — public_ids whose listing no longer exists.
+    Does NOT delete anything; returns a list the admin can choose to clean.
+    """
+    try:
+        # List Cloudinary resources in the listings folder (default).
+        res = await asyncio.to_thread(cloudinary.api.resources, type="upload", prefix=folder, max_results=max_resources)
+    except Exception as e:
+        raise HTTPException(500, f"Cloudinary list failed: {e}")
+    resources = res.get("resources", []) or []
+    # Collect all media URLs currently referenced by any listing
+    pipeline = [
+        {"$project": {"_id": 0, "images": 1, "videos": 1}},
+    ]
+    referenced: set = set()
+    async for d in db.listings.aggregate(pipeline):
+        for url in (d.get("images") or []) + (d.get("videos") or []):
+            info = _cloudinary_extract_public_id(url)
+            if info:
+                referenced.add(info[0])
+    orphans = [r for r in resources if r.get("public_id") not in referenced]
+    return {
+        "scanned": len(resources),
+        "orphans_count": len(orphans),
+        "orphans": [{"public_id": r.get("public_id"), "resource_type": r.get("resource_type"), "bytes": r.get("bytes"), "created_at": r.get("created_at")} for r in orphans[:100]],
+    }
+
+
+@admin_router.post("/media-cleanup/delete")
+async def admin_media_cleanup_delete(body: dict, user: dict = Depends(require_admin)):
+    """Delete a specific list of public_ids from Cloudinary.
+    Body: {"items": [{"public_id": "...", "resource_type": "image|video"}, ...]}
+    """
+    items = body.get("items") or []
+    if not items:
+        return {"deleted": 0, "failed": 0}
+    deleted = 0
+    failed = 0
+    details = []
+    for it in items[:100]:
+        pid = it.get("public_id")
+        rtype = it.get("resource_type", "image")
+        if not pid:
+            continue
+        try:
+            res = await asyncio.to_thread(cloudinary.uploader.destroy, pid, resource_type=rtype, invalidate=True)
+            ok = (res or {}).get("result") == "ok"
+            if ok:
+                deleted += 1
+            else:
+                failed += 1
+            details.append({"public_id": pid, "status": (res or {}).get("result")})
+        except Exception as e:
+            failed += 1
+            details.append({"public_id": pid, "error": str(e)[:80]})
+    await _admin_log(user["id"], "media_cleanup_delete", f"count={len(items)}")
+    return {"deleted": deleted, "failed": failed, "details": details[:50]}
+
 
 # Theme settings
 @admin_router.get("/data-integrity")
@@ -5918,6 +6087,13 @@ async def _cached_sitemap_xml() -> str:
     _SITEMAP_CACHE["xml"] = xml
     _SITEMAP_CACHE["ts"] = now
     return xml
+
+
+def _sitemap_cache_invalidate():
+    """Force sitemap rebuild on next request. Called from listing create/update/delete
+    so search engines always see fresh inventory within seconds."""
+    _SITEMAP_CACHE["xml"] = None
+    _SITEMAP_CACHE["ts"] = 0.0
 
 
 @api.get("/sitemap.xml", include_in_schema=False)
