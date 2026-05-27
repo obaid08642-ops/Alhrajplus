@@ -40,6 +40,7 @@ const TermsPage = lazy(() => StaticPagesModule().then((m) => ({ default: m.Terms
 const PrivacyPage = lazy(() => StaticPagesModule().then((m) => ({ default: m.PrivacyPage })));
 const AboutPage = lazy(() => StaticPagesModule().then((m) => ({ default: m.AboutPage })));
 const ContactPage = lazy(() => StaticPagesModule().then((m) => ({ default: m.ContactPage })));
+const DownloadPage = lazy(() => import("@/pages/DownloadPage"));
 
 function PageFallback() {
     return (
@@ -78,6 +79,7 @@ function AppRouter() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/download" element={<DownloadPage />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth/google/callback" element={<AuthCallback />} />
             <Route path="/auth/x/callback" element={<XAuthCallback />} />
