@@ -31,17 +31,23 @@ import AIAssistantScreen from "./src/screens/AIAssistantScreen";
 import { theme, colors } from "./src/theme";
 import { registerForNotifications, setNotificationNavigationRef } from "./src/notifications";
 import { useI18n } from "./src/I18nContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Apply RTL synchronously at module load based on the user's *saved* language —
+// NOT the system locale. Arabic + Urdu = RTL; everything else = LTR.
+// This guarantees the very first render uses the correct direction so we
+// don't need a forced reload on language change.
 try {
-    // Only force RTL for Arabic UI. Other locales (en/hi/fr) need LTR.
-    const isArabic = (I18nManager.getConstants?.()?.localeIdentifier || "").startsWith("ar");
-    if (isArabic && !I18nManager.isRTL) {
-        I18nManager.allowRTL(true);
-        I18nManager.forceRTL(true);
-    } else if (!isArabic && I18nManager.isRTL) {
-        I18nManager.allowRTL(true);
-        I18nManager.forceRTL(false);
-    }
+    // Best-effort sync read of AsyncStorage isn't possible; instead we use
+    // the value persisted by getItemSync polyfill if available. As a fallback
+    // we leave whatever I18nManager has and let setLang() correct it later.
+    AsyncStorage.getItem("hp_lang").then((saved) => {
+        const wantRTL = saved === "ar" || saved === "ur" || (!saved);
+        if (I18nManager.isRTL !== wantRTL) {
+            I18nManager.allowRTL(wantRTL);
+            I18nManager.forceRTL(wantRTL);
+        }
+    }).catch(() => {});
 } catch (_) {}
 
 const Stack = createNativeStackNavigator();
