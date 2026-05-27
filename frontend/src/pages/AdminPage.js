@@ -20,6 +20,7 @@ export default function AdminPage() {
     const tabs = [
         { key: "stats", label: tr("الإحصائيات"), icon: BarChart3 },
         { key: "moderation", label: tr("مراجعة الإعلانات"), icon: Shield },
+        { key: "banned_words", label: tr("الكلمات المحظورة"), icon: Flag },
         { key: "listings", label: tr("جميع الإعلانات"), icon: FileText },
         { key: "data_integrity", label: tr("سلامة البيانات"), icon: Shield },
         { key: "users", label: tr("المستخدمون"), icon: Users },
@@ -50,6 +51,7 @@ export default function AdminPage() {
 
             {tab === "stats" && <StatsPanel />}
             {tab === "moderation" && <ModerationPanel />}
+            {tab === "banned_words" && <BannedWordsPanel />}
             {tab === "listings" && <ListingsPanel />}
             {tab === "data_integrity" && <DataIntegrityPanel />}
             {tab === "users" && <UsersPanel />}
@@ -1198,6 +1200,106 @@ function LogsPanel() {
                     <div className="col-span-3 text-[var(--text-muted)]">{new Date(l.ts).toLocaleString()}</div>
                 </div>
             ))}
+        </div>
+    );
+}
+
+function BannedWordsPanel() {
+    const [items, setItems] = useState([]);
+    const [active, setActive] = useState([]);
+    const [filter, setFilter] = useState("");
+    const [newWord, setNewWord] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    const load = async () => {
+        setLoading(true);
+        try {
+            const { data } = await api.get("/admin/banned-words");
+            setItems(data.items || []);
+            setActive(data.active || []);
+        } catch (_) {
+            setItems([]); setActive([]);
+        } finally { setLoading(false); }
+    };
+    useEffect(() => { load(); }, []);
+
+    const add = async (e) => {
+        e?.preventDefault();
+        const w = newWord.trim();
+        if (!w) return;
+        setBusy(true);
+        try {
+            await api.post("/admin/banned-words", { word: w });
+            setNewWord("");
+            await load();
+        } catch (err) {
+            alert(err?.response?.data?.detail || tr("تعذرت الإضافة"));
+        } finally { setBusy(false); }
+    };
+
+    const remove = async (word) => {
+        if (!window.confirm(`${tr("حذف الكلمة")}: ${word}؟`)) return;
+        setBusy(true);
+        try {
+            await api.delete(`/admin/banned-words/${encodeURIComponent(word)}`);
+            await load();
+        } catch (_) { /* swallow */ }
+        finally { setBusy(false); }
+    };
+
+    const filtered = items.filter((it) => {
+        if (!filter) return true;
+        return (it.word || "").toLowerCase().includes(filter.toLowerCase());
+    });
+
+    return (
+        <div className="space-y-3" data-testid="banned-words-panel">
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 className="font-arabic font-black text-lg text-[var(--text)] flex items-center gap-2">
+                            <Flag className="w-4 h-4 text-red-500" /> {tr("الكلمات المحظورة")}
+                        </h3>
+                        <p className="text-xs text-[var(--text-muted)] font-arabic-body mt-0.5">
+                            {tr("أي إعلان يحتوي هذه الكلمات يُحفَظ كـ «بانتظار المراجعة» تلقائياً")}
+                        </p>
+                    </div>
+                    <div className="bg-[var(--primary)]/10 text-[var(--primary)] rounded-full px-3 py-1 text-xs font-bold font-latin">{active.length} {tr("نشطة")}</div>
+                </div>
+                <form onSubmit={add} className="flex gap-2 mb-3">
+                    <input data-testid="bw-new" placeholder={tr("أضف كلمة محظورة جديدة...")} value={newWord} onChange={(e) => setNewWord(e.target.value)} maxLength={60} className="flex-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-arabic-body" />
+                    <button type="submit" disabled={busy || !newWord.trim()} data-testid="bw-add-btn" className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-xl text-sm font-arabic font-bold disabled:opacity-50">{tr("إضافة")}</button>
+                </form>
+                <input data-testid="bw-filter" placeholder={tr("بحث في القائمة...")} value={filter} onChange={(e) => setFilter(e.target.value)} className="w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-arabic-body" />
+            </div>
+
+            {loading ? (
+                <div className="text-center font-arabic text-[var(--text-muted)] p-6">{tr("جاري التحميل...")}</div>
+            ) : (
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                    <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[11px] font-arabic font-bold text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+                        <div className="col-span-7">{tr("الكلمة")}</div>
+                        <div className="col-span-3">{tr("المصدر")}</div>
+                        <div className="col-span-2 text-center">{tr("إجراء")}</div>
+                    </div>
+                    {filtered.length === 0 ? (
+                        <div className="p-6 text-center text-sm text-[var(--text-muted)] font-arabic-body">{tr("لا توجد نتائج")}</div>
+                    ) : filtered.map((it) => (
+                        <div key={it.word} data-testid={`bw-row-${it.word}`} className="grid grid-cols-12 gap-2 px-3 py-2 text-xs border-b border-[var(--border)]/40 items-center">
+                            <div className="col-span-7 font-arabic font-bold text-[var(--text)]">{it.word}</div>
+                            <div className="col-span-3">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${it.source === "admin" ? "bg-[var(--primary)]/15 text-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text-muted)]"}`}>
+                                    {it.source === "admin" ? tr("أدمن") : tr("افتراضية")}
+                                </span>
+                            </div>
+                            <div className="col-span-2 text-center">
+                                <button data-testid={`bw-del-${it.word}`} onClick={() => remove(it.word)} disabled={busy} className="text-red-500 hover:bg-red-500/10 p-1.5 rounded-full disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

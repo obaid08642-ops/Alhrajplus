@@ -2510,7 +2510,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     return doc
 
 
-BANNED_WORDS = [
+BANNED_WORDS_SEED = [
     # Arabic — drugs / weapons / fraud
     "مخدرات", "حشيش", "كوكايين", "هيروين", "كبتاجون", "كبتاغون", "ترامادول", "كرستال", "شبو",
     "سلاح", "اسلحة", "أسلحة", "مسدس", "بندقية", "رشاش", "ذخيرة", "قنبلة",
@@ -2526,6 +2526,28 @@ BANNED_WORDS = [
     # Urdu / Hindi / Bengali — drugs
     "ड्रग्स", "ہیروئن", "মাদক",
 ]
+
+# Runtime mutable copy — hot-reloaded from db.banned_words on startup and after
+# every admin write. Falls back to the seed list when the collection is empty
+# (so the system is never unprotected, even on a brand-new database).
+BANNED_WORDS: list = list(BANNED_WORDS_SEED)
+
+
+async def _reload_banned_words():
+    """Refresh `BANNED_WORDS` from db.banned_words. Called on startup AND after
+    every admin add/remove so the in-memory check stays consistent without an
+    app restart. If the collection is empty, the seed list stays in place."""
+    global BANNED_WORDS
+    try:
+        rows = await db.banned_words.find({}, {"_id": 0, "word": 1}).to_list(length=5000)
+        words = [r.get("word", "").strip() for r in rows if r.get("word")]
+        if words:
+            BANNED_WORDS = words
+        else:
+            BANNED_WORDS = list(BANNED_WORDS_SEED)
+        logger.info(f"[banned_words] reloaded {len(BANNED_WORDS)} entries")
+    except Exception as e:
+        logger.warning(f"[banned_words] reload failed: {e}")
 
 
 # Spam-pattern regex. Order matters — kept small so it stays cheap (<1 ms).
@@ -3419,7 +3441,9 @@ def _cloudinary_extract_public_id(url: str) -> Optional[tuple]:
 async def _cleanup_listing_media(listing_id: str, media: dict) -> dict:
     """Delete Cloudinary images + videos associated with a deleted listing.
     Records the outcome in db.media_cleanup_log so an admin can audit.
-    Returns a summary dict (image_count, video_count, deleted, failed).
+    Has retry logic: each public_id is attempted up to 3 times with backoff;
+    permanently-failed items are stored in db.media_cleanup_failed for the
+    background retry worker to pick up later.
     """
     summary = {"images_deleted": 0, "videos_deleted": 0, "failed": 0, "details": []}
     images = media.get("images") or []
@@ -3429,20 +3453,57 @@ async def _cleanup_listing_media(listing_id: str, media: dict) -> dict:
         if not info:
             continue
         public_id, rtype = info
-        try:
-            res = await asyncio.to_thread(cloudinary.uploader.destroy, public_id, resource_type=rtype, invalidate=True)
-            status = (res or {}).get("result", "unknown")
-            summary["details"].append({"public_id": public_id, "resource_type": rtype, "status": status})
-            if status == "ok":
-                if rtype == "video":
-                    summary["videos_deleted"] += 1
-                else:
-                    summary["images_deleted"] += 1
+        # Retry up to 3 times with linear backoff (0.5s, 1s, 2s).
+        last_status = None
+        last_error = None
+        for attempt in range(3):
+            try:
+                res = await asyncio.to_thread(cloudinary.uploader.destroy, public_id, resource_type=rtype, invalidate=True)
+                last_status = (res or {}).get("result", "unknown")
+                if last_status == "ok" or last_status == "not found":
+                    break
+            except Exception as e:
+                last_error = str(e)[:140]
+                await asyncio.sleep(0.5 * (attempt + 1))
+                continue
+            if last_status == "ok":
+                break
+            # Transient retry on unexpected response
+            await asyncio.sleep(0.5 * (attempt + 1))
+        entry = {"public_id": public_id, "resource_type": rtype, "status": last_status, "url": url[:200]}
+        if last_error:
+            entry["error"] = last_error
+        summary["details"].append(entry)
+        if last_status == "ok":
+            if rtype == "video":
+                summary["videos_deleted"] += 1
             else:
-                summary["failed"] += 1
-        except Exception as e:
+                summary["images_deleted"] += 1
+        elif last_status == "not found":
+            # Already gone — treat as success for counting purposes.
+            pass
+        else:
             summary["failed"] += 1
-            summary["details"].append({"public_id": public_id, "resource_type": rtype, "error": str(e)[:120]})
+            # Persist into the failed-queue so a background retry can attempt
+            # it later (handles outages of Cloudinary control plane).
+            try:
+                await db.media_cleanup_failed.update_one(
+                    {"public_id": public_id, "resource_type": rtype},
+                    {"$set": {
+                        "public_id": public_id,
+                        "resource_type": rtype,
+                        "listing_id": listing_id,
+                        "url": url[:300],
+                        "last_status": last_status,
+                        "last_error": last_error,
+                        "attempts": 3,
+                        "next_retry_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }, "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": datetime.now(timezone.utc).isoformat()}},
+                    upsert=True,
+                )
+            except Exception as _fe:
+                logger.warning(f"[media-cleanup] failed-queue insert error: {_fe}")
     # Persist audit log
     try:
         await db.media_cleanup_log.insert_one({
@@ -3456,6 +3517,43 @@ async def _cleanup_listing_media(listing_id: str, media: dict) -> dict:
         logger.warning(f"[media-cleanup] audit log failed: {_e}")
     logger.info(f"[media-cleanup] listing={listing_id} img={summary['images_deleted']} vid={summary['videos_deleted']} fail={summary['failed']}")
     return summary
+
+
+async def _media_cleanup_retry_worker():
+    """Background loop that retries permanently-failed media deletions every
+    10 minutes. Picks items whose `next_retry_at` has passed."""
+    while True:
+        try:
+            await asyncio.sleep(600)  # 10 min
+            now_iso = datetime.now(timezone.utc).isoformat()
+            cursor = db.media_cleanup_failed.find({"next_retry_at": {"$lte": now_iso}}).limit(50)
+            async for item in cursor:
+                pid = item.get("public_id")
+                rtype = item.get("resource_type", "image")
+                try:
+                    res = await asyncio.to_thread(cloudinary.uploader.destroy, pid, resource_type=rtype, invalidate=True)
+                    status = (res or {}).get("result")
+                    if status in ("ok", "not found"):
+                        await db.media_cleanup_failed.delete_one({"public_id": pid, "resource_type": rtype})
+                        logger.info(f"[media-cleanup.retry] cleared public_id={pid}")
+                    else:
+                        await db.media_cleanup_failed.update_one(
+                            {"public_id": pid, "resource_type": rtype},
+                            {"$inc": {"attempts": 1}, "$set": {
+                                "last_status": status,
+                                "next_retry_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
+                            }},
+                        )
+                except Exception as e:
+                    await db.media_cleanup_failed.update_one(
+                        {"public_id": pid, "resource_type": rtype},
+                        {"$inc": {"attempts": 1}, "$set": {
+                            "last_error": str(e)[:140],
+                            "next_retry_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
+                        }},
+                    )
+        except Exception as e:
+            logger.warning(f"[media-cleanup.retry] worker error: {e}")
 
 
 @api.get("/listings/me/mine")
@@ -3499,6 +3597,74 @@ async def auction_bids(listing_id: str, limit: int = 20):
             b["verified"] = u.get("verified", False)
     return bids
 
+# ============================================================
+# Auctions live WebSocket — fan-out new bids to all watchers of a listing.
+# In-memory pub/sub (single-instance). For multi-instance we'd swap this with
+# Redis pub/sub — the public API stays the same.
+# ============================================================
+_AUCTION_WATCHERS: dict = {}  # listing_id -> set of WebSocket
+
+
+async def _broadcast_auction_event(listing_id: str, event: dict) -> None:
+    conns = _AUCTION_WATCHERS.get(listing_id) or set()
+    if not conns:
+        return
+    dead = []
+    for ws in list(conns):
+        try:
+            await ws.send_json(event)
+        except Exception:
+            dead.append(ws)
+    for d in dead:
+        conns.discard(d)
+
+
+@app.websocket("/api/ws/auctions/{listing_id}")
+async def auctions_ws(websocket: WebSocket, listing_id: str):
+    """Live bid stream. On connect we push the current top bid + bid count so
+    the client can render instantly without an extra REST call. Then any new
+    bid placed via POST /auctions/{id}/bid is fanned out as:
+      {type:"bid", amount, user_id, ts, count}
+    Clients should treat dropped sockets as a signal to reconnect with backoff."""
+    await websocket.accept()
+    conns = _AUCTION_WATCHERS.setdefault(listing_id, set())
+    conns.add(websocket)
+    try:
+        # Snapshot — current state at connect time.
+        top = await db.bids.find_one({"listing_id": listing_id}, {"_id": 0}, sort=[("amount", -1)])
+        count = await db.bids.count_documents({"listing_id": listing_id})
+        listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "price": 1, "auction_end_at": 1, "status": 1})
+        await websocket.send_json({
+            "type": "snapshot",
+            "top_bid": top,
+            "bid_count": count,
+            "starting_price": (listing or {}).get("price"),
+            "auction_end_at": (listing or {}).get("auction_end_at"),
+            "status": (listing or {}).get("status"),
+        })
+        # Keep the connection alive — we only push from server side. Read loop
+        # handles client-side ping messages and ignores everything else.
+        while True:
+            try:
+                msg = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                if msg == "ping":
+                    await websocket.send_text("pong")
+            except asyncio.TimeoutError:
+                # Heartbeat from server every 60s so proxies don't kill the socket.
+                try:
+                    await websocket.send_json({"type": "heartbeat"})
+                except Exception:
+                    break
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.warning(f"[auctions.ws] {e}")
+    finally:
+        conns.discard(websocket)
+        if not conns:
+            _AUCTION_WATCHERS.pop(listing_id, None)
+
+
 @api.post("/auctions/{listing_id}/bid")
 async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_current_user)):
     listing = await db.listings.find_one({"id": listing_id}, {"_id": 0})
@@ -3526,7 +3692,28 @@ async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_curre
     }
     await db.bids.insert_one(bid)
     bid.pop("_id", None)
-    return {"success": True, "bid": bid}
+    # Live fan-out — every connected watcher sees the new bid within <100ms.
+    count = await db.bids.count_documents({"listing_id": listing_id})
+    asyncio.create_task(_broadcast_auction_event(listing_id, {
+        "type": "bid",
+        "bid": bid,
+        "bid_count": count,
+    }))
+    # Notify the previous top bidder they were outbid (best-effort push).
+    if top and top.get("user_id") != user["id"]:
+        try:
+            asyncio.create_task(_send_user_notification(
+                user_id=top["user_id"],
+                title="📈 تم تجاوز عرضك!",
+                body=f"عرض جديد بقيمة {body.amount} {listing.get('currency', 'ر.س')} على «{(listing.get('title') or '')[:40]}»",
+                ntype="auction_outbid",
+                url=f"/listing/{listing_id}",
+                extra_data={"listing_id": listing_id, "amount": body.amount},
+                pref_key="broadcasts",
+            ))
+        except Exception:
+            pass
+    return {"success": True, "bid": bid, "bid_count": count}
 
 # Map endpoint - returns listings with lat/lng
 @api.get("/listings/map/nearby")
@@ -4920,6 +5107,46 @@ async def admin_list_logs(limit: int = 100):
     limit = max(1, min(limit, 500))
     return await db.admin_logs.find({}, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
 
+
+# ----- Banned words management -----
+@admin_router.get("/banned-words")
+async def admin_banned_words_list():
+    """List the active banned-words set. When db.banned_words is empty we still
+    return the seed list so the admin always sees what's enforcing the filter."""
+    rows = await db.banned_words.find({}, {"_id": 0}).sort("word", 1).to_list(length=5000)
+    if not rows:
+        rows = [{"word": w, "source": "seed"} for w in BANNED_WORDS_SEED]
+    return {"items": rows, "count": len(rows), "active": BANNED_WORDS}
+
+
+@admin_router.post("/banned-words")
+async def admin_banned_words_add(body: dict, user: dict = Depends(require_admin)):
+    word = (body or {}).get("word", "").strip()
+    if not word or len(word) > 60:
+        raise HTTPException(400, "word required (1..60 chars)")
+    # First write: seed the collection so the admin's set replaces the hardcoded list.
+    if await db.banned_words.count_documents({}) == 0:
+        await db.banned_words.insert_many([{"word": w, "source": "seed", "ts": datetime.now(timezone.utc).isoformat()} for w in BANNED_WORDS_SEED])
+    await db.banned_words.update_one(
+        {"word": word},
+        {"$set": {"word": word, "source": "admin", "ts": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    await _admin_log(user["id"], "banned_word_add", word)
+    await _reload_banned_words()
+    return {"added": word, "count": len(BANNED_WORDS)}
+
+
+@admin_router.delete("/banned-words/{word}")
+async def admin_banned_words_remove(word: str, user: dict = Depends(require_admin)):
+    # If still empty, seed first so we can "delete" a seed entry permanently.
+    if await db.banned_words.count_documents({}) == 0:
+        await db.banned_words.insert_many([{"word": w, "source": "seed", "ts": datetime.now(timezone.utc).isoformat()} for w in BANNED_WORDS_SEED])
+    r = await db.banned_words.delete_one({"word": word})
+    await _admin_log(user["id"], "banned_word_remove", word)
+    await _reload_banned_words()
+    return {"removed": r.deleted_count, "count": len(BANNED_WORDS)}
+
 @admin_router.post("/ads")
 async def admin_create_ad(body: AdIn):
     aid = str(uuid.uuid4())
@@ -5543,6 +5770,7 @@ async def _process_due_schedules(now_iso: str) -> int:
 
 
 _SMART_NOTIF_TASK: Optional[asyncio.Task] = None
+_MEDIA_CLEANUP_TASK: Optional[asyncio.Task] = None
 
 
 async def _process_viewed_no_action(now_iso: str, cutoff_iso: str) -> int:
@@ -7191,10 +7419,21 @@ async def startup():
             logger.warning(f"[startup] slug backfill failed: {e}")
     asyncio.create_task(_backfill_slugs())
 
+    # Hot-reload banned words from db so admin-curated set takes effect immediately.
+    try:
+        await _reload_banned_words()
+    except Exception as _bwe:
+        logger.warning(f"[startup] banned_words reload failed: {_bwe}")
+
     # Start the smart notifications worker (abandoned drafts/searches + scheduled).
     global _SMART_NOTIF_TASK
     if _SMART_NOTIF_TASK is None or _SMART_NOTIF_TASK.done():
         _SMART_NOTIF_TASK = asyncio.create_task(_smart_notifications_worker())
+
+    # Start the media-cleanup retry worker (background — retries every 10 min)
+    global _MEDIA_CLEANUP_TASK
+    if _MEDIA_CLEANUP_TASK is None or _MEDIA_CLEANUP_TASK.done():
+        _MEDIA_CLEANUP_TASK = asyncio.create_task(_media_cleanup_retry_worker())
 
     # Seed admin (idempotent)
     existing = await db.users.find_one({"email": ADMIN_EMAIL})

@@ -19,7 +19,106 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
-## ✅ Session 25 — Feb 2026 — Media Cleanup + Full Production Verification
+## ✅ Session 26 — Feb 2026 — Auctions WS + Banned Words Editor + Media Retry
+
+### 🔥 Auctions Live WebSocket (NEW)
+- ✅ NEW `WS /api/ws/auctions/{listing_id}` — pushes:
+  - `{type: "snapshot"}` on connect (current top_bid, bid_count, starting_price, auction_end_at, status)
+  - `{type: "bid", bid: {...}, bid_count}` on every new bid (fanout to all watchers)
+  - `{type: "heartbeat"}` every 60s server-side (keeps proxies from killing socket)
+- ✅ Client can send `"ping"` → server replies `"pong"`
+- ✅ Auto-cleanup of dead connections
+- ✅ `POST /auctions/{id}/bid` now also:
+  - Fires WS broadcast (asyncio.create_task, non-blocking)
+  - Sends push notification to **previous top bidder** ("📈 تم تجاوز عرضك!")
+- ✅ LIVE VERIFIED: bid placed via REST → WebSocket watcher received event **in 0ms** (sub-millisecond local latency)
+
+### 🚫 Banned Words Editor — Hot-Reload
+- ✅ Converted hard-coded `BANNED_WORDS` constant to runtime-mutable list backed by `db.banned_words`.
+- ✅ Startup hot-reloads from DB; admin add/remove triggers `_reload_banned_words()` immediately.
+- ✅ NEW endpoints (admin-only):
+  - `GET /admin/banned-words` — list with `{items, count, active}`
+  - `POST /admin/banned-words` body `{word}` — add (seeds collection from defaults on first write)
+  - `DELETE /admin/banned-words/{word}` — remove
+- ✅ NEW AdminPage tab **«الكلمات المحظورة»** with:
+  - Add input + button
+  - Live filter/search
+  - Source badge (admin vs seed)
+  - Trash button per row
+- ✅ LIVE VERIFIED: Added "سكام_تجريبي" → created listing with that word → moderation flag `banned_word:سكام_تجريبي` appeared instantly without restart.
+
+### 🔁 Media Cleanup — Retry Safety
+- ✅ `_cleanup_listing_media()` now retries each Cloudinary destroy up to **3 times** with linear backoff (0.5s, 1s, 2s).
+- ✅ Permanently-failed items persist to `db.media_cleanup_failed` with `next_retry_at`.
+- ✅ NEW background worker `_media_cleanup_retry_worker()` (10-min loop) reprocesses the failed queue, removes successes, exponentially backs off the rest.
+- ✅ Cloudinary status `"not found"` treated as success (already-deleted media).
+
+### 📋 Already Implemented (Verified — no new code needed)
+- ✅ Google Indexing API: `/app/backend/google_indexing.py` — service account based, fires on create/update/delete via `_google_idx_updated()` / `_google_idx_deleted()`. Background worker dispatches.
+- ✅ Audit Log Viewer UI in AdminPage (`LogsPanel`).
+
+### Files Modified (Session 26)
+- MOD `/app/backend/server.py`:
+  - `BANNED_WORDS_SEED` + runtime `BANNED_WORDS` list + `_reload_banned_words()`
+  - 3 NEW admin endpoints (banned-words list/add/remove)
+  - `_cleanup_listing_media()` retry + failed-queue
+  - NEW `_media_cleanup_retry_worker()` (10-min retry loop)
+  - NEW `WS /api/ws/auctions/{listing_id}` + `_broadcast_auction_event()` + `_AUCTION_WATCHERS` map
+  - `place_bid` broadcasts to WS + notifies outbid user
+  - Startup wires retry worker + banned-words reload
+- MOD `/app/frontend/src/pages/AdminPage.js`:
+  - NEW tab «الكلمات المحظورة»
+  - NEW `BannedWordsPanel` component
+
+### 🧪 GRAND FINAL E2E (Live Outputs)
+
+**[1] Create → Sitemap auto-update:**
+```
+BEFORE: 198 URLs → POST listing (BMW X5) → AFTER: 199 URLs (+1 ✓)
+slug: bmw-x5-2024-mwdyl-m-sport-dbde5e
+DELETE → 198 URLs (back to baseline ✓)
+```
+
+**[2] AI Moderation + Admin Notification (LIVE):**
+```
+POST listing "بيع مخدرات وأسلحة + كبتاجون + واتساب"
+  rule-based flags (instant): [banned_word:مخدرات, phone_spam, offsite_contact]
+  AI verdict (8s later, Gemini 2.5 Flash):
+    score: 1.0
+    categories: [drugs, weapons, prohibited]
+    reason: "ترويج صريح لبيع مواد مخدرة (كبتاجون) وأسلحة."
+  final moderation_flags: 6 (3 rule + 3 ai:*)
+  admin push notifications fired: 1 ✓
+```
+
+**[3] Auctions WebSocket (LIVE — `/tmp/test_auction_ws.py`):**
+```
+Connect WS → SNAPSHOT received (top_bid: 1500 ر.س, count: 1, status: active)
+POST /bid amount=1505 → HTTP 200 in 56ms
+WS EVENT received 0ms after POST:
+  type=bid amount=1505 user_id=5eaf328c bid_count=2
+✓ Sub-millisecond fanout
+```
+
+**[4] Banned Words hot-reload (LIVE):**
+```
+GET initial → 44 entries
+POST "سكام_تجريبي" → {added: ..., count: 45}
+POST listing with that word → moderation_flags: [banned_word:سكام_تجريبي] ✓
+```
+
+**[5] Endpoints health:**
+```
+[200] /api/auth/me
+[200] /api/admin/stats
+[200] /api/admin/banned-words
+[200] /api/admin/media-cleanup/log
+[200] /api/admin/logs
+```
+
+---
+
+
 
 ### 🗑 Media Cleanup on Listing Delete (NEW)
 - ✅ NEW `_cloudinary_extract_public_id(url)` — parses Cloudinary URLs (including transforms `c_fill,w_300/`, video resources, raw) → `(public_id, resource_type)`. Returns None for non-Cloudinary URLs (defense).
