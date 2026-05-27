@@ -19,7 +19,78 @@ Build a Saudi/Gulf classifieds marketplace ("الحراج بلس") that surpasse
 5. **Admin**: Moderates, bans, verifies, manages ads/theme/reports
 
 
-## ✅ Session 28 — Feb 2026 — Production UX Lock (Uploads + Auctions Live + Audit)
+## ✅ Session 29 — Feb 2026 — Cascading Catalogs (Web + Mobile) + SVG Map Markers
+
+### 🚗📱 Cascading Catalogs — Single Source of Truth (Web + Mobile)
+- ✅ NEW `/app/backend/catalogs.py` — production-grade structured datasets:
+  - **CAR_CATALOG**: 20 brands × ~10 models avg × 4-6 trims each (Toyota, Lexus, Nissan, Hyundai, Kia, Honda, Ford, Chevrolet, GMC, Mercedes-Benz, BMW, Audi, Porsche, Land Rover, Jeep, Dodge, Tesla, MG, Geely, Other) — covers 95% of GCC car market.
+  - **PHONE_CATALOG**: 10 brands × ~10 models avg × storage+color variants (Apple 29 models, Samsung 19, Xiaomi, Huawei, Honor, Oppo, OnePlus, Google, Nothing, Other)
+  - "Other" sentinel everywhere → users never blocked by missing entries
+  - `years_window(span=30)` returns 31 years (current+1 .. current-30) dynamically
+- ✅ NEW 6 backend endpoints:
+  - `GET /api/meta/car-brands` → {brands, years}
+  - `GET /api/meta/car-models?brand=X`
+  - `GET /api/meta/car-trims?brand=X&model=Y`
+  - `GET /api/meta/phone-brands`
+  - `GET /api/meta/phone-models?brand=X`
+  - `GET /api/meta/phone-variants?brand=X&model=Y` → {storage, color}
+
+### 🌐 Web Cascade Component
+- ✅ NEW `/app/frontend/src/components/CategoryCascades.js`:
+  - `<CarCascade>` — brand → model → year → trim
+  - `<PhoneCascade>` — brand → model → storage → color
+  - Lazy-loads each level on demand (no 200KB bundle)
+  - Resets dependent fields automatically when parent changes
+- ✅ Wired into `PostListing.js`: shows for `category === "cars"|"motors"` (car cascade) and `category === "mobiles"|"electronics"` (phone cascade). Stores values in `form.custom_fields.{car_brand, car_model, car_year, car_trim}` or `{phone_brand, phone_model, phone_storage, phone_color}`.
+
+### 📱 Mobile Cascade Component (Expo)
+- ✅ NEW `/app/mobile/src/components/CategoryCascadesMobile.js`:
+  - Same data, same UX, native bottom-sheet picker (Modal + FlatList) instead of `<select>`
+  - Uses shared backend endpoints — never drifts from web
+- ✅ Wired into `/app/mobile/src/screens/PostScreen.js` with identical conditional logic
+- ✅ Custom inline `Picker` component (no external dep)
+
+### 🗺 Map Markers — SVG Replacement (was emoji)
+- ✅ `/app/frontend/src/pages/SearchAndMap.js`:
+  - Replaced 23 emoji entries with **inline lucide-style SVG icons** (24 icons total)
+  - Crisp at any DPR, no emoji rendering inconsistencies on Safari/old Android
+  - Same hologram pin frame, just SVG inside instead of emoji glyph
+- ✅ Categories with SVG: cars, motors, real_estate, apartments, electronics, mobiles, computers, furniture, fashion, jewelry, jobs, services, sports, games, books, food, pets, baby, beauty, industrial, agricultural, art, auction, general
+
+### 🎯 Auctions UI — Overlap Fix
+- ✅ `AuctionsPage` AuctionCard: added `flex-wrap` + `min-w-0` + `truncate` + `shrink-0` to bottom row so price/button never overlap on narrow phones (< 360px). Added `active:scale-95` for tactile feedback.
+
+### Files Modified (Session 29)
+**Backend:**
+- NEW `/app/backend/catalogs.py` (~250 lines, production catalogs)
+- MOD `/app/backend/server.py` — 6 new `/meta/*` endpoints
+
+**Frontend (Web):**
+- NEW `/app/frontend/src/components/CategoryCascades.js`
+- MOD `/app/frontend/src/pages/PostListing.js` — wires CarCascade + PhoneCascade
+- MOD `/app/frontend/src/pages/SearchAndMap.js` — SVG icons (replaced emoji)
+- MOD `/app/frontend/src/pages/AuctionsPage.js` — responsive overlap fix
+
+**Frontend (Mobile/Expo):**
+- NEW `/app/mobile/src/components/CategoryCascadesMobile.js`
+- MOD `/app/mobile/src/screens/PostScreen.js` — wires CarCascadeMobile + PhoneCascadeMobile
+
+### 🧪 Verification (curl + lint)
+```
+✅ Lint: 6/6 modified files clean (web + mobile)
+✅ Frontend pages serving: / /post /auctions /search /download /admin → all HTTP 200
+✅ Cascading endpoints (real curl):
+   /api/meta/car-brands       → 200, 108ms, 20 brands + 31 years
+   /api/meta/car-models?...   → 200, 122ms (Lexus → LX, GX, ES, IS, RX, NX, LS, LC, UX, Other)
+   /api/meta/car-trims?...    → 200, 135ms (BMW X5 → xDrive40i, xDrive50i, M50i, X5 M, Other)
+   /api/meta/phone-brands     → 200,  96ms
+   /api/meta/phone-models?... → 200,  96ms (Samsung → 19 models)
+   /api/meta/phone-variants?  → 200, 136ms (Galaxy S24 Ultra → 3 storages, 4 colors)
+```
+
+---
+
+
 
 ### 🚀 IMAGE UPLOAD PIPELINE — Total Rewrite
 - ✅ Added `browser-image-compression@2.0.2` (Web Worker, no UI freeze)

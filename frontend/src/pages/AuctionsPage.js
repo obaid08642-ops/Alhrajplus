@@ -101,12 +101,12 @@ function AuctionCard({ listing, onBid }) {
             <div className="p-3 flex-1 flex flex-col">
                 <h3 className="font-arabic font-bold text-sm text-[var(--text)] line-clamp-1 mb-1">{listing.title}</h3>
                 <p className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-1 mb-3">{listing.city}</p>
-                <div className="flex items-end justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)]">
-                    <div>
+                <div className="flex items-end justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)] flex-wrap">
+                    <div className="min-w-0">
                         <div className="text-[10px] text-[var(--text-muted)] font-arabic-body">{top ? "أعلى مزايدة" : "السعر الابتدائي"}</div>
-                        <div className="font-latin font-black text-lg text-[var(--accent)]">{Number(currentPrice).toLocaleString()} <span className="text-[10px] text-[var(--text-muted)]">{listing.currency || "ر.س"}</span></div>
+                        <div className="font-latin font-black text-lg text-[var(--accent)] truncate">{Number(currentPrice).toLocaleString()} <span className="text-[10px] text-[var(--text-muted)]">{listing.currency || "ر.س"}</span></div>
                     </div>
-                    <button data-testid={`bid-btn-${listing.id}`} onClick={onBid} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-full px-4 py-2 text-xs font-bold font-arabic flex items-center gap-1">
+                    <button data-testid={`bid-btn-${listing.id}`} onClick={onBid} className="shrink-0 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-full px-4 py-2 text-xs font-bold font-arabic flex items-center gap-1 active:scale-95 transition-transform">
                         <Gavel className="w-3 h-3" /> زايد الآن
                     </button>
                 </div>

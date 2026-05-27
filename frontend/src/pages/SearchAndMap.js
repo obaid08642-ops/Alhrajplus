@@ -18,27 +18,50 @@ L.Icon.Default.mergeOptions({
 });
 
 // Category emoji map (mirrors web categories)
-const CATEGORY_EMOJI = {
-    cars: "🚗", motors: "🚗", real_estate: "🏠", apartments: "🏢",
-    electronics: "📱", mobiles: "📱", computers: "💻",
-    furniture: "🛋️", fashion: "👗", jewelry: "💍",
-    jobs: "💼", services: "🛠️",
-    sports: "⚽", games: "🎮", books: "📚", food: "🍽️",
-    pets: "🐾", baby: "👶", beauty: "💄",
-    industrial: "🏗️", agricultural: "🌾", art: "🎨",
-    auction: "🔨", general: "🏷️",
+// ============================================================
+// Category-specific SVG icons for map pins. Lucide-equivalent paths, inlined
+// as 14px white glyphs so they render crisp at any DPR. Replaces flat emoji
+// (😀 don't always render in Leaflet divIcon on Safari + old Android Chrome).
+// Stroke=2 with linejoin=round matches the lucide-react aesthetic the rest
+// of the app uses.
+// ============================================================
+const SVG_BASE = "stroke=\"white\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\"";
+const CATEGORY_SVG = {
+    cars: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M19 17h2v-3.28a1.81 1.81 0 0 0-1.06-1.66l-1.66-.76l-1.21-1.95A1.94 1.94 0 0 0 15.39 8H8.61a2 2 0 0 0-1.7.95L5.71 11l-1.66.74A1.85 1.85 0 0 0 3 13.5V17h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>`,
+    motors: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 17.5h-5L8 11l4-3 4 6"/></svg>`,
+    real_estate: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    apartments: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></svg>`,
+    electronics: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><rect width="14" height="20" x="5" y="2" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
+    mobiles: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><rect width="14" height="20" x="5" y="2" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
+    computers: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+    furniture: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M3 18v-6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v6"/><path d="M2 21v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3"/><path d="M4 18h16"/></svg>`,
+    fashion: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>`,
+    jewelry: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><polygon points="6 3 18 3 22 9 12 22 2 9"/><line x1="11" y1="3" x2="8" y2="9"/><line x1="13" y1="3" x2="16" y2="9"/><line x1="2" y1="9" x2="22" y2="9"/></svg>`,
+    jobs: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
+    services: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+    sports: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/></svg>`,
+    games: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z"/></svg>`,
+    books: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+    food: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M3 11h18M3 11l1 7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2l1-7"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    pets: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10z"/></svg>`,
+    baby: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><circle cx="12" cy="12" r="10"/><path d="M9 12h.01M15 12h.01M9.5 16a3.5 3.5 0 0 0 5 0"/></svg>`,
+    beauty: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>`,
+    industrial: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg>`,
+    agricultural: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M2 22c1.25-.987 2.27-1.975 3.9-2.2a5.56 5.56 0 0 1 3.8 1.5a4 4 0 0 0 6 0a5.5 5.5 0 0 1 3.3-1.5c1.71.06 3.13.74 4 2.2"/><path d="M2 16c1.25-.987 2.27-1.975 3.9-2.2a5.56 5.56 0 0 1 3.8 1.5a4 4 0 0 0 6 0a5.5 5.5 0 0 1 3.3-1.5c1.71.06 3.13.74 4 2.2"/><path d="M12 2v6M9 5l3 3 3-3"/></svg>`,
+    art: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><circle cx="13.5" cy="6.5" r=".5" fill="white"/><circle cx="17.5" cy="10.5" r=".5" fill="white"/><circle cx="8.5" cy="7.5" r=".5" fill="white"/><circle cx="6.5" cy="12.5" r=".5" fill="white"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
+    auction: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="m14 13-7.5 7.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>`,
+    general: `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_BASE}><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
 };
 
-function emojiForCategory(category) {
-    if (!category) return "🏷️";
-    return CATEGORY_EMOJI[category] || "🏷️";
+function svgForCategory(category) {
+    return CATEGORY_SVG[category] || CATEGORY_SVG.general;
 }
 
-// Hologram pin: floating, glowing price chip + category emoji
+// Hologram pin: floating, glowing price chip + category SVG icon
 function buildHologramIcon({ price, currency, category }) {
     const display = price ? Number(price).toLocaleString() : "★";
-    const sub = price ? (currency || "ر.س") : emojiForCategory(category);
-    const emoji = emojiForCategory(category);
+    const sub = price ? (currency || "ر.س") : (category || "—");
+    const svg = svgForCategory(category);
     return L.divIcon({
         className: "hologram-pin-wrap",
         iconSize: [78, 78],
@@ -49,7 +72,7 @@ function buildHologramIcon({ price, currency, category }) {
             <div class="hp-ring hp-ring-1"></div>
             <div class="hp-ring hp-ring-2"></div>
             <div class="hp-chip">
-              <div class="hp-emoji" style="font-size:18px;line-height:1;margin-bottom:2px">${emoji}</div>
+              <div class="hp-emoji" style="display:flex;align-items:center;justify-content:center;margin-bottom:2px">${svg}</div>
               <div class="hp-price">${display}</div>
               <div class="hp-curr">${sub}</div>
             </div>

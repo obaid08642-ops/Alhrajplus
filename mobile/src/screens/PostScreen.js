@@ -18,6 +18,7 @@ import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
 import { useAuth } from "../AuthContext";
 import { colors, radius, shadow } from "../theme";
+import { CarCascadeMobile, PhoneCascadeMobile } from "../components/CategoryCascadesMobile";
 
 export default function PostScreen({ navigation, route }) {
     const { lang, t } = useI18n();
@@ -621,6 +622,21 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                     <Text style={s.currencyBadge}>{form.currency}</Text>
                 </View>
             </Field>
+
+            {/* Cascading brand→model→year→trim (cars) / brand→model→storage→color (phones).
+                Single source of truth: /meta/car-* and /meta/phone-* endpoints shared with web. */}
+            {(form.category === "cars" || form.category === "motors") && (
+                <CarCascadeMobile
+                    value={form.custom_fields}
+                    onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                />
+            )}
+            {(form.category === "mobiles" || form.category === "electronics") && (
+                <PhoneCascadeMobile
+                    value={form.custom_fields}
+                    onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                />
+            )}
 
             {/* Dynamic category fields */}
             {(cat?.fields || []).filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
