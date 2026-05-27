@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput } from "react-native";
+import { Phone, MessageCircle, Bell, BellOff, Share2 } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -210,7 +211,7 @@ export default function ListingDetailScreen({ route, navigation }) {
             )}
 
             {isOwner && (
-                <View style={styles.ownerBar}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ownerBar} testID="owner-bar">
                     <TouchableOpacity onPress={() => navigation.navigate("Post", { editId: id })} style={[styles.smallBtn, { backgroundColor: theme.colors.primary }]} testID="owner-edit-btn">
                         <Text style={styles.smallBtnText}>{t("تعديل")}</Text>
                     </TouchableOpacity>
@@ -234,13 +235,13 @@ export default function ListingDetailScreen({ route, navigation }) {
                     }} style={[styles.smallBtn, { backgroundColor: theme.colors.danger }]} testID="owner-delete-btn">
                         <Text style={styles.smallBtnText}>{t("حذف")}</Text>
                     </TouchableOpacity>
-                </View>
+                </ScrollView>
             )}
 
             <View style={styles.body}>
                 {listing.status === "paused" && (
                     <View style={styles.pausedBanner} testID="listing-paused-banner">
-                        <Text style={styles.pausedBannerText}>⏸ {t("هذا الإعلان موقوف مؤقتاً")}</Text>
+                        <Text style={styles.pausedBannerText}>{t("هذا الإعلان موقوف مؤقتاً")}</Text>
                     </View>
                 )}
                 <Text style={styles.title}>{listing.title}</Text>
@@ -319,7 +320,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                 )}
 
                 <TouchableOpacity onPress={shareAd} style={styles.shareBtn} testID="mobile-share-btn">
-                    <Text style={styles.shareIcon}>↗</Text>
+                    <Share2 size={14} color={theme.colors.primary} />
                     <Text style={styles.shareText}>{t("مشاركة الإعلان")}</Text>
                 </TouchableOpacity>
 
@@ -333,8 +334,9 @@ export default function ListingDetailScreen({ route, navigation }) {
                         style={[styles.priceAlertBtn, watching && styles.priceAlertBtnActive]}
                         testID="mobile-price-alert"
                     >
+                        {watching ? <BellOff size={14} color="#fff" /> : <Bell size={14} color={theme.colors.primary} />}
                         <Text style={[styles.priceAlertText, watching && { color: "#fff" }]}>
-                            {watching ? t("🔔 يتم متابعة السعر — إلغاء") : t("🔔 نبّهني عند انخفاض السعر")}
+                            {watching ? t("إلغاء التنبيه") : t("نبّهني عند انخفاض السعر")}
                         </Text>
                     </TouchableOpacity>
                 )}
@@ -405,7 +407,7 @@ const styles = StyleSheet.create({
     thumb: { width: 64, height: 64, borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent", marginHorizontal: 4 },
     thumbActive: { borderColor: theme.colors.primary },
     thumbImg: { width: "100%", height: "100%" },
-    ownerBar: { flexDirection: "row", padding: 10, gap: 8 },
+    ownerBar: { padding: 10, gap: 8 },
     smallBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: theme.radius.full },
     smallBtnText: { color: "#fff", fontWeight: "900", fontSize: 12 },
     body: { padding: 16 },
@@ -425,14 +427,14 @@ const styles = StyleSheet.create({
     avatarText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 16 },
     sellerName: { fontWeight: "800", color: theme.colors.text, textAlign: "right" },
     sellerCity: { color: theme.colors.textMuted, fontSize: 12, textAlign: "right" },
-    cta: { padding: 14, borderRadius: theme.radius.md, alignItems: "center", marginTop: 8 },
+    cta: { padding: 14, borderRadius: theme.radius.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
     ctaText: { color: "#fff", fontWeight: "900", fontSize: 14 },
     shareBtn: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border },
     shareIcon: { fontSize: 16, color: theme.colors.primary, fontWeight: "900" },
     shareText: { color: theme.colors.text, fontWeight: "800", fontSize: 14 },
     reportBtn: { marginTop: 8, padding: 10, borderRadius: theme.radius.md, borderWidth: 1, borderColor: "#fca5a5", alignItems: "center", backgroundColor: "#fee2e2" },
     reportText: { color: "#b91c1c", fontWeight: "800", fontSize: 13 },
-    priceAlertBtn: { marginTop: 8, padding: 12, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.primary, alignItems: "center", backgroundColor: "rgba(79,182,230,0.1)" },
+    priceAlertBtn: { marginTop: 8, padding: 12, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "rgba(79,182,230,0.1)" },
     priceAlertText: { color: theme.colors.primary, fontWeight: "800", fontSize: 13 },
     zoomBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
     zoomImg: { width: "100%", height: "80%" },

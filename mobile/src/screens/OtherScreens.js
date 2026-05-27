@@ -106,8 +106,9 @@ export function MyListingsScreen({ navigation }) {
                 style={[styles.boostBtn, item.is_boosted && styles.boostBtnActive]}
                 testID={`boost-${item.id}`}
             >
+                {item.is_boosted ? <Star size={12} color="#fff" fill="#fff" /> : <Rocket size={12} color={theme.colors.primary} />}
                 <Text style={[styles.boostText, item.is_boosted && { color: "#fff" }]}>
-                    {item.is_boosted ? t("⭐ مُروَّج") : t("🚀 رَوِّج")}
+                    {item.is_boosted ? t("مُروَّج") : t("رَوِّج")}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -167,7 +168,7 @@ export function DealsScreen() {
     return (
         <SafeAreaView style={styles.wrap}>
             <View style={styles.hero}>
-                <Text style={styles.heroIcon}>🔥</Text>
+                <Flame size={32} color="#EF4444" />
                 <View style={{ flex: 1 }}>
                     <Text style={styles.heroTitle}>{t("صفقات اليوم الذهبية")}</Text>
                     <Text style={styles.heroSub}>{t("أفضل الأسعار تحت متوسط السوق")}</Text>
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
     heroSub: { fontSize: 11, color: theme.colors.textMuted, textAlign: "right" },
     dealBadge: { position: "absolute", top: 12, start: 12, backgroundColor: "#DC2626", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
     dealBadgeText: { color: "#fff", fontSize: 10, fontWeight: "900" },
-    boostBtn: { marginTop: 4, paddingVertical: 6, borderRadius: theme.radius.full, alignItems: "center", borderWidth: 1, borderColor: theme.colors.primary, backgroundColor: "rgba(79,182,230,0.1)" },
+    boostBtn: { marginTop: 4, paddingVertical: 6, borderRadius: theme.radius.full, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderColor: theme.colors.primary, backgroundColor: "rgba(79,182,230,0.1)" },
     boostBtnActive: { backgroundColor: "#F59E0B", borderColor: "#F59E0B" },
     boostText: { color: theme.colors.primary, fontWeight: "900", fontSize: 11 },
 });

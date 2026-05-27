@@ -105,7 +105,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                             >
                                 {focused && <View style={styles.activePill} />}
                                 <Icon
-                                    size={focused ? 23 : 21}
+                                    size={22}
                                     color={focused ? ACTIVE : INACTIVE}
                                     strokeWidth={focused ? 2.6 : 2}
                                 />
@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
     },
     tabBtn: {
         flex: 1, alignItems: "center", justifyContent: "center",
-        paddingVertical: 8, paddingHorizontal: 6, borderRadius: 22,
-        gap: 3,
+        paddingVertical: 7, paddingHorizontal: 4, borderRadius: 22,
+        gap: 4,
     },
     tabBtnGhost: { width: 56 },
     // Subtle active background — kept inside the pill, no overlap with FAB
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(79,182,230,0.14)",
         borderRadius: 18,
     },
-    tabLabel: { fontSize: 10.5 },
+    tabLabel: { fontSize: 10.5, textAlign: "center", includeFontPadding: false },
     spacer: { width: 64 },
 
     // ===== FAB =====

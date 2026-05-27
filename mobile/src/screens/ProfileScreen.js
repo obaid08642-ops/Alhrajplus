@@ -109,7 +109,7 @@ export default function ProfileScreen() {
                 <View style={[s.heroBlob, { bottom: -50, left: -50, backgroundColor: "rgba(255,209,102,0.15)" }]} />
 
                 <View style={s.heroInner}>
-                    <View style={{ position: "absolute", top: 0, end: 14, zIndex: 5 }}>
+                    <View style={s.countrySwitcherWrap} testID="profile-country-switcher">
                         <CountrySwitcher tintLight />
                     </View>
                     <View style={s.avatarBox}>
@@ -246,6 +246,7 @@ const s = StyleSheet.create({
     heroWrap: { paddingBottom: 24, overflow: "hidden", position: "relative" },
     heroBlob: { position: "absolute", width: 200, height: 200, borderRadius: 999 },
     heroInner: { alignItems: "center", paddingHorizontal: 20 },
+    countrySwitcherWrap: { position: "absolute", top: 4, end: 16, zIndex: 5 },
     avatarBox: { width: 88, height: 88, position: "relative" },
     avatarImg: { width: 88, height: 88, borderRadius: 999, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "rgba(255,255,255,0.5)" },
     avatarTxt: { color: "#fff", fontSize: 38, fontWeight: "900" },

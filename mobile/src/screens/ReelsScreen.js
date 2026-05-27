@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, Dimensions, Image, TouchableOpacity, SafeAreaView, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Volume2, VolumeX, Play } from "lucide-react-native";
+import { Volume2, VolumeX, Play, Film } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useNavigation } from "@react-navigation/native";
@@ -73,7 +73,7 @@ export default function ReelsScreen() {
     if (items.length === 0) {
         return (
             <View style={styles.center}>
-                <Text style={styles.emptyIcon}>🎬</Text>
+                <Film size={48} color="rgba(255,255,255,0.6)" />
                 <Text style={styles.emptyText}>{t("لا توجد قصص بعد")}</Text>
                 <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.postCta} testID="reels-empty-post-btn">
                     <Text style={styles.postCtaText}>{t("انشر أول ستوري")}</Text>

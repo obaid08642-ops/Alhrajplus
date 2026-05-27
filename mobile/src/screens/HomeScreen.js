@@ -17,6 +17,7 @@ import { colors, radius, shadow } from "../theme";
 import ListingCard from "../components/ListingCard";
 import NotificationBell from "../components/NotificationBell";
 import CountrySwitcher from "../components/CountrySwitcher";
+import { SkeletonListingGrid } from "../components/Skeleton";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_GAP = 10;
@@ -82,7 +83,7 @@ export default function HomeScreen() {
 
     const Header = useMemo(() => (
         <View>
-            <TopBar nav={nav} insets={insets} />
+            <TopBar nav={nav} insets={insets} t={t} />
             <Hero nav={nav} />
             <QuickActions nav={nav} />
             <CategoriesStrip cats={visibleCats} nav={nav} lang={lang} expanded={showAllCats} onToggle={() => setShowAllCats((s) => !s)} total={categories.length} />
@@ -111,9 +112,7 @@ export default function HomeScreen() {
                 windowSize={7}
                 removeClippedSubviews
                 ListEmptyComponent={loading ? (
-                    <View style={{ padding: 32, alignItems: "center" }}>
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
+                    <SkeletonListingGrid count={8} />
                 ) : (
                     <View style={styles.empty}>
                         <Text style={styles.mutedCenter}>{t("لا توجد نتائج")}</Text>
@@ -135,12 +134,12 @@ export default function HomeScreen() {
 }
 
 // ====================== TopBar ======================
-function TopBar({ nav, insets }) {
+function TopBar({ nav, insets, t }) {
     return (
         <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
             <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
                 <SearchIcon size={16} color={colors.textMuted} />
-                <Text style={styles.searchPh} numberOfLines={1}>{t("ابحث عن أي شيء... (مدعوم بالذكاء الاصطناعي)")}</Text>
+                <Text style={styles.searchPh} numberOfLines={1}>{t("ابحث... (AI)")}</Text>
             </TouchableOpacity>
             <CountrySwitcher />
             <NotificationBell />

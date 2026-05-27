@@ -28,11 +28,7 @@ export default function CountrySwitcher({ tintLight = false }) {
                 ) : (
                     <Globe2 size={18} color={tintLight ? "#fff" : colors.text} />
                 )}
-                {current?.name_ar && (
-                    <Text style={[styles.code, tintLight && { color: "#fff" }]} numberOfLines={1}>
-                        {current.name_ar}
-                    </Text>
-                )}
+                {/* Show country name only when there's room — compact pill in tight headers */}
             </TouchableOpacity>
 
             <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>

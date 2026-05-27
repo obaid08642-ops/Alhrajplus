@@ -10,6 +10,7 @@ import { useI18n } from "../I18nContext";
 import { useAuth } from "../AuthContext";
 import { useCountry } from "../CountryContext";
 import ListingCard from "../components/ListingCard";
+import { SkeletonListingGrid, SkeletonCategoryGrid } from "../components/Skeleton";
 
 // FlatList perf defaults — defined once at module scope.
 const FLAT_PERF = { initialNumToRender: 8, maxToRenderPerBatch: 8, windowSize: 7, removeClippedSubviews: true };
@@ -30,7 +31,7 @@ export function CategoriesScreen({ navigation }) {
         return () => { alive = false; };
     }, [lang]);
 
-    if (loading) return <View style={s.center}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
+    if (loading) return <SkeletonCategoryGrid count={10} />;
     if (!cats.length) return <View style={s.center}><Text style={s.muted}>{t("لا توجد تصنيفات")}</Text></View>;
 
     const renderCat = useCallback(({ item }) => (
