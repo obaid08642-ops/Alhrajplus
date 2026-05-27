@@ -864,6 +864,47 @@ async def get_categories(lang: str = "ar"):
         lang = "ar"
     return localize_categories(CATEGORIES, lang)
 
+
+# ============================================================
+# Cascading catalogs (cars + phones) — single source of truth, shared by
+# web and mobile so options never drift.
+# ============================================================
+@api.get("/meta/car-brands")
+async def meta_car_brands():
+    from catalogs import car_brands, years_window
+    return {"brands": car_brands(), "years": years_window(30)}
+
+
+@api.get("/meta/car-models")
+async def meta_car_models(brand: str):
+    from catalogs import car_models
+    return {"brand": brand, "models": car_models(brand)}
+
+
+@api.get("/meta/car-trims")
+async def meta_car_trims(brand: str, model: str):
+    from catalogs import car_trims
+    return {"brand": brand, "model": model, "trims": car_trims(brand, model)}
+
+
+@api.get("/meta/phone-brands")
+async def meta_phone_brands():
+    from catalogs import phone_brands
+    return {"brands": phone_brands()}
+
+
+@api.get("/meta/phone-models")
+async def meta_phone_models(brand: str):
+    from catalogs import phone_models
+    return {"brand": brand, "models": phone_models(brand)}
+
+
+@api.get("/meta/phone-variants")
+async def meta_phone_variants(brand: str, model: str):
+    from catalogs import phone_variants
+    v = phone_variants(brand, model)
+    return {"brand": brand, "model": model, **v}
+
 @api.get("/auth/providers")
 async def get_auth_providers():
     """Returns which OAuth providers are configured on the server.

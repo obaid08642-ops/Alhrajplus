@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import imageCompression from "browser-image-compression";
 import api, { formatApiError } from "@/lib/api";
+import { CarCascade, PhoneCascade } from "@/components/CategoryCascades";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate, Megaphone, Gavel, Briefcase, Wrench, Film, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -603,6 +604,29 @@ export default function PostListing() {
                             </p>
                         )}
                     </div>
+
+                    {/* Cascading brand→model→year→trim for cars, brand→model→storage→color for phones.
+                        Stored under form.custom_fields so they flow through the backend untouched. */}
+                    {(form.category === "cars" || form.category === "motors") && (
+                        <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)]" data-testid="cars-cascade-wrap">
+                            <h4 className="text-xs font-arabic font-bold text-[var(--text)] mb-2 flex items-center gap-1">🚗 {tr("تفاصيل السيارة")}</h4>
+                            <CarCascade
+                                value={form.custom_fields}
+                                onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                                tr={tr}
+                            />
+                        </div>
+                    )}
+                    {(form.category === "mobiles" || form.category === "electronics") && (
+                        <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)]" data-testid="phones-cascade-wrap">
+                            <h4 className="text-xs font-arabic font-bold text-[var(--text)] mb-2 flex items-center gap-1">📱 {tr("تفاصيل الجوال")}</h4>
+                            <PhoneCascade
+                                value={form.custom_fields}
+                                onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                                tr={tr}
+                            />
+                        </div>
+                    )}
 
                     {/* Job/Service post-type selector at TOP */}
                     {(form.category === "jobs" || form.category === "services") && (
