@@ -330,6 +330,7 @@ export default function PostScreen({ navigation, route }) {
 
 // =============== Geo Picker Modal (uses /api/geo/search or /api/geo/districts) ===============
 function GeoPickerModal({ visible, onClose, title, staticItems, kind, parent, country, lang, current, onPick }) {
+    const { t } = useI18n();
     const [q, setQ] = useState("");
     const [remote, setRemote] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -904,6 +905,7 @@ function Field({ label, children }) {
 
 // =============== Select Input (modal-based) ===============
 function SelectInput({ value, options, placeholder, onChange }) {
+    const { t } = useI18n();
     const [open, setOpen] = useState(false);
     const sel = options.find((o) => o.value === value);
     return (
@@ -938,6 +940,7 @@ function SelectInput({ value, options, placeholder, onChange }) {
 
 // =============== Generic Picker Modal ===============
 function PickerModal({ visible, onClose, title, items, getLabel, onPick, current }) {
+    const { t } = useI18n();
     const [q, setQ] = useState("");
     const filtered = q ? items.filter((it) => getLabel(it).includes(q)) : items;
     return (
