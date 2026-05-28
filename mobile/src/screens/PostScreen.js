@@ -19,6 +19,7 @@ import { useCountry } from "../CountryContext";
 import { useAuth } from "../AuthContext";
 import { colors, radius, shadow } from "../theme";
 import { CarCascadeMobile, PhoneCascadeMobile } from "../components/CategoryCascadesMobile";
+import { JobsDetailsBoxMobile, RealEstateDetailsBoxMobile } from "../components/JobsRealEstateBoxesMobile";
 
 export default function PostScreen({ navigation, route }) {
     const { lang, t } = useI18n();
@@ -596,6 +597,33 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 </View>
             )}
 
+            {/* ===== Jobs-only Listing Type selector at the very TOP =====
+                Mirrors services: 2 large pills (Hiring vs Looking for Job). */}
+            {form.category === "jobs" && (
+                <View style={s.postTypeBox} testID="jobs-post-type-top">
+                    <Text style={s.postTypeTitle}>💼 {t("ما نوع الإعلان؟")}</Text>
+                    <View style={s.postTypeRow}>
+                        {[
+                            { key: "عرض وظيفة", sub: t("أنا أوظّف شخص"), badge: "🟢" },
+                            { key: "باحث عن عمل", sub: t("أنا أبحث عن وظيفة"), badge: "🔵" },
+                        ].map((opt) => {
+                            const active = form.custom_fields?.post_type === opt.key;
+                            return (
+                                <TouchableOpacity
+                                    key={opt.key}
+                                    onPress={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: opt.key }, subcategory: opt.key === "عرض وظيفة" ? "job_offer" : "job_seeker" })}
+                                    style={[s.postTypeBtn, active && s.postTypeBtnActive]}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={[s.postTypeBtnLabel, active && { color: "#fff" }]}>{opt.badge} {opt.key}</Text>
+                                    <Text style={[s.postTypeBtnSub, active && { color: "rgba(255,255,255,0.85)" }]}>{opt.sub}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+            )}
+
 <Field label={t("العنوان") + " *"}>
                 <TextInput value={form.title} onChangeText={(v) => update("title", v)} placeholder={t("مثال: تويوتا كامري 2020 ممتازة")} placeholderTextColor={colors.textMuted} style={s.input} />
             </Field>
@@ -719,12 +747,26 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 );
             })()}
 
-            <Field label={t("السعر") + ` (${form.currency})`}>
-                <View style={s.priceWrap}>
-                    <TextInput value={form.price} onChangeText={(v) => update("price", v.replace(/[^0-9.]/g, ""))} placeholder={t("اتركه فارغاً للسوم")} placeholderTextColor={colors.textMuted} style={[s.input, { flex: 1, paddingEnd: 50 }]} keyboardType="numeric" />
-                    <Text style={s.currencyBadge}>{form.currency}</Text>
-                </View>
-            </Field>
+            {/* ===== JOBS Details Box (AFTER description) — strict 2-col grid ===== */}
+            {form.category === "jobs" && (
+                <JobsDetailsBoxMobile form={form} setForm={setForm} />
+            )}
+
+            {/* ===== REAL ESTATE Details Box (AFTER description) — strict 2-col grid =====
+                Price is rendered INSIDE this box (the standalone price block below is hidden
+                for `realestate` to avoid duplication). */}
+            {form.category === "realestate" && (
+                <RealEstateDetailsBoxMobile form={form} setForm={setForm} />
+            )}
+
+            {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && (
+                <Field label={t("السعر") + ` (${form.currency})`}>
+                    <View style={s.priceWrap}>
+                        <TextInput value={form.price} onChangeText={(v) => update("price", v.replace(/[^0-9.]/g, ""))} placeholder={t("اتركه فارغاً للسوم")} placeholderTextColor={colors.textMuted} style={[s.input, { flex: 1, paddingEnd: 50 }]} keyboardType="numeric" />
+                        <Text style={s.currencyBadge}>{form.currency}</Text>
+                    </View>
+                </Field>
+            )}
 
             {/* Cascading brand→model→year→trim (cars). Phones cascade is rendered at the TOP
                 of step 2 (above title) per the latest UX brief. */}
@@ -736,10 +778,9 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
             )}
 
             {/* Dynamic category fields */}
-            {/* Suppress the generic renderer for cars / phones / services because each has
-                its own structured 2-column Details Box above. Also skip post_type for jobs
-                since it has a dedicated segmented control. */}
-            {!(form.category === "cars" || form.category === "phones" || form.category === "services") && (cat?.fields || []).filter((f) => f.key !== "post_type" || form.category !== "jobs").map((f) => (
+            {/* Suppress the generic renderer for cars / phones / services / jobs / realestate
+                — each has its own structured 2-column Details Box above. */}
+            {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate") && (cat?.fields || []).filter((f) => f.key !== "post_type").map((f) => (
                 <Field key={f.key} label={`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}>
                     {f.type === "select" ? (
                         <SelectInput

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import imageCompression from "browser-image-compression";
 import api, { formatApiError } from "@/lib/api";
 import { CarCascade, PhoneCascade } from "@/components/CategoryCascades";
+import { JobsDetailsBox, RealEstateDetailsBox } from "@/components/JobsRealEstateBoxes";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate, Megaphone, Gavel, Briefcase, Wrench, Film, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -599,6 +600,37 @@ export default function PostListing() {
                         </div>
                     )}
 
+                    {/* ===== Jobs-only Listing Type selector at TOP =====
+                        Mirrors services. User explicitly requested at the very TOP
+                        (before title) so the user decides Hiring vs Looking-for-Work first. */}
+                    {form.category === "jobs" && (
+                        <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10 border-2 border-[var(--primary)]/30 rounded-2xl p-3" data-testid="jobs-post-type-top">
+                            <label className="block text-sm font-arabic font-black text-[var(--text)] mb-2 text-center">
+                                💼 {tr("ما نوع الإعلان؟")}
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    data-testid="post-type-job-offer"
+                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "عرض وظيفة" }, subcategory: "job_offer" })}
+                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "عرض وظيفة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                >
+                                    🟢 {tr("عرض وظيفة")}
+                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أوظّف شخص")}</div>
+                                </button>
+                                <button
+                                    type="button"
+                                    data-testid="post-type-job-seeker"
+                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "باحث عن عمل" }, subcategory: "job_seeker" })}
+                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "باحث عن عمل" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                >
+                                    🔵 {tr("باحث عن عمل")}
+                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أبحث عن وظيفة")}</div>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* TITLE FIRST — so auto-suggest can fill the category dropdown below. */}
                     <div>
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("title")} *</label>
@@ -636,43 +668,14 @@ export default function PostListing() {
                         )}
                     </div>
 
-                    {/* Cascading brand→model→year→trim for cars only. Phones cascade is
-                        rendered at the TOP of step 2 (above title) per the latest UX brief. */}
+                    {/* Cascading brand→model→year→trim for cars only. Phones cascade lives
+                        AFTER the description as a Details Box. */}
                     {form.category === "cars" && (
                         <CarCascade
                             value={form.custom_fields}
                             onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
                             tr={tr}
                         />
-                    )}
-
-                    {/* Jobs post-type selector (services has its own selector at the TOP) */}
-                    {form.category === "jobs" && (
-                        <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10 border-2 border-[var(--primary)]/30 rounded-2xl p-3">
-                            <label className="block text-sm font-arabic font-black text-[var(--text)] mb-2 text-center">
-                                {tr("💼 ما نوع الإعلان؟")}
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    data-testid="post-type-job-offer"
-                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "عرض وظيفة" }, subcategory: "job_offer" })}
-                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "عرض وظيفة" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
-                                >
-                                    🟢 {tr("عرض وظيفة")}
-                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أوظّف شخص")}</div>
-                                </button>
-                                <button
-                                    type="button"
-                                    data-testid="post-type-job-seeker"
-                                    onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, post_type: "باحث عن عمل" }, subcategory: "job_seeker" })}
-                                    className={`rounded-xl py-3 px-3 font-arabic font-black text-sm border-2 transition-all ${form.custom_fields.post_type === "باحث عن عمل" ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
-                                >
-                                    🔵 {tr("باحث عن عمل")}
-                                    <div className="text-[10px] font-arabic-body font-normal opacity-80 mt-0.5">{tr("أنا أبحث عن وظيفة")}</div>
-                                </button>
-                            </div>
-                        </div>
                     )}
 
                     <div>
@@ -768,7 +771,7 @@ export default function PostListing() {
                         );
                     })()}
 
-                    {form.category !== "jobs" && form.category !== "services" && (
+                    {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && (
                         <div>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("price")}</label>
                             <div className="flex gap-2 items-stretch">
@@ -784,13 +787,24 @@ export default function PostListing() {
                         </div>
                     )}
 
+                    {/* ===== JOBS Details Box (full OLX/Haraj-level spec) =====
+                        Strict 2-column grid. Generic renderer below is suppressed for `jobs`. */}
+                    {form.category === "jobs" && (
+                        <JobsDetailsBox form={form} setForm={setForm} tr={tr} />
+                    )}
+
+                    {/* ===== REAL ESTATE Details Box (full OLX/Haraj-level spec) =====
+                        Strict 2-column grid. Price moves INTO the box (global price hidden
+                        for realestate). Generic renderer below is suppressed for `realestate`. */}
+                    {form.category === "realestate" && (
+                        <RealEstateDetailsBox form={form} setForm={setForm} tr={tr} country={country} aiSuggestPrice={aiSuggestPrice} />
+                    )}
+
                     {/* Custom fields for category — skip post_type since it's at the top for jobs/services */}
                     {/* Generic dynamic fields renderer (from i18n_data CATEGORIES.fields).
-                        We skip the entire block when one of our richer cascades is mounted
-                        (cars / phones / services — services has its own custom 2-col Details
-                        Box above). We also still skip post_type because it has its own
-                        segmented control above for jobs/services. */}
-                    {!(form.category === "cars" || form.category === "phones" || form.category === "services") && cat?.fields?.filter((f) => f.key !== "post_type" || form.category !== "jobs").map((f) => (
+                        Skipped entirely for cars / phones / services / jobs / realestate — each
+                        has its own structured Details Box above. */}
+                    {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate") && cat?.fields?.filter((f) => f.key !== "post_type").map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                                 {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}
