@@ -161,6 +161,85 @@ export function PhoneCascadeMobile({ value, onChange }) {
     );
 }
 
+const FURNITURE_OPTS = {
+    type: ["كنب / مجلس", "سرير", "خزانة / دولاب", "طاولة طعام", "طاولة قهوة", "كراسي", "مكتب", "ركن", "تحفة / ديكور", "سجاد", "ستائر", "غرفة نوم كاملة", "آخر"],
+    condition: ["جديد بالكرتون", "كالجديد", "مستعمل ممتاز", "مستعمل جيد", "يحتاج ترميم"],
+    material: ["خشب طبيعي", "خشب MDF", "معدن", "قماش", "جلد طبيعي", "جلد صناعي", "بلاستيك", "زجاج", "روطان", "آخر"],
+    color: ["أبيض", "أسود", "بني", "رمادي", "بيج", "أزرق", "أحمر", "أخضر", "ذهبي", "فضي", "آخر"],
+    usage_duration: ["جديد - لم يستخدم", "أقل من 6 أشهر", "6 شهور - سنة", "1-3 سنوات", "3-5 سنوات", "أكثر من 5 سنوات"],
+    size: ["صغير", "متوسط", "كبير", "ضخم", "مفرد", "مزدوج", "كينج", "كوين"],
+    location: ["مجلس", "صالة", "غرفة نوم", "غرفة أطفال", "مطبخ", "مكتب", "خارجي / حديقة", "مدخل", "آخر"],
+    brand: ["IKEA", "Home Centre", "ساكو (SACO)", "Pan Home", "Homes r Us", "محلي", "مستورد", "صناعة يدوية", "آخر"],
+};
+
+const APPLIANCE_OPTS = {
+    appliance_type: ["ثلاجة", "غسالة ملابس", "نشافة", "غسالة صحون", "فرن كهربائي", "فرن غاز", "ميكروويف", "مكيف سبليت", "مكيف شباك", "فريزر", "خلاط", "محضرة طعام", "مكنسة كهربائية", "سخان مياه", "مروحة", "تلفزيون", "آخر"],
+    brand: ["LG", "Samsung", "Daewoo", "Toshiba", "Panasonic", "Hitachi", "Sharp", "Sony", "Whirlpool", "Bosch", "Siemens", "Hoover", "Westpoint", "GE", "Midea", "Haier", "آخر"],
+    condition: ["جديد بالكرتون", "كالجديد", "مستعمل ممتاز", "مستعمل جيد", "يحتاج صيانة"],
+    warranty: ["ضمان وكيل", "ضمان محل", "ضمان منتهٍ", "بدون ضمان"],
+    power: ["موفر للطاقة (Inverter)", "عادي", "موفر للطاقة", "غير محدد"],
+    usage: ["منزلي", "تجاري / مطعم", "مكتبي", "صناعي"],
+    voltage: ["110V", "220V", "110V/220V", "غير محدد"],
+    origin: ["كوريا الجنوبية", "اليابان", "ألمانيا", "الصين", "تركيا", "إيطاليا", "أمريكا", "السعودية", "الإمارات", "تايلاند", "آخر"],
+};
+
+export function FurnitureCascadeMobile({ value, onChange }) {
+    const { t } = useI18n();
+    const v = value || {};
+    const set = (patch) => onChange({ ...v, ...patch });
+
+    return (
+        <View style={s.wrap}>
+            <Text style={s.title}>🛋️ {t("تفاصيل الأثاث")}</Text>
+            <View style={s.row}>
+                <Lab text={t("نوع الأثاث")}><Picker value={v.furniture_type || ""} options={FURNITURE_OPTS.type} placeholder="—" onChange={(x) => set({ furniture_type: x })} /></Lab>
+                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={FURNITURE_OPTS.condition} placeholder="—" onChange={(x) => set({ condition: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("الخامة")}><Picker value={v.material || ""} options={FURNITURE_OPTS.material} placeholder="—" onChange={(x) => set({ material: x })} /></Lab>
+                <Lab text={t("اللون")}><Picker value={v.color || ""} options={FURNITURE_OPTS.color} placeholder="—" onChange={(x) => set({ color: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("مدة الاستخدام")}><Picker value={v.usage_duration || ""} options={FURNITURE_OPTS.usage_duration} placeholder="—" onChange={(x) => set({ usage_duration: x })} /></Lab>
+                <Lab text={t("الماركة / المصدر")}><Picker value={v.brand || ""} options={FURNITURE_OPTS.brand} placeholder="—" onChange={(x) => set({ brand: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("المقاس")}><Picker value={v.size || ""} options={FURNITURE_OPTS.size} placeholder="—" onChange={(x) => set({ size: x })} /></Lab>
+                <Lab text={t("مكان الاستخدام")}><Picker value={v.location || ""} options={FURNITURE_OPTS.location} placeholder="—" onChange={(x) => set({ location: x })} /></Lab>
+            </View>
+        </View>
+    );
+}
+
+export function HomeAppliancesCascadeMobile({ value, onChange }) {
+    const { t } = useI18n();
+    const v = value || {};
+    const set = (patch) => onChange({ ...v, ...patch });
+
+    return (
+        <View style={s.wrap}>
+            <Text style={s.title}>⚡ {t("تفاصيل الجهاز")}</Text>
+            <View style={s.row}>
+                <Lab text={t("نوع الجهاز")}><Picker value={v.appliance_type || ""} options={APPLIANCE_OPTS.appliance_type} placeholder="—" onChange={(x) => set({ appliance_type: x })} /></Lab>
+                <Lab text={t("الماركة")}><Picker value={v.brand || ""} options={APPLIANCE_OPTS.brand} placeholder="—" onChange={(x) => set({ brand: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={APPLIANCE_OPTS.condition} placeholder="—" onChange={(x) => set({ condition: x })} /></Lab>
+                <Lab text={t("الضمان")}><Picker value={v.warranty || ""} options={APPLIANCE_OPTS.warranty} placeholder="—" onChange={(x) => set({ warranty: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("استهلاك الطاقة")}><Picker value={v.power || ""} options={APPLIANCE_OPTS.power} placeholder="—" onChange={(x) => set({ power: x })} /></Lab>
+                <Lab text={t("نوع الاستخدام")}><Picker value={v.usage || ""} options={APPLIANCE_OPTS.usage} placeholder="—" onChange={(x) => set({ usage: x })} /></Lab>
+            </View>
+            <View style={s.row}>
+                <Lab text={t("الفولت / الجهد")}><Picker value={v.voltage || ""} options={APPLIANCE_OPTS.voltage} placeholder="—" onChange={(x) => set({ voltage: x })} /></Lab>
+                <Lab text={t("بلد المنشأ")}><Picker value={v.origin || ""} options={APPLIANCE_OPTS.origin} placeholder="—" onChange={(x) => set({ origin: x })} /></Lab>
+            </View>
+        </View>
+    );
+}
+
+
 function Lab({ text, children }) {
     return (
         <View style={{ flex: 1 }}>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import imageCompression from "browser-image-compression";
 import api, { formatApiError } from "@/lib/api";
-import { CarCascade, PhoneCascade } from "@/components/CategoryCascades";
+import { CarCascade, PhoneCascade, FurnitureCascade, HomeAppliancesCascade } from "@/components/CategoryCascades";
 import { JobsDetailsBox, RealEstateDetailsBox } from "@/components/JobsRealEstateBoxes";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate, Megaphone, Gavel, Briefcase, Wrench, Film, Tag } from "lucide-react";
@@ -696,6 +696,28 @@ export default function PostListing() {
                         />
                     )}
 
+                    {/* ===== FURNITURE Details Box (AFTER description) =====
+                        Strict 2-col, mirrors PhoneCascade visual style. Generic renderer below
+                        is suppressed for `furniture` so there are zero duplicates. */}
+                    {form.category === "furniture" && (
+                        <FurnitureCascade
+                            value={form.custom_fields}
+                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                            tr={tr}
+                        />
+                    )}
+
+                    {/* ===== HOME APPLIANCES Details Box (AFTER description) =====
+                        Strict 2-col. Wired for `electronics` category (where أجهزة منزلية lives
+                        in seed_data subcategories). Generic renderer below is suppressed. */}
+                    {form.category === "electronics" && (
+                        <HomeAppliancesCascade
+                            value={form.custom_fields}
+                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                            tr={tr}
+                        />
+                    )}
+
                     {/* ===== SERVICES Details Box (placed AFTER description) =====
                         Strict 2-column grid with the exact rows requested:
                           Row 1: Service Type        | Frequency
@@ -802,9 +824,9 @@ export default function PostListing() {
 
                     {/* Custom fields for category — skip post_type since it's at the top for jobs/services */}
                     {/* Generic dynamic fields renderer (from i18n_data CATEGORIES.fields).
-                        Skipped entirely for cars / phones / services / jobs / realestate — each
-                        has its own structured Details Box above. */}
-                    {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate") && cat?.fields?.filter((f) => f.key !== "post_type").map((f) => (
+                        Skipped entirely for cars / phones / services / jobs / realestate /
+                        furniture / electronics — each has its own structured Details Box above. */}
+                    {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics") && cat?.fields?.filter((f) => f.key !== "post_type").map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                                 {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}

@@ -29,6 +29,27 @@ const PHONE_STATIC_OPTIONS = {
     warranty: ["نعم", "لا", "منتهي"],
 };
 
+const FURNITURE_OPTIONS = {
+    type: ["كنب / مجلس", "سرير", "خزانة / دولاب", "طاولة طعام", "طاولة قهوة", "كراسي", "مكتب", "ركن", "تحفة / ديكور", "سجاد", "ستائر", "غرفة نوم كاملة", "آخر"],
+    condition: ["جديد بالكرتون", "كالجديد", "مستعمل ممتاز", "مستعمل جيد", "يحتاج ترميم"],
+    material: ["خشب طبيعي", "خشب MDF", "معدن", "قماش", "جلد طبيعي", "جلد صناعي", "بلاستيك", "زجاج", "روطان", "آخر"],
+    color: ["أبيض", "أسود", "بني", "رمادي", "بيج", "أزرق", "أحمر", "أخضر", "ذهبي", "فضي", "آخر"],
+    usage_duration: ["جديد - لم يستخدم", "أقل من 6 أشهر", "6 شهور - سنة", "1-3 سنوات", "3-5 سنوات", "أكثر من 5 سنوات"],
+    size: ["صغير", "متوسط", "كبير", "ضخم", "مفرد", "مزدوج", "كينج", "كوين"],
+    location: ["مجلس", "صالة", "غرفة نوم", "غرفة أطفال", "مطبخ", "مكتب", "خارجي / حديقة", "مدخل", "آخر"],
+};
+
+const APPLIANCE_OPTIONS = {
+    appliance_type: ["ثلاجة", "غسالة ملابس", "نشافة", "غسالة صحون", "فرن كهربائي", "فرن غاز", "ميكروويف", "مكيف سبليت", "مكيف شباك", "فريزر", "خلاط", "محضرة طعام", "مكنسة كهربائية", "سخان مياه", "مروحة", "تلفزيون", "آخر"],
+    brand: ["LG", "Samsung", "Daewoo", "Toshiba", "Panasonic", "Hitachi", "Sharp", "Sony", "Whirlpool", "Bosch", "Siemens", "Hoover", "Westpoint", "GE", "Midea", "Haier", "آخر"],
+    condition: ["جديد بالكرتون", "كالجديد", "مستعمل ممتاز", "مستعمل جيد", "يحتاج صيانة"],
+    warranty: ["ضمان وكيل", "ضمان محل", "ضمان منتهٍ", "بدون ضمان"],
+    power: ["موفر للطاقة (Inverter)", "عادي", "موفر للطاقة", "غير محدد"],
+    usage: ["منزلي", "تجاري / مطعم", "مكتبي", "صناعي"],
+    voltage: ["110V", "220V", "110V/220V", "غير محدد"],
+    origin: ["كوريا الجنوبية", "اليابان", "ألمانيا", "الصين", "تركيا", "إيطاليا", "أمريكا", "السعودية", "الإمارات", "تايلاند", "آخر"],
+};
+
 
 export function CarCascade({ value, onChange, tr = TR }) {
     const v = value || {};
@@ -124,6 +145,51 @@ export function PhoneCascade({ value, onChange, tr = TR }) {
         </div>
     );
 }
+
+
+export function FurnitureCascade({ value, onChange, tr = TR }) {
+    const v = value || {};
+    const set = (patch) => onChange({ ...v, ...patch });
+
+    return (
+        <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] space-y-2" data-testid="furniture-cascade">
+            <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-1 flex items-center gap-1">🛋️ {tr("تفاصيل الأثاث")}</h4>
+            <div className="grid grid-cols-2 gap-2">
+                <Pick label={tr("نوع الأثاث")} value={v.furniture_type || ""} options={FURNITURE_OPTIONS.type} onChange={(x) => set({ furniture_type: x })} testid="furn-type" />
+                <Pick label={tr("الحالة")} value={v.condition || ""} options={FURNITURE_OPTIONS.condition} onChange={(x) => set({ condition: x })} testid="furn-condition" />
+                <Pick label={tr("الخامة")} value={v.material || ""} options={FURNITURE_OPTIONS.material} onChange={(x) => set({ material: x })} testid="furn-material" />
+                <Pick label={tr("اللون")} value={v.color || ""} options={FURNITURE_OPTIONS.color} onChange={(x) => set({ color: x })} testid="furn-color" />
+                <Pick label={tr("مدة الاستخدام")} value={v.usage_duration || ""} options={FURNITURE_OPTIONS.usage_duration} onChange={(x) => set({ usage_duration: x })} testid="furn-usage-duration" />
+                <Field label={tr("الماركة / المصدر")} value={v.brand || ""} onChange={(x) => set({ brand: x })} placeholder={tr("مثال: IKEA / محلي")} testid="furn-brand" />
+                <Pick label={tr("المقاس")} value={v.size || ""} options={FURNITURE_OPTIONS.size} onChange={(x) => set({ size: x })} testid="furn-size" />
+                <Pick label={tr("مكان الاستخدام")} value={v.location || ""} options={FURNITURE_OPTIONS.location} onChange={(x) => set({ location: x })} testid="furn-location" />
+            </div>
+        </div>
+    );
+}
+
+
+export function HomeAppliancesCascade({ value, onChange, tr = TR }) {
+    const v = value || {};
+    const set = (patch) => onChange({ ...v, ...patch });
+
+    return (
+        <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] space-y-2" data-testid="appliances-cascade">
+            <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-1 flex items-center gap-1">⚡ {tr("تفاصيل الجهاز")}</h4>
+            <div className="grid grid-cols-2 gap-2">
+                <Pick label={tr("نوع الجهاز")} value={v.appliance_type || ""} options={APPLIANCE_OPTIONS.appliance_type} onChange={(x) => set({ appliance_type: x })} testid="app-type" />
+                <Pick label={tr("الماركة")} value={v.brand || ""} options={APPLIANCE_OPTIONS.brand} onChange={(x) => set({ brand: x })} testid="app-brand" />
+                <Pick label={tr("الحالة")} value={v.condition || ""} options={APPLIANCE_OPTIONS.condition} onChange={(x) => set({ condition: x })} testid="app-condition" />
+                <Pick label={tr("الضمان")} value={v.warranty || ""} options={APPLIANCE_OPTIONS.warranty} onChange={(x) => set({ warranty: x })} testid="app-warranty" />
+                <Pick label={tr("استهلاك الطاقة")} value={v.power || ""} options={APPLIANCE_OPTIONS.power} onChange={(x) => set({ power: x })} testid="app-power" />
+                <Pick label={tr("نوع الاستخدام")} value={v.usage || ""} options={APPLIANCE_OPTIONS.usage} onChange={(x) => set({ usage: x })} testid="app-usage" />
+                <Pick label={tr("الفولت / الجهد")} value={v.voltage || ""} options={APPLIANCE_OPTIONS.voltage} onChange={(x) => set({ voltage: x })} testid="app-voltage" />
+                <Pick label={tr("بلد المنشأ")} value={v.origin || ""} options={APPLIANCE_OPTIONS.origin} onChange={(x) => set({ origin: x })} testid="app-origin" />
+            </div>
+        </div>
+    );
+}
+
 
 
 function Pick({ label, value, options, onChange, disabled, testid }) {

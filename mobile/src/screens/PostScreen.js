@@ -18,7 +18,7 @@ import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
 import { useAuth } from "../AuthContext";
 import { colors, radius, shadow } from "../theme";
-import { CarCascadeMobile, PhoneCascadeMobile } from "../components/CategoryCascadesMobile";
+import { CarCascadeMobile, PhoneCascadeMobile, FurnitureCascadeMobile, HomeAppliancesCascadeMobile } from "../components/CategoryCascadesMobile";
 import { JobsDetailsBoxMobile, RealEstateDetailsBoxMobile } from "../components/JobsRealEstateBoxesMobile";
 
 export default function PostScreen({ navigation, route }) {
@@ -682,6 +682,25 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 />
             )}
 
+            {/* ===== FURNITURE Details Box (AFTER description) =====
+                Strict 2-col. Generic renderer below is suppressed for `furniture`. */}
+            {form.category === "furniture" && (
+                <FurnitureCascadeMobile
+                    value={form.custom_fields}
+                    onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                />
+            )}
+
+            {/* ===== HOME APPLIANCES Details Box (AFTER description) =====
+                Strict 2-col. Wired for `electronics` category. Generic renderer below is
+                suppressed. */}
+            {form.category === "electronics" && (
+                <HomeAppliancesCascadeMobile
+                    value={form.custom_fields}
+                    onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                />
+            )}
+
             {/* ===== SERVICES Details Box (AFTER description) — strict 2-col =====
                 Row 1: Service Type | Frequency
                 Row 2: Service Time | Pricing Type
@@ -779,9 +798,9 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
             )}
 
             {/* Dynamic category fields */}
-            {/* Suppress the generic renderer for cars / phones / services / jobs / realestate
-                — each has its own structured 2-column Details Box above. */}
-            {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate") && (cat?.fields || []).filter((f) => f.key !== "post_type").map((f) => (
+            {/* Suppress the generic renderer for cars / phones / services / jobs / realestate /
+                furniture / electronics — each has its own structured 2-column Details Box above. */}
+            {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics") && (cat?.fields || []).filter((f) => f.key !== "post_type").map((f) => (
                 <Field key={f.key} label={`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}>
                     {f.type === "select" ? (
                         <SelectInput
