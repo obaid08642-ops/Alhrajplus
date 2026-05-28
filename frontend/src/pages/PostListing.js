@@ -568,19 +568,6 @@ export default function PostListing() {
 
                     <h2 className="font-arabic font-bold text-lg text-[var(--text)]">{t("listing_details")}</h2>
 
-                    {/* ===== Phones-only details box at TOP =====
-                        Strict 2-column cascade with brand → model → storage → color +
-                        condition / RAM / warranty. Sits ABOVE title + description so the
-                        user fills the structured fields first. Generic field renderer
-                        below is skipped for `phones`, so there are zero duplicates. */}
-                    {form.category === "phones" && (
-                        <PhoneCascade
-                            value={form.custom_fields}
-                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
-                            tr={tr}
-                        />
-                    )}
-
                     {/* ===== Services-only Listing Type selector at TOP =====
                         User explicitly requested this before title + description so the
                         intent (Offer vs Request) is the first decision. */}
@@ -692,6 +679,95 @@ export default function PostListing() {
                         <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("description")} *</label>
                         <textarea data-testid="post-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("اكتب وصفاً تفصيلياً...")} />
                     </div>
+
+                    {/* ===== PHONES Details Box (placed AFTER description, BEFORE price) =====
+                        Strict 2-column grid (brand | model / storage | color / condition | RAM /
+                        warranty | —). Lives inside <CarCascade/PhoneCascade> components which
+                        already render `grid grid-cols-2`. Generic renderer below is suppressed
+                        for `phones` so there are zero duplicates. */}
+                    {form.category === "phones" && (
+                        <PhoneCascade
+                            value={form.custom_fields}
+                            onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                            tr={tr}
+                        />
+                    )}
+
+                    {/* ===== SERVICES Details Box (placed AFTER description) =====
+                        Strict 2-column grid with the exact rows requested:
+                          Row 1: Service Type        | Frequency
+                          Row 2: Service Time        | Pricing Type
+                          Row 3 (delivery only): Pickup | Dropoff
+                        Generic renderer below is suppressed for `services` → no duplicates. */}
+                    {form.category === "services" && (() => {
+                        const svc = cat?.fields || [];
+                        const fByKey = (k) => svc.find((f) => f.key === k);
+                        const F_SERVICE = fByKey("service_type");
+                        const F_FREQ = fByKey("frequency");
+                        const F_SCHED = fByKey("schedule");
+                        const F_PRICING = fByKey("pricing_type");
+                        const F_PICKUP = fByKey("pickup_address");
+                        const F_DROPOFF = fByKey("dropoff_address");
+                        const sv = form.custom_fields.service_type || "";
+                        const DELIVERY = ["نقل عفش", "سائق", "توصيل"];
+                        const isDelivery = DELIVERY.includes(sv);
+
+                        const SelectCell = ({ field }) => field ? (
+                            <div>
+                                <label className="block text-[10px] font-arabic font-bold text-[var(--text-muted)] mb-1">
+                                    {pickLabel(field)} {field.required && <span className="text-red-500">*</span>}
+                                </label>
+                                <select
+                                    data-testid={`field-${field.key}`}
+                                    value={form.custom_fields[field.key] || ""}
+                                    onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [field.key]: e.target.value } })}
+                                    className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body"
+                                >
+                                    <option value="">{tr("اختر...")}</option>
+                                    {(field.options_ar || field.options || []).map((c, i) => {
+                                        const label = (field.options && field.options[i]) || c;
+                                        return <option key={c} value={c}>{label}</option>;
+                                    })}
+                                </select>
+                            </div>
+                        ) : null;
+                        const TextCell = ({ field }) => field ? (
+                            <div>
+                                <label className="block text-[10px] font-arabic font-bold text-[var(--text-muted)] mb-1">
+                                    {pickLabel(field)} {field.required && <span className="text-red-500">*</span>}
+                                </label>
+                                <input
+                                    data-testid={`field-${field.key}`}
+                                    value={form.custom_fields[field.key] || ""}
+                                    onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [field.key]: e.target.value } })}
+                                    placeholder={field.placeholder || ""}
+                                    className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body"
+                                />
+                            </div>
+                        ) : null;
+
+                        return (
+                            <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] space-y-2" data-testid="services-details-box">
+                                <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-1 flex items-center gap-1">
+                                    🔧 {tr("تفاصيل الخدمة")}
+                                </h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <SelectCell field={F_SERVICE} />
+                                    <SelectCell field={F_FREQ} />
+                                    <TextCell field={F_SCHED} />
+                                    <SelectCell field={F_PRICING} />
+                                    {isDelivery && <TextCell field={F_PICKUP} />}
+                                    {isDelivery && <TextCell field={F_DROPOFF} />}
+                                </div>
+                                {!isDelivery && (F_PICKUP || F_DROPOFF) && (
+                                    <p className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-1">
+                                        💡 {tr("نقاط الالتقاط والوصول تظهر فقط لخدمات النقل / التوصيل / السائق.")}
+                                    </p>
+                                )}
+                            </div>
+                        );
+                    })()}
+
                     {form.category !== "jobs" && form.category !== "services" && (
                         <div>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("price")}</label>
@@ -711,10 +787,10 @@ export default function PostListing() {
                     {/* Custom fields for category — skip post_type since it's at the top for jobs/services */}
                     {/* Generic dynamic fields renderer (from i18n_data CATEGORIES.fields).
                         We skip the entire block when one of our richer cascades is mounted
-                        (cars/phones) so the user never sees duplicate brand/model/year inputs
-                        below the price. We also still skip post_type because it has its own
-                        segmented control above. */}
-                    {!(form.category === "cars" || form.category === "phones") && cat?.fields?.filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
+                        (cars / phones / services — services has its own custom 2-col Details
+                        Box above). We also still skip post_type because it has its own
+                        segmented control above for jobs/services. */}
+                    {!(form.category === "cars" || form.category === "phones" || form.category === "services") && cat?.fields?.filter((f) => f.key !== "post_type" || form.category !== "jobs").map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                                 {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}

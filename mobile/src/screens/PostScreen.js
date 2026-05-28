@@ -596,17 +596,6 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 </View>
             )}
 
-            {/* ===== Phones-only Details Box at the very TOP =====
-                Strict 2-column cascade (brand → model → storage → color + condition / RAM / warranty).
-                Lives ABOVE title + description per the latest UX spec. Generic renderer below
-                is suppressed for `phones` so there are zero duplicates. */}
-            {form.category === "phones" && (
-                <PhoneCascadeMobile
-                    value={form.custom_fields}
-                    onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
-                />
-            )}
-
 <Field label={t("العنوان") + " *"}>
                 <TextInput value={form.title} onChangeText={(v) => update("title", v)} placeholder={t("مثال: تويوتا كامري 2020 ممتازة")} placeholderTextColor={colors.textMuted} style={s.input} />
             </Field>
@@ -653,6 +642,83 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
             <Field label={t("الوصف") + " *"}>
                 <TextInput value={form.description} onChangeText={(v) => update("description", v)} placeholder={t("اوصف منتجك بالتفصيل...")} placeholderTextColor={colors.textMuted} style={[s.input, { height: 110, textAlignVertical: "top" }]} multiline />
             </Field>
+
+            {/* ===== PHONES Details Box (AFTER description, BEFORE price) =====
+                Strict 2-column cascade. Generic renderer below is suppressed for `phones`
+                so there are zero duplicates. */}
+            {form.category === "phones" && (
+                <PhoneCascadeMobile
+                    value={form.custom_fields}
+                    onChange={(patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } })}
+                />
+            )}
+
+            {/* ===== SERVICES Details Box (AFTER description) — strict 2-col =====
+                Row 1: Service Type | Frequency
+                Row 2: Service Time | Pricing Type
+                Row 3 (delivery only): Pickup | Dropoff
+                Generic renderer below is suppressed for `services`. */}
+            {form.category === "services" && (() => {
+                const svc = cat?.fields || [];
+                const fByKey = (k) => svc.find((f) => f.key === k);
+                const F_SERVICE = fByKey("service_type");
+                const F_FREQ = fByKey("frequency");
+                const F_SCHED = fByKey("schedule");
+                const F_PRICING = fByKey("pricing_type");
+                const F_PICKUP = fByKey("pickup_address");
+                const F_DROPOFF = fByKey("dropoff_address");
+                const sv = form.custom_fields.service_type || "";
+                const DELIVERY = ["نقل عفش", "سائق", "توصيل"];
+                const isDelivery = DELIVERY.includes(sv);
+
+                const SelectCell = ({ field }) => field ? (
+                    <View style={s.svcCell}>
+                        <Text style={s.svcLabel}>{`${field.label_ar || field.label_en || field.key}${field.required ? " *" : ""}`}</Text>
+                        <SelectInput
+                            value={form.custom_fields[field.key] || ""}
+                            options={(field.options_ar || field.options || []).map((opt, i) => ({ value: (field.options_ar?.[i] || opt), label: opt }))}
+                            placeholder={t("اختر...")}
+                            onChange={(v) => updateCF(field.key, v)}
+                        />
+                    </View>
+                ) : null;
+                const TextCell = ({ field }) => field ? (
+                    <View style={s.svcCell}>
+                        <Text style={s.svcLabel}>{`${field.label_ar || field.label_en || field.key}${field.required ? " *" : ""}`}</Text>
+                        <TextInput
+                            value={form.custom_fields[field.key] || ""}
+                            onChangeText={(v) => updateCF(field.key, v)}
+                            placeholder={field.placeholder || ""}
+                            placeholderTextColor={colors.textMuted}
+                            style={s.input}
+                        />
+                    </View>
+                ) : null;
+
+                return (
+                    <View style={s.detailsBox} testID="services-details-box">
+                        <Text style={s.detailsBoxTitle}>🔧 {t("تفاصيل الخدمة")}</Text>
+                        <View style={s.svcRow}>
+                            <SelectCell field={F_SERVICE} />
+                            <SelectCell field={F_FREQ} />
+                        </View>
+                        <View style={s.svcRow}>
+                            <TextCell field={F_SCHED} />
+                            <SelectCell field={F_PRICING} />
+                        </View>
+                        {isDelivery && (
+                            <View style={s.svcRow}>
+                                <TextCell field={F_PICKUP} />
+                                <TextCell field={F_DROPOFF} />
+                            </View>
+                        )}
+                        {!isDelivery && (F_PICKUP || F_DROPOFF) && (
+                            <Text style={s.svcHint}>💡 {t("نقاط الالتقاط والوصول تظهر فقط لخدمات النقل / التوصيل / السائق.")}</Text>
+                        )}
+                    </View>
+                );
+            })()}
+
             <Field label={t("السعر") + ` (${form.currency})`}>
                 <View style={s.priceWrap}>
                     <TextInput value={form.price} onChangeText={(v) => update("price", v.replace(/[^0-9.]/g, ""))} placeholder={t("اتركه فارغاً للسوم")} placeholderTextColor={colors.textMuted} style={[s.input, { flex: 1, paddingEnd: 50 }]} keyboardType="numeric" />
@@ -670,11 +736,10 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
             )}
 
             {/* Dynamic category fields */}
-            {/* Same suppression rule as web: hide the generic field renderer when one
-                of the structured cascades is shown so the user never sees duplicates.
-                Also skip post_type for jobs/services since it has its own segmented
-                control rendered at the top of step 2. */}
-            {!(form.category === "cars" || form.category === "phones") && (cat?.fields || []).filter((f) => f.key !== "post_type" || (form.category !== "jobs" && form.category !== "services")).map((f) => (
+            {/* Suppress the generic renderer for cars / phones / services because each has
+                its own structured 2-column Details Box above. Also skip post_type for jobs
+                since it has a dedicated segmented control. */}
+            {!(form.category === "cars" || form.category === "phones" || form.category === "services") && (cat?.fields || []).filter((f) => f.key !== "post_type" || form.category !== "jobs").map((f) => (
                 <Field key={f.key} label={`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}>
                     {f.type === "select" ? (
                         <SelectInput
@@ -959,4 +1024,11 @@ const s = StyleSheet.create({
     postTypeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     postTypeBtnLabel: { fontSize: 13, fontWeight: "900", color: colors.text },
     postTypeBtnSub: { fontSize: 10, color: colors.textMuted, marginTop: 3, fontWeight: "600" },
+    // Services Details Box — strict 2-column grid (matches phones cascade visual style).
+    detailsBox: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 14 },
+    detailsBoxTitle: { fontSize: 12.5, fontWeight: "900", color: colors.text, marginBottom: 10 },
+    svcRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
+    svcCell: { flex: 1 },
+    svcLabel: { fontSize: 10, color: colors.textMuted, marginBottom: 4, fontWeight: "700" },
+    svcHint: { fontSize: 10, color: colors.textMuted, marginTop: 4, fontStyle: "italic" },
 });
