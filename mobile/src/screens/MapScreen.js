@@ -9,84 +9,91 @@ import { useI18n } from "../I18nContext";
 
 // Hologram-pin Leaflet map rendered inside a WebView. Works in Expo Go.
 export default function MapScreen() {
-    const nav = useNavigation();
-    const [items, setItems] = useState([]);
-    const [myPos, setMyPos] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        (async () => {
-    const { t } = useI18n();
-            try {
-                const { data } = await api.get("/listings/map/nearby", { params: { limit: 200 } });
-                setItems(data || []);
-            } catch (_) {}
-            try {
-                const perm = await Location.requestForegroundPermissionsAsync();
-                if (perm.granted) {
-                    const p = await Location.getCurrentPositionAsync({});
-                    setMyPos({ lat: p.coords.latitude, lng: p.coords.longitude });
-                }
-            } catch (_) {}
-            setLoading(false);
-        })();
-    }, []);
-
-    const html = buildHtml(items, myPos);
-
-    const onMessage = (e) => {
-        try {
-            const data = JSON.parse(e.nativeEvent.data);
-            if (data?.type === "open" && data.id) {
-                nav.navigate("ListingDetail", { id: data.id });
-            }
-        } catch (_) {}
-    };
-
-    if (loading) {
-        return (
-            <View style={styles.center}>
+  const {
+    t
+  } = useI18n();
+  const nav = useNavigation();
+  const [items, setItems] = useState([]);
+  const [myPos, setMyPos] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const ref = useRef(null);
+  useEffect(() => {
+    (async () => {
+      const {
+        t
+      } = useI18n();
+      try {
+        const {
+          data
+        } = await api.get("/listings/map/nearby", {
+          params: {
+            limit: 200
+          }
+        });
+        setItems(data || []);
+      } catch (_) {}
+      try {
+        const perm = await Location.requestForegroundPermissionsAsync();
+        if (perm.granted) {
+          const p = await Location.getCurrentPositionAsync({});
+          setMyPos({
+            lat: p.coords.latitude,
+            lng: p.coords.longitude
+          });
+        }
+      } catch (_) {}
+      setLoading(false);
+    })();
+  }, []);
+  const html = buildHtml(items, myPos);
+  const onMessage = e => {
+    try {
+      const data = JSON.parse(e.nativeEvent.data);
+      if (data?.type === "open" && data.id) {
+        nav.navigate("ListingDetail", {
+          id: data.id
+        });
+      }
+    } catch (_) {}
+  };
+  if (loading) {
+    return <View style={styles.center}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
                 <Text style={styles.loadingText}>{t("جاري تحميل الخريطة...")}</Text>
-            </View>
-        );
-    }
-
-    return (
-        <SafeAreaView style={styles.wrap}>
+            </View>;
+  }
+  return <SafeAreaView style={styles.wrap}>
             <View style={styles.header}>
                 <Text style={styles.title}>{t("🗺️ خريطة الإعلانات")}</Text>
                 <Text style={styles.sub}>{items.length} {t("إعلان بالقرب منك")}</Text>
             </View>
-            <WebView
-                ref={ref}
-                originWhitelist={["*"]}
-                source={{ html }}
-                onMessage={onMessage}
-                style={{ flex: 1 }}
-                javaScriptEnabled
-                domStorageEnabled
-                setSupportMultipleWindows={false}
-            />
-        </SafeAreaView>
-    );
+            <WebView ref={ref} originWhitelist={["*"]} source={{
+      html
+    }} onMessage={onMessage} style={{
+      flex: 1
+    }} javaScriptEnabled domStorageEnabled setSupportMultipleWindows={false} />
+        </SafeAreaView>;
 }
-
 function buildHtml(items, myPos) {
-    const center = myPos || (items[0] ? { lat: items[0].lat, lng: items[0].lng } : { lat: 24.7136, lng: 46.6753 });
-    const markers = items
-        .filter((i) => i.lat && i.lng)
-        .map((i) => ({
-            id: i.id,
-            lat: i.lat,
-            lng: i.lng,
-            title: (i.title || "").replace(/"/g, "'"),
-            price: i.price ? Number(i.price).toLocaleString() : "",
-            currency: i.currency || t("ر.س"),
-        }));
-
-    return `<!DOCTYPE html>
+  const {
+    t
+  } = useI18n();
+  const center = myPos || (items[0] ? {
+    lat: items[0].lat,
+    lng: items[0].lng
+  } : {
+    lat: 24.7136,
+    lng: 46.6753
+  });
+  const markers = items.filter(i => i.lat && i.lng).map(i => ({
+    id: i.id,
+    lat: i.lat,
+    lng: i.lng,
+    title: (i.title || "").replace(/"/g, "'"),
+    price: i.price ? Number(i.price).toLocaleString() : "",
+    currency: i.currency || t("ر.س")
+  }));
+  return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="utf-8" />
@@ -148,12 +155,37 @@ function buildHtml(items, myPos) {
 </body>
 </html>`;
 }
-
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: theme.colors.bg },
-    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.bg },
-    loadingText: { marginTop: 10, color: theme.colors.textMuted },
-    header: { padding: 12, backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-    title: { fontSize: 16, fontWeight: "900", color: theme.colors.text, textAlign: "right" },
-    sub: { fontSize: 11, color: theme.colors.textMuted, textAlign: "right", marginTop: 2 },
+  wrap: {
+    flex: 1,
+    backgroundColor: theme.colors.bg
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: theme.colors.bg
+  },
+  loadingText: {
+    marginTop: 10,
+    color: theme.colors.textMuted
+  },
+  header: {
+    padding: 12,
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: theme.colors.text,
+    textAlign: "right"
+  },
+  sub: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    textAlign: "right",
+    marginTop: 2
+  }
 });

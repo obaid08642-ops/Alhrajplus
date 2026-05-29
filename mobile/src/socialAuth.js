@@ -27,14 +27,14 @@ async function runOAuth(provider) {
     // backend's final redirect uses our custom scheme.
     const { data } = await api.get(`/auth/${provider}/start`, { params: { mobile_redirect: returnUrl } });
     const authUrl = data?.auth_url;
-    if (!authUrl) throw new Error(tr(tr(tr(tr(tr("لم يستطع الخادم بدء جلسة OAuth"))))));
+    if (!authUrl) throw new Error("لم يستطع الخادم بدء جلسة OAuth");
 
     const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
         showInRecents: false,
         preferEphemeralSession: true,
     });
     if (result.type !== "success" || !result.url) {
-        throw new Error(tr(tr(tr(tr(tr("تم إلغاء تسجيل الدخول"))))));
+        throw new Error("تم إلغاء تسجيل الدخول");
     }
 
     // Parse URL fragment or query for tokens / error
@@ -51,7 +51,7 @@ async function runOAuth(provider) {
 
     const accessToken = frag.get("access_token");
     const refreshToken = frag.get("refresh_token");
-    if (!accessToken) throw new Error(tr(tr(tr(tr(tr("لم نتلق رمز الوصول"))))));
+    if (!accessToken) throw new Error("لم نتلق رمز الوصول");
 
     await saveToken(accessToken, refreshToken);
     return { access_token: accessToken, refresh_token: refreshToken };
@@ -68,7 +68,7 @@ export const signInWithSnapchat = () => runOAuth("snapchat");
 export async function signInWithApple() {
     if (Platform.OS === "ios") {
         const available = await AppleAuthentication.isAvailableAsync();
-        if (!available) throw new Error(tr(tr(tr(tr(tr("Apple Sign-In غير متوفر على هذا الجهاز"))))));
+        if (!available) throw new Error("Apple Sign-In غير متوفر على هذا الجهاز");
         const credential = await AppleAuthentication.signInAsync({
             requestedScopes: [
                 AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -87,7 +87,7 @@ export async function signInWithApple() {
         });
         const access = data?.access_token || data?.token;
         const refresh = data?.refresh_token || null;
-        if (!access) throw new Error(tr(tr(tr(tr(tr("لم نتلق رمز الوصول"))))));
+        if (!access) throw new Error("لم نتلق رمز الوصول");
         await saveToken(access, refresh);
         return { access_token: access, refresh_token: refresh };
     }

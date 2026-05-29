@@ -118,7 +118,7 @@ export async function clearToken() {
 }
 
 export function formatApiError(err) {
-    if (!err) return tr(tr(tr(tr(tr("خطأ غير متوقع")))));
+    if (!err) return "خطأ غير متوقع";
     if (typeof err === "string") return err;
     if (Array.isArray(err)) return err.map(formatApiError).join(", ");
     if (err.msg) return err.msg;

@@ -37,13 +37,13 @@ export async function isBiometricEnabled() {
 export async function enableBiometric(email, password) {
     const { available } = await isBiometricAvailable();
     if (!available) {
-        Alert.alert(tr(tr(tr(tr(tr("تعذّر التفعيل"))))), tr(tr(tr(tr(tr("جهازك لا يدعم البصمة أو لم تُسجّل بصمة/FaceID في الإعدادات."))))));
+        Alert.alert("تعذّر التفعيل", "جهازك لا يدعم البصمة أو لم تُسجّل بصمة/FaceID في الإعدادات.");
         return false;
     }
     // Authenticate once to confirm user's identity BEFORE we store creds
     const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: tr(tr(tr(tr(tr("أثبت هويتك لتفعيل الدخول بالبصمة"))))),
-        fallbackLabel: tr(tr(tr(tr(tr("استخدم كلمة المرور"))))),
+        promptMessage: "أثبت هويتك لتفعيل الدخول بالبصمة",
+        fallbackLabel: "استخدم كلمة المرور",
         disableDeviceFallback: false,
     });
     if (!result.success) return false;
@@ -55,7 +55,7 @@ export async function enableBiometric(email, password) {
         await SecureStore.setItemAsync(FLAG_KEY, "1");
         return true;
     } catch (e) {
-        Alert.alert(tr(tr(tr(tr(tr("خطأ"))))), tr(tr(tr(tr(tr("تعذّر حفظ بيانات الدخول بأمان"))))));
+        Alert.alert("خطأ", "تعذّر حفظ بيانات الدخول بأمان");
         return false;
     }
 }
@@ -76,8 +76,8 @@ export async function tryBiometricLogin() {
     const { available } = await isBiometricAvailable();
     if (!available) return null;
     const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: tr(tr(tr(tr(tr("الدخول إلى الحراج بلس"))))),
-        fallbackLabel: tr(tr(tr(tr(tr("كلمة المرور"))))),
+        promptMessage: "الدخول إلى الحراج بلس",
+        fallbackLabel: "كلمة المرور",
         disableDeviceFallback: false,
     });
     if (!result.success) return null;

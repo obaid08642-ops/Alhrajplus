@@ -7,32 +7,42 @@ import { signInWithGoogle, signInWithApple, signInWithX, signInWithSnapchat } fr
 import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
 import { useI18n } from "../I18nContext";
 import { validatePhone, phoneExampleFor } from "../phoneValidator";
-
-function SocialButtons({ onSuccess }) {
-    const { t } = useI18n();
-    const [busy, setBusy] = useState(null); // provider key or null
-    const run = (provider, fn) => async () => {
-        setBusy(provider);
-        try {
-            await fn();
-            onSuccess?.();
-        } catch (e) {
-            if (!String(e?.message || "").includes(t("إلغاء")) && !String(e?.message || "").toLowerCase().includes("cancel")) {
-                Alert.alert(t("خطأ"), e.message || `${t("حدث خطأ. حاول مرة أخرى.")} (${provider})`);
-            }
-        } finally { setBusy(null); }
-    };
-    return (
-        <View style={{ gap: 8 }}>
+function SocialButtons({
+  onSuccess
+}) {
+  const { t } = useI18n();
+  
+  const [busy, setBusy] = useState(null); // provider key or null
+  const run = (provider, fn) => async () => {
+    setBusy(provider);
+    try {
+      await fn();
+      onSuccess?.();
+    } catch (e) {
+      if (!String(e?.message || "").includes(t("إلغاء")) && !String(e?.message || "").toLowerCase().includes("cancel")) {
+        Alert.alert(t("خطأ"), e.message || `${t("حدث خطأ. حاول مرة أخرى.")} (${provider})`);
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+  return <View style={{
+    gap: 8
+  }}>
             <TouchableOpacity onPress={run("google", signInWithGoogle)} disabled={!!busy} style={[styles.googleBtn, busy && styles.btnDisabled]} testID="mobile-google-btn">
                 <Text style={styles.googleIcon}>G</Text>
                 <Text style={styles.googleText}>{busy === "google" ? "..." : t("متابعة بحساب Google")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={run("apple", signInWithApple)} disabled={!!busy || Platform.OS === "android"} style={[styles.appleBtn, busy && styles.btnDisabled, Platform.OS === "android" && { display: "none" }]} testID="mobile-apple-btn">
+            <TouchableOpacity onPress={run("apple", signInWithApple)} disabled={!!busy || Platform.OS === "android"} style={[styles.appleBtn, busy && styles.btnDisabled, Platform.OS === "android" && {
+      display: "none"
+    }]} testID="mobile-apple-btn">
                 <Text style={styles.appleIcon}></Text>
                 <Text style={styles.appleText}>{busy === "apple" ? "..." : t("متابعة بحساب Apple")}</Text>
             </TouchableOpacity>
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{
+      flexDirection: "row",
+      gap: 8
+    }}>
                 <TouchableOpacity onPress={run("x", signInWithX)} disabled={!!busy} style={[styles.xBtn, busy && styles.btnDisabled]} testID="mobile-x-btn">
                     <Text style={styles.xText}>{busy === "x" ? "..." : "X"}</Text>
                 </TouchableOpacity>
@@ -40,83 +50,89 @@ function SocialButtons({ onSuccess }) {
                     <Text style={styles.snapText}>{busy === "snapchat" ? "..." : "Snapchat"}</Text>
                 </TouchableOpacity>
             </View>
-        </View>
-    );
+        </View>;
 }
-
-export function LoginScreen({ navigation }) {
-    const { login, refresh } = useAuth();
-    const { t } = useI18n();
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [err, setErr] = useState("");
-    const [bioAvailable, setBioAvailable] = useState(false);
-    const [bioEnabled, setBioEnabled] = useState(false);
-    const [bioLabel, setBioLabel] = useState(t("البصمة"));
-    const [askEnable, setAskEnable] = useState(false);
-
-    useEffect(() => {
-        (async () => {
-            const info = await isBiometricAvailable();
-            setBioAvailable(info.available);
-            if (info.types) {
-                // 1=Fingerprint, 2=Facial, 3=Iris
-                if (info.types.includes(2)) setBioLabel("FaceID");
-                else if (info.types.includes(1)) setBioLabel(t("بصمة الإصبع"));
-            }
-            const enabled = await isBiometricEnabled();
-            setBioEnabled(enabled);
-            if (enabled && info.available) {
-                // Auto-prompt on mount
-                const creds = await tryBiometricLogin();
-                if (creds?.email && creds?.password) {
-                    setBusy(true);
-                    try { await login(creds.email, creds.password); } catch (_) {} finally { setBusy(false); }
-                }
-            }
-        })();
-    }, []);
-
-    const submit = async () => {
-        setErr(""); setBusy(true);
-        try {
-            await login(email, password);
-            // After successful password login, offer to enable biometric
-            const enabled = await isBiometricEnabled();
-            if (!enabled && bioAvailable) {
-                setAskEnable(true);
-            }
-        } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
-        } finally { setBusy(false); }
-    };
-
-    const doEnableBio = async () => {
-        const ok = await enableBiometric(email, password);
-        if (ok) {
-            setBioEnabled(true);
-            Alert.alert("✅", `${t("تفعيل الدخول بـ")}${bioLabel}.`);
+export function LoginScreen({
+  navigation
+}) {
+  const { t } = useI18n();
+  const {
+    login,
+    refresh
+  } = useAuth();
+  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [bioLabel, setBioLabel] = useState(t("البصمة"));
+  const [askEnable, setAskEnable] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const info = await isBiometricAvailable();
+      setBioAvailable(info.available);
+      if (info.types) {
+        // 1=Fingerprint, 2=Facial, 3=Iris
+        if (info.types.includes(2)) setBioLabel("FaceID");else if (info.types.includes(1)) setBioLabel(t("بصمة الإصبع"));
+      }
+      const enabled = await isBiometricEnabled();
+      setBioEnabled(enabled);
+      if (enabled && info.available) {
+        // Auto-prompt on mount
+        const creds = await tryBiometricLogin();
+        if (creds?.email && creds?.password) {
+          setBusy(true);
+          try {
+            await login(creds.email, creds.password);
+          } catch (_) {} finally {
+            setBusy(false);
+          }
         }
-        setAskEnable(false);
-    };
-
-    const doBiometricLogin = async () => {
-        setBusy(true);
-        try {
-            const creds = await tryBiometricLogin();
-            if (creds?.email && creds?.password) {
-                await login(creds.email, creds.password);
-            } else {
-                setErr(t("حدث خطأ. حاول مرة أخرى."));
-            }
-        } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
-        } finally { setBusy(false); }
-    };
-
-    return (
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
+      }
+    })();
+  }, []);
+  const submit = async () => {
+    setErr("");
+    setBusy(true);
+    try {
+      await login(email, password);
+      // After successful password login, offer to enable biometric
+      const enabled = await isBiometricEnabled();
+      if (!enabled && bioAvailable) {
+        setAskEnable(true);
+      }
+    } catch (e) {
+      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const doEnableBio = async () => {
+    const ok = await enableBiometric(email, password);
+    if (ok) {
+      setBioEnabled(true);
+      Alert.alert("✅", `${t("تفعيل الدخول بـ")}${bioLabel}.`);
+    }
+    setAskEnable(false);
+  };
+  const doBiometricLogin = async () => {
+    setBusy(true);
+    try {
+      const creds = await tryBiometricLogin();
+      if (creds?.email && creds?.password) {
+        await login(creds.email, creds.password);
+      } else {
+        setErr(t("حدث خطأ. حاول مرة أخرى."));
+      }
+    } catch (e) {
+      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
             <ScrollView contentContainerStyle={styles.scroll}>
                 <View style={styles.card}>
                     <View style={styles.logo}>
@@ -127,39 +143,19 @@ export function LoginScreen({ navigation }) {
 
                     {err ? <View style={styles.errorBox}><Text style={styles.errorText}>{err}</Text></View> : null}
 
-                    <TextInput
-                        placeholder={t("البريد الإلكتروني")}
-                        placeholderTextColor={theme.colors.textMuted}
-                        value={email}
-                        onChangeText={setEmail}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        style={styles.input}
-                        testID="mobile-login-email"
-                    />
-                    <TextInput
-                        placeholder={t("كلمة المرور")}
-                        placeholderTextColor={theme.colors.textMuted}
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        style={styles.input}
-                        testID="mobile-login-password"
-                    />
+                    <TextInput placeholder={t("البريد الإلكتروني")} placeholderTextColor={theme.colors.textMuted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input} testID="mobile-login-email" />
+                    <TextInput placeholder={t("كلمة المرور")} placeholderTextColor={theme.colors.textMuted} value={password} onChangeText={setPassword} secureTextEntry style={styles.input} testID="mobile-login-password" />
 
                     <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]} testID="mobile-login-submit">
                         <Text style={styles.btnText}>{busy ? "..." : t("تسجيل الدخول")}</Text>
                     </TouchableOpacity>
 
-                    {bioEnabled && bioAvailable && (
-                        <TouchableOpacity onPress={doBiometricLogin} disabled={busy} style={[styles.bioBtn]} testID="mobile-biometric-btn">
+                    {bioEnabled && bioAvailable && <TouchableOpacity onPress={doBiometricLogin} disabled={busy} style={[styles.bioBtn]} testID="mobile-biometric-btn">
                             <Text style={styles.bioIcon}>🔐</Text>
                             <Text style={styles.bioText}>{t("الدخول بـ")}{bioLabel}</Text>
-                        </TouchableOpacity>
-                    )}
+                        </TouchableOpacity>}
 
-                    {askEnable && (
-                        <View style={styles.enableBioBox}>
+                    {askEnable && <View style={styles.enableBioBox}>
                             <Text style={styles.enableBioText}>{t("تفعيل الدخول بـ")}{bioLabel}{t("في المرات القادمة؟")}</Text>
                             <View style={styles.enableBioRow}>
                                 <TouchableOpacity onPress={doEnableBio} style={styles.enableBioYes} testID="mobile-enable-bio-yes">
@@ -169,8 +165,7 @@ export function LoginScreen({ navigation }) {
                                     <Text style={styles.enableBioNoText}>{t("ليس الآن")}</Text>
                                 </TouchableOpacity>
                             </View>
-                        </View>
-                    )}
+                        </View>}
 
                     <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>{t("أو")}</Text><View style={styles.line} /></View>
                     <SocialButtons onSuccess={() => refresh()} />
@@ -178,39 +173,57 @@ export function LoginScreen({ navigation }) {
                     <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>{t("ليس لديك حساب؟")} <Text style={styles.linkStrong}>{t("إنشاء حساب")}</Text></Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={{ marginTop: 6, alignItems: "center" }} testID="mobile-forgot-link">
-                        <Text style={[styles.linkStrong, { fontSize: 12 }]}>{t("نسيت كلمة المرور؟")}</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={{
+          marginTop: 6,
+          alignItems: "center"
+        }} testID="mobile-forgot-link">
+                        <Text style={[styles.linkStrong, {
+            fontSize: 12
+          }]}>{t("نسيت كلمة المرور؟")}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </KeyboardAvoidingView>
-    );
+        </KeyboardAvoidingView>;
 }
-
-export function RegisterScreen({ navigation }) {
-    const { register, refresh } = useAuth();
-    const { t } = useI18n();
-    const [form, setForm] = useState({ name: "", email: "", password: "", phone: "", country_code: "SA" });
-    const [busy, setBusy] = useState(false);
-    const [err, setErr] = useState("");
-
-    const submit = async () => {
-        setErr(""); setBusy(true);
-        try {
-            const v = validatePhone(form.phone, form.country_code);
-            if (!v.ok) {
-                setErr(v.error);
-                setBusy(false);
-                return;
-            }
-            await register({ ...form, phone: v.normalized });
-        } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
-        } finally { setBusy(false); }
-    };
-
-    return (
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
+export function RegisterScreen({
+  navigation
+}) {
+  const { t } = useI18n();
+  const {
+    register,
+    refresh
+  } = useAuth();
+  
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    country_code: "SA"
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const submit = async () => {
+    setErr("");
+    setBusy(true);
+    try {
+      const v = validatePhone(form.phone, form.country_code);
+      if (!v.ok) {
+        setErr(v.error);
+        setBusy(false);
+        return;
+      }
+      await register({
+        ...form,
+        phone: v.normalized
+      });
+    } catch (e) {
+      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
             <ScrollView contentContainerStyle={styles.scroll}>
                 <View style={styles.card}>
                     <View style={styles.logo}>
@@ -221,10 +234,22 @@ export function RegisterScreen({ navigation }) {
 
                     {err ? <View style={styles.errorBox}><Text style={styles.errorText}>{err}</Text></View> : null}
 
-                    <TextInput placeholder={t("الاسم الكامل")} placeholderTextColor={theme.colors.textMuted} value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.input} />
-                    <TextInput placeholder={t("البريد الإلكتروني")} placeholderTextColor={theme.colors.textMuted} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
-                    <TextInput placeholder={t("كلمة المرور")} placeholderTextColor={theme.colors.textMuted} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} secureTextEntry style={styles.input} />
-                    <TextInput placeholder={t("رقم الجوال") + ` (${phoneExampleFor(form.country_code)})`} placeholderTextColor={theme.colors.textMuted} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, "") })} keyboardType="phone-pad" style={styles.input} testID="register-phone-input" />
+                    <TextInput placeholder={t("الاسم الكامل")} placeholderTextColor={theme.colors.textMuted} value={form.name} onChangeText={v => setForm({
+          ...form,
+          name: v
+        })} style={styles.input} />
+                    <TextInput placeholder={t("البريد الإلكتروني")} placeholderTextColor={theme.colors.textMuted} value={form.email} onChangeText={v => setForm({
+          ...form,
+          email: v
+        })} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+                    <TextInput placeholder={t("كلمة المرور")} placeholderTextColor={theme.colors.textMuted} value={form.password} onChangeText={v => setForm({
+          ...form,
+          password: v
+        })} secureTextEntry style={styles.input} />
+                    <TextInput placeholder={t("رقم الجوال") + ` (${phoneExampleFor(form.country_code)})`} placeholderTextColor={theme.colors.textMuted} value={form.phone} onChangeText={v => setForm({
+          ...form,
+          phone: v.replace(/\D/g, "")
+        })} keyboardType="phone-pad" style={styles.input} testID="register-phone-input" />
 
                     <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]}>
                         <Text style={styles.btnText}>{busy ? "..." : t("إنشاء حساب")}</Text>
@@ -238,85 +263,246 @@ export function RegisterScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </KeyboardAvoidingView>
-    );
+        </KeyboardAvoidingView>;
 }
-
 const styles = StyleSheet.create({
-    wrap: { flex: 1, backgroundColor: theme.colors.bg },
-    scroll: { flexGrow: 1, justifyContent: "center", padding: 16 },
-    card: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.radius.xl,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    logo: { flexDirection: "row", justifyContent: "center", alignItems: "baseline", marginBottom: 12 },
-    logoMain: { fontSize: 30, fontWeight: "900", color: theme.colors.secondary },
-    logoSub: { fontSize: 16, fontWeight: "700", color: theme.colors.primary, marginStart: 6 },
-    title: { fontSize: 18, fontWeight: "800", textAlign: "center", color: theme.colors.text, marginBottom: 16 },
-    errorBox: { backgroundColor: "#FEE2E2", padding: 10, borderRadius: theme.radius.md, marginBottom: 10 },
-    errorText: { color: "#B91C1C", textAlign: "right", fontSize: 13 },
-    input: {
-        backgroundColor: theme.colors.surfaceElevated,
-        borderRadius: theme.radius.md,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        fontSize: 14,
-        color: theme.colors.text,
-        marginBottom: 10,
-        textAlign: "right",
-    },
-    btn: { backgroundColor: theme.colors.primary, paddingVertical: 14, borderRadius: theme.radius.md, alignItems: "center", marginTop: 6 },
-    btnDisabled: { opacity: 0.6 },
-    btnText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 15 },
-    bioBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: theme.colors.surfaceElevated, borderWidth: 2, borderColor: theme.colors.primary, borderRadius: theme.radius.md, paddingVertical: 12, marginTop: 8 },
-    bioIcon: { fontSize: 18 },
-    bioText: { color: theme.colors.primary, fontWeight: "800", fontSize: 14 },
-    enableBioBox: { backgroundColor: "#E8F2FA", borderRadius: theme.radius.md, padding: 12, marginTop: 10, borderWidth: 1, borderColor: theme.colors.primary + "40" },
-    enableBioText: { color: theme.colors.text, fontSize: 13, textAlign: "center", marginBottom: 10, fontWeight: "700" },
-    enableBioRow: { flexDirection: "row", gap: 8 },
-    enableBioYes: { flex: 1, backgroundColor: theme.colors.primary, paddingVertical: 10, borderRadius: theme.radius.md, alignItems: "center" },
-    enableBioYesText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 13 },
-    enableBioNo: { flex: 1, backgroundColor: "transparent", paddingVertical: 10, borderRadius: theme.radius.md, alignItems: "center", borderWidth: 1, borderColor: theme.colors.border },
-    enableBioNoText: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13 },
-    linkWrap: { marginTop: 14, alignItems: "center" },
-    linkText: { color: theme.colors.textMuted, fontSize: 13 },
-    linkStrong: { color: theme.colors.primary, fontWeight: "700" },
-    divider: { flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 12 },
-    line: { flex: 1, height: 1, backgroundColor: theme.colors.border },
-    dividerText: { color: theme.colors.textMuted, fontSize: 11 },
-    googleBtn: {
-        flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-        backgroundColor: "#fff",
-        borderWidth: 1, borderColor: theme.colors.border,
-        paddingVertical: 12, borderRadius: theme.radius.md,
-    },
-    googleIcon: {
-        width: 24, height: 24, borderRadius: 12,
-        backgroundColor: "#4285F4", color: "#fff",
-        textAlign: "center", lineHeight: 24,
-        fontWeight: "900", fontSize: 14,
-    },
-    googleText: { color: "#222", fontWeight: "800", fontSize: 14 },
-    appleBtn: {
-        flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-        backgroundColor: "#000",
-        paddingVertical: 12, borderRadius: theme.radius.md,
-    },
-    appleIcon: { color: "#fff", fontSize: 16 },
-    appleText: { color: "#fff", fontWeight: "800", fontSize: 14 },
-    xBtn: {
-        flex: 1, backgroundColor: "#000",
-        paddingVertical: 11, borderRadius: theme.radius.md, alignItems: "center",
-    },
-    xText: { color: "#fff", fontWeight: "900", fontSize: 14 },
-    snapBtn: {
-        flex: 1, backgroundColor: "#FFFC00",
-        paddingVertical: 11, borderRadius: theme.radius.md, alignItems: "center",
-    },
-    snapText: { color: "#000", fontWeight: "900", fontSize: 14 },
+  wrap: {
+    flex: 1,
+    backgroundColor: theme.colors.bg
+  },
+  scroll: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 16
+  },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.xl,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  logo: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "baseline",
+    marginBottom: 12
+  },
+  logoMain: {
+    fontSize: 30,
+    fontWeight: "900",
+    color: theme.colors.secondary
+  },
+  logoSub: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: theme.colors.primary,
+    marginStart: 6
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "800",
+    textAlign: "center",
+    color: theme.colors.text,
+    marginBottom: 16
+  },
+  errorBox: {
+    backgroundColor: "#FEE2E2",
+    padding: 10,
+    borderRadius: theme.radius.md,
+    marginBottom: 10
+  },
+  errorText: {
+    color: "#B91C1C",
+    textAlign: "right",
+    fontSize: 13
+  },
+  input: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: theme.colors.text,
+    marginBottom: 10,
+    textAlign: "right"
+  },
+  btn: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    marginTop: 6
+  },
+  btnDisabled: {
+    opacity: 0.6
+  },
+  btnText: {
+    color: theme.colors.primaryFg,
+    fontWeight: "900",
+    fontSize: 15
+  },
+  bioBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.md,
+    paddingVertical: 12,
+    marginTop: 8
+  },
+  bioIcon: {
+    fontSize: 18
+  },
+  bioText: {
+    color: theme.colors.primary,
+    fontWeight: "800",
+    fontSize: 14
+  },
+  enableBioBox: {
+    backgroundColor: "#E8F2FA",
+    borderRadius: theme.radius.md,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + "40"
+  },
+  enableBioText: {
+    color: theme.colors.text,
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 10,
+    fontWeight: "700"
+  },
+  enableBioRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  enableBioYes: {
+    flex: 1,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    alignItems: "center"
+  },
+  enableBioYesText: {
+    color: theme.colors.primaryFg,
+    fontWeight: "900",
+    fontSize: 13
+  },
+  enableBioNo: {
+    flex: 1,
+    backgroundColor: "transparent",
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  enableBioNoText: {
+    color: theme.colors.textMuted,
+    fontWeight: "700",
+    fontSize: 13
+  },
+  linkWrap: {
+    marginTop: 14,
+    alignItems: "center"
+  },
+  linkText: {
+    color: theme.colors.textMuted,
+    fontSize: 13
+  },
+  linkStrong: {
+    color: theme.colors.primary,
+    fontWeight: "700"
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginVertical: 12
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border
+  },
+  dividerText: {
+    color: theme.colors.textMuted,
+    fontSize: 11
+  },
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingVertical: 12,
+    borderRadius: theme.radius.md
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#4285F4",
+    color: "#fff",
+    textAlign: "center",
+    lineHeight: 24,
+    fontWeight: "900",
+    fontSize: 14
+  },
+  googleText: {
+    color: "#222",
+    fontWeight: "800",
+    fontSize: 14
+  },
+  appleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#000",
+    paddingVertical: 12,
+    borderRadius: theme.radius.md
+  },
+  appleIcon: {
+    color: "#fff",
+    fontSize: 16
+  },
+  appleText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 14
+  },
+  xBtn: {
+    flex: 1,
+    backgroundColor: "#000",
+    paddingVertical: 11,
+    borderRadius: theme.radius.md,
+    alignItems: "center"
+  },
+  xText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 14
+  },
+  snapBtn: {
+    flex: 1,
+    backgroundColor: "#FFFC00",
+    paddingVertical: 11,
+    borderRadius: theme.radius.md,
+    alignItems: "center"
+  },
+  snapText: {
+    color: "#000",
+    fontWeight: "900",
+    fontSize: 14
+  }
 });
