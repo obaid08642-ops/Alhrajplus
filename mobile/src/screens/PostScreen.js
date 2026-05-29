@@ -271,7 +271,7 @@ export default function PostScreen({ navigation, route }) {
                             setForm({ ...form, category: form.category || "general", subcategory: "story", custom_fields: { is_story: true } });
                             setStep(2);
                         } else if (key === "auction") {
-                            setForm({ ...form, custom_fields: { ...form.custom_fields, is_auction: true } });
+                            setForm({ ...form, category: "auctions", subcategory: "", custom_fields: { is_auction: true } });
                             setStep(2);
                         } else {
                             setForm({ ...form, category: key, subcategory: "", custom_fields: {} });

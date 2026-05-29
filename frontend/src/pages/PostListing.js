@@ -506,7 +506,7 @@ export default function PostListing() {
                         <button
                             type="button"
                             data-testid="entry-auction"
-                            onClick={() => { setForm({ ...form, custom_fields: { is_auction: true } }); setStep(2); }}
+                            onClick={() => { setForm({ ...form, category: "auctions", subcategory: "", custom_fields: { is_auction: true } }); setStep(2); }}
                             className="relative overflow-hidden rounded-2xl border-2 border-amber-400/60 bg-gradient-to-br from-amber-100 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-900/10 p-4 text-start aspect-[5/4] flex flex-col justify-between hover:scale-[1.02] hover:shadow-lg transition-all"
                         >
                             <div className="w-11 h-11 rounded-2xl bg-white/70 dark:bg-black/30 flex items-center justify-center shadow-sm">
