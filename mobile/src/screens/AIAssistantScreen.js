@@ -20,13 +20,15 @@ async function getSessionId() {
     return sid;
 }
 
-const SUGGESTIONS = [
-    t("كيف أنشر إعلاناً جديداً؟"),
-    t("ما متوسط سعر سيارة كامري 2020؟"),
-    t("هل البيع آمن؟ نصائح للحماية من الاحتيال"),
+const SUGGESTION_KEYS = [
+    "كيف أنشر إعلاناً جديداً؟",
+    "ما متوسط سعر سيارة كامري 2020؟",
+    "هل البيع آمن؟ نصائح للحماية من الاحتيال",
 ];
 
 export default function AIAssistantScreen() {
+    const { t } = useI18n();
+    const SUGGESTIONS = SUGGESTION_KEYS.map((k) => t(k));
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
@@ -46,7 +48,6 @@ export default function AIAssistantScreen() {
     }, [messages]);
 
     const send = async (textOverride) => {
-    const { t } = useI18n();
         const text = (textOverride ?? input).trim();
         if (!text || busy) return;
         setInput("");
