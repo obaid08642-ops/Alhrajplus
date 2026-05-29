@@ -70,6 +70,7 @@ export function FavoritesScreen() {
 
 // ---------- MY LISTINGS ----------
 export function MyListingsScreen({ navigation }) {
+    const { t } = useI18n();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -140,6 +141,7 @@ export function MyListingsScreen({ navigation }) {
 
 // ---------- DEALS ----------
 export function DealsScreen() {
+    const { t } = useI18n();
     const { dataVersion } = useCountry();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);

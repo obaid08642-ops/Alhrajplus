@@ -109,6 +109,7 @@ export default function ReelsScreen() {
 }
 
 function ReelItem({ item, active, muted, onToggleMute, onOpen }) {
+    const { t } = useI18n();
     const videoUrl = item.videos?.[0];
     const player = useVideoPlayer(videoUrl || null, (p) => {
         if (!p) return;

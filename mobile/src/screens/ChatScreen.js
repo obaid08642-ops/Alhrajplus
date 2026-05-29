@@ -167,6 +167,7 @@ export default function ChatScreen() {
 
 // =============== Conversation Row ===============
 function ConvoRow({ convo, onPress }) {
+    const { t } = useI18n();
     const unread = convo.unread || 0;
     return (
         <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={s.convoRow}>
@@ -205,6 +206,7 @@ function ConvoRow({ convo, onPress }) {
 
 // =============== Chat Thread (single conversation) ===============
 function ChatThread({ convoId, other, listing, onBack }) {
+    const { t } = useI18n();
     const { user } = useAuth();
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
@@ -578,6 +580,7 @@ function ChatThread({ convoId, other, listing, onBack }) {
 
 // =============== Message Bubble ===============
 function MessageBubble({ m, isMine, onImagePress, onLongPress }) {
+    const { t } = useI18n();
     const text = m.text || "";
     const isImage = text.startsWith("📷 ");
     const isVoice = text.startsWith("🎙️ ");
@@ -633,6 +636,7 @@ function MessageBubble({ m, isMine, onImagePress, onLongPress }) {
 
 // =============== Voice Player ===============
 function VoicePlayer({ url, isMine }) {
+    const { t } = useI18n();
     const player = useAudioPlayer(url);
     const [playing, setPlaying] = useState(false);
 

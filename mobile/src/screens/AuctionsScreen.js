@@ -79,6 +79,7 @@ export default function AuctionsScreen() {
 }
 
 function AuctionCard({ listing, onBid }) {
+    const { t } = useI18n();
     const nav = useNavigation();
     const top = listing.top_bid;
     const currentPrice = top?.amount || listing.price || 0;
@@ -116,6 +117,7 @@ function AuctionCard({ listing, onBid }) {
 }
 
 function BidModal({ user, listing, onClose, onPlaced }) {
+    const { t } = useI18n();
     const nav = useNavigation();
     const [bids, setBids] = useState([]);
     const [amount, setAmount] = useState("");
