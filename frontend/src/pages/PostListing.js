@@ -5,6 +5,7 @@ import api, { formatApiError } from "@/lib/api";
 import { CarCascade, PhoneCascade, FurnitureCascade, HomeAppliancesCascade } from "@/components/CategoryCascades";
 import { JobsDetailsBox, RealEstateDetailsBox } from "@/components/JobsRealEstateBoxes";
 import { AuctionsDetailsBox, ServicesProDetailsBox } from "@/components/AuctionsServicesBoxes";
+import { AnimalsDetailsBox, EquipmentDetailsBox } from "@/components/AnimalsEquipmentBoxes";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate, Megaphone, Gavel, Briefcase, Wrench, Film, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -735,7 +736,23 @@ export default function PostListing() {
                         <AuctionsDetailsBox form={form} setForm={setForm} tr={tr} currency={country?.currency || "ر.س"} />
                     )}
 
-                    {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && form.category !== "auctions" && (
+                    {/* ===== ANIMALS / LIVESTOCK Details Box (AFTER description) =====
+                        Strict 2-col, 5 base rows + conditional branches (طيور adds 1 row,
+                        خيول adds 1 row). breed cascade is bound to animal_type. Price renders
+                        inside the box → standalone price block is suppressed for `livestock`. */}
+                    {form.category === "livestock" && (
+                        <AnimalsDetailsBox form={form} setForm={setForm} tr={tr} country={country} />
+                    )}
+
+                    {/* ===== EQUIPMENT / HEAVY MACHINERY Details Box (AFTER description) =====
+                        Strict 2-col, 5 base rows + rental block (rental_period +
+                        insurance_required) when rental_or_sale includes إيجار. Generic renderer
+                        is suppressed for `equipment`. */}
+                    {form.category === "equipment" && (
+                        <EquipmentDetailsBox form={form} setForm={setForm} tr={tr} country={country} />
+                    )}
+
+                    {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && form.category !== "auctions" && form.category !== "livestock" && form.category !== "equipment" && (
                         <div>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("price")}</label>
                             <div className="flex gap-2 items-stretch">
@@ -768,7 +785,7 @@ export default function PostListing() {
                     {/* Generic dynamic fields renderer (from i18n_data CATEGORIES.fields).
                         Skipped entirely for cars / phones / services / jobs / realestate /
                         furniture / electronics — each has its own structured Details Box above. */}
-                    {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics" || form.category === "auctions") && cat?.fields?.filter((f) => f.key !== "post_type").map((f) => (
+                    {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics" || form.category === "auctions" || form.category === "livestock" || form.category === "equipment") && cat?.fields?.filter((f) => f.key !== "post_type").map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                                 {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}

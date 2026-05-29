@@ -21,6 +21,7 @@ import { colors, radius, shadow } from "../theme";
 import { CarCascadeMobile, PhoneCascadeMobile, FurnitureCascadeMobile, HomeAppliancesCascadeMobile } from "../components/CategoryCascadesMobile";
 import { JobsDetailsBoxMobile, RealEstateDetailsBoxMobile } from "../components/JobsRealEstateBoxesMobile";
 import { AuctionsDetailsBoxMobile, ServicesProDetailsBoxMobile } from "../components/AuctionsServicesBoxesMobile";
+import { AnimalsDetailsBoxMobile, EquipmentDetailsBoxMobile } from "../components/AnimalsEquipmentBoxesMobile";
 
 export default function PostScreen({ navigation, route }) {
     const { lang, t } = useI18n();
@@ -718,6 +719,20 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 <AuctionsDetailsBoxMobile form={form} setForm={setForm} />
             )}
 
+            {/* ===== ANIMALS / LIVESTOCK Details Box (AFTER description) =====
+                Strict 2-col, 5 base rows + conditional branches (طيور / خيول).
+                Generic renderer below is suppressed for `livestock`. */}
+            {form.category === "livestock" && (
+                <AnimalsDetailsBoxMobile form={form} setForm={setForm} />
+            )}
+
+            {/* ===== EQUIPMENT / HEAVY MACHINERY Details Box (AFTER description) =====
+                Strict 2-col, 5 base rows + rental block when rental_or_sale includes إيجار.
+                Generic renderer below is suppressed for `equipment`. */}
+            {form.category === "equipment" && (
+                <EquipmentDetailsBoxMobile form={form} setForm={setForm} />
+            )}
+
             {/* ===== JOBS Details Box (AFTER description) — strict 2-col grid ===== */}
             {form.category === "jobs" && (
                 <JobsDetailsBoxMobile form={form} setForm={setForm} />
@@ -730,7 +745,7 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 <RealEstateDetailsBoxMobile form={form} setForm={setForm} />
             )}
 
-            {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && form.category !== "auctions" && (
+            {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && form.category !== "auctions" && form.category !== "livestock" && form.category !== "equipment" && (
                 <Field label={t("السعر") + ` (${form.currency})`}>
                     <View style={s.priceWrap}>
                         <TextInput value={form.price} onChangeText={(v) => update("price", v.replace(/[^0-9.]/g, ""))} placeholder={t("اتركه فارغاً للسوم")} placeholderTextColor={colors.textMuted} style={[s.input, { flex: 1, paddingEnd: 50 }]} keyboardType="numeric" />
@@ -751,7 +766,7 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
             {/* Dynamic category fields */}
             {/* Suppress the generic renderer for cars / phones / services / jobs / realestate /
                 furniture / electronics — each has its own structured 2-column Details Box above. */}
-            {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics" || form.category === "auctions") && (cat?.fields || []).filter((f) => f.key !== "post_type").map((f) => (
+            {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics" || form.category === "auctions" || form.category === "livestock" || form.category === "equipment") && (cat?.fields || []).filter((f) => f.key !== "post_type").map((f) => (
                 <Field key={f.key} label={`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}>
                     {f.type === "select" ? (
                         <SelectInput
