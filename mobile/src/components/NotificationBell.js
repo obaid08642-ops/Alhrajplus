@@ -22,7 +22,9 @@ export default function NotificationBell({ tintLight = false }) {
             .catch(() => {});
     }, [user]);
 
-    useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+    // Extracted to top-level — never nest a hook inside another hook's argument.
+    const onFocusCallback = useCallback(() => { refresh(); }, [refresh]);
+    useFocusEffect(onFocusCallback);
 
     // Live refresh whenever a push notification arrives — no reload needed.
     useEffect(() => {
