@@ -761,7 +761,7 @@ export default function PostListing() {
                         Strict 2-column grid. Price moves INTO the box (global price hidden
                         for realestate). Generic renderer below is suppressed for `realestate`. */}
                     {form.category === "realestate" && (
-                        <RealEstateDetailsBox form={form} setForm={setForm} tr={tr} country={country} aiSuggestPrice={aiSuggestPrice} />
+                        <RealEstateDetailsBox form={form} setForm={setForm} tr={tr} country={country} />
                     )}
 
                     {/* Custom fields for category — skip post_type since it's at the top for jobs/services */}
