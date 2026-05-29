@@ -9,7 +9,6 @@ import api from "../api";
 import { useAuth } from "../AuthContext";
 import { onNotificationReceived } from "../notifications";
 import { colors } from "../theme";
-import { useI18n } from "../I18nContext";
 
 export default function NotificationBell({ tintLight = false }) {
     const nav = useNavigation();
@@ -17,7 +16,6 @@ export default function NotificationBell({ tintLight = false }) {
     const [count, setCount] = useState(0);
 
     const refresh = useCallback(() => {
-    const { t } = useI18n();
         if (!user) { setCount(0); return; }
         api.get("/notifications/unread-count")
             .then(({ data }) => setCount(Number(data?.count || 0)))

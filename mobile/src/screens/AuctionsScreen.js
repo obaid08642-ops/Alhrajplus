@@ -22,9 +22,6 @@ export default function AuctionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [active, setActive] = useState(null);
   const load = useCallback(async () => {
-    const {
-      t
-    } = useI18n();
     try {
       const {
         data

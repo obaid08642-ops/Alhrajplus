@@ -36,9 +36,6 @@ export function FavoritesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const load = useCallback(async (showSpinner = true) => {
-    const {
-      t
-    } = useI18n();
     if (showSpinner) setLoading(true);
     try {
       const {

@@ -29,9 +29,6 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const load = useCallback(async () => {
-    const {
-      t
-    } = useI18n();
     if (!user) {
       setLoading(false);
       return;

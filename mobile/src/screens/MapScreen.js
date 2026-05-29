@@ -19,9 +19,6 @@ export default function MapScreen() {
   const ref = useRef(null);
   useEffect(() => {
     (async () => {
-      const {
-        t
-      } = useI18n();
       try {
         const {
           data
@@ -75,9 +72,6 @@ export default function MapScreen() {
         </SafeAreaView>;
 }
 function buildHtml(items, myPos) {
-  const {
-    t
-  } = useI18n();
   const center = myPos || (items[0] ? {
     lat: items[0].lat,
     lng: items[0].lng
@@ -91,7 +85,7 @@ function buildHtml(items, myPos) {
     lng: i.lng,
     title: (i.title || "").replace(/"/g, "'"),
     price: i.price ? Number(i.price).toLocaleString() : "",
-    currency: i.currency || t("ر.س")
+    currency: i.currency || "ر.س"
   }));
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">

@@ -18,14 +18,11 @@ import { colors, radius, shadow } from "../theme";
 // Audio player module for voice playback
 import { useAudioPlayer } from "expo-audio";
 function fmtLastSeen(iso) {
-  const {
-    t
-  } = useI18n();
-  if (!iso) return t("متصل الآن");
+  if (!iso) return "متصل الآن";
   const d = new Date(iso);
   const now = new Date();
   const diff = (now - d) / 1000;
-  if (diff < 60) return t("آخر ظهور قبل لحظات");
+  if (diff < 60) return "آخر ظهور قبل لحظات";
   if (diff < 3600) return `آخر ظهور قبل ${Math.floor(diff / 60)} دقيقة`;
   if (diff < 86400) return `آخر ظهور قبل ${Math.floor(diff / 3600)} ساعة`;
   if (diff < 604800) return `آخر ظهور قبل ${Math.floor(diff / 86400)} يوم`;
@@ -40,15 +37,12 @@ function fmtTime(iso) {
   });
 }
 function fmtDay(iso) {
-  const {
-    t
-  } = useI18n();
   if (!iso) return "";
   const d = new Date(iso);
   const today = new Date();
   const diff = (today - d) / 86400000;
-  if (diff < 1 && d.getDate() === today.getDate()) return t("اليوم");
-  if (diff < 2) return t("أمس");
+  if (diff < 1 && d.getDate() === today.getDate()) return "اليوم";
+  if (diff < 2) return "أمس";
   return d.toLocaleDateString("ar");
 }
 export default function ChatScreen() {
