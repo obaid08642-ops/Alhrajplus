@@ -4,6 +4,7 @@ import imageCompression from "browser-image-compression";
 import api, { formatApiError } from "@/lib/api";
 import { CarCascade, PhoneCascade, FurnitureCascade, HomeAppliancesCascade } from "@/components/CategoryCascades";
 import { JobsDetailsBox, RealEstateDetailsBox } from "@/components/JobsRealEstateBoxes";
+import { AuctionsDetailsBox, ServicesProDetailsBox } from "@/components/AuctionsServicesBoxes";
 import * as Icons from "lucide-react";
 import { Upload, X, Image as ImageIcon, Video, ChevronRight, Check, MapPin, ChevronLeft, Sparkles, Camera as CameraIcon, Sparkle, Locate, Megaphone, Gavel, Briefcase, Wrench, Film, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -718,82 +719,23 @@ export default function PostListing() {
                         />
                     )}
 
-                    {/* ===== SERVICES Details Box (placed AFTER description) =====
-                        Strict 2-column grid with the exact rows requested:
-                          Row 1: Service Type        | Frequency
-                          Row 2: Service Time        | Pricing Type
-                          Row 3 (delivery only): Pickup | Dropoff
-                        Generic renderer below is suppressed for `services` → no duplicates. */}
-                    {form.category === "services" && (() => {
-                        const svc = cat?.fields || [];
-                        const fByKey = (k) => svc.find((f) => f.key === k);
-                        const F_SERVICE = fByKey("service_type");
-                        const F_FREQ = fByKey("frequency");
-                        const F_SCHED = fByKey("schedule");
-                        const F_PRICING = fByKey("pricing_type");
-                        const F_PICKUP = fByKey("pickup_address");
-                        const F_DROPOFF = fByKey("dropoff_address");
-                        const sv = form.custom_fields.service_type || "";
-                        const DELIVERY = ["نقل عفش", "سائق", "توصيل"];
-                        const isDelivery = DELIVERY.includes(sv);
+                    {/* ===== SERVICES PRO Details Box (AFTER description) =====
+                        Strict 2-col with full conditional logic per service_type bucket
+                        (delivery / cleaning / dev / education). Generic renderer below is
+                        suppressed for `services` → no duplicates. */}
+                    {form.category === "services" && (
+                        <ServicesProDetailsBox form={form} setForm={setForm} tr={tr} />
+                    )}
 
-                        const SelectCell = ({ field }) => field ? (
-                            <div>
-                                <label className="block text-[10px] font-arabic font-bold text-[var(--text-muted)] mb-1">
-                                    {pickLabel(field)} {field.required && <span className="text-red-500">*</span>}
-                                </label>
-                                <select
-                                    data-testid={`field-${field.key}`}
-                                    value={form.custom_fields[field.key] || ""}
-                                    onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [field.key]: e.target.value } })}
-                                    className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body"
-                                >
-                                    <option value="">{tr("اختر...")}</option>
-                                    {(field.options_ar || field.options || []).map((c, i) => {
-                                        const label = (field.options && field.options[i]) || c;
-                                        return <option key={c} value={c}>{label}</option>;
-                                    })}
-                                </select>
-                            </div>
-                        ) : null;
-                        const TextCell = ({ field }) => field ? (
-                            <div>
-                                <label className="block text-[10px] font-arabic font-bold text-[var(--text-muted)] mb-1">
-                                    {pickLabel(field)} {field.required && <span className="text-red-500">*</span>}
-                                </label>
-                                <input
-                                    data-testid={`field-${field.key}`}
-                                    value={form.custom_fields[field.key] || ""}
-                                    onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [field.key]: e.target.value } })}
-                                    placeholder={field.placeholder || ""}
-                                    className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body"
-                                />
-                            </div>
-                        ) : null;
+                    {/* ===== AUCTIONS Details Box (AFTER description) =====
+                        Strict 2-col, 5 rows × 2 fields. Auto-calculates end_time from duration;
+                        flags low bid_increment and buy_now_below_start with inline warnings.
+                        Generic renderer below is suppressed for `auctions` → no duplicates. */}
+                    {form.category === "auctions" && (
+                        <AuctionsDetailsBox form={form} setForm={setForm} tr={tr} currency={country?.currency || "ر.س"} />
+                    )}
 
-                        return (
-                            <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] space-y-2" data-testid="services-details-box">
-                                <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-1 flex items-center gap-1">
-                                    🔧 {tr("تفاصيل الخدمة")}
-                                </h4>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <SelectCell field={F_SERVICE} />
-                                    <SelectCell field={F_FREQ} />
-                                    <TextCell field={F_SCHED} />
-                                    <SelectCell field={F_PRICING} />
-                                    {isDelivery && <TextCell field={F_PICKUP} />}
-                                    {isDelivery && <TextCell field={F_DROPOFF} />}
-                                </div>
-                                {!isDelivery && (F_PICKUP || F_DROPOFF) && (
-                                    <p className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-1">
-                                        💡 {tr("نقاط الالتقاط والوصول تظهر فقط لخدمات النقل / التوصيل / السائق.")}
-                                    </p>
-                                )}
-                            </div>
-                        );
-                    })()}
-
-                    {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && (
+                    {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && form.category !== "auctions" && (
                         <div>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{t("price")}</label>
                             <div className="flex gap-2 items-stretch">
@@ -826,7 +768,7 @@ export default function PostListing() {
                     {/* Generic dynamic fields renderer (from i18n_data CATEGORIES.fields).
                         Skipped entirely for cars / phones / services / jobs / realestate /
                         furniture / electronics — each has its own structured Details Box above. */}
-                    {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics") && cat?.fields?.filter((f) => f.key !== "post_type").map((f) => (
+                    {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics" || form.category === "auctions") && cat?.fields?.filter((f) => f.key !== "post_type").map((f) => (
                         <div key={f.key}>
                             <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">
                                 {pickLabel(f)} {f.required && <span className="text-red-500">*</span>}

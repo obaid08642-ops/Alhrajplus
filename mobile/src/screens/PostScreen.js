@@ -20,6 +20,7 @@ import { useAuth } from "../AuthContext";
 import { colors, radius, shadow } from "../theme";
 import { CarCascadeMobile, PhoneCascadeMobile, FurnitureCascadeMobile, HomeAppliancesCascadeMobile } from "../components/CategoryCascadesMobile";
 import { JobsDetailsBoxMobile, RealEstateDetailsBoxMobile } from "../components/JobsRealEstateBoxesMobile";
+import { AuctionsDetailsBoxMobile, ServicesProDetailsBoxMobile } from "../components/AuctionsServicesBoxesMobile";
 
 export default function PostScreen({ navigation, route }) {
     const { lang, t } = useI18n();
@@ -701,71 +702,21 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 />
             )}
 
-            {/* ===== SERVICES Details Box (AFTER description) — strict 2-col =====
-                Row 1: Service Type | Frequency
-                Row 2: Service Time | Pricing Type
-                Row 3 (delivery only): Pickup | Dropoff
-                Generic renderer below is suppressed for `services`. */}
-            {form.category === "services" && (() => {
-                const svc = cat?.fields || [];
-                const fByKey = (k) => svc.find((f) => f.key === k);
-                const F_SERVICE = fByKey("service_type");
-                const F_FREQ = fByKey("frequency");
-                const F_SCHED = fByKey("schedule");
-                const F_PRICING = fByKey("pricing_type");
-                const F_PICKUP = fByKey("pickup_address");
-                const F_DROPOFF = fByKey("dropoff_address");
-                const sv = form.custom_fields.service_type || "";
-                const DELIVERY = ["نقل عفش", "سائق", "توصيل"];
-                const isDelivery = DELIVERY.includes(sv);
+            {/* ===== SERVICES PRO Details Box (AFTER description) =====
+                Strict 2-col with full conditional logic per service_type bucket
+                (delivery / cleaning / dev / education). Generic renderer below is
+                suppressed for `services` → no duplicates. */}
+            {form.category === "services" && (
+                <ServicesProDetailsBoxMobile form={form} setForm={setForm} />
+            )}
 
-                const SelectCell = ({ field }) => field ? (
-                    <View style={s.svcCell}>
-                        <Text style={s.svcLabel}>{`${field.label_ar || field.label_en || field.key}${field.required ? " *" : ""}`}</Text>
-                        <SelectInput
-                            value={form.custom_fields[field.key] || ""}
-                            options={(field.options_ar || field.options || []).map((opt, i) => ({ value: (field.options_ar?.[i] || opt), label: opt }))}
-                            placeholder={t("اختر...")}
-                            onChange={(v) => updateCF(field.key, v)}
-                        />
-                    </View>
-                ) : null;
-                const TextCell = ({ field }) => field ? (
-                    <View style={s.svcCell}>
-                        <Text style={s.svcLabel}>{`${field.label_ar || field.label_en || field.key}${field.required ? " *" : ""}`}</Text>
-                        <TextInput
-                            value={form.custom_fields[field.key] || ""}
-                            onChangeText={(v) => updateCF(field.key, v)}
-                            placeholder={field.placeholder || ""}
-                            placeholderTextColor={colors.textMuted}
-                            style={s.input}
-                        />
-                    </View>
-                ) : null;
-
-                return (
-                    <View style={s.detailsBox} testID="services-details-box">
-                        <Text style={s.detailsBoxTitle}>🔧 {t("تفاصيل الخدمة")}</Text>
-                        <View style={s.svcRow}>
-                            <SelectCell field={F_SERVICE} />
-                            <SelectCell field={F_FREQ} />
-                        </View>
-                        <View style={s.svcRow}>
-                            <TextCell field={F_SCHED} />
-                            <SelectCell field={F_PRICING} />
-                        </View>
-                        {isDelivery && (
-                            <View style={s.svcRow}>
-                                <TextCell field={F_PICKUP} />
-                                <TextCell field={F_DROPOFF} />
-                            </View>
-                        )}
-                        {!isDelivery && (F_PICKUP || F_DROPOFF) && (
-                            <Text style={s.svcHint}>💡 {t("نقاط الالتقاط والوصول تظهر فقط لخدمات النقل / التوصيل / السائق.")}</Text>
-                        )}
-                    </View>
-                );
-            })()}
+            {/* ===== AUCTIONS Details Box (AFTER description) =====
+                Strict 2-col, 5 rows × 2 fields. Auto-calculates end_time from duration;
+                flags low bid_increment and buy_now_below_start with inline warnings.
+                Generic renderer below is suppressed for `auctions` → no duplicates. */}
+            {form.category === "auctions" && (
+                <AuctionsDetailsBoxMobile form={form} setForm={setForm} />
+            )}
 
             {/* ===== JOBS Details Box (AFTER description) — strict 2-col grid ===== */}
             {form.category === "jobs" && (
@@ -779,7 +730,7 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
                 <RealEstateDetailsBoxMobile form={form} setForm={setForm} />
             )}
 
-            {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && (
+            {form.category !== "jobs" && form.category !== "services" && form.category !== "realestate" && form.category !== "auctions" && (
                 <Field label={t("السعر") + ` (${form.currency})`}>
                     <View style={s.priceWrap}>
                         <TextInput value={form.price} onChangeText={(v) => update("price", v.replace(/[^0-9.]/g, ""))} placeholder={t("اتركه فارغاً للسوم")} placeholderTextColor={colors.textMuted} style={[s.input, { flex: 1, paddingEnd: 50 }]} keyboardType="numeric" />
@@ -800,7 +751,7 @@ function Step2({ form, setForm, cat, categories, onPickerOpen, country, onPickIm
             {/* Dynamic category fields */}
             {/* Suppress the generic renderer for cars / phones / services / jobs / realestate /
                 furniture / electronics — each has its own structured 2-column Details Box above. */}
-            {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics") && (cat?.fields || []).filter((f) => f.key !== "post_type").map((f) => (
+            {!(form.category === "cars" || form.category === "phones" || form.category === "services" || form.category === "jobs" || form.category === "realestate" || form.category === "furniture" || form.category === "electronics" || form.category === "auctions") && (cat?.fields || []).filter((f) => f.key !== "post_type").map((f) => (
                 <Field key={f.key} label={`${f.label_ar || f.label_en || f.key}${f.required ? " *" : ""}`}>
                     {f.type === "select" ? (
                         <SelectInput
