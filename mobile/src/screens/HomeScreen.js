@@ -149,6 +149,7 @@ function TopBar({ nav, insets, t }) {
 
 // ====================== Hero ======================
 function Hero({ nav }) {
+    const { t } = useI18n();
     return (
         <View style={{ paddingHorizontal: 12, marginTop: 6 }}>
             <View style={[styles.heroWrap, shadow.card]}>
@@ -188,6 +189,7 @@ function Hero({ nav }) {
 
 // ====================== Quick Actions ======================
 function QuickActions({ nav }) {
+    const { t } = useI18n();
     const items = [
         { to: "Deals", Icon: Flame, color: "#EF4444", label: t("صفقات"), bg: ["#D1FAE5", "#FEE2E2"] },
         { to: "Auctions", Icon: Gavel, color: "#F59E0B", label: t("مزادات"), bg: ["#FEF3C7", "#FEF9C3"] },
@@ -210,6 +212,7 @@ function QuickActions({ nav }) {
 
 // ====================== Categories Strip ======================
 function CategoriesStrip({ cats, nav, lang, expanded, onToggle, total }) {
+    const { t } = useI18n();
     return (
         <View style={{ paddingHorizontal: 12, marginTop: 16 }}>
             <View style={styles.sectionHead}>
@@ -246,6 +249,7 @@ function CategoriesStrip({ cats, nav, lang, expanded, onToggle, total }) {
 
 // ====================== CTA Section (for guests) ======================
 function CTASection({ nav }) {
+    const { t } = useI18n();
     return (
         <View style={styles.ctaWrap}>
             <LinearGradient colors={["#0F1A35", "#1A2952"]} style={StyleSheet.absoluteFillObject} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} />
