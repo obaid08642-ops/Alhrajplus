@@ -421,9 +421,9 @@ export default function PostScreen({
     flex: 1,
     backgroundColor: colors.bg
   }}>
-            {/* Header */}
+            {/* Slim app bar — minimal vertical space (was eating ¼ of screen). */}
             <View style={[s.header, {
-      paddingTop: insets.top + 6
+      paddingTop: Math.min(insets.top + 2, insets.top + 4)
     }]}>
                 <TouchableOpacity onPress={() => step === 1 ? navigation.goBack() : setStep(1)} style={s.headBtn} hitSlop={8}>
                     <ChevronLeft size={24} color={colors.text} />

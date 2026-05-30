@@ -158,20 +158,21 @@ function Navigation() {
         >
             <Stack.Navigator
                 screenOptions={{
-                    headerStyle: { backgroundColor: colors.surface },
-                    headerTitleStyle: { fontWeight: "800", color: colors.text },
+                    headerStyle: { backgroundColor: colors.surface, height: 52 },
+                    headerTitleStyle: { fontWeight: "800", color: colors.text, fontSize: 15 },
                     headerTintColor: colors.primary,
                     headerShadowVisible: false,
+                    headerTitleAlign: "center",
                 }}
             >
                 {/* Main tabs are accessible to guests too — auth-required actions push Login */}
                 <Stack.Screen name="Main" component={TabsNavigator} options={{ headerShown: false }} />
                 <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: t("تفاصيل الإعلان") }} />
-                <Stack.Screen name="Post" component={PostScreen} options={{ title: t("إضافة إعلان") }} />
+                <Stack.Screen name="Post" component={PostScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: t("المفضلة") }} />
                 <Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: t("إعلاناتي") }} />
-                <Stack.Screen name="Chat" component={ChatScreen} options={{ title: t("الرسائل") }} />
-                <Stack.Screen name="Search" component={SearchScreen} options={{ title: t("بحث") }} />
+                <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: t("التصنيفات") }} />
                 <Stack.Screen name="CategoryListings" component={CategoryListingsScreen} options={({ route }) => ({ title: route.params?.name || "" })} />
                 <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: t("الإشعارات") }} />

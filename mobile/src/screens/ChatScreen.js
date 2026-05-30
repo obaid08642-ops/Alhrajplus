@@ -140,7 +140,7 @@ export default function ChatScreen() {
   }}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
             <View style={[s.listHeader, {
-      paddingTop: insets.top + 8
+      paddingTop: insets.top + 2
     }]}>
                 <Text style={s.listTitle}>{t("الرسائل")}</Text>
                 <TouchableOpacity style={s.searchPillBtn}>
@@ -511,7 +511,7 @@ function ChatThread({
   }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}>
             {/* Thread header */}
             <View style={[s.threadHeader, {
-      paddingTop: insets.top + 6
+      paddingTop: insets.top + 2
     }]}>
                 <LinearGradient colors={[colors.primary, "#2A8CBD"]} style={StyleSheet.absoluteFillObject} start={{
         x: 0,
@@ -1044,11 +1044,11 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 6,
-    paddingBottom: 10,
+    paddingBottom: 6,
     gap: 4
   },
   headBtn: {
-    padding: 8
+    padding: 6
   },
   threadAvatar: {
     width: 38,

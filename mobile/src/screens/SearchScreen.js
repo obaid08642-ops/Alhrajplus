@@ -263,7 +263,7 @@ export default function SearchScreen({
             <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
             {/* Search Header */}
             <View style={[s.header, {
-      paddingTop: insets.top + 6
+      paddingTop: insets.top + 2
     }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={s.headBtn}><ChevronLeft size={24} color={colors.text} /></TouchableOpacity>
                 <View style={s.searchPill}>
@@ -522,11 +522,11 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 8,
-    paddingBottom: 10,
+    paddingBottom: 6,
     backgroundColor: colors.bg
   },
   headBtn: {
-    padding: 6
+    padding: 4
   },
   searchPill: {
     flex: 1,
