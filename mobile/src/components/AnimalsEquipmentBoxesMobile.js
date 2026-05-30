@@ -381,12 +381,13 @@ const s = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end"
+    justifyContent: "center",
+    alignItems: "stretch",
+    paddingHorizontal: 20
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderRadius: 18,
     maxHeight: "70%",
     paddingVertical: 8
   },

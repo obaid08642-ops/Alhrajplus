@@ -1,24 +1,24 @@
 // Design tokens — mirror exactly the CSS variables used in web /app/frontend
 // Source of truth: web Tailwind classes "var(--primary)" etc.
 export const colors = {
-    primary: "#4FB6E6",
-    primaryHover: "#2A8CBD",
+    primary: "#1F7BBF",        // ↑ darker for stronger contrast on light bg
+    primaryHover: "#155A8E",
     primaryFg: "#FFFFFF",
     secondary: "#0F1A35",
     accent: "#FFD166",
     bg: "#F5F9FD",
     surface: "#FFFFFF",
     surfaceElevated: "#EEF6FC",
-    text: "#0F1A35",
-    textMuted: "#64748B",
-    border: "#D9E6F2",
-    success: "#10B981",
-    danger: "#EF4444",
-    warning: "#F59E0B",
+    text: "#0B1530",           // ↑ deeper for max readability
+    textMuted: "#475569",      // ↑ darker than #64748B — passes WCAG AA on light bg
+    border: "#C9DCEF",         // ↑ slightly darker so cards have visible edges
+    success: "#0F9F6E",
+    danger: "#DC2626",
+    warning: "#D97706",
     // Bottom nav specific (matches web BottomNav.js literals)
     navActive: "#1F7BBF",
-    navInactive: "#88B8DC",
-    navBg: "rgba(255,255,255,0.78)",
+    navInactive: "#5E84A8",    // ↑ darker than #88B8DC so inactive tabs remain readable
+    navBg: "rgba(255,255,255,0.92)",  // ↑ less transparent
 };
 
 export const radius = { sm: 8, md: 12, lg: 18, xl: 24, "2xl": 28, "3xl": 32, full: 999 };

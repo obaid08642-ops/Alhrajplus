@@ -14,6 +14,7 @@ export default function AuctionsScreen() {
     t
   } = useI18n();
   const nav = useNavigation();
+  const insets = useSafeAreaInsets();
   const {
     user
   } = useAuth();
@@ -159,7 +160,7 @@ function BidModal({
   onPlaced
 }) {
   const { t } = useI18n();
-  
+  const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const [bids, setBids] = useState([]);
   const [amount, setAmount] = useState("");

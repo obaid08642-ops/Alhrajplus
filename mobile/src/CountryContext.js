@@ -3,10 +3,31 @@
 // The selected country is also injected into every API call by the axios interceptor.
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 import api from "./api";
 
 const STORAGE_KEY = "hp_country";
 const Ctx = createContext(null);
+
+// Try to resolve country from device GPS (no permission prompt forced — we use
+// LOW accuracy + getLastKnownPositionAsync first to avoid asking on first run).
+async function detectCountryByGPS() {
+    try {
+        // Use existing permission if granted; do NOT prompt — we don't want a
+        // permission popup just for country detection. If denied/unknown, skip.
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== "granted") return "";
+        const last = await Location.getLastKnownPositionAsync({}).catch(() => null);
+        const pos = last || await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest }).catch(() => null);
+        if (!pos?.coords) return "";
+        const places = await Location.reverseGeocodeAsync({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+        }).catch(() => []);
+        const iso = (places?.[0]?.isoCountryCode || "").toUpperCase();
+        return iso || "";
+    } catch (_) { return ""; }
+}
 
 export function CountryProvider({ children }) {
     const [country, setCountryState] = useState("");
@@ -32,13 +53,18 @@ export function CountryProvider({ children }) {
                 setHydrated(true);
                 return;
             }
-            // 4) First install: try the user's profile country (after login),
-            //    then IP detect, finally default to SA.
+            // 4) First install: try GPS → profile country → IP detect → default SA.
             let cc = "";
-            try {
-                const me = await api.get("/users/me");
-                cc = (me?.data?.country_code || "").toUpperCase();
-            } catch (_) {}
+            // 4a) GPS (only if permission already granted — never prompts here)
+            cc = await detectCountryByGPS();
+            // 4b) Profile country (after login)
+            if (!cc) {
+                try {
+                    const me = await api.get("/users/me");
+                    cc = (me?.data?.country_code || "").toUpperCase();
+                } catch (_) {}
+            }
+            // 4c) IP-based fallback
             if (!cc) {
                 try {
                     const det = await api.get("/geo/detect-country");

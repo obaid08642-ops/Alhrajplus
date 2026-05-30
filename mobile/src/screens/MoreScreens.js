@@ -3,7 +3,7 @@
  * lightweight screens to bring the mobile app to feature parity with the web.
  */
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal } from "react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useI18n } from "../I18nContext";
@@ -170,24 +170,26 @@ export function SettingsScreen({
   navigation
 }) {
   const { t, lang, setLang, supported } = useI18n();
-  
+  const { current: country, countries, setCountry } = useCountry();
+  const [langOpen, setLangOpen] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
+
   const LANG_LABELS = {
-    ar: t("العربية 🇸🇦"),
+    ar: "العربية 🇸🇦",
     en: "English 🇬🇧",
     hi: "हिन्दी 🇮🇳",
-    ur: t("اردو 🇵🇰"),
+    ur: "اردو 🇵🇰",
     bn: "বাংলা 🇧🇩",
     fr: "Français 🇫🇷"
-  };
-  const nextLang = () => {
-    const i = supported.indexOf(lang);
-    return supported[(i + 1) % supported.length];
   };
   return <ScrollView style={s.wrap}>
             <Text style={s.pageTitle}>{t("الإعدادات")}</Text>
             <View style={s.menu}>
-                <TouchableOpacity style={s.menuItem} onPress={() => setLang(nextLang())} testID="mobile-lang-switcher">
-                    <Text style={s.menuLabel}>{t("اللغة")}: {LANG_LABELS[lang]}</Text>
+                <TouchableOpacity style={s.menuItem} onPress={() => setLangOpen(true)} testID="mobile-lang-switcher">
+                    <Text style={s.menuLabel}>🌐 {t("اللغة")}: {LANG_LABELS[lang]}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.menuItem} onPress={() => setCountryOpen(true)} testID="mobile-country-switcher-settings">
+                    <Text style={s.menuLabel}>🏳️ {t("الدولة")}: {country?.flag || ""} {country?.name_ar || country?.name || t("غير محددة")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("SavedSearches")}>
                     <Text style={s.menuLabel}>🔍 {t("الأبحاث المحفوظة")}</Text>
@@ -222,6 +224,34 @@ export function SettingsScreen({
                     <Text style={s.menuLabel}>{t("تواصل معنا")}</Text>
                 </TouchableOpacity>
             </View>
+            {/* Language picker modal */}
+            <Modal visible={langOpen} transparent animationType="fade" onRequestClose={() => setLangOpen(false)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => setLangOpen(false)} style={s.modalBg}>
+                    <View style={s.sheet}>
+                        <Text style={s.sheetTitle}>{t("اختر اللغة")}</Text>
+                        {supported.map((code) => (
+                            <TouchableOpacity key={code} style={[s.sheetRow, code === lang && s.sheetRowActive]} onPress={() => { setLang(code); setLangOpen(false); }} testID={`lang-opt-${code}`}>
+                                <Text style={[s.sheetRowText, code === lang && { color: theme.colors.primary, fontWeight: "900" }]}>{LANG_LABELS[code]}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+            {/* Country picker modal */}
+            <Modal visible={countryOpen} transparent animationType="fade" onRequestClose={() => setCountryOpen(false)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => setCountryOpen(false)} style={s.modalBg}>
+                    <View style={s.sheet}>
+                        <Text style={s.sheetTitle}>{t("اختر الدولة")}</Text>
+                        <ScrollView style={{ maxHeight: 360 }}>
+                            {(countries || []).map((c) => (
+                                <TouchableOpacity key={c.code} style={[s.sheetRow, c.code === country?.code && s.sheetRowActive]} onPress={async () => { await setCountry(c.code); setCountryOpen(false); }} testID={`country-opt-${c.code}`}>
+                                    <Text style={[s.sheetRowText, c.code === country?.code && { color: theme.colors.primary, fontWeight: "900" }]}>{c.flag} {c.name_ar || c.name}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </ScrollView>;
 }
 
@@ -291,6 +321,44 @@ const s = StyleSheet.create({
   wrap: {
     flex: 1,
     backgroundColor: theme.colors.bg
+  },
+  modalBg: {
+    flex: 1,
+    backgroundColor: "rgba(15,26,53,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24
+  },
+  sheet: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: theme.colors.text,
+    textAlign: "right",
+    marginBottom: 12
+  },
+  sheetRow: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginVertical: 2
+  },
+  sheetRowActive: {
+    backgroundColor: "rgba(79,182,230,0.12)"
+  },
+  sheetRowText: {
+    fontSize: 15,
+    color: theme.colors.text,
+    textAlign: "right",
+    fontWeight: "700"
   },
   center: {
     flex: 1,

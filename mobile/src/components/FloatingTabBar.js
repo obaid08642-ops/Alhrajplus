@@ -1,7 +1,7 @@
 // FloatingTabBar — premium pill-shaped glass tab bar with a floating
 // gradient FAB in the center. Pure RN (no expo-blur dependency) so it
 // runs on every Expo + bare RN build.
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Platform, I18nManager } from "react-native";
 import { useEffect, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -42,7 +42,7 @@ export default function FloatingTabBar({
     inputRange: [0, 1],
     outputRange: [0.35, 0]
   });
-  const TABS = [{
+  const TABS_LTR = [{
     name: "HomeTab",
     icon: Home,
     label: t("الرئيسية")
@@ -63,6 +63,9 @@ export default function FloatingTabBar({
     icon: User,
     label: t("حسابي")
   }];
+  // RTL (Arabic/Urdu): Home must appear on the RIGHT to match reading direction.
+  // We reverse the array so visually: Profile | Chat | [FAB] | Reels | Home.
+  const TABS = I18nManager.isRTL ? [...TABS_LTR].reverse() : TABS_LTR;
   const goToPost = () => {
     Animated.sequence([Animated.spring(fabPress, {
       toValue: 0.88,
