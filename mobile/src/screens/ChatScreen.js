@@ -63,19 +63,8 @@ export default function ChatScreen() {
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  if (!user) {
-    return <View style={s.guestWrap}>
-                <View style={s.guestIcon}>
-                    <Send size={32} color={colors.primary} />
-                </View>
-                <Text style={s.guestTitle}>{t("الرسائل")}</Text>
-                <Text style={s.guestSub}>{t("سجّل دخولك للتواصل مع البائعين والمشترين")}</Text>
-                <TouchableOpacity onPress={() => nav.navigate("Login")} style={s.guestBtn}>
-                    <Text style={s.guestBtnText}>{t("تسجيل الدخول")}</Text>
-                </TouchableOpacity>
-            </View>;
-  }
   const loadConvos = useCallback(async () => {
+    if (!user) { setLoadingConvos(false); return; }
     try {
       const {
         data
@@ -85,13 +74,13 @@ export default function ChatScreen() {
       setLoadingConvos(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
   const onConvosFocus = useCallback(() => { loadConvos(); }, [loadConvos]);
   useFocusEffect(onConvosFocus);
 
   // If user navigated with a target user, open that thread directly
   useEffect(() => {
-    if (!initialTo) return;
+    if (!initialTo || !user) return;
     (async () => {
       try {
         const {
@@ -107,8 +96,9 @@ export default function ChatScreen() {
       } catch (_) {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTo]);
+  }, [initialTo, user]);
   const openThread = other => {
+    if (!user) return;
     setActiveOther(other);
     const convoId = [user.id, other.id].sort().join("_");
     setActiveConvoId(convoId);
@@ -119,14 +109,31 @@ export default function ChatScreen() {
     setActiveListing(null);
     loadConvos();
   };
-  if (activeConvoId && activeOther) {
-    return <ChatThread convoId={activeConvoId} other={activeOther} listing={activeListing} onBack={closeThread} />;
-  }
   const filtered = useMemo(() => {
     if (!search) return convos;
     const q = search.toLowerCase().trim();
     return convos.filter(c => (c.other_name || "").toLowerCase().includes(q) || (c.last_message || "").toLowerCase().includes(q));
   }, [convos, search]);
+
+  // Guest gate — AFTER all hooks so React's hook order stays stable when
+  // user logs in/out without remounting the screen. Previously this returned
+  // before useCallback/useEffect/useMemo were called, causing the dreaded
+  // "rendered fewer hooks than expected" red-screen error on logout.
+  if (!user) {
+    return <View style={s.guestWrap}>
+                <View style={s.guestIcon}>
+                    <Send size={32} color={colors.primary} />
+                </View>
+                <Text style={s.guestTitle}>{t("الرسائل")}</Text>
+                <Text style={s.guestSub}>{t("سجّل دخولك للتواصل مع البائعين والمشترين")}</Text>
+                <TouchableOpacity onPress={() => nav.navigate("Login")} style={s.guestBtn}>
+                    <Text style={s.guestBtnText}>{t("تسجيل الدخول")}</Text>
+                </TouchableOpacity>
+            </View>;
+  }
+  if (activeConvoId && activeOther) {
+    return <ChatThread convoId={activeConvoId} other={activeOther} listing={activeListing} onBack={closeThread} />;
+  }
   return <View style={{
     flex: 1,
     backgroundColor: colors.bg

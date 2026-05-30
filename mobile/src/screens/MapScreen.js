@@ -85,7 +85,8 @@ function buildHtml(items, myPos) {
     lng: i.lng,
     title: (i.title || "").replace(/"/g, "'"),
     price: i.price ? Number(i.price).toLocaleString() : "",
-    currency: i.currency || "ر.س"
+    currency: i.currency || "ر.س",
+    category: i.category || "general"
   }));
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -130,11 +131,28 @@ function buildHtml(items, myPos) {
   var map = L.map('map').setView([${center.lat}, ${center.lng}], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(map);
   var markers = ${JSON.stringify(markers)};
+  // Category → emoji icon mapping (mirrors web hologram style).
+  var CAT_ICON = {
+    cars: '🚗', phones: '📱', realestate: '🏠', jobs: '💼',
+    services: '🛠️', furniture: '🛋️', electronics: '💻',
+    livestock: '🐪', equipment: '🚜', auctions: '🔨',
+    fashion: '👗', food: '🍽️', toys: '🧸', books: '📚',
+    general: '📍'
+  };
   markers.forEach(function(m) {
+    var emoji = CAT_ICON[m.category] || CAT_ICON.general;
     var icon = L.divIcon({
       className: 'hp-wrap',
-      iconSize: [78, 78], iconAnchor: [39, 70], popupAnchor: [0, -64],
-      html: '<div class="hp"><div class="chip"><div class="price">' + (m.price || '★') + '</div><div class="curr">' + (m.price ? m.currency : '•') + '</div></div><div class="stem"></div><div class="base"></div></div>'
+      iconSize: [78, 92], iconAnchor: [39, 84], popupAnchor: [0, -78],
+      html: '<div class="hp">' +
+              '<div class="chip">' +
+                '<div class="emoji">' + emoji + '</div>' +
+                '<div class="price">' + (m.price || '—') + '</div>' +
+                '<div class="curr">' + (m.price ? m.currency : '') + '</div>' +
+              '</div>' +
+              '<div class="stem"></div>' +
+              '<div class="base"></div>' +
+            '</div>'
     });
     var mk = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
     mk.on('click', function() {

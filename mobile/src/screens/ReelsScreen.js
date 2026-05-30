@@ -1,17 +1,20 @@
-import { useEffect, useState, useRef, useCallback } from "react";
-import { View, Text, FlatList, StyleSheet, Dimensions, Image, TouchableOpacity, SafeAreaView, ActivityIndicator } from "react-native";
+import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
+import { View, Text, FlatList, StyleSheet, Dimensions, Image, TouchableOpacity, ActivityIndicator, Share, Alert, StatusBar } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Volume2, VolumeX, Play, Film } from "lucide-react-native";
+import { Volume2, VolumeX, Play, Film, Heart, Share2, MapPin } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
+import { useAuth } from "../AuthContext";
 const {
   height: SCREEN_H,
   width: SCREEN_W
 } = Dimensions.get("window");
-const REEL_H = SCREEN_H - 120;
+// Full-screen reels — bottom nav is hidden while this screen is focused, so
+// each reel takes the whole device height (TikTok / YT-Shorts behaviour).
+const REEL_H = SCREEN_H;
 
 // Reels-style vertical feed of listings with REAL video playback (expo-video).
 // Each reel auto-plays when visible, pauses when scrolled away.
@@ -20,10 +23,21 @@ export default function ReelsScreen() {
     t
   } = useI18n();
   const nav = useNavigation();
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(true);
+
+  // Hide the floating tab bar while reels are visible — restored on blur.
+  // Targets the PARENT tab navigator (this screen is inside the bottom tabs).
+  useFocusEffect(useCallback(() => {
+    const parent = nav.getParent?.();
+    parent?.setOptions?.({ tabBarStyle: { display: "none" } });
+    return () => {
+      parent?.setOptions?.({ tabBarStyle: undefined });
+    };
+  }, [nav]));
   useEffect(() => {
     (async () => {
       try {
@@ -125,10 +139,13 @@ function ReelItem({
   active,
   muted,
   onToggleMute,
-  onOpen
+  onOpen,
+  user
 }) {
   const { t } = useI18n();
-  
+  const nav = useNavigation();
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(item.likes || 0);
   const videoUrl = item.videos?.[0];
   const player = useVideoPlayer(videoUrl || null, p => {
     if (!p) return;
@@ -150,6 +167,28 @@ function ReelItem({
       } catch (_) {}
     }
   }, [active, muted, player, videoUrl]);
+
+  const onLike = async () => {
+    if (!user) { nav.navigate("Login"); return; }
+    const next = !liked;
+    setLiked(next);
+    setLikes(n => n + (next ? 1 : -1));
+    try {
+      if (next) await api.post(`/favorites/${item.id}`);
+      else await api.delete(`/favorites/${item.id}`);
+    } catch (_) {
+      // Roll back on failure.
+      setLiked(!next);
+      setLikes(n => n - (next ? 1 : -1));
+    }
+  };
+  const onShare = async () => {
+    try {
+      const url = `https://alhraj.online/listing/${item.id}`;
+      await Share.share({ message: `${item.title}\n${url}`, url });
+    } catch (_) {}
+  };
+
   return <TouchableOpacity activeOpacity={0.95} onPress={onOpen} style={styles.reel} testID={`reel-${item.id}`}>
             {videoUrl ? <VideoView player={player} style={styles.media} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} /> : item.images?.[0] ? <Image source={{
       uri: item.images[0]
@@ -168,6 +207,26 @@ function ReelItem({
                 {videoUrl && !active && <View style={styles.playOverlay} pointerEvents="none">
                         <Play size={48} color="#fff" fill="#fff" />
                     </View>}
+
+                {/* Side action rail — like / share / price-tag / location (mirrors web). */}
+                <View style={styles.sideRail} pointerEvents="box-none">
+                    <TouchableOpacity onPress={onLike} style={styles.sideBtn} testID={`reel-like-${item.id}`}>
+                        <Heart size={26} color={liked ? "#EF4444" : "#fff"} fill={liked ? "#EF4444" : "transparent"} strokeWidth={2.4} />
+                        <Text style={styles.sideTxt}>{likes}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={onShare} style={styles.sideBtn} testID={`reel-share-${item.id}`}>
+                        <Share2 size={24} color="#fff" strokeWidth={2.4} />
+                        <Text style={styles.sideTxt}>{t("شارك")}</Text>
+                    </TouchableOpacity>
+                    {item.price ? <View style={[styles.sideBtn, styles.pricePill]}>
+                        <Text style={styles.priceChip}>{Number(item.price).toLocaleString()}</Text>
+                        <Text style={styles.sideTxt}>{item.currency || t("ر.س")}</Text>
+                    </View> : null}
+                    {item.city ? <View style={styles.sideBtn}>
+                        <MapPin size={22} color="#fff" strokeWidth={2.4} />
+                        <Text style={styles.sideTxtSmall} numberOfLines={1}>{item.city}</Text>
+                    </View> : null}
+                </View>
 
                 <View style={styles.bottomBar}>
                     <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
@@ -258,7 +317,44 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   bottomBar: {
-    gap: 8
+    gap: 8,
+    paddingBottom: 24
+  },
+  sideRail: {
+    position: "absolute",
+    right: 10,
+    bottom: 180,
+    alignItems: "center",
+    gap: 18
+  },
+  sideBtn: {
+    alignItems: "center",
+    gap: 4
+  },
+  sideTxt: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "800",
+    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowRadius: 4
+  },
+  sideTxtSmall: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+    maxWidth: 64,
+    textAlign: "center"
+  },
+  pricePill: {
+    backgroundColor: "rgba(31,123,191,0.85)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12
+  },
+  priceChip: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 12
   },
   title: {
     color: "#fff",

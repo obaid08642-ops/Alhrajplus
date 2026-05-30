@@ -987,8 +987,20 @@ async def register(body: RegisterIn, request: Request, response: Response):
     # Validate phone format per country
     if not validate_phone(body.country_code, body.phone):
         raise HTTPException(400, f"رقم الجوال غير صحيح لدولة {body.country_code}. تحقق من البادئة والطول")
+    # Convert ISO country code → international dial code so `phone_full` is a
+    # real, dialable number (e.g. "+9665…" not "SA5…") used by tel: + wa.me.
+    _DIAL_CODES = {
+        "SA": "+966", "AE": "+971", "KW": "+965", "QA": "+974", "BH": "+973",
+        "OM": "+968", "EG": "+20", "JO": "+962", "LB": "+961", "IQ": "+964",
+        "SY": "+963", "YE": "+967", "PS": "+970", "MA": "+212", "DZ": "+213",
+        "TN": "+216", "LY": "+218", "SD": "+249", "MR": "+222", "SO": "+252",
+        "DJ": "+253", "KM": "+269", "TR": "+90", "PK": "+92", "IN": "+91",
+        "BD": "+880", "ID": "+62", "MY": "+60", "US": "+1", "GB": "+44", "FR": "+33"
+    }
+    dial = _DIAL_CODES.get(body.country_code, f"+{body.country_code}")
+    phone_full_value = f"{dial}{body.phone.lstrip('0')}"
     email = body.email.lower().strip()
-    existing = await db.users.find_one({"$or": [{"email": email}, {"phone_full": f"{body.country_code}{body.phone}"}]})
+    existing = await db.users.find_one({"$or": [{"email": email}, {"phone_full": phone_full_value}]})
     if existing:
         raise HTTPException(400, "البريد أو رقم الجوال مسجل مسبقاً")
     uid = str(uuid.uuid4())
@@ -1005,7 +1017,7 @@ async def register(body: RegisterIn, request: Request, response: Response):
         "email": email,
         "phone": body.phone,
         "country_code": body.country_code,
-        "phone_full": f"{body.country_code}{body.phone}",
+        "phone_full": phone_full_value,
         "city": body.city,
         "password_hash": hash_password(body.password),
         "role": "user",
@@ -1108,8 +1120,15 @@ async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
                 if len(p) != rule["length"] or not any(p.startswith(pp) for pp in pref):
                     raise HTTPException(400, "رقم الجوال غير صحيح")
             update["phone"] = p
-            country_phone_codes = {"SA": "+966", "AE": "+971", "KW": "+965", "QA": "+974", "BH": "+973", "OM": "+968", "EG": "+20"}
-            update["phone_full"] = f"{country_phone_codes.get(cc, '+966')}{p}"
+            country_phone_codes = {
+                "SA": "+966", "AE": "+971", "KW": "+965", "QA": "+974", "BH": "+973",
+                "OM": "+968", "EG": "+20", "JO": "+962", "LB": "+961", "IQ": "+964",
+                "SY": "+963", "YE": "+967", "PS": "+970", "MA": "+212", "DZ": "+213",
+                "TN": "+216", "LY": "+218", "SD": "+249", "TR": "+90", "PK": "+92",
+                "IN": "+91", "BD": "+880", "ID": "+62", "MY": "+60", "US": "+1",
+                "GB": "+44", "FR": "+33"
+            }
+            update["phone_full"] = f"{country_phone_codes.get(cc, '+966')}{p.lstrip('0')}"
     if body.city is not None:
         update["city"] = body.city.strip()
     if body.country_code is not None:

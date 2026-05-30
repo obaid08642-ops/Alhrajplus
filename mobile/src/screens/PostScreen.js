@@ -101,30 +101,52 @@ export default function PostScreen({
   const cat = useMemo(() => categories.find(c => c.key === form.category), [categories, form.category]);
   const cityObj = useMemo(() => country?.cities?.find(c => c.name_ar === form.city), [country, form.city]);
   const districts = cityObj?.districts || [];
-  const aiAutofill = async () => {
-    try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert(t("إذن"), t("نحتاج صلاحية الصور"));
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
+
+  // Capture an image via the CAMERA (preferred) or fallback to gallery.
+  // Mirrors the web "بيّع بالـ AI" CTA which opens the camera first.
+  const _captureForAI = async () => {
+    // Try camera first.
+    const camPerm = await ImagePicker.requestCameraPermissionsAsync();
+    if (camPerm.granted) {
+      const res = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.6,
-        base64: true
+        base64: true,
+        allowsEditing: false,
       });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
+      if (!res.canceled && res.assets?.[0]?.base64) return res.assets[0];
+      if (res.canceled) return null;
+    }
+    // Fallback: gallery (when camera denied or unavailable, e.g. Expo Web).
+    const libPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!libPerm.granted) {
+      Alert.alert(t("إذن"), t("نحتاج صلاحية الكاميرا أو الصور"));
+      return null;
+    }
+    const res2 = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.6,
+      base64: true,
+    });
+    if (res2.canceled || !res2.assets?.[0]?.base64) return null;
+    return res2.assets[0];
+  };
+
+  const aiAutofill = async () => {
+    try {
+      const asset = await _captureForAI();
+      if (!asset) return;
       setAiBusy(true);
-      const {
-        data
-      } = await api.post("/ai/listing-autofill", {
-        image_base64: result.assets[0].base64
+      const { data } = await api.post("/ai/listing-autofill", {
+        image_base64: asset.base64
       });
       setForm(f => ({
         ...f,
         title: data.title || f.title,
         description: data.description || f.description,
         category: data.category_key || f.category,
+        subcategory: data.subcategory || f.subcategory,
+        custom_fields: { ...(f.custom_fields || {}), ...(data.custom_fields || {}) },
         price: data.suggested_price_range?.mid ? String(data.suggested_price_range.mid) : f.price
       }));
       setStep(2);
@@ -313,6 +335,18 @@ export default function PostScreen({
       Alert.alert(t("خطأ"), t("تعذّر الوصول للموقع"));
     }
   };
+  // Categories that ship with their own dedicated PRO Details Box (cascading
+  // UI with internal validation). For these, the cascade-specific field keys
+  // (phone_brand, car_brand, …) do NOT match the backend's generic field keys
+  // (brand, make, …), so falling back on `cat.fields[*].required` produces
+  // false-positive "حقل مطلوب: الماركة" errors. The cascade components are
+  // responsible for blocking submission until their own required fields are
+  // filled (via disabled selects + visual cues), so we skip the generic loop.
+  const CATEGORIES_WITH_CUSTOM_BOX = new Set([
+    "cars", "phones", "services", "jobs", "realestate",
+    "furniture", "electronics", "auctions", "livestock", "equipment"
+  ]);
+
   const validateRequiredFields = () => {
     if (!form.title || !form.description) return t("الرجاء إكمال العنوان والوصف");
     if (!form.city) return t("الرجاء اختيار المدينة");
@@ -320,8 +354,11 @@ export default function PostScreen({
     if (isStory && (!form.videos || form.videos.length === 0)) {
       return t("الستوري يتطلب رفع فيديو قصير");
     }
-    for (const f of cat?.fields || []) {
-      if (f.required && !form.custom_fields[f.key]) return `${t("حقل مطلوب:")} ${f.label_ar || f.key}`;
+    // Generic field validation ONLY for categories without a custom Details Box.
+    if (!CATEGORIES_WITH_CUSTOM_BOX.has(form.category)) {
+      for (const f of cat?.fields || []) {
+        if (f.required && !form.custom_fields[f.key]) return `${t("حقل مطلوب:")} ${f.label_ar || f.key}`;
+      }
     }
     return null;
   };
@@ -773,18 +810,25 @@ function Step2({
     }
   });
 
-  // Auto-suggest category from title using simple keyword match
+  // Auto-suggest category from title using keyword match. Keys MUST match
+  // backend category keys (seen via /api/meta/categories): phones, cars,
+  // realestate, jobs, services, furniture, electronics, livestock, equipment,
+  // auctions, fashion, etc. (NOT real_estate, NOT mobile→electronics).
   useEffect(() => {
     if (form.category || !form.title || form.title.length < 4) return;
     const title = form.title.toLowerCase();
     const KEYWORDS = {
-      cars: [t("سيارة"), t("سياره"), t("كامري"), t("كرولا"), t("هوندا"), t("تويوتا"), t("نيسان"), t("بي ام"), t("مرسيدس"), "car"],
-      real_estate: [t("شقة"), t("فيلا"), t("أرض"), t("ارض"), t("بيت"), t("عمارة"), t("محل"), t("مكتب"), t("إيجار"), t("تمليك")],
-      electronics: [t("موبايل"), t("جوال"), t("ايفون"), t("آيفون"), t("سامسونج"), t("لاب توب"), t("تلفزيون"), t("كمبيوتر"), "iphone", "samsung"],
-      furniture: [t("كنبة"), t("كرسي"), t("طاولة"), t("غرفة نوم"), t("سرير"), t("ديكور")],
-      fashion: [t("ثوب"), t("عباية"), t("حذاء"), t("ملابس"), t("حقيبة")],
-      jobs: [t("وظيفة"), t("موظف"), t("موظفة"), t("مطلوب"), t("للعمل")],
-      services: [t("خدمة"), t("تركيب"), t("صيانة"), t("نقل"), t("تنظيف")]
+      phones:     ["موبايل", "جوال", "ايفون", "آيفون", "سامسونج", "iphone", "samsung", "xiaomi", "هواوي", "بكسل", "pixel", "تابلت", "ايباد", "آيباد", "ipad"],
+      cars:       ["سيارة", "سياره", "كامري", "كرولا", "هوندا", "تويوتا", "نيسان", "بي ام", "مرسيدس", "car", "هيونداي", "كيا", "لاندكروزر", "لاند كروزر", "باترول", "اكسنت"],
+      realestate: ["شقة", "فيلا", "أرض", "ارض", "بيت", "عمارة", "محل", "مكتب", "ايجار", "إيجار", "تمليك", "دور", "عمائر", "استراحة", "مزرعة"],
+      electronics: ["لاب توب", "تلفزيون", "كمبيوتر", "بلايستيشن", "اكس بوكس", "playstation", "xbox", "laptop", "شاشة", "ساعة ذكية", "smart watch", "ابل ووتش", "apple watch"],
+      furniture:  ["كنبة", "كنب", "كرسي", "طاولة", "غرفة نوم", "سرير", "ديكور", "مجلس", "خزانة", "مكتب"],
+      fashion:    ["ثوب", "عباية", "حذاء", "ملابس", "حقيبة", "شنطة", "ساعة", "نظارة", "عطر"],
+      jobs:       ["وظيفة", "موظف", "موظفة", "مطلوب", "للعمل", "شاغرة", "توظيف", "دوام"],
+      services:   ["خدمة", "تركيب", "صيانة", "نقل", "تنظيف", "سباك", "كهربائي", "حداد", "دهان", "نقل عفش"],
+      livestock:  ["حصان", "غنم", "خروف", "ابل", "إبل", "ماعز", "بقر", "دجاج", "صقر", "قطة", "كلب", "حيوان"],
+      equipment:  ["شيول", "حفار", "رافعة", "بوبكات", "معدات", "تركتر", "جرار", "لودر"],
+      auctions:   ["مزاد", "مزايدة"],
     };
     for (const [k, words] of Object.entries(KEYWORDS)) {
       if (words.some(w => title.includes(w))) {
