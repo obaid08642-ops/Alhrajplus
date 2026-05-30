@@ -97,7 +97,7 @@ export default function FloatingTabBar({
         }]
       }}>
                     <TouchableOpacity onPress={goToPost} activeOpacity={0.85} style={styles.fab} testID="tab-fab-post" accessibilityLabel={t("نشر إعلان")}>
-                        <LinearGradient colors={["#5DC4F0", "#4FB6E6", "#2F95C9"]} start={{
+                        <LinearGradient colors={["#FFB04A", "#FF8C00", "#E67A00"]} start={{
             x: 0,
             y: 0
           }} end={{
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     bottom: 4,
     left: 8,
     right: 8,
-    backgroundColor: "rgba(79,182,230,0.14)",
+    backgroundColor: "rgba(137,207,240,0.18)",
     borderRadius: 18
   },
   tabLabel: {
@@ -271,6 +271,6 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 999,
-    backgroundColor: "rgba(79,182,230,0.45)"
+    backgroundColor: "rgba(255,140,0,0.40)"
   }
-});
+});;

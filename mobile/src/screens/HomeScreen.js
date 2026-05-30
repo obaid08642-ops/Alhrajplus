@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     lineHeight: 16
   },
   heroPrimaryBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: 999,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -435,8 +435,8 @@ const styles = StyleSheet.create({
     gap: 5
   },
   heroPrimaryText: {
-    color: "#fff",
-    fontWeight: "800",
+    color: colors.accentFg,
+    fontWeight: "900",
     fontSize: 12
   },
   heroSecondaryBtn: {
@@ -462,13 +462,13 @@ const styles = StyleSheet.create({
   quickItem: {
     flex: 1,
     aspectRatio: 1,
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4
+    gap: 4,
+    ...shadow.card
   },
   quickLabel: {
     fontSize: 10,

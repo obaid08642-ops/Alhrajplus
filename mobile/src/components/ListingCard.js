@@ -116,19 +116,21 @@ export default function ListingCard({
 }
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radius.xl,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
     flex: 1,
     margin: 4,
-    minWidth: 0
+    minWidth: 0,
+    ...shadow.card
   },
   imgBox: {
     aspectRatio: 4 / 3,
     backgroundColor: colors.surfaceElevated,
-    position: "relative"
+    position: "relative",
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    overflow: "hidden"
   },
   img: {
     width: "100%",
@@ -225,12 +227,11 @@ const styles = StyleSheet.create({
   },
   wide: {
     flexDirection: "row",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radius.xl,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10
+    marginBottom: 10,
+    ...shadow.card
   },
   wideImgBox: {
     width: 120,

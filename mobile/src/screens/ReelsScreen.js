@@ -122,18 +122,33 @@ export default function ReelsScreen() {
                 </TouchableOpacity>
             </View>;
   }
-  return <SafeAreaView style={styles.wrap}>
-            <FlatList data={items} keyExtractor={x => x.id} pagingEnabled showsVerticalScrollIndicator={false} snapToInterval={REEL_H} decelerationRate="fast" onViewableItemsChanged={onViewable} viewabilityConfig={viewConfig} getItemLayout={(_, index) => ({
-      length: REEL_H,
-      offset: REEL_H * index,
-      index
-    })} renderItem={({
-      item,
-      index
-    }) => <ReelItem item={item} active={index === activeIndex} muted={muted} onToggleMute={() => setMuted(m => !m)} onOpen={() => nav.navigate("ListingDetail", {
-      id: item.id
-    })} />} />
-        </SafeAreaView>;
+  return <View style={styles.wrap}>
+            <StatusBar barStyle="light-content" backgroundColor="#000" />
+            <FlatList
+              data={items}
+              keyExtractor={x => x.id}
+              pagingEnabled
+              showsVerticalScrollIndicator={false}
+              snapToInterval={REEL_H}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              disableIntervalMomentum
+              bounces={false}
+              onViewableItemsChanged={onViewable}
+              viewabilityConfig={viewConfig}
+              getItemLayout={(_, index) => ({
+                length: REEL_H,
+                offset: REEL_H * index,
+                index
+              })}
+              renderItem={({
+                item,
+                index
+              }) => <ReelItem item={item} active={index === activeIndex} muted={muted} onToggleMute={() => setMuted(m => !m)} onOpen={() => nav.navigate("ListingDetail", {
+                id: item.id
+              })} user={user} />}
+            />
+        </View>;
 }
 function ReelItem({
   item,
