@@ -55,7 +55,12 @@ export default function PostScreen({
     district: "",
     lat: null,
     lng: null,
-    show_phone: true
+    show_phone: true,
+    // Phase 2: phone source. "account" = use user.phone_full; "custom" = use
+    // a different number entered just for this listing.
+    phone_source: "account",
+    custom_phone: "",
+    custom_phone_country: country?.code || "SA"
   });
 
   // Keep currency in sync if the user changes country after the form mounts.
@@ -102,25 +107,43 @@ export default function PostScreen({
   const cityObj = useMemo(() => country?.cities?.find(c => c.name_ar === form.city), [country, form.city]);
   const districts = cityObj?.districts || [];
 
-  // Capture an image via the CAMERA (preferred) or fallback to gallery.
-  // Mirrors the web "بيّع بالـ AI" CTA which opens the camera first.
+  // Phase 2: explicit choice between Camera and Gallery via ActionSheet.
+  // We no longer try the camera silently first; the user picks.
+  const _pickAIImageSource = () => new Promise((resolve) => {
+    Alert.alert(
+      t("التعبئة بالذكاء الاصطناعي"),
+      t("اختر مصدر الصورة"),
+      [
+        { text: t("التقاط صورة بالكاميرا"), onPress: () => resolve("camera") },
+        { text: t("اختيار من المعرض"), onPress: () => resolve("gallery") },
+        { text: t("إلغاء"), style: "cancel", onPress: () => resolve(null) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(null) }
+    );
+  });
+
   const _captureForAI = async () => {
-    // Try camera first.
-    const camPerm = await ImagePicker.requestCameraPermissionsAsync();
-    if (camPerm.granted) {
+    const source = await _pickAIImageSource();
+    if (!source) return null;
+    if (source === "camera") {
+      const camPerm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!camPerm.granted) {
+        Alert.alert(t("إذن الكاميرا"), t("الرجاء السماح بالوصول للكاميرا من الإعدادات"));
+        return null;
+      }
       const res = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.6,
         base64: true,
         allowsEditing: false,
       });
-      if (!res.canceled && res.assets?.[0]?.base64) return res.assets[0];
-      if (res.canceled) return null;
+      if (res.canceled || !res.assets?.[0]?.base64) return null;
+      return res.assets[0];
     }
-    // Fallback: gallery (when camera denied or unavailable, e.g. Expo Web).
+    // gallery
     const libPerm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!libPerm.granted) {
-      Alert.alert(t("إذن"), t("نحتاج صلاحية الكاميرا أو الصور"));
+      Alert.alert(t("إذن"), t("نحتاج صلاحية الصور"));
       return null;
     }
     const res2 = await ImagePicker.launchImageLibraryAsync({
@@ -140,17 +163,31 @@ export default function PostScreen({
       const { data } = await api.post("/ai/listing-autofill", {
         image_base64: asset.base64
       });
+      // Hard-validate that we actually got useful data — otherwise warn.
+      const gotTitle = (data?.title || "").trim();
+      const gotDesc = (data?.description || "").trim();
+      if (!gotTitle && !gotDesc && !data?.category_key) {
+        Alert.alert(t("لم يتمكن المساعد من قراءة الصورة"), t("جرّب صورة أوضح للمنتج"));
+        return;
+      }
       setForm(f => ({
         ...f,
-        title: data.title || f.title,
-        description: data.description || f.description,
+        title: gotTitle || f.title,
+        description: gotDesc || f.description,
         category: data.category_key || f.category,
         subcategory: data.subcategory || f.subcategory,
         custom_fields: { ...(f.custom_fields || {}), ...(data.custom_fields || {}) },
         price: data.suggested_price_range?.mid ? String(data.suggested_price_range.mid) : f.price
       }));
       setStep(2);
-      Alert.alert("✨", t("تم التعبئة بنجاح"));
+      // Confirm to the user which fields were auto-filled.
+      const filledMsg = [
+        gotTitle && t("✓ العنوان"),
+        gotDesc && t("✓ الوصف"),
+        data.category_key && t("✓ الفئة"),
+        data.suggested_price_range?.mid && t("✓ السعر المقترح"),
+      ].filter(Boolean).join("\n");
+      Alert.alert(t("تم بالذكاء الاصطناعي"), filledMsg || t("تم"));
     } catch (e) {
       Alert.alert(t("خطأ"), formatApiError(e.response?.data?.detail) || t("تعذر التعبئة"));
     } finally {
@@ -369,12 +406,36 @@ export default function PostScreen({
       setErr(v);
       return;
     }
+    // Phase 2: validate custom phone if user picked "different number".
+    if (form.show_phone && form.phone_source === "custom") {
+      const num = (form.custom_phone || "").trim();
+      if (!num || num.length < 6) {
+        setErr(t("الرجاء إدخال رقم جوال صالح للإعلان"));
+        return;
+      }
+    }
     setBusy(true);
     try {
+      // Build dial-coded phone for the listing if a custom number was supplied.
+      const _DIAL = {
+        SA: "+966", AE: "+971", KW: "+965", QA: "+974", BH: "+973",
+        OM: "+968", EG: "+20", JO: "+962", LB: "+961", IQ: "+964",
+        SY: "+963", YE: "+967", PS: "+970", MA: "+212", DZ: "+213",
+        TN: "+216", LY: "+218", SD: "+249", TR: "+90", PK: "+92",
+        IN: "+91", BD: "+880", ID: "+62", MY: "+60", US: "+1",
+        GB: "+44", FR: "+33"
+      };
+      const customCountry = form.custom_phone_country || country?.code || "SA";
+      const customFull = form.custom_phone
+        ? `${_DIAL[customCountry] || "+966"}${form.custom_phone.replace(/^0+/, "")}`
+        : "";
       const payload = {
         ...form,
         price: form.price ? parseFloat(form.price) : null,
-        country_code: country?.code
+        country_code: country?.code,
+        // Server-side reads these to decide which phone to expose on the listing.
+        contact_phone_source: form.phone_source,
+        contact_phone: form.phone_source === "custom" ? customFull : ""
       };
       if (editId) {
         const {
@@ -470,7 +531,7 @@ export default function PostScreen({
           });
           setStep(2);
         }
-      }} /> : <Step2 form={form} setForm={setForm} cat={cat} categories={categories} onPickerOpen={setPickerOpen} country={country} onPickImage={pickImage} onTakePhoto={takePhoto} uploadingImg={uploadingImg} onPickVideo={pickVideo} onRemoveVideo={removeVideo} uploadingVid={uploadingVid} onUseLocation={useMyLocation} />}
+      }} /> : <Step2 form={form} setForm={setForm} cat={cat} categories={categories} onPickerOpen={setPickerOpen} country={country} user={user} onPickImage={pickImage} onTakePhoto={takePhoto} uploadingImg={uploadingImg} onPickVideo={pickVideo} onRemoveVideo={removeVideo} uploadingVid={uploadingVid} onUseLocation={useMyLocation} />}
             </ScrollView>
 
             {/* Bottom CTA */}
@@ -787,6 +848,7 @@ function Step2({
   categories,
   onPickerOpen,
   country,
+  user,
   onPickImage,
   onTakePhoto,
   uploadingImg,
@@ -1176,10 +1238,49 @@ function Step2({
             </TouchableOpacity>
 
             {/* Show phone toggle */}
-            <TouchableOpacity onPress={() => update("show_phone", !form.show_phone)} style={s.toggle}>
+            <TouchableOpacity onPress={() => update("show_phone", !form.show_phone)} style={s.toggle} testID="post-show-phone-toggle">
                 <View style={[s.toggleBox, form.show_phone && s.toggleBoxActive]}>{form.show_phone && <Check size={14} color="#fff" />}</View>
                 <Text style={s.toggleText}>{t("عرض رقم جوالي للمشترين")}</Text>
             </TouchableOpacity>
+
+            {/* Phone source selector — visible only when show_phone is ON */}
+            {form.show_phone ? <View style={s.phoneBlock}>
+                <Text style={s.phoneBlockTitle}>{t("ما هو الرقم الذي يصل إليه المشتري؟")}</Text>
+                <TouchableOpacity
+                    onPress={() => update("phone_source", "account")}
+                    style={[s.radioRow, form.phone_source === "account" && s.radioRowActive]}
+                    testID="post-phone-source-account"
+                >
+                    <View style={[s.radioDot, form.phone_source === "account" && s.radioDotActive]}>
+                        {form.phone_source === "account" && <View style={s.radioInner} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.radioLabel}>{t("استخدام رقمي المسجل في الحساب")}</Text>
+                        <Text style={s.radioSub} numberOfLines={1}>{user?.phone_full || (user?.phone ? `${user?.country_code || ""} ${user?.phone}` : t("لم يتم تسجيل رقم في حسابك"))}</Text>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => update("phone_source", "custom")}
+                    style={[s.radioRow, form.phone_source === "custom" && s.radioRowActive]}
+                    testID="post-phone-source-custom"
+                >
+                    <View style={[s.radioDot, form.phone_source === "custom" && s.radioDotActive]}>
+                        {form.phone_source === "custom" && <View style={s.radioInner} />}
+                    </View>
+                    <Text style={s.radioLabel}>{t("إضافة رقم آخر مخصص لهذا الإعلان")}</Text>
+                </TouchableOpacity>
+                {form.phone_source === "custom" ? <View style={s.customPhoneWrap}>
+                    <TextInput
+                        value={form.custom_phone}
+                        onChangeText={v => update("custom_phone", v.replace(/[^\d]/g, ""))}
+                        placeholder={t("مثال: 5xxxxxxxx (بدون كود الدولة)")}
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="phone-pad"
+                        style={s.customPhoneInput}
+                        testID="post-custom-phone-input"
+                    />
+                </View> : null}
+            </View> : null}
         </>;
 }
 
@@ -1718,6 +1819,79 @@ const s = StyleSheet.create({
     fontSize: 12.5,
     color: colors.text,
     fontWeight: "700"
+  },
+  // Phone source block (Phase 2)
+  phoneBlock: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 8
+  },
+  phoneBlockTitle: {
+    fontSize: 12.5,
+    color: colors.textMuted,
+    fontWeight: "800",
+    marginBottom: 2
+  },
+  radioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "#FAFCFE"
+  },
+  radioRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: "rgba(31,123,191,0.08)"
+  },
+  radioDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  radioDotActive: {
+    borderColor: colors.primary
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  radioLabel: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: "700"
+  },
+  radioSub: {
+    fontSize: 11.5,
+    color: colors.textMuted,
+    fontWeight: "600",
+    marginTop: 1
+  },
+  customPhoneWrap: {
+    marginTop: 4
+  },
+  customPhoneInput: {
+    backgroundColor: "#FAFCFE",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.text,
+    textAlign: "right"
   },
   // Bottom bar
   bottomBar: {

@@ -810,6 +810,7 @@ class ListingIn(BaseModel):
     lng: Optional[float] = None
     show_phone: bool = True
     contact_phone: Optional[str] = None  # optional override phone for this listing
+    contact_phone_source: Optional[str] = None  # "account" | "custom"
     post_type: Optional[str] = None  # offer | request
 
 class ChatMessageIn(BaseModel):
@@ -2514,6 +2515,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "lng": body.lng,
         "show_phone": body.show_phone,
         "contact_phone": (body.contact_phone or "").strip() or None,
+        "contact_phone_source": (body.contact_phone_source or "account"),
         "status": "active",
         "moderation": "pending" if is_banned else "approved",
         "moderation_flags": mod_flags,
@@ -3330,6 +3332,13 @@ async def get_listing_by_slug(slug: str, request: Request):
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
+    # Decide which phone the seller actually exposes on THIS listing.
+    if seller:
+        if not item.get("show_phone", True):
+            seller["phone_full"] = None
+            seller["phone"] = None
+        elif (item.get("contact_phone_source") == "custom") and item.get("contact_phone"):
+            seller["phone_full"] = item["contact_phone"]
     item["seller"] = seller
     return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600", "Vary": "Accept-Encoding", "X-Cache-Ready": "true"})
 
@@ -3342,6 +3351,12 @@ async def get_listing(listing_id: str, request: Request):
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
+    if seller:
+        if not item.get("show_phone", True):
+            seller["phone_full"] = None
+            seller["phone"] = None
+        elif (item.get("contact_phone_source") == "custom") and item.get("contact_phone"):
+            seller["phone_full"] = item["contact_phone"]
     item["seller"] = seller
     return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600", "Vary": "Accept-Encoding", "X-Cache-Ready": "true"})
 

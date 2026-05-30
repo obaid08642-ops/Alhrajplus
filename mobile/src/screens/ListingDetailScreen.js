@@ -64,8 +64,30 @@ export default function ListingDetailScreen({
   }, [user, listing?.seller?.id, id]);
   if (!listing) return <View style={styles.center}><Text>{t("جاري التحميل...")}</Text></View>;
   const isOwner = user && user.id === listing.user_id;
-  const call = () => listing.seller?.phone_full && Linking.openURL(`tel:${listing.seller.phone_full}`);
-  const wa = () => listing.seller?.phone_full && Linking.openURL(`https://wa.me/${listing.seller.phone_full.replace("+", "")}?text=${encodeURIComponent(`${t("مرحباً بخصوص:")} ${listing.title}`)}`);
+
+  // Phase 2 safety: ensure phone_full is a dial-coded international number
+  // even for legacy DB rows that still have e.g. "SA501234567" instead of
+  // "+966501234567". This guarantees tel: + wa.me links never include "SA".
+  const _DIAL = {
+    SA: "+966", AE: "+971", KW: "+965", QA: "+974", BH: "+973", OM: "+968",
+    EG: "+20", JO: "+962", LB: "+961", IQ: "+964", SY: "+963", YE: "+967",
+    PS: "+970", MA: "+212", DZ: "+213", TN: "+216", LY: "+218", SD: "+249",
+    TR: "+90", PK: "+92", IN: "+91", BD: "+880", ID: "+62", MY: "+60",
+    US: "+1", GB: "+44", FR: "+33",
+  };
+  const _normalizedPhone = (() => {
+    const raw = (listing.seller?.phone_full || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("+")) return raw;
+    // Strip leading ISO code if present (e.g. "SA501234567" → "501234567")
+    const m = raw.match(/^([A-Z]{2})(.+)$/);
+    if (m && _DIAL[m[1]]) return `${_DIAL[m[1]]}${m[2].replace(/^0+/, "")}`;
+    // Bare digits → assume seller's country.
+    const cc = (listing.seller?.country_code || listing.country_code || "SA").toUpperCase();
+    return `${_DIAL[cc] || "+966"}${raw.replace(/^0+/, "")}`;
+  })();
+  const call = () => _normalizedPhone && Linking.openURL(`tel:${_normalizedPhone}`);
+  const wa = () => _normalizedPhone && Linking.openURL(`https://wa.me/${_normalizedPhone.replace("+", "")}?text=${encodeURIComponent(`${t("مرحباً بخصوص:")} ${listing.title}`)}`);
   const shareAd = async () => {
     try {
       const url = `https://alhraj.online/listing/${listing.slug || listing.id}`;
