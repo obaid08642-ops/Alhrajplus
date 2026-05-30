@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     marginTop: 10,
-    backgroundColor: "rgba(79,182,230,0.1)"
+    backgroundColor: "rgba(137,207,240,0.1)"
   },
   badgeIcon: {
     fontSize: 24
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "rgba(79,182,230,0.1)"
+    backgroundColor: "rgba(137,207,240,0.1)"
   },
   priceAlertText: {
     color: theme.colors.primary,
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
     paddingHorizontal: 12
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   priceModalBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: "center"
   },
   priceModalBtnCancel: {

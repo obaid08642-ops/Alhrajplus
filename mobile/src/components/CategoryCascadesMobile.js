@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList } from "react-native";
 import api from "../api";
 import { useI18n } from "../I18nContext";
-import { colors } from "../theme";
+import { colors, shadow } from "../theme";
 const CAR_OPTS = {
   mileage: ["أقل من 10,000 كم", "10,000 - 50,000 كم", "50,000 - 100,000 كم", "100,000 - 200,000 كم", "أكثر من 200,000 كم"],
   transmission: ["أوتوماتيك", "عادي (يدوي)"],
@@ -372,7 +372,7 @@ function Lab({
 const s = StyleSheet.create({
   wrap: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 10,
     borderWidth: 1,
     borderColor: colors.border,
@@ -401,7 +401,7 @@ const ps = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 10
   },
@@ -426,7 +426,8 @@ const ps = StyleSheet.create({
     maxHeight: "70%",
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: colors.border,
+    ...shadow.soft
   },
   item: {
     paddingVertical: 12,

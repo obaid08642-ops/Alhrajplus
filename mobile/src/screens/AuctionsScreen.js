@@ -52,7 +52,7 @@ export default function AuctionsScreen() {
   }} tintColor={colors.primary} />}>
             {/* Hero */}
             <View style={[styles.hero, shadow.card]}>
-                <LinearGradient colors={["rgba(255,209,102,0.18)", "rgba(79,182,230,0.10)", "rgba(15,26,53,0.05)"]} style={StyleSheet.absoluteFillObject} start={{
+                <LinearGradient colors={["rgba(255,209,102,0.18)", "rgba(137,207,240,0.10)", "rgba(15,26,53,0.05)"]} style={StyleSheet.absoluteFillObject} start={{
         x: 0,
         y: 0
       }} end={{
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   },
   topBidBox: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   },
   bidInput: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 14,
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderRadius: 18,
     paddingVertical: 12,
     alignItems: "center",
     flexDirection: "row",
@@ -533,13 +533,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 10,
     marginBottom: 4,
-    borderRadius: 10,
+    borderRadius: 16,
     backgroundColor: colors.surfaceElevated
   },
   bidRowTop: {
-    backgroundColor: "rgba(79,182,230,0.10)",
+    backgroundColor: "rgba(137,207,240,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(79,182,230,0.3)"
+    borderColor: "rgba(137,207,240,0.3)"
   },
   bidName: {
     fontSize: 11.5,

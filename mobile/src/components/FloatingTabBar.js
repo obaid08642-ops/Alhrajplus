@@ -8,7 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
 import { colors } from "../theme";
 import { useI18n } from "../I18nContext";
-const ACTIVE = "#4FB6E6";
+const ACTIVE = "#89CFF0";
 const INACTIVE = "#9AA8B5";
 export default function FloatingTabBar({
   state,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.9)",
     overflow: "hidden",
-    shadowColor: "#4FB6E6",
+    shadowColor: "#89CFF0",
     shadowOpacity: 0.45,
     shadowRadius: 16,
     shadowOffset: {

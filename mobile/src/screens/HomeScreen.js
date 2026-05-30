@@ -178,7 +178,7 @@ function Hero({
                 <View style={[styles.glowBlob, {
         top: -40,
         right: -40,
-        backgroundColor: "rgba(79,182,230,0.25)"
+        backgroundColor: "rgba(137,207,240,0.25)"
       }]} />
                 <View style={[styles.glowBlob, {
         bottom: -40,
@@ -400,8 +400,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(79,182,230,0.18)",
-    borderColor: "rgba(79,182,230,0.4)",
+    backgroundColor: "rgba(137,207,240,0.18)",
+    borderColor: "rgba(137,207,240,0.4)",
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 10,
@@ -524,8 +524,8 @@ const styles = StyleSheet.create({
   catIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: "rgba(79,182,230,0.15)",
+    borderRadius: 18,
+    backgroundColor: "rgba(137,207,240,0.15)",
     alignItems: "center",
     justifyContent: "center"
   },

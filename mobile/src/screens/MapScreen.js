@@ -100,7 +100,7 @@ function buildHtml(items, myPos) {
   .hp { position: relative; width: 78px; height: 78px; animation: fl 3s ease-in-out infinite; }
   .chip {
     position: absolute; left: 50%; top: 0; transform: translateX(-50%);
-    background: linear-gradient(180deg, rgba(79,182,230,.95), rgba(20,33,71,.95));
+    background: linear-gradient(180deg, rgba(137,207,240,.95), rgba(20,33,71,.95));
     color: #fff; border: 1.5px solid rgba(137,207,240,.85);
     border-radius: 999px; padding: 5px 11px 4px; min-width: 42px; text-align: center;
     box-shadow: 0 6px 20px rgba(20,33,71,.45), 0 0 18px rgba(137,207,240,.55);
@@ -119,7 +119,7 @@ function buildHtml(items, myPos) {
   }
   .me {
     width: 28px; height: 28px; background: #4FB6E6; border: 3px solid #fff;
-    border-radius: 50%; box-shadow: 0 0 0 8px rgba(79,182,230,.25);
+    border-radius: 50%; box-shadow: 0 0 0 8px rgba(137,207,240,.25);
   }
   @keyframes fl { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 </style>

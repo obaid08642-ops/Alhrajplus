@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal } from "react-native";
 import api from "../api";
-import { theme } from "../theme";
+import { theme, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
 import { useAuth } from "../AuthContext";
 import { useCountry } from "../CountryContext";
@@ -336,7 +336,8 @@ const s = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    ...shadow.soft
   },
   sheetTitle: {
     fontSize: 16,
@@ -348,11 +349,11 @@ const s = StyleSheet.create({
   sheetRow: {
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     marginVertical: 2
   },
   sheetRowActive: {
-    backgroundColor: "rgba(79,182,230,0.12)"
+    backgroundColor: "rgba(137,207,240,0.12)"
   },
   sheetRowText: {
     fontSize: 15,

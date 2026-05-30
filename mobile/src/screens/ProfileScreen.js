@@ -133,7 +133,7 @@ export default function ProfileScreen() {
                 <View style={[s.heroBlob, {
         top: -50,
         right: -50,
-        backgroundColor: "rgba(79,182,230,0.25)"
+        backgroundColor: "rgba(137,207,240,0.25)"
       }]} />
                 <View style={[s.heroBlob, {
         bottom: -50,
@@ -190,7 +190,7 @@ export default function ProfileScreen() {
             <View style={s.quickGrid}>
                 <QuickTile icon={ListIcon} label={t("إعلاناتي")} tint="#3B82F6" tintBg="#DBEAFE" onPress={() => nav.navigate("MyListings")} />
                 <QuickTile icon={Heart} label={t("المفضلة")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Favorites")} />
-                <QuickTile icon={Sparkles} label={t("المساعد")} tint={colors.primary} tintBg="rgba(79,182,230,0.18)" onPress={() => nav.navigate("AIAssistant")} />
+                <QuickTile icon={Sparkles} label={t("المساعد")} tint={colors.primary} tintBg="rgba(137,207,240,0.18)" onPress={() => nav.navigate("AIAssistant")} />
                 <QuickTile icon={Gavel} label={t("المزادات")} tint="#F59E0B" tintBg="#FEF3C7" onPress={() => nav.navigate("Auctions")} />
                 <QuickTile icon={Plane} label={t("الطيران")} tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Flights")} />
                 <QuickTile icon={Flame} label={t("الصفقات")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Deals")} />
@@ -482,7 +482,7 @@ const s = StyleSheet.create({
   tileIcon: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -532,7 +532,7 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     color: colors.primary,
-    backgroundColor: "rgba(79,182,230,0.1)",
+    backgroundColor: "rgba(137,207,240,0.1)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8
@@ -563,7 +563,8 @@ const s = StyleSheet.create({
     marginTop: 14,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: colors.border,
+    ...shadow.soft
   },
   menuRow: {
     flexDirection: "row",

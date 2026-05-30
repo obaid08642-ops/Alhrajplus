@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   pricePill: {
-    backgroundColor: "rgba(31,123,191,0.85)",
+    backgroundColor: "rgba(95,182,224,0.85)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12

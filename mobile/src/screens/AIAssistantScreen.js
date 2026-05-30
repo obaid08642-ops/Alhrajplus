@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   suggBtn: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 12

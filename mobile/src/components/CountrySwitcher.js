@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border
   },
   rowActive: {
-    backgroundColor: "rgba(79,182,230,0.08)"
+    backgroundColor: "rgba(137,207,240,0.08)"
   },
   rowFlag: {
     fontSize: 26

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
 import api, { formatApiError } from "../api";
-import { theme } from "../theme";
+import { theme, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
 export function ForgotPasswordScreen({
   navigation
@@ -108,7 +108,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     padding: 20,
     borderWidth: 1,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    ...shadow.soft
   },
   title: {
     fontSize: 18,

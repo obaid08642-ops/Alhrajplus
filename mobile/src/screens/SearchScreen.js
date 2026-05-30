@@ -588,7 +588,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(79,182,230,0.12)",
+    backgroundColor: "rgba(137,207,240,0.12)",
     borderColor: colors.primary,
     borderWidth: 1,
     borderRadius: 999,
@@ -612,7 +612,7 @@ const s = StyleSheet.create({
   suggBox: {
     marginHorizontal: 12,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: "hidden",
@@ -754,7 +754,7 @@ const s = StyleSheet.create({
   priceInput: {
     flex: 1,
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
@@ -777,7 +777,7 @@ const s = StyleSheet.create({
   clearBtn: {
     flex: 1,
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 14,
+    borderRadius: 18,
     paddingVertical: 12,
     alignItems: "center"
   },
@@ -789,7 +789,7 @@ const s = StyleSheet.create({
   applyBtn: {
     flex: 2,
     backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderRadius: 18,
     paddingVertical: 12,
     alignItems: "center",
     flexDirection: "row",

@@ -364,7 +364,7 @@ const pStyles = StyleSheet.create({
     flexDirection: "row"
   },
   rowActive: {
-    backgroundColor: "rgba(79,182,230,0.10)"
+    backgroundColor: "rgba(137,207,240,0.10)"
   },
   rowAr: {
     fontSize: 14,
@@ -427,7 +427,7 @@ export default function FlightsScreen() {
   }}>
             {/* Hero */}
             <View style={[styles.hero, shadow.card]}>
-                <LinearGradient colors={["rgba(79,182,230,0.18)", "rgba(15,26,53,0.05)"]} style={StyleSheet.absoluteFillObject} start={{
+                <LinearGradient colors={["rgba(137,207,240,0.18)", "rgba(15,26,53,0.05)"]} style={StyleSheet.absoluteFillObject} start={{
         x: 0,
         y: 0
       }} end={{
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   hero: {
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(79,182,230,0.3)",
+    borderColor: "rgba(137,207,240,0.3)",
     overflow: "hidden",
     padding: 16,
     marginBottom: 12
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   heroIconBox: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center"
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   },
   fieldBtn: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 10,
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   },
   paxRow: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 6,
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
   },
   providerBtn: {
     width: "48%",
-    borderRadius: 14,
+    borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 10,
     flexDirection: "row",

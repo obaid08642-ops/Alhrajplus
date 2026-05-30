@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     gap: 4,
     borderWidth: 1,
     borderColor: theme.colors.primary,
-    backgroundColor: "rgba(79,182,230,0.1)"
+    backgroundColor: "rgba(137,207,240,0.1)"
   },
   boostBtnActive: {
     backgroundColor: "#F59E0B",

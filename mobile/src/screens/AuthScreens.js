@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from "react-native";
 import { useAuth } from "../AuthContext";
-import { theme } from "../theme";
+import { theme, shadow } from "../theme";
 import { formatApiError } from "../api";
 import { signInWithGoogle, signInWithApple, signInWithX, signInWithSnapchat } from "../socialAuth";
 import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
@@ -280,7 +280,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     padding: 20,
     borderWidth: 1,
-    borderColor: theme.colors.border
+    borderColor: theme.colors.border,
+    ...shadow.soft
   },
   logo: {
     flexDirection: "row",

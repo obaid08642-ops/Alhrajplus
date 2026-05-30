@@ -98,7 +98,7 @@ export async function registerForNotifications() {
                 name: "default",
                 importance: Notifications.AndroidImportance.HIGH,
                 vibrationPattern: [0, 250, 250, 250],
-                lightColor: "#4FB6E6",
+                lightColor: "#89CFF0",
                 sound: "default",
             });
         }

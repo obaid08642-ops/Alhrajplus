@@ -875,7 +875,7 @@ const s = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 999,
-    backgroundColor: "rgba(79,182,230,0.15)",
+    backgroundColor: "rgba(137,207,240,0.15)",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1025,7 +1025,7 @@ const s = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 999,
-    backgroundColor: "rgba(79,182,230,0.12)",
+    backgroundColor: "rgba(137,207,240,0.12)",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1306,7 +1306,7 @@ const s = StyleSheet.create({
     alignItems: "stretch",
     gap: 8,
     backgroundColor: "#fff",
-    borderRadius: 10,
+    borderRadius: 16,
     marginHorizontal: 8,
     marginTop: 6,
     paddingHorizontal: 6,

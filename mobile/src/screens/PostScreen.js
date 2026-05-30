@@ -1520,7 +1520,7 @@ const s = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 14,
-    backgroundColor: "rgba(79,182,230,0.12)",
+    backgroundColor: "rgba(137,207,240,0.12)",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1536,7 +1536,7 @@ const s = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: "rgba(79,182,230,0.35)",
+    borderColor: "rgba(137,207,240,0.35)",
     paddingVertical: 18,
     paddingHorizontal: 16,
     marginTop: 14,
@@ -1634,7 +1634,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     alignSelf: "flex-start",
-    backgroundColor: "rgba(79,182,230,0.12)",
+    backgroundColor: "rgba(137,207,240,0.12)",
     borderColor: colors.primary,
     borderWidth: 1,
     borderRadius: 999,
@@ -1655,7 +1655,7 @@ const s = StyleSheet.create({
   },
   input: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
@@ -1688,7 +1688,7 @@ const s = StyleSheet.create({
   imgBtn: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 14,
@@ -1738,7 +1738,7 @@ const s = StyleSheet.create({
   videoPreviewWrap: {
     marginTop: 10,
     position: "relative",
-    borderRadius: 14,
+    borderRadius: 18,
     overflow: "hidden",
     backgroundColor: "#000",
     aspectRatio: 16 / 9
@@ -1782,7 +1782,7 @@ const s = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.surface,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     marginTop: 4
@@ -1841,14 +1841,14 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     padding: 10,
-    borderRadius: 10,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: "#FAFCFE"
   },
   radioRowActive: {
     borderColor: colors.primary,
-    backgroundColor: "rgba(31,123,191,0.08)"
+    backgroundColor: "rgba(95,182,224,0.08)"
   },
   radioDot: {
     width: 20,
@@ -1886,7 +1886,7 @@ const s = StyleSheet.create({
     backgroundColor: "#FAFCFE",
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
@@ -1912,7 +1912,7 @@ const s = StyleSheet.create({
   },
   submitBtn: {
     height: 50,
-    borderRadius: 14,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -1969,7 +1969,7 @@ const s = StyleSheet.create({
     borderColor: colors.border
   },
   modalRowActive: {
-    backgroundColor: "rgba(79,182,230,0.08)"
+    backgroundColor: "rgba(137,207,240,0.08)"
   },
   modalRowText: {
     fontSize: 14,
@@ -1986,8 +1986,8 @@ const s = StyleSheet.create({
   },
   // Post-type selector (jobs/services) shown at the TOP of step 2.
   postTypeBox: {
-    backgroundColor: "rgba(79,182,230,0.07)",
-    borderColor: "rgba(79,182,230,0.35)",
+    backgroundColor: "rgba(137,207,240,0.07)",
+    borderColor: "rgba(137,207,240,0.35)",
     borderWidth: 1.2,
     borderRadius: 16,
     padding: 12,
@@ -2006,7 +2006,7 @@ const s = StyleSheet.create({
   },
   postTypeBtn: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1.4,
     borderColor: colors.border,
     backgroundColor: colors.surface,
