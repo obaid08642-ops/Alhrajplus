@@ -337,6 +337,26 @@ export default function ListingDetailScreen({
         }}>›</Text>
                 </TouchableOpacity>
 
+                {/* Permanent, high-visibility "Contact Seller" CTA — owner mandate.
+                    Always rendered (unless this is the user's own ad). Navigates
+                    directly to the in-app chat with full seller + listing payload. */}
+                {!isOwner && listing.seller?.id && <TouchableOpacity onPress={() => {
+        if (!user) {
+          navigation.navigate("Login");
+          return;
+        }
+        navigation.navigate("Chat", {
+          to: listing.seller.id,
+          listing_id: listing.id,
+          seller_id: listing.seller.id,
+          seller_name: listing.seller.name,
+          listing
+        });
+      }} style={styles.contactSellerBtn} testID="mobile-contact-seller-btn" activeOpacity={0.88}>
+                    <MessageCircle size={18} color="#fff" strokeWidth={2.6} />
+                    <Text style={styles.contactSellerText}>{t("تواصل مع البائع")}</Text>
+                </TouchableOpacity>}
+
                 {listing.show_phone !== false && listing.seller?.phone_full && !listing.is_demo && <View style={{
         marginTop: 12
       }}>
@@ -350,20 +370,6 @@ export default function ListingDetailScreen({
         }]} testID="mobile-wa-btn">
                             <Text style={styles.ctaText}>{t("💬 واتساب")}</Text>
                         </TouchableOpacity>
-                        {!isOwner && listing.seller?.id && <TouchableOpacity onPress={() => {
-          if (!user) {
-            navigation.navigate("Login");
-            return;
-          }
-          navigation.navigate("Chat", {
-            to: listing.seller.id,
-            listing
-          });
-        }} style={[styles.cta, {
-          backgroundColor: theme.colors.primary
-        }]} testID="mobile-chat-btn">
-                                <Text style={styles.ctaText}>{t("💬 محادثة داخل التطبيق")}</Text>
-                            </TouchableOpacity>}
                     </View>}
 
                 {listing.is_demo && <View style={styles.demoBadge}>
@@ -523,6 +529,27 @@ const styles = StyleSheet.create({
   },
   body: {
     padding: 16
+  },
+  // Permanent "Contact Seller" CTA — primary blue, prominent, with soft shadow.
+  contactSellerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    borderRadius: 20,
+    marginTop: 14,
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6
+  },
+  contactSellerText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 15
   },
   title: {
     fontSize: 20,

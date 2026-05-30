@@ -83,7 +83,9 @@ export default function FloatingTabBar({
   return <View pointerEvents="box-none" style={[styles.wrap, {
     paddingBottom: Math.max(insets.bottom, 10)
   }]}>
-            {/* Floating gradient FAB */}
+            {/* Floating gradient FAB — freestanding circular button with an
+                 outer translucent halo (rgba(255,140,0,0.10)) so it visually
+                 detaches from the glass pill underneath. */}
             <View pointerEvents="box-none" style={styles.fabAnchor}>
                 <Animated.View pointerEvents="none" style={[styles.pulseRing, {
         transform: [{
@@ -96,18 +98,20 @@ export default function FloatingTabBar({
           scale: fabPress
         }]
       }}>
-                    <TouchableOpacity onPress={goToPost} activeOpacity={0.85} style={styles.fab} testID="tab-fab-post" accessibilityLabel={t("نشر إعلان")}>
-                        <LinearGradient colors={["#FFB04A", "#FF8C00", "#E67A00"]} start={{
-            x: 0,
-            y: 0
-          }} end={{
-            x: 1,
-            y: 1
-          }} style={StyleSheet.absoluteFillObject} />
-                        {/* glossy highlight */}
-                        <View style={styles.fabShine} />
-                        <Plus size={28} color="#fff" strokeWidth={3.2} />
-                    </TouchableOpacity>
+                    <View style={styles.fabHalo}>
+                        <TouchableOpacity onPress={goToPost} activeOpacity={0.85} style={styles.fab} testID="tab-fab-post" accessibilityLabel={t("نشر إعلان")}>
+                            <LinearGradient colors={["#FFB04A", "#FF8C00"]} start={{
+              x: 0,
+              y: 0
+            }} end={{
+              x: 1,
+              y: 1
+            }} style={StyleSheet.absoluteFillObject} />
+                            {/* glossy highlight */}
+                            <View style={styles.fabShine} />
+                            <Plus size={28} color="#fff" strokeWidth={3.2} />
+                        </TouchableOpacity>
+                    </View>
                 </Animated.View>
             </View>
 
@@ -236,6 +240,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 10
   },
+  fabHalo: {
+    // Outer transparent padding ring — gives the FAB a "floating, detached"
+    // halo per the owner's brief (rgba(255,140,0,0.10)).
+    padding: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,140,0,0.10)"
+  },
   fab: {
     width: 62,
     height: 62,
@@ -243,16 +254,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.9)",
+    borderColor: "rgba(255,255,255,0.95)",
     overflow: "hidden",
-    shadowColor: "#89CFF0",
+    // Orange-tinted shadow per design brief.
+    shadowColor: "#FF8C00",
     shadowOpacity: 0.45,
-    shadowRadius: 16,
+    shadowRadius: 18,
     shadowOffset: {
       width: 0,
-      height: 8
+      height: 10
     },
-    elevation: 14
+    elevation: 16
   },
   fabShine: {
     position: "absolute",

@@ -324,7 +324,7 @@ const s = StyleSheet.create({
   },
   modalBg: {
     flex: 1,
-    backgroundColor: "rgba(15,26,53,0.45)",
+    backgroundColor: "rgba(0,0,0,0.40)",
     justifyContent: "center",
     alignItems: "center",
     padding: 24
@@ -333,11 +333,13 @@ const s = StyleSheet.create({
     width: "100%",
     maxWidth: 440,
     backgroundColor: theme.colors.surface,
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    ...shadow.soft
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12
   },
   sheetTitle: {
     fontSize: 16,

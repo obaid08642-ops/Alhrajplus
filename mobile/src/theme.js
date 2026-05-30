@@ -59,10 +59,11 @@ export const font = {
 // primary baby blue so cards feel cohesive.
 export const shadow = {
     card: {
+        // Owner-mandated card shadow — soft, diffused, baby-blue tinted.
         shadowColor: "#89CFF0",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.10,
-        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
         elevation: 3,
     },
     cardLarge: {

@@ -802,7 +802,10 @@ function MessageBubble({
   const isVoice = text.startsWith("🎙️ ");
   const isLocation = text.startsWith("📍 ");
   const url = isImage || isVoice || isLocation ? text.slice(2).trim() : null;
-  const replyTo = m.reply_to;
+  // Strict null-guard per owner mandate — never destructure or access reply_to
+  // sub-properties unless explicitly validated. Prevents the runtime crash
+  // "Property 'replyTo' doesn't exist" reported on the previous build.
+  const replyTo = m?.reply_to ?? null;
   return <TouchableOpacity activeOpacity={0.85} onLongPress={() => onLongPress?.(m)} delayLongPress={350} style={[s.bubbleWrap, {
     alignItems: isMine ? "flex-end" : "flex-start"
   }]}>

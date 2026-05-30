@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   sheetBg: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.40)",
     justifyContent: "center",
     alignItems: "stretch",
     paddingHorizontal: 20
@@ -100,7 +100,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 14,
-    maxHeight: "75%"
+    maxHeight: "75%",
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12
   },
   sheetHead: {
     flexDirection: "row",

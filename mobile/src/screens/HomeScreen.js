@@ -13,7 +13,8 @@ import { useCountry } from "../CountryContext";
 import { colors, radius, shadow } from "../theme";
 import ListingCard from "../components/ListingCard";
 import NotificationBell from "../components/NotificationBell";
-import CountrySwitcher from "../components/CountrySwitcher";
+// NOTE: CountrySwitcher is intentionally NOT imported here — owner directive:
+// the country selector lives exclusively inside the Settings screen.
 import { SkeletonListingGrid } from "../components/Skeleton";
 const {
   width: SCREEN_W
@@ -144,18 +145,20 @@ function TopBar({
   const {
     t
   } = useI18n();
-  return <View style={[styles.topBar, {
-    paddingTop: insets.top + 6
-  }]}>
+  return <View style={{ backgroundColor: colors.bg, paddingTop: insets.top + 4 }}>
+            <View style={styles.brandRow}>
+                <Text style={styles.brandTitle}>{t("حراج بلس")}</Text>
+                <NotificationBell />
+            </View>
+            <View style={styles.topBar}>
             <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
-                <SearchIcon size={16} color={colors.textMuted} />
+                <SearchIcon size={16} color={colors.primary} />
                 <Text style={styles.searchPh} numberOfLines={1}>{t("ابحث... (AI)")}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => nav.navigate("AIAssistant")} style={styles.aiPill} testID="home-ai-assistant">
                 <Bot size={16} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
-            <CountrySwitcher />
-            <NotificationBell />
+            </View>
         </View>;
 }
 
@@ -343,6 +346,21 @@ function CTASection({
 
 // ====================== Styles ======================
 const styles = StyleSheet.create({
+  // Brand row — "حراج بلس" centered top heading per design brief.
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 6
+  },
+  brandTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: colors.primary,
+    letterSpacing: 0.5
+  },
   // TopBar
   topBar: {
     flexDirection: "row",
@@ -357,12 +375,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 10
+    paddingVertical: 12,
+    ...shadow.card
   },
   searchPh: {
     flex: 1,
@@ -525,13 +542,12 @@ const styles = StyleSheet.create({
   },
   catItem: {
     width: (SCREEN_W - 24 - 8 * 3) / 4,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 20,
     alignItems: "center",
     padding: 10,
-    gap: 5
+    gap: 5,
+    ...shadow.card
   },
   catIconWrap: {
     width: 44,
@@ -552,10 +568,9 @@ const styles = StyleSheet.create({
     padding: 32,
     marginHorizontal: 12,
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 20,
+    ...shadow.card
   },
   mutedCenter: {
     color: colors.textMuted,

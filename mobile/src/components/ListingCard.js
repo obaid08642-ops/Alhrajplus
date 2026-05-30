@@ -117,7 +117,7 @@ export default function ListingCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surfaceCard,
-    borderRadius: radius.xl,
+    borderRadius: 20,
     overflow: "hidden",
     flex: 1,
     margin: 4,
@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
     aspectRatio: 4 / 3,
     backgroundColor: colors.surfaceElevated,
     position: "relative",
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     overflow: "hidden"
   },
   img: {
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   wide: {
     flexDirection: "row",
     backgroundColor: colors.surfaceCard,
-    borderRadius: radius.xl,
+    borderRadius: 20,
     overflow: "hidden",
     marginBottom: 10,
     ...shadow.card
