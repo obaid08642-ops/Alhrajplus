@@ -1,14 +1,13 @@
 # PRD — Native Mobile Rebuild & Feature Parity
 
 ## Original Problem Statement
-Native rebuild of mobile app for 100% UI/feature parity with web app. Polished Post Listing flow with cascading dropdowns, strict 2-column layouts, conditional logic across 10+ categories (Cars, Phones, Real Estate, Jobs, Services, Furniture, Electronics, Animals, Equipment, Auctions). Market-based AI pricing required.
+Native rebuild of mobile app for 100% UI/feature parity with web app. Polished Post Listing flow with cascading dropdowns, strict 2-column layouts, conditional logic across 10+ categories. Market-based AI pricing required.
 
-## Constraints
-- Strict 2-column Details Boxes, no duplicate fields.
-- Expo Go must boot without runtime crashes.
-- NO testing_agent, NO screenshots (extreme low-credit mode).
-- Manual testing only: linting / curl / metro bundle / `python -c`.
-- Communication strictly in Arabic.
+## Constraints (User-Enforced)
+- ❌ NO testing_agent, NO screenshots except for genuinely new bugs (extreme low-credit mode).
+- ✅ Local runtime verification via `expo start --web` + Playwright BEFORE any cloud build.
+- ✅ Communication strictly in Arabic.
+- ✅ Phased delivery — Phase 1 → 2 → 3 → 4 with clear scope.
 
 ## Architecture
 - `/app/backend/server.py` — FastAPI monolith (~7500 LOC; refactor FORBIDDEN per user).
@@ -17,24 +16,43 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Polished P
 - MongoDB (`MONGO_URL`, `DB_NAME` from `.env`).
 - Gemini AI via Emergent LLM Key + `emergentintegrations`.
 
-## Done
-- Post Listing UX standardized (2-column grids) for: Phones, Services (PRO), Jobs, Real Estate, Furniture, Home Appliances, Animals, Equipment, Auctions.
-- Top-level module scope crashes in Expo Go (`Property 't' doesn't exist`) — fixed via mass AST rewrite (82+ inner-fn t() scope issues).
-- **Feb 2026**: React Hook violations (Invalid hook call) — 7 violations fixed across AuctionsScreen, ChatScreen, MapScreen, OtherScreens, WalletScreen. Audit clean (0 violations). Metro bundle succeeds (3311 modules, 13.9 MB iOS dev bundle).
+## Phased Plan
 
-## P1 — Pending
-- Market-Based AI Price Suggestion (external scraping / dataset aggregation → `/api/listings/suggest-price`).
-- Voice Messages in Mobile/Web Chat (record, send, playback).
-- Chat "Forward Message" feature.
+### ✅ Phase 1 — Crashes & UI/UX (DONE Feb 2026)
+- Fixed `useFocusEffect(useCallback(...))` nested-hook violations (NotificationBell, ChatScreen, ProfileScreen).
+- Fixed `useI18n()` calls in inner functions (AuctionsScreen, ChatScreen, MapScreen, OtherScreens, WalletScreen).
+- Fixed AuctionsScreen `BidModal` crash (missing `useSafeAreaInsets()`).
+- Fixed FloatingTabBar RTL order (Home on RIGHT for Arabic).
+- GPS-first country detection (replaces popup on first launch).
+- Settings: proper language + country picker modals (was just cycling).
+- Dropdowns centered (was pinned to bottom-left corner).
+- Theme color contrast strengthened (WCAG AA).
+- Runtime-verified via `npx expo start --web` + Playwright: 0 JS runtime errors, Home + Auctions + Profile all open.
+- Removed corrupted zero-byte filename `mobile/\x01\x90\xf8@@\xd0\xc39@8` (was blocking macOS clones).
 
-## P2 — Future
-- AR Try-On (fashion/glasses).
-- Escrow Payments (Stripe/PayPal) + Mobile Wallet Stripe SDK Topup.
-- Live Voice/Video calls (WebRTC).
-- Verified Seller Badge via blockchain reviews.
+### 🟠 Phase 2 — Post Listing (PENDING)
+- "Required field" false-positive on filled brand selector.
+- "Service duplicate" error blocking creation.
+- Verify form submission reaches server + listing appears in feed.
 
-## Known Open Issues
-- Mobile TopBar overflow on small screens (visual polish).
+### 🟡 Phase 3 — Chat + AI + Camera + GPS (PENDING)
+- Chat black/red error screen on open.
+- AI button: open camera (not just gallery) + actually fill data via Gemini.
+- Phone number country code: use real `+966 / +20` etc. (not "SA").
+- Category auto-suggest: fix matching between title and category.
+
+### 🟢 Phase 4 — Reels/Stories + Map + Web parity features (PENDING)
+- Smooth swipe (YouTube Shorts / TikTok feel).
+- Hide bottom nav when stories open.
+- Position "View Ad" button correctly.
+- Map hologram: category-specific icons (car/animal/phone) instead of stars.
+- Add side icons: like / share / price / location (mirror web).
+
+## Critical Notes
+- Lucide-react-native@1.16.0 confirms `Flame`, `Rocket`, all standard icons exported correctly.
+- Single `react@19.1.0` instance confirmed via `npm ls react`.
+- expo-doctor: 18/18 checks pass.
+- Backend CORS errors during web preview are environmental only — do NOT affect device runtime.
 
 ## Test Credentials
 See `/app/memory/test_credentials.md`.
