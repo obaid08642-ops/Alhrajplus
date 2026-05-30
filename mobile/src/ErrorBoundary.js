@@ -21,12 +21,19 @@ export default class ErrorBoundary extends Component {
     }
     reset = () => this.setState({ hasError: false, message: "" });
     render() {
-        if (!this.state.hasError) return this.props.children;
+        // Surface any runtime error captured by the global crash trap in App.js
+        // even if React's render path itself didn't throw (e.g. an import-time
+        // throw caught by ErrorUtils.setGlobalHandler).
+        const runtimeErr = typeof global !== "undefined" && global.__APP_RUNTIME_ERROR__;
+        if (!this.state.hasError && !runtimeErr) return this.props.children;
+        const msg = this.state.message || (runtimeErr && runtimeErr.message) || "";
+        const stack = runtimeErr && runtimeErr.stack ? runtimeErr.stack : "";
         return (
             <View style={s.wrap} testID="error-boundary">
                 <Text style={s.title}>{tr("حدث خطأ غير متوقع")}</Text>
-                <Text style={s.body} numberOfLines={4}>{this.state.message}</Text>
-                <TouchableOpacity onPress={this.reset} style={s.btn} testID="error-boundary-retry">
+                <Text style={s.body} numberOfLines={4}>{msg}</Text>
+                {!!stack && <Text style={[s.body, { fontSize: 10, opacity: 0.7 }]} numberOfLines={12}>{stack}</Text>}
+                <TouchableOpacity onPress={() => { if (typeof global !== "undefined") global.__APP_RUNTIME_ERROR__ = null; this.reset(); }} style={s.btn} testID="error-boundary-retry">
                     <Text style={s.btnText}>{tr("إعادة المحاولة")}</Text>
                 </TouchableOpacity>
             </View>

@@ -1,4 +1,27 @@
 import "react-native-gesture-handler";
+
+// ---------- Runtime crash trap ----------
+// Captures the FIRST uncaught error during bundle evaluation OR initial render
+// so it shows up clearly on Expo Go instead of a generic "App entry not found".
+// Stored in globalThis so ErrorBoundary can render it on screen.
+if (typeof global !== "undefined" && global.ErrorUtils && !global.__APP_CRASH_TRAP_INSTALLED__) {
+    global.__APP_CRASH_TRAP_INSTALLED__ = true;
+    const prev = global.ErrorUtils.getGlobalHandler && global.ErrorUtils.getGlobalHandler();
+    global.ErrorUtils.setGlobalHandler((err, isFatal) => {
+        try {
+            global.__APP_RUNTIME_ERROR__ = {
+                message: String(err && err.message) || String(err),
+                stack: String(err && err.stack || "").split("\n").slice(0, 25).join("\n"),
+                isFatal: !!isFatal,
+                at: Date.now(),
+            };
+            // eslint-disable-next-line no-console
+            console.error("[APP_RUNTIME_ERROR]", global.__APP_RUNTIME_ERROR__);
+        } catch (_) {}
+        if (prev) prev(err, isFatal);
+    });
+}
+
 import { useEffect, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
