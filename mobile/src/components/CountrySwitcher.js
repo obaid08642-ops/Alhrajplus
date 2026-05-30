@@ -27,8 +27,8 @@ export default function CountrySwitcher({
                 {/* Show country name only when there's room — compact pill in tight headers */}
             </TouchableOpacity>
 
-            <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-                <View style={styles.sheetBg}>
+            <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => setOpen(false)} style={styles.sheetBg}>
                     <View style={styles.sheet}>
                         <View style={styles.sheetHead}>
                             <Text style={styles.sheetTitle}>{t("اختر الدولة")}</Text>
@@ -60,7 +60,7 @@ export default function CountrySwitcher({
             maxHeight: 420
           }} />
                     </View>
-                </View>
+                </TouchableOpacity>
             </Modal>
         </>;
 }
@@ -92,12 +92,13 @@ const styles = StyleSheet.create({
   sheetBg: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "flex-end"
+    justifyContent: "center",
+    alignItems: "stretch",
+    paddingHorizontal: 20
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 20,
     padding: 14,
     maxHeight: "75%"
   },

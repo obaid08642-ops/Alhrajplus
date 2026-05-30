@@ -4108,12 +4108,18 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
 @api.get("/chat/conversations")
 async def list_conversations(user: dict = Depends(get_current_user)):
     convos = await db.conversations.find({"participants": user["id"]}, {"_id": 0}).sort("last_ts", -1).to_list(length=200)
-    # enrich with other participant info
+    # enrich with other participant info — return BOTH the nested `other`
+    # object AND flat `other_*` keys (mobile UI uses the flat form).
     for c in convos:
         other_id = next((p for p in c["participants"] if p != user["id"]), None)
         if other_id:
             other = await db.users.find_one({"id": other_id}, {"_id": 0, "id": 1, "name": 1, "avatar_url": 1, "phone_full": 1, "verified": 1})
             c["other"] = other
+            if other:
+                c["other_id"] = other.get("id")
+                c["other_name"] = other.get("name") or ""
+                c["other_avatar"] = other.get("avatar_url")
+                c["other_verified"] = bool(other.get("verified"))
         c["unread"] = c.get(f"unread_{user['id']}", 0)
     return convos
 

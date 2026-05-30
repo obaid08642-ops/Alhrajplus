@@ -31,13 +31,14 @@ export default function ReelsScreen() {
 
   // Hide the floating tab bar while reels are visible — restored on blur.
   // Targets the PARENT tab navigator (this screen is inside the bottom tabs).
-  useFocusEffect(useCallback(() => {
+  const _hideTabBarOnFocus = useCallback(() => {
     const parent = nav.getParent?.();
     parent?.setOptions?.({ tabBarStyle: { display: "none" } });
     return () => {
       parent?.setOptions?.({ tabBarStyle: undefined });
     };
-  }, [nav]));
+  }, [nav]);
+  useFocusEffect(_hideTabBarOnFocus);
   useEffect(() => {
     (async () => {
       try {
