@@ -1133,6 +1133,7 @@ function Step2({
         }]} keyboardType="numeric" />
                         <Text style={s.currencyBadge}>{form.currency}</Text>
                     </View>
+                    <MarketPriceHint form={form} country={country} onPick={(v) => update("price", String(v))} />
                 </Field>}
 
             {/* Cascading brand→model→year→trim (cars). Phones cascade is rendered at the TOP
@@ -1318,6 +1319,76 @@ function Field({
   }}>
             <Text style={s.fieldLabel}>{label}</Text>
             {children}
+        </View>;
+}
+
+// =============== Market Price Hint ===============
+// Calls POST /listings/suggest-price when category / brand / model change
+// and shows a tappable price-range chip so the seller can adopt the median.
+function MarketPriceHint({ form, country, onPick }) {
+  const { t } = useI18n();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  // Debounced fetch keyed on category + key identifying fields.
+  const cf = form.custom_fields || {};
+  const key = JSON.stringify({
+    cat: form.category,
+    sub: form.subcategory,
+    brand: cf.phone_brand || cf.car_brand || cf.brand || cf.make,
+    model: cf.phone_model || cf.car_model || cf.model,
+    year: cf.year,
+    cond: cf.condition,
+    country: country?.code,
+  });
+  useEffect(() => {
+    if (!form.category) return;
+    let cancelled = false;
+    const tid = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const { data: out } = await api.post("/listings/suggest-price", {
+          category: form.category,
+          subcategory: form.subcategory || null,
+          custom_fields: cf,
+          country_code: country?.code || null,
+          title: form.title || null,
+        });
+        if (!cancelled) setData(out);
+      } catch (_) {
+        if (!cancelled) setData(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 600);
+    return () => { cancelled = true; clearTimeout(tid); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  if (loading) {
+    return <View style={s.mpRow}><ActivityIndicator size="small" color={colors.primary} /><Text style={s.mpHint}>{t("جاري حساب متوسط السوق...")}</Text></View>;
+  }
+  if (!data || !data.suggested) {
+    return data && data.confidence === "none"
+      ? <Text style={s.mpHint}>{t("لا توجد إعلانات مشابهة كافية بعد")}</Text>
+      : null;
+  }
+  const fmt = (n) => Number(n).toLocaleString();
+  return <View style={s.mpBox} testID="market-price-hint">
+            <View style={s.mpHeaderRow}>
+                <Text style={s.mpTitle}>💹 {t("متوسط السوق")}</Text>
+                <Text style={[s.mpConf, data.confidence === "high" ? s.mpConfHigh : data.confidence === "medium" ? s.mpConfMid : s.mpConfLow]}>
+                    {data.confidence === "high" ? t("ثقة عالية") : data.confidence === "medium" ? t("ثقة متوسطة") : t("عينة قليلة")}
+                </Text>
+            </View>
+            <View style={s.mpRangeRow}>
+                <View style={s.mpCell}><Text style={s.mpCellLabel}>{t("منخفض")}</Text><Text style={s.mpCellVal}>{fmt(data.p25)}</Text></View>
+                <TouchableOpacity onPress={() => onPick(data.median)} style={s.mpCellMid} testID="market-price-pick-median">
+                    <Text style={s.mpCellLabel}>{t("الوسيط (اضغط للاستخدام)")}</Text>
+                    <Text style={s.mpCellMidVal}>{fmt(data.median)}</Text>
+                </TouchableOpacity>
+                <View style={s.mpCell}><Text style={s.mpCellLabel}>{t("مرتفع")}</Text><Text style={s.mpCellVal}>{fmt(data.p75)}</Text></View>
+            </View>
+            <Text style={s.mpFooter}>{data.note}</Text>
         </View>;
 }
 
@@ -1891,6 +1962,94 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: colors.text,
+    textAlign: "right"
+  },
+  // Market price hint
+  mpBox: {
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 16,
+    gap: 8
+  },
+  mpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6
+  },
+  mpHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: "700"
+  },
+  mpHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  mpTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: colors.text
+  },
+  mpConf: {
+    fontSize: 10,
+    fontWeight: "800",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999
+  },
+  mpConfHigh: {
+    backgroundColor: "rgba(16,185,129,0.15)",
+    color: "#0F7E5C"
+  },
+  mpConfMid: {
+    backgroundColor: "rgba(95,182,224,0.18)",
+    color: colors.primaryDeep
+  },
+  mpConfLow: {
+    backgroundColor: "rgba(245,158,11,0.18)",
+    color: "#9A5A05"
+  },
+  mpRangeRow: {
+    flexDirection: "row",
+    gap: 6
+  },
+  mpCell: {
+    flex: 1,
+    padding: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    alignItems: "center"
+  },
+  mpCellMid: {
+    flex: 1.3,
+    padding: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    alignItems: "center"
+  },
+  mpCellLabel: {
+    fontSize: 9.5,
+    color: colors.textMuted,
+    fontWeight: "800"
+  },
+  mpCellVal: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: colors.text,
+    marginTop: 2
+  },
+  mpCellMidVal: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#fff",
+    marginTop: 2
+  },
+  mpFooter: {
+    fontSize: 10.5,
+    color: colors.textMuted,
     textAlign: "right"
   },
   // Bottom bar

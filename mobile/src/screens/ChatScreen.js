@@ -448,8 +448,10 @@ function ChatThread({
   const toggleRecording = async () => {
     try {
       if (recording) {
+        const startTs = recording._startedAt || Date.now();
         await recording.stop();
         const uri = recording.uri;
+        const duration_ms = Math.max(0, Date.now() - startTs);
         setRecording(null);
         if (!uri) return;
         setUploading(true);
@@ -482,6 +484,8 @@ function ChatThread({
           } = await api.post("/chat/send", {
             receiver_id: other.id,
             listing_id: listing?.id || null,
+            voice: out.secure_url,
+            voice_duration_ms: duration_ms,
             text: `🎙️ ${out.secure_url}`
           });
           setMessages(m => [...m, data]);
@@ -500,6 +504,9 @@ function ChatThread({
         const rec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
         await rec.prepareToRecordAsync();
         rec.record();
+        // Stamp start time on the recorder so we can compute duration on stop
+        // without polling expo-audio's internal status (unreliable on web).
+        rec._startedAt = Date.now();
         setRecording(rec);
       }
     } catch (_) {
@@ -832,7 +839,7 @@ function MessageBubble({
                         <Image source={{
           uri: url
         }} style={s.bubbleImg} resizeMode="cover" />
-                    </TouchableOpacity> : isVoice && url ? <VoicePlayer url={url} isMine={isMine} /> : isLocation && url ? <TouchableOpacity onPress={() => Linking.openURL(url)} style={s.locationBubble}>
+                    </TouchableOpacity> : isVoice && url ? <VoicePlayer url={url} isMine={isMine} duration_ms={m.voice_duration_ms} /> : isLocation && url ? <TouchableOpacity onPress={() => Linking.openURL(url)} style={s.locationBubble}>
                         <MapPin size={14} color={isMine ? "#fff" : colors.primary} />
                         <Text style={[s.bubbleText, isMine && {
           color: "#fff"
@@ -856,12 +863,24 @@ function MessageBubble({
 // =============== Voice Player ===============
 function VoicePlayer({
   url,
-  isMine
+  isMine,
+  duration_ms
 }) {
   const { t } = useI18n();
   
   const player = useAudioPlayer(url);
   const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0); // 0..1 position
+  const [elapsed, setElapsed] = useState(0);   // seconds played
+  // Stable per-message waveform — derived from the URL so each clip has its
+  // own pseudo-random heights instead of every bubble showing the same shape.
+  const BARS = useMemo(() => {
+    const seed = (url || "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    return Array.from({ length: 22 }, (_, i) => {
+      const x = Math.sin((seed + i * 37) * 0.61);
+      return 5 + Math.round(((x + 1) / 2) * 18); // 5..23 px
+    });
+  }, [url]);
   const toggle = () => {
     if (playing) {
       player.pause();
@@ -873,31 +892,53 @@ function VoicePlayer({
   };
   useEffect(() => {
     if (!player) return;
+    // Fast tick (120ms) for smooth waveform animation while playing.
     const interval = setInterval(() => {
       if (player.playing !== playing) setPlaying(player.playing);
-      if (player.currentTime >= (player.duration || 0) - 0.1 && (player.duration || 0) > 0) {
+      const dur = player.duration || (duration_ms ? duration_ms / 1000 : 0);
+      const cur = player.currentTime || 0;
+      if (dur > 0) setProgress(Math.min(1, cur / dur));
+      setElapsed(cur);
+      if (cur >= (dur || 0) - 0.1 && (dur || 0) > 0) {
         player.seekTo(0);
         player.pause();
         setPlaying(false);
+        setProgress(0);
+        setElapsed(0);
       }
-    }, 300);
+    }, 120);
     return () => clearInterval(interval);
-  }, [player, playing]);
+  }, [player, playing, duration_ms]);
+  const totalSec = duration_ms ? duration_ms / 1000 : (player?.duration || 0);
+  const label = (() => {
+    if (!totalSec) return t("صوت");
+    const used = playing ? elapsed : totalSec;
+    const m = Math.floor(used / 60);
+    const s = Math.floor(used % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  })();
   return <View style={s.voiceBubble}>
             <TouchableOpacity onPress={toggle} style={s.voicePlayBtn}>
                 {playing ? <Pause size={14} color="#fff" fill="#fff" /> : <Play size={14} color="#fff" fill="#fff" />}
             </TouchableOpacity>
             <View style={s.voiceWave}>
-                {[6, 12, 8, 14, 10, 8, 12, 6, 14, 9, 11, 7].map((h, i) => <View key={i} style={[s.voiceBar, {
-        height: h,
-        backgroundColor: playing ? isMine ? "#fff" : colors.primary : isMine ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.3)"
-      }]} />)}
+                {BARS.map((h, i) => {
+                  // Bars before the playhead are "active" (filled), after are dim.
+                  const pos = (i + 0.5) / BARS.length;
+                  const passed = pos <= progress;
+                  // Active bar bounces a bit while playing for a TikTok-like animation.
+                  const bonus = playing && Math.abs(pos - progress) < 0.08 ? 4 : 0;
+                  return <View key={i} style={[s.voiceBar, {
+                    height: h + bonus,
+                    backgroundColor: passed
+                      ? (isMine ? "#fff" : colors.primaryDeep)
+                      : (isMine ? "rgba(255,255,255,0.45)" : "rgba(11,21,48,0.25)")
+                  }]} />;
+                })}
             </View>
             <Text style={[s.voiceTime, {
       color: isMine ? "rgba(255,255,255,0.85)" : colors.textMuted
-    }]}>
-                {player?.duration ? `${Math.floor(player.duration)}s` : t("صوت")}
-            </Text>
+    }]}>{label}</Text>
         </View>;
 }
 
