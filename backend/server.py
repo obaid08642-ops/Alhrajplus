@@ -3821,6 +3821,8 @@ async def listings_map(
 # ============================================================
 @api.post("/favorites/{listing_id}")
 async def toggle_favorite(listing_id: str, user: dict = Depends(get_current_user)):
+    """Toggle favorite (web frontend uses this as a toggle). Mobile uses the
+    paired POST/DELETE pattern with `data.favorited` checked optimistically."""
     existing = await db.favorites.find_one({"user_id": user["id"], "listing_id": listing_id})
     if existing:
         await db.favorites.delete_one({"user_id": user["id"], "listing_id": listing_id})
@@ -3832,6 +3834,20 @@ async def toggle_favorite(listing_id: str, user: dict = Depends(get_current_user
     })
     await db.listings.update_one({"id": listing_id}, {"$inc": {"favorites": 1}})
     return {"favorited": True}
+
+@api.delete("/favorites/{listing_id}")
+async def delete_favorite(listing_id: str, user: dict = Depends(get_current_user)):
+    """Explicit unfavorite (idempotent). Mobile ListingCard + ReelsScreen call
+    DELETE on unlike instead of relying on toggle semantics."""
+    res = await db.favorites.delete_one({"user_id": user["id"], "listing_id": listing_id})
+    if res.deleted_count:
+        await db.listings.update_one({"id": listing_id}, {"$inc": {"favorites": -1}})
+    return {"favorited": False}
+
+@api.get("/favorites/{listing_id}/check")
+async def check_favorite(listing_id: str, user: dict = Depends(get_current_user)):
+    existing = await db.favorites.find_one({"user_id": user["id"], "listing_id": listing_id})
+    return {"favorited": bool(existing)}
 
 @api.get("/favorites")
 async def list_favorites(user: dict = Depends(get_current_user)):
