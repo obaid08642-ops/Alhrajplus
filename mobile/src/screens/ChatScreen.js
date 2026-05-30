@@ -86,9 +86,8 @@ export default function ChatScreen() {
       setRefreshing(false);
     }
   }, []);
-  useFocusEffect(useCallback(() => {
-    loadConvos();
-  }, [loadConvos]));
+  const onConvosFocus = useCallback(() => { loadConvos(); }, [loadConvos]);
+  useFocusEffect(onConvosFocus);
 
   // If user navigated with a target user, open that thread directly
   useEffect(() => {

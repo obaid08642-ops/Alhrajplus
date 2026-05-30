@@ -41,9 +41,8 @@ export default function ProfileScreen() {
       setWalletBalance(w.data?.balance ?? null);
     } catch (_) {}
   }, [user]);
-  useFocusEffect(useCallback(() => {
-    load();
-  }, [load]));
+  const onProfileFocus = useCallback(() => { load(); }, [load]);
+  useFocusEffect(onProfileFocus);
   if (!user) {
     return <View style={{
       flex: 1,
