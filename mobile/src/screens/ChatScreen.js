@@ -239,6 +239,10 @@ function ChatThread({
   const [recording, setRecording] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  // Long-press action sheet: when set, shows {message, options[]}
+  const [longPressMsg, setLongPressMsg] = useState(null);
+  // Forward picker: when set to a message object, shows the contact picker modal
+  const [forwardSrc, setForwardSrc] = useState(null);
   const listRef = useRef(null);
   const typingTimerRef = useRef(null);
   const lastTypingSentRef = useRef(0);
@@ -624,7 +628,7 @@ function ChatThread({
       const showDay = !prev || fmtDay(prev.created_at) !== fmtDay(item.created_at);
       return <>
                                 {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(item.created_at)}</Text></View>}
-                                <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setReplyTo} />
+                                <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setLongPressMsg} />
                             </>;
     }} ListFooterComponent={otherTyping ? <TypingIndicator /> : null} onContentSizeChange={() => listRef.current?.scrollToEnd({
       animated: false
@@ -705,7 +709,76 @@ function ChatThread({
         }} style={s.lightboxImg} resizeMode="contain" />
                     </View>
                 </Modal>}
+
+            {/* Long-press action sheet — Reply / Forward / Copy / Delete-mine */}
+            {longPressMsg && <Modal visible transparent animationType="fade" onRequestClose={() => setLongPressMsg(null)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => setLongPressMsg(null)} style={s.lpBg}>
+                    <View style={s.lpSheet}>
+                        <TouchableOpacity onPress={() => { setReplyTo(longPressMsg); setLongPressMsg(null); }} style={s.lpRow} testID="msg-action-reply">
+                            <Text style={s.lpText}>↩  {t("الرد")}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => { setForwardSrc(longPressMsg); setLongPressMsg(null); }} style={s.lpRow} testID="msg-action-forward">
+                            <Text style={s.lpText}>↪  {t("إعادة توجيه")}</Text>
+                        </TouchableOpacity>
+                        {(longPressMsg.text) ? <TouchableOpacity onPress={async () => {
+                            try { const Clip = require("@react-native-clipboard/clipboard").default; Clip.setString(longPressMsg.text); }
+                            catch { /* clipboard module not installed — silently skip */ }
+                            setLongPressMsg(null);
+                        }} style={s.lpRow} testID="msg-action-copy">
+                            <Text style={s.lpText}>📋  {t("نسخ النص")}</Text>
+                        </TouchableOpacity> : null}
+                    </View>
+                </TouchableOpacity>
+            </Modal>}
+
+            {/* Forward contact picker */}
+            {forwardSrc && <ForwardPicker src={forwardSrc} onClose={() => setForwardSrc(null)} currentUser={user} onForwarded={() => { setForwardSrc(null); }} />}
         </KeyboardAvoidingView>;
+}
+
+function ForwardPicker({ src, onClose, currentUser, onForwarded }) {
+    const { t } = useI18n();
+    const [list, setList] = useState([]);
+    const [loading, setLoading] = useState(true);
+    useEffect(() => {
+        (async () => {
+            try {
+                const { data } = await api.get("/chat/conversations");
+                setList(data || []);
+            } catch (_) {} finally { setLoading(false); }
+        })();
+    }, []);
+    const send = async (other) => {
+        try {
+            await api.post("/chat/send", {
+                receiver_id: other.id,
+                text: src.text || null,
+                image: src.image || null,
+                voice: src.voice || null,
+                voice_duration_ms: src.voice_duration_ms || null,
+                forwarded_from: { name: src.sender_name || "", message_id: src.id }
+            });
+            onForwarded();
+            Alert.alert("✓", t("تمت إعادة التوجيه"));
+        } catch (_) {
+            Alert.alert(t("خطأ"), t("تعذرت إعادة التوجيه"));
+        }
+    };
+    return <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+        <TouchableOpacity activeOpacity={1} onPress={onClose} style={s.lpBg}>
+            <View style={[s.lpSheet, { maxHeight: "70%" }]}>
+                <Text style={s.fwdTitle}>{t("إعادة توجيه إلى")}</Text>
+                {loading ? <ActivityIndicator color={colors.primary} style={{ padding: 20 }} /> :
+                  list.length === 0 ? <Text style={s.fwdEmpty}>{t("لا توجد محادثات")}</Text> :
+                  <FlatList data={list} keyExtractor={c => c.id} renderItem={({ item }) => (
+                    <TouchableOpacity onPress={() => send({ id: item.other_id, name: item.other_name })} style={s.fwdRow} testID={`fwd-to-${item.other_id}`}>
+                        <Text style={s.fwdName}>{item.other_name || t("مستخدم")}</Text>
+                        <Text style={s.fwdSub} numberOfLines={1}>{item.last_message || ""}</Text>
+                    </TouchableOpacity>
+                  )} />}
+            </View>
+        </TouchableOpacity>
+    </Modal>;
 }
 
 // =============== Message Bubble ===============
@@ -729,6 +802,10 @@ function MessageBubble({
             <View style={[s.bubble, isMine ? s.bubbleMine : s.bubbleOther, isImage && {
       padding: 3
     }]}>
+                {/* Forwarded badge (shown above the bubble content). */}
+                {m.forwarded_from ? <View style={s.fwdBadge}>
+                    <Text style={s.fwdBadgeText}>↪ {t("معاد توجيهها")}{m.forwarded_from.name ? ` · ${m.forwarded_from.name}` : ""}</Text>
+                </View> : null}
                 {/* Quoted reply preview */}
                 {replyTo && <View style={[s.replyPreview, isMine && {
         backgroundColor: "rgba(255,255,255,0.12)"
@@ -1258,6 +1335,80 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.95)",
     alignItems: "center",
     justifyContent: "center"
+  },
+  // Long-press action sheet + forward picker
+  lpBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "stretch",
+    paddingHorizontal: 20
+  },
+  lpSheet: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 8,
+    ...shadow.cardLarge
+  },
+  lpRow: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    marginVertical: 2
+  },
+  lpText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: "800",
+    textAlign: "right"
+  },
+  fwdTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.text,
+    textAlign: "right",
+    padding: 12,
+    paddingBottom: 8
+  },
+  fwdEmpty: {
+    padding: 24,
+    color: colors.textMuted,
+    textAlign: "center"
+  },
+  fwdRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    marginVertical: 2,
+    backgroundColor: colors.surfaceCard
+  },
+  fwdName: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.text,
+    textAlign: "right"
+  },
+  fwdSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: "right",
+    marginTop: 2
+  },
+  fwdBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: "rgba(95,182,224,0.12)",
+    borderRadius: 999,
+    alignSelf: "flex-end",
+    marginBottom: 4
+  },
+  fwdBadgeText: {
+    fontSize: 10,
+    color: colors.primaryDeep,
+    fontWeight: "800"
   },
   lightboxClose: {
     position: "absolute",

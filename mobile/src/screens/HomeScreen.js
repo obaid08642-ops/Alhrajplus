@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as LucideIcons from "lucide-react-native";
-import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin } from "lucide-react-native";
+import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot } from "lucide-react-native";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
@@ -150,6 +150,9 @@ function TopBar({
             <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
                 <SearchIcon size={16} color={colors.textMuted} />
                 <Text style={styles.searchPh} numberOfLines={1}>{t("ابحث... (AI)")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => nav.navigate("AIAssistant")} style={styles.aiPill} testID="home-ai-assistant">
+                <Bot size={16} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
             <CountrySwitcher />
             <NotificationBell />
@@ -365,6 +368,15 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.textMuted,
     fontSize: 12
+  },
+  aiPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
+    ...shadow.soft,
   },
   iconBtn: {
     width: 42,

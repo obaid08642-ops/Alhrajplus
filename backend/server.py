@@ -819,8 +819,10 @@ class ChatMessageIn(BaseModel):
     text: Optional[str] = None
     image: Optional[str] = None
     voice: Optional[str] = None
+    voice_duration_ms: Optional[int] = None  # for voice messages — UX waveform/duration label
     location: Optional[dict] = None  # {lat, lng}
     reply_to: Optional[dict] = None  # snapshot {id, text, image, sender_name}
+    forwarded_from: Optional[dict] = None  # {name, message_id} — origin info shown above the bubble
 
 class ReportIn(BaseModel):
     target_type: str  # listing | user | message
@@ -4060,8 +4062,10 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         "text": body.text,
         "image": body.image,
         "voice": body.voice,
+        "voice_duration_ms": body.voice_duration_ms,
         "location": body.location,
         "reply_to": body.reply_to,
+        "forwarded_from": body.forwarded_from,
         "read": False,
         "ts": datetime.now(timezone.utc).isoformat(),
     }
@@ -4304,6 +4308,96 @@ async def ai_image_search(body: AIImageSearchIn):
 # ============================================================
 class AIListingFillIn(BaseModel):
     image_base64: str
+
+
+class MarketPriceIn(BaseModel):
+    category: str
+    subcategory: Optional[str] = None
+    custom_fields: Optional[dict] = None  # used for narrowing (brand/model/year/condition)
+    country_code: Optional[str] = None
+    city: Optional[str] = None
+    title: Optional[str] = None
+
+
+@api.post("/listings/suggest-price")
+async def market_based_price_suggest(body: MarketPriceIn):
+    """Market-based price suggestion built from REAL listings in our DB.
+    Returns p25/median/p75 + sample size + a confidence flag. No LLM guess —
+    just statistical aggregation over comparable items currently for sale.
+    Cheap, deterministic, and explainable to the user."""
+    # Build a narrowing query.
+    q = {"status": "active", "category": body.category, "price": {"$gt": 0}}
+    if body.subcategory:
+        q["subcategory"] = body.subcategory
+    if body.country_code:
+        q["country_code"] = body.country_code
+    cf = body.custom_fields or {}
+    # Match key category-defining fields when present.
+    for key in ("phone_brand", "phone_model", "car_brand", "car_model",
+                "make", "model", "brand", "year", "condition"):
+        if cf.get(key):
+            q[f"custom_fields.{key}"] = cf[key]
+
+    # Try narrow → wider fallback if too few samples (<5).
+    samples = []
+    for attempt in range(3):
+        cursor = db.listings.find(q, {"_id": 0, "price": 1, "currency": 1})
+        samples = await cursor.to_list(length=400)
+        if len(samples) >= 5:
+            break
+        # Loosen: drop the most specific filter, then try again.
+        keys_to_drop = [
+            "custom_fields.phone_model", "custom_fields.car_model", "custom_fields.model",
+            "custom_fields.year",
+        ]
+        dropped = False
+        for k in keys_to_drop:
+            if k in q:
+                del q[k]
+                dropped = True
+                break
+        if not dropped:
+            if attempt == 0 and "city" in q:
+                del q["city"]
+            else:
+                break
+
+    if not samples:
+        return {"confidence": "none", "sample_size": 0,
+                "p25": None, "median": None, "p75": None,
+                "suggested": None, "currency": "SAR",
+                "method": "market-aggregation",
+                "note": "لا توجد إعلانات مشابهة كافية في السوق حالياً."}
+
+    prices = sorted(float(s["price"]) for s in samples)
+    n = len(prices)
+    def percentile(arr, p):
+        if not arr: return None
+        i = (len(arr) - 1) * p
+        lo = int(i)
+        hi = min(lo + 1, len(arr) - 1)
+        frac = i - lo
+        return arr[lo] + (arr[hi] - arr[lo]) * frac
+    p25 = percentile(prices, 0.25)
+    p50 = percentile(prices, 0.50)
+    p75 = percentile(prices, 0.75)
+    currency = samples[0].get("currency") or "SAR"
+    # confidence based on sample size
+    if n >= 30: conf = "high"
+    elif n >= 10: conf = "medium"
+    elif n >= 5: conf = "low"
+    else: conf = "very_low"
+    return {
+        "confidence": conf,
+        "sample_size": n,
+        "p25": round(p25, 2),
+        "median": round(p50, 2),
+        "p75": round(p75, 2),
+        "suggested": round(p50, 2),
+        "currency": currency,
+        "method": "market-aggregation",
+        "note": f"المتوسط مبني على {n} إعلاناً مشابهاً نشطاً في السوق.",
+    }
 
 
 @api.post("/ai/listing-autofill")
