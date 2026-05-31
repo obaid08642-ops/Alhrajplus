@@ -144,12 +144,28 @@ export function NotificationsScreen({
     try {
       await api.post(`/notifications/${n.id}/read`);
     } catch (_) {}
+    // Mirror the web NotificationBell `urlFor` mapping so deep links work
+    // identically across web + mobile. Falls back to legacy `reference_id`
+    // for older notification rows the backend may still emit.
+    const d = n.data || {};
+    const type = n.type || "";
+    if (type === "new_message" || type === "message" || type === "chat") {
+      const to = d.sender_id || n.reference_id;
+      if (to) navigation.navigate("Chat", { to });
+      return;
+    }
+    if (type === "listing_approved" || type === "listing_rejected" || type === "price_drop" || type === "listing") {
+      const id = d.listing_id || n.reference_id;
+      if (id) navigation.navigate("ListingDetail", { id });
+      return;
+    }
+    if (type === "auction") {
+      navigation.navigate("Auctions");
+      return;
+    }
+    // Generic fallback — use reference_id if present.
     if (n.reference_id) {
-      if (n.type === "message" || n.type === "chat") navigation.navigate("Chat", {
-        to: n.reference_id
-      });else navigation.navigate("ListingDetail", {
-        id: n.reference_id
-      });
+      navigation.navigate("ListingDetail", { id: n.reference_id });
     }
   };
   // Visual icon + tint per notification type — clean baby-blue family.

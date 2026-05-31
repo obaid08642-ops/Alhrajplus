@@ -32,6 +32,44 @@ function formatLastSeen(iso) {
     return t.toLocaleDateString("ar");
 }
 
+/**
+ * Linkify plain message text: detect http(s) URLs and listing slugs/ids.
+ * - Same-origin /listing/* URLs become <Link to="/listing/..."> so the
+ *   SPA router intercepts the click and never reloads the page.
+ * - Foreign URLs become <a target="_blank" rel="noopener">.
+ * Returns an array of React nodes interleaved with link components.
+ */
+function linkify(text) {
+    if (!text || typeof text !== "string") return text;
+    const URL_RX = /(https?:\/\/[^\s<>"']+)/g;
+    const parts = text.split(URL_RX);
+    return parts.map((part, i) => {
+        if (!URL_RX.test(part)) {
+            // Reset lastIndex (split with capture flag adds matches as separate items)
+            URL_RX.lastIndex = 0;
+            return part;
+        }
+        URL_RX.lastIndex = 0;
+        try {
+            const u = new URL(part);
+            // Internal SPA routes: open via react-router so we never lose state.
+            if (u.origin === window.location.origin) {
+                return (
+                    <Link key={i} to={u.pathname + u.search + u.hash} className="underline text-[var(--primary)] break-all" data-testid="chat-msg-link">
+                        {part}
+                    </Link>
+                );
+            }
+        } catch (_) {}
+        return (
+            <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline text-[var(--primary)] break-all" data-testid="chat-msg-link">
+                {part}
+            </a>
+        );
+    });
+}
+
+
 /** Single message bubble — memoised so list updates don't rerender history. */
 const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating }) => {
     const liveShare = m.location?.live_share_id;
@@ -81,7 +119,11 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
                     </div>
                 </a>
             )}
-            {m.text && <span className="whitespace-pre-wrap">{m.text}</span>}
+            {m.text && (
+                <span className="whitespace-pre-wrap" data-testid="bubble-text">
+                    {linkify(m.text)}
+                </span>
+            )}
             {translation && (
                 <div className="mt-1 pt-1 border-t border-black/10 text-[12px] italic flex gap-1">
                     <Languages className="w-3 h-3 mt-0.5" /> {translation}
@@ -236,14 +278,17 @@ export default function ChatPage() {
         setVh();
         const vv = window.visualViewport;
         if (vv) {
+            // `resize` covers keyboard open/close + orientation change.
+            // We intentionally DO NOT listen to `scroll` here — listening to
+            // visualViewport scroll updates --hp-vh continuously as the user
+            // pans, which retriggers layout and was causing the runaway
+            // "forced scroll to bottom" bug.
             vv.addEventListener("resize", setVh);
-            vv.addEventListener("scroll", setVh);
         }
         window.addEventListener("resize", setVh);
         return () => {
             if (vv) {
                 vv.removeEventListener("resize", setVh);
-                vv.removeEventListener("scroll", setVh);
             }
             window.removeEventListener("resize", setVh);
             document.documentElement.style.removeProperty("--hp-vh");

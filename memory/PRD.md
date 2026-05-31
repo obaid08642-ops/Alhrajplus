@@ -58,7 +58,30 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
-## ✅ Phase 9 — Web Reels/AI overlap + Mobile AI FAB + Mobile lang/dark toggles (Feb 2026, current)
+## ✅ Phase 10 — Chat scroll fix + Deep-links + Auto-link URLs + Download App card (Feb 2026, current)
+**Critical chat fix:**
+- `chat.css`: removed `scroll-behavior: smooth` from `.hp-chat-messages` (was animating every micro-shift triggered by WS `presence`/`read` events). Added `overflow-anchor: none` to disable browser anchor jumping.
+- `ChatPage.js`: dropped the `visualViewport.scroll` listener that was repeatedly resetting `--hp-vh` and forcing re-layout — kept only `resize` (for keyboard open/close).
+
+**Auto-link URLs in messages (web + mobile):**
+- `ChatPage.js`: new `linkify(text)` helper detects http(s) URLs and emits internal `<Link>` (same-origin → SPA routing, never reloads) or `<a target="_blank">` for external links — listing URLs auto-pasted in chat now work.
+- `ChatScreen.js`: mirror `renderLinkedText()` for native — taps call `Linking.openURL`.
+
+**Notification deep-linking parity (mobile):**
+- `MoreScreens.js / NotificationsScreen`: route handler now reads `notification.data.sender_id` (chat) or `data.listing_id` (listing) — mirrors web `urlFor()`. Still falls back to legacy `reference_id`.
+
+**Download App card:**
+- **Web `ProfilePage.js`**: new `DownloadAppCard` component below the menu. Auto-detects platform via `detectPlatform()`. Mobile users see their matching store as a big primary CTA; others as smaller secondary tiles. Desktop users see a balanced 3-column grid. Each tile opens `STORE_URLS[key]` and shows "قريباً" + greyed-out state if URL is empty.
+- **Mobile `ProfileScreen.js`**: `DownloadAppCardMobile` — same logic; reads store URLs from `Constants.expoConfig.extra.appStoreUrl / playStoreUrl / appGalleryUrl`. Uses `Linking.openURL`.
+
+**Mobile parity audit — gaps surfaced (P2 backlog):**
+- Mobile Profile lacks: wallet quick-access tile, referral copy-button polish (present but minimal), premium-locked banner.
+- Mobile chat lacks: in-line listing context card at top of thread (web shows the listing card; mobile only shows listing_id in the message).
+- Mobile lacks dedicated `/about`, `/terms`, `/privacy`, `/contact` static-page rendering parity (currently navigated via slug param but not styled).
+- Mobile has no `/deals` page parity (DealsScreen exists but not wired to the new theme).
+- Mobile push-notifications click handler needs to feed into the same `NotificationsScreen.open()` routing.
+
+## ✅ Phase 9 — Web Reels/AI overlap + Mobile AI FAB + Mobile lang/dark toggles (Feb 2026)
 **Web fixes:**
 - `BottomNav.js`: now hides itself on `/reels/*` AND when the AI Assistant panel is open (detected via `MutationObserver` on `document.body.classList`). Eliminates the floating `+` overlapping the AI chat input and the bottom pill obscuring full-screen reels.
 - `AIAssistantWidget.js`: on `open` toggle, adds/removes `body.ai-panel-open` class so global UI (`BottomNav`) can react reliably.

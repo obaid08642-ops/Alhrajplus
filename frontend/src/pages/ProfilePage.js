@@ -4,7 +4,8 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon } from "lucide-react";
+import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import ListingCard from "@/components/listings/ListingCard";
 
 // Bold country card — primary entry point for changing country (per UX spec).
@@ -208,6 +209,9 @@ export default function ProfilePage() {
                 </button>
             </div>
 
+            {/* Download App card — adaptive: highlights the user's platform store */}
+            <DownloadAppCard />
+
             <div className="flex gap-2 mb-4">
                 <button data-testid="tab-listings" onClick={() => setTab("listings")} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center justify-center gap-2 ${tab === "listings" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]"}`}>
                     <ListIcon className="w-4 h-4" /> {t("my_listings")}
@@ -304,3 +308,68 @@ function PhoneEditor({ user }) {
         </p>
     );
 }
+
+/**
+ * DownloadAppCard
+ * - Always visible on Profile (web & PWA).
+ * - Auto-detects user's platform and highlights matching store with a big
+ *   primary CTA. Other platforms are shown as smaller secondary icons.
+ * - On desktop, all three icons render equally — the user picks the device.
+ * - Each button opens the store URL from `STORE_URLS` (env-configured).
+ *   If the URL is empty, the button is greyed and shows "قريباً".
+ */
+function DownloadAppCard() {
+    const platform = detectPlatform();
+    const isMobile = platform === "ios" || platform === "android" || platform === "huawei";
+    const stores = [
+        { key: "appstore", label: "App Store", sub: "iOS", url: STORE_URLS.appstore, Icon: Apple, match: platform === "ios" },
+        { key: "playstore", label: "Google Play", sub: "Android", url: STORE_URLS.playstore, Icon: Smartphone, match: platform === "android" },
+        { key: "appgallery", label: "AppGallery", sub: "Huawei", url: STORE_URLS.appgallery, Icon: Globe, match: platform === "huawei" },
+    ];
+    const primary = isMobile ? stores.find(s => s.match) : null;
+    const others = isMobile && primary ? stores.filter(s => s.key !== primary.key) : stores;
+
+    const open = (s) => {
+        if (!s.url) return;
+        window.location.assign(s.url);
+    };
+
+    return (
+        <div data-testid="profile-download-card" className="bg-gradient-to-br from-[var(--primary)]/10 via-[var(--surface)] to-[var(--accent)]/10 rounded-3xl border border-[var(--primary)]/30 p-5 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+                <DownloadIcon className="w-5 h-5 text-[var(--primary)]" />
+                <h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("حمّل التطبيق")}</h3>
+            </div>
+            <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-4">{tr("تجربة أسرع، إشعارات فورية، ومميزات حصرية على الجوال.")}</p>
+
+            {primary && (
+                <button
+                    data-testid={`download-primary-${primary.key}`}
+                    onClick={() => open(primary)}
+                    disabled={!primary.url}
+                    className={`w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl font-arabic font-black text-sm mb-3 transition-all ${primary.url ? "bg-[var(--primary)] text-[var(--primary-fg)] hover:scale-[1.02] active:scale-95 shadow-lg shadow-[var(--primary)]/30" : "bg-[var(--surface-elevated)] text-[var(--text-muted)] cursor-not-allowed"}`}
+                >
+                    <primary.Icon className="w-5 h-5" />
+                    {primary.url ? `${tr("نزّل من")} ${primary.label}` : `${primary.label} — ${tr("قريباً")}`}
+                </button>
+            )}
+
+            <div className={`grid ${primary ? "grid-cols-2" : "grid-cols-3"} gap-2`}>
+                {others.map(s => (
+                    <button
+                        key={s.key}
+                        data-testid={`download-store-${s.key}`}
+                        onClick={() => open(s)}
+                        disabled={!s.url}
+                        className={`flex flex-col items-center gap-1 px-3 py-3 rounded-2xl border transition-all ${s.url ? "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5" : "border-[var(--border)] bg-[var(--surface-elevated)] opacity-60 cursor-not-allowed"}`}
+                    >
+                        <s.Icon className="w-5 h-5 text-[var(--text)]" />
+                        <span className="text-[11px] font-arabic font-bold text-[var(--text)]">{s.label}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">{s.url ? s.sub : tr("قريباً")}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+

@@ -7,7 +7,8 @@ import Constants from "expo-constants";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { User, Heart, ListIcon, LogOut, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Sparkles, Bell, Bookmark, Users as UsersIcon, Award, Copy, MapPin, Gavel, Plane, Flame } from "lucide-react-native";
+import { Platform, Linking } from "react-native";
+import { User, Heart, ListIcon, LogOut, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Sparkles, Bell, Bookmark, Users as UsersIcon, Award, Copy, MapPin, Gavel, Plane, Flame, Download, Apple, Smartphone } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
 import api from "../api";
 import { colors, radius, shadow } from "../theme";
@@ -244,8 +245,62 @@ export default function ProfileScreen() {
                 <MenuRow icon={LogOut} label={t("تسجيل الخروج")} tint="#EF4444" onPress={onLogout} last />
             </View>
 
+            {/* Download App card — mobile users see their store as primary, others secondary */}
+            <DownloadAppCardMobile t={t} />
+
             <Text style={s.versionText} testID="profile-version">v{Constants.expoConfig?.version || Constants.manifest?.version || "1.0.0"}</Text>
         </ScrollView>;
+}
+
+function DownloadAppCardMobile({ t }) {
+    const isIOS = Platform.OS === "ios";
+    const isAndroid = Platform.OS === "android";
+    // Store URLs are read from Expo extra config so we never hardcode them.
+    const extra = Constants.expoConfig?.extra || {};
+    const APPSTORE = extra.appStoreUrl || "";
+    const PLAY = extra.playStoreUrl || "";
+    const APPGALLERY = extra.appGalleryUrl || "";
+    const open = (u) => { if (u) Linking.openURL(u).catch(() => {}); };
+
+    const stores = [
+        { key: "appstore", label: "App Store", sub: "iOS", url: APPSTORE, Icon: Apple, match: isIOS },
+        { key: "playstore", label: "Google Play", sub: "Android", url: PLAY, Icon: Smartphone, match: isAndroid },
+        { key: "appgallery", label: "AppGallery", sub: "Huawei", url: APPGALLERY, Icon: Download, match: false },
+    ];
+    const primary = stores.find(s => s.match && s.url);
+    const others = primary ? stores.filter(s => s.key !== primary.key) : stores;
+
+    return (
+        <View style={s.dlCard} testID="profile-download-card">
+            <View style={s.dlHeader}>
+                <Download size={18} color={colors.primary} strokeWidth={2.4} />
+                <Text style={s.dlTitle}>{t("حمّل التطبيق")}</Text>
+            </View>
+            <Text style={s.dlSub}>{t("تجربة أسرع، إشعارات فورية، ومميزات حصرية على الجوال.")}</Text>
+            {primary && (
+                <TouchableOpacity onPress={() => open(primary.url)} style={s.dlPrimary} activeOpacity={0.85} testID={`download-primary-${primary.key}`}>
+                    <primary.Icon size={20} color="#fff" strokeWidth={2.4} />
+                    <Text style={s.dlPrimaryText}>{`${t("نزّل من")} ${primary.label}`}</Text>
+                </TouchableOpacity>
+            )}
+            <View style={s.dlOthersRow}>
+                {others.map(st => (
+                    <TouchableOpacity
+                        key={st.key}
+                        disabled={!st.url}
+                        onPress={() => open(st.url)}
+                        style={[s.dlOther, !st.url && s.dlOtherDisabled]}
+                        testID={`download-store-${st.key}`}
+                        activeOpacity={0.75}
+                    >
+                        <st.Icon size={18} color={st.url ? colors.text : colors.textMuted} />
+                        <Text style={[s.dlOtherLabel, !st.url && { color: colors.textMuted }]}>{st.label}</Text>
+                        <Text style={s.dlOtherSub}>{st.url ? st.sub : t("قريباً")}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        </View>
+    );
 }
 function Stat({
   label,
@@ -588,5 +643,79 @@ const s = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 10.5,
     marginTop: 20
+  },
+  // Download App card
+  dlCard: {
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 20,
+    marginHorizontal: 12,
+    marginTop: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(137,207,240,0.30)",
+    ...shadow.card
+  },
+  dlHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6
+  },
+  dlTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.text
+  },
+  dlSub: {
+    fontSize: 11.5,
+    color: colors.textMuted,
+    marginBottom: 12,
+    lineHeight: 17
+  },
+  dlPrimary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginBottom: 10,
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6
+  },
+  dlPrimaryText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 14
+  },
+  dlOthersRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  dlOther: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  dlOtherDisabled: {
+    opacity: 0.55
+  },
+  dlOtherLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.text
+  },
+  dlOtherSub: {
+    fontSize: 9.5,
+    color: colors.textMuted
   }
 });

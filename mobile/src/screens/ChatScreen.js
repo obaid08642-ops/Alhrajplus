@@ -36,6 +36,35 @@ function fmtTime(iso) {
     minute: "2-digit"
   });
 }
+
+/**
+ * Render message text with clickable URLs.
+ * Splits on http(s)://... patterns and emits inline <Text onPress> spans
+ * that call Linking.openURL on tap. Same-origin links could be parsed and
+ * routed via React Navigation in the future; for now they all open the URL.
+ */
+function renderLinkedText(text, isMine) {
+  if (!text) return null;
+  const URL_RX = /(https?:\/\/[^\s<>"']+)/g;
+  const parts = text.split(URL_RX);
+  const linkColor = isMine ? "#FFEAA7" : colors.primaryDeep;
+  return parts.map((part, i) => {
+    if (URL_RX.test(part)) {
+      URL_RX.lastIndex = 0;
+      return (
+        <Text
+          key={i}
+          onPress={() => Linking.openURL(part).catch(() => {})}
+          style={{ color: linkColor, textDecorationLine: "underline" }}
+        >
+          {part}
+        </Text>
+      );
+    }
+    URL_RX.lastIndex = 0;
+    return part;
+  });
+}
 function fmtDay(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -849,7 +878,7 @@ function MessageBubble({
         }]}>{t("📍 الموقع المشترك")}</Text>
                     </TouchableOpacity> : <Text style={[s.bubbleText, isMine && {
         color: "#fff"
-      }]} selectable>{text}</Text>}
+      }]} selectable>{renderLinkedText(text, isMine)}</Text>}
                 <View style={[s.metaRow, isImage && {
         paddingHorizontal: 8,
         paddingBottom: 4
