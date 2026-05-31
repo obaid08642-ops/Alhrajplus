@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
-import { View, Text, FlatList, StyleSheet, Dimensions, Image, TouchableOpacity, ActivityIndicator, Share, Alert, StatusBar } from "react-native";
+import { View, Text, FlatList, StyleSheet, Dimensions, Image, TouchableOpacity, ActivityIndicator, Share, Alert, StatusBar, PanResponder } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Volume2, VolumeX, Play, Film, Heart, Share2, MapPin } from "lucide-react-native";
+import { Volume2, VolumeX, Play, Film, Heart, Share2, MapPin, X } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -122,8 +122,34 @@ export default function ReelsScreen() {
                 </TouchableOpacity>
             </View>;
   }
-  return <View style={styles.wrap}>
+
+  // Horizontal-swipe-to-exit gesture (YouTube Shorts / FB Reels style).
+  // Triggers on >70px horizontal movement with low vertical movement so it
+  // doesn't conflict with the vertical paging FlatList.
+  const exitPan = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dy) < 16,
+    onPanResponderRelease: (_, g) => {
+      if (Math.abs(g.dx) > 70 && Math.abs(g.dy) < 50) {
+        try {
+          if (nav.canGoBack?.()) nav.goBack();
+          else nav.navigate("HomeTab");
+        } catch (_) {}
+      }
+    },
+  })).current;
+
+  return <View style={styles.wrap} {...exitPan.panHandlers}>
             <StatusBar barStyle="light-content" backgroundColor="#000" />
+            {/* Floating exit button — top-right, mirrors YT-Shorts × */}
+            <TouchableOpacity
+              onPress={() => { try { nav.canGoBack?.() ? nav.goBack() : nav.navigate("HomeTab"); } catch (_) {} }}
+              style={styles.exitBtn}
+              hitSlop={10}
+              testID="reels-exit-btn"
+              accessibilityLabel={t("خروج")}
+            >
+              <X size={20} color="#fff" strokeWidth={2.6} />
+            </TouchableOpacity>
             <FlatList
               data={items}
               keyExtractor={x => x.id}
@@ -259,6 +285,19 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     backgroundColor: "#000"
+  },
+  // Top-right exit button — floats above all reels content.
+  exitBtn: {
+    position: "absolute",
+    top: 48,
+    left: 16,
+    zIndex: 50,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center"
   },
   center: {
     flex: 1,

@@ -15,6 +15,13 @@ export default function FloatingTabBar({
   navigation
 }) {
   const { t } = useI18n();
+
+  // CRITICAL: respect the active route's `tabBarStyle: { display: "none" }`
+  // option so screens like Reels can hide the tab bar via useFocusEffect.
+  // Our custom tab bar doesn't get this for free — must opt in here.
+  const currentRoute = state.routes[state.index];
+  const currentOpts = descriptors?.[currentRoute.key]?.options || {};
+  const hidden = currentOpts.tabBarStyle?.display === "none" || currentOpts.tabBarVisible === false;
   
   const insets = useSafeAreaInsets();
   const pulse = useRef(new Animated.Value(0)).current;
@@ -65,6 +72,11 @@ export default function FloatingTabBar({
   // RTL (Arabic/Urdu): Home must appear on the RIGHT to match reading direction.
   // We reverse the array so visually: Profile | Chat | [FAB] | Reels | Home.
   const TABS = I18nManager.isRTL ? [...TABS_LTR].reverse() : TABS_LTR;
+
+  // After all hooks have been called — bail out if the active route asked us
+  // to hide. Returning null here keeps Reels truly full-screen.
+  if (hidden) return null;
+
   const goToPost = () => {
     Animated.sequence([Animated.spring(fabPress, {
       toValue: 0.88,

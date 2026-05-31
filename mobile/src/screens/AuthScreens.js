@@ -11,13 +11,23 @@ import { validatePhone, phoneExampleFor } from "../phoneValidator";
 
 // Helper: navigate to the main tabs in a way that clears the auth stack so
 // the user cannot accidentally swipe back into the login screen post-login.
+// Tries multiple navigation strategies for maximum reliability.
 function goHome(navigation) {
   if (!navigation) return;
+  // Strategy 1: popToTop — if Login was pushed on top of Main, pop back to it
+  try {
+    if (navigation.canGoBack && navigation.canGoBack()) {
+      navigation.popToTop?.();
+      return;
+    }
+  } catch (_) {}
+  // Strategy 2: reset stack to a single Main route
   try {
     navigation.reset({ index: 0, routes: [{ name: "Main" }] });
-  } catch (_) {
-    try { navigation.navigate("Main"); } catch (_) {}
-  }
+    return;
+  } catch (_) {}
+  // Strategy 3: plain navigate
+  try { navigation.navigate("Main"); } catch (_) {}
 }
 
 // Top header for auth screens — RIGHT: back-to-home, LEFT: language picker pill.
@@ -145,6 +155,7 @@ export function LoginScreen({
           setBusy(true);
           try {
             await login(creds.email, creds.password);
+            goHome(navigation);
           } catch (_) {} finally {
             setBusy(false);
           }
@@ -157,13 +168,27 @@ export function LoginScreen({
     setBusy(true);
     try {
       await login(email, password);
-      // After successful password login, offer to enable biometric
-      const enabled = await isBiometricEnabled();
-      if (!enabled && bioAvailable) {
-        setAskEnable(true);
-      } else {
-        goHome(navigation);
-      }
+      // CRITICAL: navigate to Main IMMEDIATELY after a successful login so
+      // the user never gets stranded on this screen. The biometric enrollment
+      // prompt (if available) is shown AFTER navigation via Alert.alert so
+      // it never blocks the redirect.
+      goHome(navigation);
+      try {
+        const enabled = await isBiometricEnabled();
+        if (!enabled && bioAvailable) {
+          Alert.alert(
+            `${t("تفعيل الدخول بـ")}${bioLabel}`,
+            t("في المرات القادمة؟"),
+            [
+              { text: t("ليس الآن"), style: "cancel" },
+              { text: t("تفعيل"), onPress: async () => {
+                const ok = await enableBiometric(email, password);
+                if (ok) Alert.alert("✅", `${t("تفعيل الدخول بـ")}${bioLabel}.`);
+              }}
+            ]
+          );
+        }
+      } catch (_) {}
     } catch (e) {
       setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
     } finally {
