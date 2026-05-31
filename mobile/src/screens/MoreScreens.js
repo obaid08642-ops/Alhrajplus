@@ -131,14 +131,11 @@ export function NotificationsScreen({
   navigation
 }) {
   const { t } = useI18n();
-  
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     api.get("/notifications").then(({
       data
     }) => setItems(data?.items || data || [])).catch(() => setItems([])).finally(() => setLoading(false));
@@ -155,14 +152,45 @@ export function NotificationsScreen({
       });
     }
   };
+  // Visual icon + tint per notification type — clean baby-blue family.
+  const iconFor = type => {
+    switch (type) {
+      case "message":
+      case "chat": return { emoji: "💬", tint: theme.colors.primary };
+      case "price_alert": return { emoji: "🔔", tint: "#F59E0B" };
+      case "listing": return { emoji: "📝", tint: theme.colors.success };
+      case "promo":
+      case "broadcast": return { emoji: "📢", tint: theme.colors.accent };
+      default: return { emoji: "✨", tint: theme.colors.primary };
+    }
+  };
   if (!user) return <View style={s.center}><Text style={s.muted}>{t("يجب تسجيل الدخول أولاً")}</Text></View>;
   if (loading) return <View style={s.center}><ActivityIndicator color={theme.colors.primary} /></View>;
-  return <FlatList data={items} keyExtractor={n => n.id || String(Math.random())} renderItem={({
-    item
-  }) => <TouchableOpacity onPress={() => open(item)} style={[s.notifItem, !item.read && s.notifUnread]}>
-                    <Text style={s.notifTitle}>{item.title}</Text>
+  return <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+            <Text style={s.pageTitle}>{t("الإشعارات")}</Text>
+            <FlatList
+              data={items}
+              keyExtractor={n => n.id || String(Math.random())}
+              contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 130 }}
+              renderItem={({ item }) => {
+                const { emoji, tint } = iconFor(item.type);
+                return <TouchableOpacity onPress={() => open(item)} style={[s.notifCard, !item.read && s.notifCardUnread]} testID={`notif-${item.id}`}>
+                  <View style={[s.notifIconWrap, { backgroundColor: `${tint}22` }]}>
+                    <Text style={s.notifEmoji}>{emoji}</Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={s.notifTitle} numberOfLines={1}>{item.title}</Text>
                     {item.body ? <Text style={s.notifBody} numberOfLines={2}>{item.body}</Text> : null}
-                </TouchableOpacity>} ListEmptyComponent={<Text style={s.muted}>{t("لا توجد إشعارات")}</Text>} />;
+                    {item.created_at ? <Text style={s.notifTime}>{new Date(item.created_at).toLocaleDateString("ar")}</Text> : null}
+                  </View>
+                  {!item.read && <View style={s.notifDot} />}
+                </TouchableOpacity>;
+              }}
+              ListEmptyComponent={<View style={{ padding: 60, alignItems: "center" }}>
+                <Text style={{ fontSize: 48 }}>🔔</Text>
+                <Text style={[s.muted, { marginTop: 12 }]}>{t("لا توجد إشعارات")}</Text>
+              </View>} />
+        </View>;
 }
 
 // ---------- SETTINGS + STATIC PAGES ----------
@@ -411,16 +439,56 @@ const s = StyleSheet.create({
   notifUnread: {
     backgroundColor: theme.colors.surfaceElevated
   },
+  // New card-based notification design — soft shadow + 20 radius + icon avatar.
+  notifCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    backgroundColor: theme.colors.surfaceCard,
+    borderRadius: 20,
+    marginBottom: 10,
+    ...shadow.card
+  },
+  notifCardUnread: {
+    backgroundColor: "#FFFFFF",
+    shadowOpacity: 0.10
+  },
+  notifIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  notifEmoji: {
+    fontSize: 20
+  },
   notifTitle: {
-    fontWeight: "800",
+    fontWeight: "900",
     color: theme.colors.text,
-    textAlign: "right"
+    textAlign: "right",
+    fontSize: 14
   },
   notifBody: {
     color: theme.colors.textMuted,
     fontSize: 12,
-    marginTop: 3,
-    textAlign: "right"
+    marginTop: 2,
+    textAlign: "right",
+    lineHeight: 17
+  },
+  notifTime: {
+    color: theme.colors.textSubtle,
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "right",
+    marginTop: 4
+  },
+  notifDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    backgroundColor: theme.colors.accent
   },
   menu: {
     marginHorizontal: 16,

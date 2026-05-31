@@ -298,7 +298,9 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "space-between",
-    padding: 16
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 24
   },
   topBar: {
     flexDirection: "row",
@@ -316,8 +318,8 @@ const styles = StyleSheet.create({
     color: theme.colors.primary
   },
   muteBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
@@ -333,49 +335,55 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   bottomBar: {
-    gap: 8,
-    paddingBottom: 24
+    gap: 10,
+    paddingEnd: 76, // keep title/price clear of right-side action rail
+    paddingBottom: 12
   },
   sideRail: {
     position: "absolute",
-    right: 10,
-    bottom: 180,
+    right: 12,
+    bottom: 150,
     alignItems: "center",
-    gap: 18
+    gap: 22
   },
   sideBtn: {
     alignItems: "center",
-    gap: 4
+    gap: 5,
+    width: 56
   },
   sideTxt: {
     color: "#fff",
     fontSize: 11,
     fontWeight: "800",
     textShadowColor: "rgba(0,0,0,0.9)",
-    textShadowRadius: 4
+    textShadowRadius: 4,
+    textAlign: "center"
   },
   sideTxtSmall: {
     color: "#fff",
     fontSize: 10,
     fontWeight: "700",
-    maxWidth: 64,
+    maxWidth: 56,
     textAlign: "center"
   },
   pricePill: {
-    backgroundColor: "rgba(95,182,224,0.85)",
+    backgroundColor: "rgba(95,182,224,0.92)",
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12
+    paddingVertical: 7,
+    borderRadius: 14,
+    width: 64
   },
   priceChip: {
     color: "#fff",
     fontWeight: "900",
-    fontSize: 12
+    fontSize: 12,
+    textAlign: "center"
   },
   title: {
     color: "#fff",
     fontWeight: "900",
-    fontSize: 18,
+    fontSize: 17,
+    lineHeight: 23,
     textAlign: "right",
     textShadowColor: "rgba(0,0,0,0.9)",
     textShadowRadius: 8
@@ -384,6 +392,7 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: "900",
     fontSize: 22,
+    lineHeight: 28,
     textAlign: "right",
     textShadowColor: "rgba(0,0,0,0.9)",
     textShadowRadius: 6
@@ -392,16 +401,22 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   meta: {
-    color: "rgba(255,255,255,0.85)",
+    color: "rgba(255,255,255,0.92)",
     fontSize: 12,
+    lineHeight: 18,
     textAlign: "right"
   },
   cta: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
-    borderRadius: 999,
+    paddingVertical: 13,
+    borderRadius: 20,
     alignItems: "center",
-    marginTop: 8
+    marginTop: 6,
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6
   },
   ctaText: {
     color: "#fff",

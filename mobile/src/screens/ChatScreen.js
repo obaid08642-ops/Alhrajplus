@@ -921,8 +921,8 @@ function VoicePlayer({
     return `${m}:${s}`;
   })();
   return <View style={s.voiceBubble}>
-            <TouchableOpacity onPress={toggle} style={s.voicePlayBtn}>
-                {playing ? <Pause size={14} color="#fff" fill="#fff" /> : <Play size={14} color="#fff" fill="#fff" />}
+            <TouchableOpacity onPress={toggle} style={[s.voicePlayBtn, isMine && { backgroundColor: "rgba(255,255,255,0.95)" }]}>
+                {playing ? <Pause size={14} color={isMine ? colors.primaryDeep : "#fff"} fill={isMine ? colors.primaryDeep : "#fff"} /> : <Play size={14} color={isMine ? colors.primaryDeep : "#fff"} fill={isMine ? colors.primaryDeep : "#fff"} />}
             </TouchableOpacity>
             <View style={s.voiceWave}>
                 {BARS.map((h, i) => {
@@ -1239,45 +1239,47 @@ const s = StyleSheet.create({
   },
   // Bubble
   bubbleWrap: {
-    marginBottom: 6
+    marginBottom: 8,
+    paddingHorizontal: 4
   },
   bubble: {
-    maxWidth: "80%",
-    borderRadius: 16,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
+    maxWidth: "82%",
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     ...shadow.card,
-    shadowOpacity: 0.04
+    shadowOpacity: 0.05
   },
   bubbleMine: {
-    backgroundColor: "#075E54",
-    borderBottomEndRadius: 4
+    // Owner mandate: baby-blue branded outgoing bubble (no more WhatsApp green).
+    backgroundColor: "#5FB6E0",
+    borderBottomEndRadius: 6
   },
   bubbleOther: {
     backgroundColor: "#FFFFFF",
-    borderBottomStartRadius: 4
+    borderBottomStartRadius: 6
   },
   bubbleText: {
-    fontSize: 14,
+    fontSize: 14.5,
     color: colors.text,
-    lineHeight: 19
+    lineHeight: 20
   },
   bubbleImg: {
     width: 220,
     height: 160,
-    borderRadius: 12,
+    borderRadius: 14,
     marginVertical: 2
   },
   voiceBubble: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    minWidth: 160,
+    gap: 10,
+    minWidth: 180,
     paddingVertical: 4
   },
   voicePlayBtn: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: 999,
     backgroundColor: colors.primary,
     alignItems: "center",
@@ -1294,23 +1296,26 @@ const s = StyleSheet.create({
     borderRadius: 1
   },
   voiceTime: {
-    fontSize: 10
+    fontSize: 10.5,
+    fontWeight: "700"
   },
   locationBubble: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6
+    gap: 6,
+    paddingVertical: 2
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 4,
-    marginTop: 3
+    marginTop: 4
   },
   metaTime: {
-    fontSize: 9.5,
-    color: colors.textMuted
+    fontSize: 10,
+    color: colors.textMuted,
+    fontWeight: "600"
   },
   // Composer
   composer: {
@@ -1442,17 +1447,17 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: "rgba(95,182,224,0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "rgba(137,207,240,0.18)",
     borderRadius: 999,
-    alignSelf: "flex-end",
-    marginBottom: 4
+    alignSelf: "flex-start",
+    marginBottom: 6
   },
   fwdBadgeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: colors.primaryDeep,
-    fontWeight: "800"
+    fontWeight: "900"
   },
   lightboxClose: {
     position: "absolute",

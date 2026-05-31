@@ -520,46 +520,49 @@ const s = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 8,
-    paddingBottom: 6,
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingBottom: 10,
     backgroundColor: colors.bg
   },
   headBtn: {
-    padding: 4
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center"
   },
   searchPill: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 8
+    gap: 10,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    ...shadow.card
   },
   searchInput: {
     flex: 1,
     color: colors.text,
     fontSize: 14,
-    paddingVertical: 2
+    paddingVertical: 0,
+    textAlign: "right",
+    writingDirection: "rtl"
   },
   filterBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: 44,
+    height: 44,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceCard,
     alignItems: "center",
     justifyContent: "center",
-    position: "relative"
+    position: "relative",
+    ...shadow.card
   },
   filterBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
+    backgroundColor: colors.primary
   },
   filterBadge: {
     position: "absolute",
@@ -587,18 +590,16 @@ const s = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(137,207,240,0.12)",
-    borderColor: colors.primary,
-    borderWidth: 1,
+    gap: 6,
+    backgroundColor: "rgba(137,207,240,0.14)",
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5
+    paddingHorizontal: 12,
+    paddingVertical: 7
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "800",
-    color: colors.primary
+    color: colors.primaryDeep
   },
   clearAllBtn: {
     paddingHorizontal: 10,
@@ -611,21 +612,18 @@ const s = StyleSheet.create({
   },
   suggBox: {
     marginHorizontal: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 20,
     overflow: "hidden",
-    marginBottom: 8
+    marginBottom: 10,
+    ...shadow.card
   },
   suggRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderColor: colors.border
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 13
   },
   suggText: {
     fontSize: 13,
@@ -648,16 +646,14 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    ...shadow.card
   },
   headerActionPrimary: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
+    backgroundColor: colors.primary
   },
   headerActionText: {
     fontSize: 11,
@@ -732,16 +728,13 @@ const s = StyleSheet.create({
     gap: 6
   },
   tag: {
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border
+    backgroundColor: colors.surfaceCard,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999
   },
   tagActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
+    backgroundColor: colors.primary
   },
   tagText: {
     fontSize: 12,
@@ -753,14 +746,13 @@ const s = StyleSheet.create({
   },
   priceInput: {
     flex: 1,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surfaceCard,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontSize: 14,
-    color: colors.text
+    color: colors.text,
+    textAlign: "right"
   },
   priceDash: {
     alignSelf: "center",

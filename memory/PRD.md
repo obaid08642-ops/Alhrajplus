@@ -58,8 +58,13 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
-## ✅ Phase 5 — Runtime Layout Overhaul (Feb 2026, current)
-- **Theme**: `shadow.card` now matches owner spec exactly — `#89CFF0` tint, offset `{0,4}`, opacity `0.06`, radius `12`, elevation `3`.
+## ✅ Phase 6 — Final Live UI Binding (Feb 2026, current)
+- **ChatScreen bubbles**: outgoing bubble migrated from WhatsApp green `#075E54` → branded baby-blue `#5FB6E0`. Padding/radius bumped (radius 18, padding 12×8) for breathing room. Voice play button inverts to white-on-blue when message is mine. Forward badge tinted `rgba(137,207,240,0.18)` with primaryDeep text, aligned to start (no longer overlapping reply preview).
+- **SearchScreen**: search pill, filter button, suggestion box, chips, tags, price inputs all migrated from `borderWidth:1` borders to `shadow.card` + `borderRadius:20`. Search input now RTL-aligned. Active filter chips use primary-tinted soft pill without border. Filter icon button is square-rounded 44×44.
+- **NotificationsScreen**: rebuilt from flat list rows → soft-shadow cards with circular tinted icon avatar, page title, timestamp, and orange unread dot. Empty state has emoji + caption.
+- **ReelsScreen**: useFocusEffect now hides BOTH the bottom tab bar AND any parent header (incl. grandparent stack), restored on blur. Reel overlay paddings normalized (top:50, bottom:24). Bottom title/price/CTA get `paddingEnd:76` to never collide with the right-side action rail. Side rail bottom raised to 150, gap 22, fixed-width sideBtn(56) keeps icons/text vertically aligned. Price pill width fixed to 64. CTA radius now 20 with baby-blue glow.
+
+## ✅ Phase 5 — Runtime Layout Overhaul (Feb 2026)
 - **FloatingTabBar**: FAB rebuilt as freestanding circular button with outer translucent halo (`rgba(255,140,0,0.10)`) wrapping the gradient core (`#FFB04A → #FF8C00`), white 3px ring, orange-tinted shadow.
 - **HomeScreen TopBar**: `CountrySwitcher` REMOVED from global header (now exclusive to `SettingsScreen`). Added "حراج بلس" brand title row above the search pill. Search box, category items, empty state all migrated from borderWidth to soft `shadow.card` + `borderRadius: 20`.
 - **ListingCard**: explicit `borderRadius: 20` (replaces `radius.xl=24`). Borders already absent — only soft shadow.
