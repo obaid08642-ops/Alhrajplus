@@ -31,6 +31,7 @@ import { ActivityIndicator, View, I18nManager, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
 import FloatingTabBar from "./src/components/FloatingTabBar";
+import AIAssistantFab from "./src/components/AIAssistantFab";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import ErrorBoundary from "./src/ErrorBoundary";
 import { I18nProvider } from "./src/I18nContext";
@@ -194,6 +195,8 @@ function Navigation() {
                 <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: t("نسيت كلمة المرور؟") }} />
                 <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: t("إعادة تعيين كلمة المرور") }} />
             </Stack.Navigator>
+            {/* Global floating AI assistant — draggable, closable, persists position. */}
+            <AIAssistantFab />
         </NavigationContainer>
     );
 }

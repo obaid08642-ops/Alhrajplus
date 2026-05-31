@@ -58,6 +58,15 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
+## ✅ Phase 9 — Web Reels/AI overlap + Mobile AI FAB + Mobile lang/dark toggles (Feb 2026, current)
+**Web fixes:**
+- `BottomNav.js`: now hides itself on `/reels/*` AND when the AI Assistant panel is open (detected via `MutationObserver` on `document.body.classList`). Eliminates the floating `+` overlapping the AI chat input and the bottom pill obscuring full-screen reels.
+- `AIAssistantWidget.js`: on `open` toggle, adds/removes `body.ai-panel-open` class so global UI (`BottomNav`) can react reliably.
+
+**Mobile additions:**
+- **`AIAssistantFab.js`** (NEW): draggable AI assistant FAB rendered globally via `App.js`. Smooth `PanResponder` + `Animated.ValueXY` (no per-frame re-render). Snaps to nearest horizontal edge on release, persists position to `AsyncStorage`. Close (`×`) button hides it. Tap (negligible movement) → navigates to `AIAssistant`. Hides automatically on `AIAssistant`, `ReelsTab`, `Login`, `Register`, `Chat` routes.
+- **`HomeScreen.js TopBar`**: added Globe + Moon/Sun buttons (right side, before NotificationBell). Globe opens a centered fade language picker (6 languages). Dark-mode button persists preference (full theme propagation is P2).
+
 ## ✅ Phase 7 — Login Navigation Bug + Auth Header + Map Pings + New Tab Bar (Feb 2026, current)
 **Critical login fix:**
 - **AuthScreens.js**: After password login, social OAuth, biometric login, or fresh registration → `navigation.reset({ index:0, routes:[{name:"Main"}] })`. Also added a `useEffect` that watches `user` state from `AuthContext`; if it ever becomes truthy while sitting on Login/Register (e.g., social deep-link comes back later), auto-navigate to Main. This eliminates the "logged in but stuck on login screen" bug across email, Google, Snapchat, X, Apple, biometric.

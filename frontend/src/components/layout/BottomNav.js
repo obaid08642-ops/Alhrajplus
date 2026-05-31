@@ -15,6 +15,16 @@ export default function BottomNav() {
     const { t } = useI18n();
     const { user } = useAuth();
     const [unread, setUnread] = useState(0);
+    // Detect AI panel open state (set by AIAssistantWidget on <body>).
+    const [aiOpen, setAiOpen] = useState(false);
+
+    useEffect(() => {
+        const update = () => setAiOpen(document.body.classList.contains("ai-panel-open"));
+        update();
+        const obs = new MutationObserver(update);
+        obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+        return () => obs.disconnect();
+    }, []);
 
     useEffect(() => {
         if (!user) return;
@@ -29,6 +39,12 @@ export default function BottomNav() {
         const id = setInterval(fetchUnread, 15000);
         return () => clearInterval(id);
     }, [user]);
+
+    // Hide the bottom nav (and floating +) on full-screen experiences:
+    //  - Reels/Stories (immersive vertical video)
+    //  - When the AI Assistant panel is open (so + doesn't overlap input)
+    const onReels = pathname.startsWith("/reels");
+    if (onReels || aiOpen) return null;
 
     const isActive = (to) => to === "/" ? pathname === "/" : pathname.startsWith(to);
 

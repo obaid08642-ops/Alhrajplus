@@ -5,7 +5,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as LucideIcons from "lucide-react-native";
-import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot } from "lucide-react-native";
+import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot, Globe, Moon, Sun } from "lucide-react-native";
+import { Modal, Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
@@ -143,12 +145,42 @@ function TopBar({
   insets
 }) {
   const {
-    t
+    t,
+    lang,
+    setLang,
+    supported
   } = useI18n();
+  const [langOpen, setLangOpen] = useState(false);
+  const [dark, setDark] = useState(false);
+  // Persisted preference — full theme propagation is staged; for now the
+  // toggle reflects user intent and surfaces a confirmation toast.
+  useEffect(() => {
+    AsyncStorage.getItem("hp_dark_mode").then(v => setDark(v === "1")).catch(() => {});
+  }, []);
+  const toggleDark = async () => {
+    const next = !dark;
+    setDark(next);
+    try { await AsyncStorage.setItem("hp_dark_mode", next ? "1" : "0"); } catch (_) {}
+    Alert.alert(next ? t("الوضع الليلي") : t("الوضع النهاري"), t("تم الحفظ"));
+  };
+  const LANG_LABELS = {
+    ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
+    ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷"
+  };
   return <View style={{ backgroundColor: colors.bg, paddingTop: insets.top + 4 }}>
             <View style={styles.brandRow}>
                 <Text style={styles.brandTitle}>{t("حراج بلس")}</Text>
-                <NotificationBell />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    {/* Dark mode toggle — persists preference. */}
+                    <TouchableOpacity onPress={toggleDark} style={styles.headerIconBtn} testID="home-dark-toggle" hitSlop={6}>
+                        {dark ? <Sun size={16} color={colors.primaryDeep} strokeWidth={2.4} /> : <Moon size={16} color={colors.primaryDeep} strokeWidth={2.4} />}
+                    </TouchableOpacity>
+                    {/* Language switcher pill */}
+                    <TouchableOpacity onPress={() => setLangOpen(true)} style={styles.headerIconBtn} testID="home-lang-btn" hitSlop={6}>
+                        <Globe size={16} color={colors.primaryDeep} strokeWidth={2.4} />
+                    </TouchableOpacity>
+                    <NotificationBell />
+                </View>
             </View>
             <View style={styles.topBar}>
             <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
@@ -159,6 +191,19 @@ function TopBar({
                 <Bot size={16} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
             </View>
+            {/* Language modal */}
+            <Modal visible={langOpen} transparent animationType="fade" onRequestClose={() => setLangOpen(false)}>
+                <TouchableOpacity activeOpacity={1} onPress={() => setLangOpen(false)} style={styles.langSheetBg}>
+                    <View style={styles.langSheet}>
+                        <Text style={styles.langSheetTitle}>{t("اختر اللغة")}</Text>
+                        {supported.map(code => (
+                            <TouchableOpacity key={code} onPress={() => { setLang(code); setLangOpen(false); }} style={[styles.langRow, code === lang && styles.langRowActive]} testID={`home-lang-opt-${code}`}>
+                                <Text style={[styles.langRowText, code === lang && { color: colors.primary, fontWeight: "900" }]}>{LANG_LABELS[code]}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </View>;
 }
 
@@ -360,6 +405,60 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.primary,
     letterSpacing: 0.5
+  },
+  headerIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceCard,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 5,
+    elevation: 2
+  },
+  langSheetBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.40)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24
+  },
+  langSheet: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12
+  },
+  langSheetTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 12
+  },
+  langRow: {
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginVertical: 2
+  },
+  langRowActive: {
+    backgroundColor: "rgba(137,207,240,0.12)"
+  },
+  langRowText: {
+    fontSize: 15,
+    color: colors.text,
+    textAlign: "right",
+    fontWeight: "700"
   },
   // TopBar
   topBar: {

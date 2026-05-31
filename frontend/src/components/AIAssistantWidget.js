@@ -40,6 +40,15 @@ export default function AIAssistantWidget() {
     const [busy, setBusy] = useState(false);
     const listRef = useRef(null);
 
+    // Sync open state -> body class so global UI (BottomNav, floating "+") can
+    // hide themselves while the AI panel is on top.
+    useEffect(() => {
+        if (typeof document === "undefined") return;
+        if (open) document.body.classList.add("ai-panel-open");
+        else document.body.classList.remove("ai-panel-open");
+        return () => document.body.classList.remove("ai-panel-open");
+    }, [open]);
+
     // Hidden flag: user clicked ×. Restored on next visit unless they unhide it
     // from the profile page (only place the FAB can re-appear after dismiss).
     const [hidden, setHidden] = useState(() => localStorage.getItem(HIDDEN_KEY) === "1");
