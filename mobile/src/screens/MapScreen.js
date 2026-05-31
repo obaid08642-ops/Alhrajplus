@@ -97,31 +97,45 @@ function buildHtml(items, myPos) {
 <style>
   html, body, #map { height: 100%; margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; }
   .hp-wrap { background: transparent !important; border: none !important; }
-  .hp { position: relative; width: 78px; height: 78px; animation: fl 3s ease-in-out infinite; }
-  .chip {
-    position: absolute; left: 50%; top: 0; transform: translateX(-50%);
-    background: linear-gradient(180deg, rgba(137,207,240,.95), rgba(20,33,71,.95));
-    color: #fff; border: 1.5px solid rgba(137,207,240,.85);
-    border-radius: 999px; padding: 5px 11px 4px; min-width: 42px; text-align: center;
-    box-shadow: 0 6px 20px rgba(20,33,71,.45), 0 0 18px rgba(137,207,240,.55);
+  /* Concentric pulsing radar — owner-mandated map marker design.
+     Three rings expand outward forever; central white disc holds the icon. */
+  .ring-wrap { position: relative; width: 80px; height: 80px; }
+  .ring {
+    position: absolute; left: 50%; top: 50%;
+    border-radius: 50%; border-style: solid; border-width: 2px;
+    transform: translate(-50%, -50%);
+    animation: pulse 2.6s ease-out infinite;
+    opacity: 0.0;
   }
-  .price { font-weight: 900; font-size: 11px; }
-  .curr { font-size: 8px; opacity: .9; margin-top: 1px; }
-  .stem {
-    position: absolute; left: 50%; top: 28px; width: 2px; height: 24px;
-    transform: translateX(-50%);
-    background: linear-gradient(180deg, rgba(137,207,240,.9), rgba(137,207,240,0));
+  .ring.r1 { width: 36px; height: 36px; animation-delay: 0s; }
+  .ring.r2 { width: 56px; height: 56px; animation-delay: 0.5s; }
+  .ring.r3 { width: 76px; height: 76px; animation-delay: 1.0s; }
+  .core {
+    position: absolute; left: 50%; top: 50%;
+    width: 32px; height: 32px; border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: #FFFFFF;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(15,26,53,0.18);
   }
-  .base {
-    position: absolute; left: 50%; bottom: 6px; width: 22px; height: 6px;
-    border-radius: 50%; transform: translateX(-50%);
-    background: radial-gradient(ellipse at center, rgba(137,207,240,.65), rgba(137,207,240,0));
-  }
+  /* Blue family (primary) */
+  .blue .ring { border-color: rgba(137,207,240,0.85); }
+  .blue .core { box-shadow: 0 4px 14px rgba(137,207,240,0.55); }
+  /* Orange family (accent — for highlighted/featured items) */
+  .orange .ring { border-color: rgba(255,140,0,0.80); }
+  .orange .core { box-shadow: 0 4px 14px rgba(255,140,0,0.55); }
+  .icon-svg { width: 18px; height: 18px; stroke: #FF8C00; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .blue .icon-svg { stroke: #FF8C00; }
+  .orange .icon-svg { stroke: #FF8C00; }
   .me {
     width: 28px; height: 28px; background: #4FB6E6; border: 3px solid #fff;
     border-radius: 50%; box-shadow: 0 0 0 8px rgba(137,207,240,.25);
   }
-  @keyframes fl { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes pulse {
+    0%   { opacity: 0.0; transform: translate(-50%, -50%) scale(0.55); }
+    20%  { opacity: 0.55; }
+    100% { opacity: 0.0; transform: translate(-50%, -50%) scale(1.0); }
+  }
 </style>
 </head>
 <body>
@@ -131,28 +145,41 @@ function buildHtml(items, myPos) {
   var map = L.map('map').setView([${center.lat}, ${center.lng}], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' }).addTo(map);
   var markers = ${JSON.stringify(markers)};
-  // Category → emoji icon mapping (mirrors web hologram style).
-  var CAT_ICON = {
-    cars: '🚗', phones: '📱', realestate: '🏠', jobs: '💼',
-    services: '🛠️', furniture: '🛋️', electronics: '💻',
-    livestock: '🐪', equipment: '🚜', auctions: '🔨',
-    fashion: '👗', food: '🍽️', toys: '🧸', books: '📚',
-    general: '📍'
+  // Category → lucide-style SVG path. Outline + orange stroke (per spec).
+  var CAT_SVG = {
+    cars: '<polyline points="3 12 5 6 19 6 21 12 21 18 17 18 17 16 7 16 7 18 3 18 3 12"/><circle cx="7" cy="16" r="1.5"/><circle cx="17" cy="16" r="1.5"/>',
+    phones: '<rect x="6" y="3" width="12" height="18" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/>',
+    realestate: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+    jobs: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+    services: '<path d="M14 7l3 3-9 9-3-3z"/><path d="M14 7l3-3 3 3-3 3z"/>',
+    furniture: '<path d="M4 11V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"/><path d="M2 16h20v3H2z"/>',
+    electronics: '<rect x="2" y="4" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/>',
+    livestock: '<circle cx="12" cy="12" r="9"/>',
+    equipment: '<circle cx="8" cy="16" r="3"/><circle cx="17" cy="16" r="3"/><path d="M3 16h2l2-6h8l3 6"/>',
+    auctions: '<path d="M12 2l5 5-7 7-5-5z"/><line x1="14" y1="14" x2="20" y2="20"/>',
+    fashion: '<path d="M16 3l-4 3-4-3-5 4v4l3 1 1 9h10l1-9 3-1V7z"/>',
+    food: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="21"/>',
+    toys: '<circle cx="12" cy="12" r="9"/>',
+    books: '<path d="M4 4h6a2 2 0 0 1 2 2v14"/><path d="M20 4h-6a2 2 0 0 0-2 2v14"/>',
+    general: '<circle cx="12" cy="10" r="3"/><path d="M12 2c-4 0-7 3-7 7 0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z"/>'
   };
-  markers.forEach(function(m) {
-    var emoji = CAT_ICON[m.category] || CAT_ICON.general;
+  markers.forEach(function(m, idx) {
+    var svg = CAT_SVG[m.category] || CAT_SVG.general;
+    // Alternate every third listing to orange ring; rest stay blue (mirrors
+    // the owner-supplied reference where some pings are highlighted).
+    var family = (idx % 3 === 1) ? 'orange' : 'blue';
     var icon = L.divIcon({
       className: 'hp-wrap',
-      iconSize: [78, 92], iconAnchor: [39, 84], popupAnchor: [0, -78],
-      html: '<div class="hp">' +
-              '<div class="chip">' +
-                '<div class="emoji">' + emoji + '</div>' +
-                '<div class="price">' + (m.price || '—') + '</div>' +
-                '<div class="curr">' + (m.price ? m.currency : '') + '</div>' +
-              '</div>' +
-              '<div class="stem"></div>' +
-              '<div class="base"></div>' +
-            '</div>'
+      iconSize: [80, 80], iconAnchor: [40, 40], popupAnchor: [0, -40],
+      html:
+        '<div class="ring-wrap ' + family + '">' +
+          '<div class="ring r3"></div>' +
+          '<div class="ring r2"></div>' +
+          '<div class="ring r1"></div>' +
+          '<div class="core">' +
+            '<svg class="icon-svg" viewBox="0 0 24 24">' + svg + '</svg>' +
+          '</div>' +
+        '</div>'
     });
     var mk = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
     mk.on('click', function() {

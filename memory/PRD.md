@@ -58,7 +58,26 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
-## ✅ Phase 6 — Final Live UI Binding (Feb 2026, current)
+## ✅ Phase 7 — Login Navigation Bug + Auth Header + Map Pings + New Tab Bar (Feb 2026, current)
+**Critical login fix:**
+- **AuthScreens.js**: After password login, social OAuth, biometric login, or fresh registration → `navigation.reset({ index:0, routes:[{name:"Main"}] })`. Also added a `useEffect` that watches `user` state from `AuthContext`; if it ever becomes truthy while sitting on Login/Register (e.g., social deep-link comes back later), auto-navigate to Main. This eliminates the "logged in but stuck on login screen" bug across email, Google, Snapchat, X, Apple, biometric.
+- Verified via backend `/auth/register` returns `{access_token, refresh_token, user}` → mobile client now properly leaves the auth stack.
+
+**Auth header (Login + Register):**
+- New `AuthHeader` component renders at top of both screens. RIGHT side: `← الرئيسية` button → resets to Main. LEFT side: language pill `🌐 العربية 🇸🇦` opens a centered fade modal with all 6 supported languages, persists via I18nContext.
+
+**MapScreen markers redesign:**
+- Removed emoji + price chip + stem. New design: **concentric pulsing rings** (3 layers, staggered animation-delay 0/0.5/1.0s) around a white core that holds a lucide-style SVG icon. Two families — `.blue` (primary `#89CFF0` rings, orange-stroked icon) and `.orange` (accent `#FF8C00` rings) — alternated every third pin so featured listings stand out. Matches owner's image #2 exactly.
+
+**FloatingTabBar — new layout (image #3):**
+- Pill background changed from frosted blue to **pure white** `#FFFFFF` with rounded 28 corners.
+- Tab #2 (was Reels/`Film` icon) → relabeled `المزيد` with `MoreHorizontal` (…) icon (route still navigates to ReelsScreen for stories).
+- FAB redesigned: solid **baby-blue** `#89CFF0` circle (68×68), 3px white ring, baby-blue glow shadow, soft halo `rgba(137,207,240,0.14)`. Inside: `+` icon + "أنشئ إعلان" label, matching reference.
+- Pulse ring tint switched from orange → baby-blue.
+
+**Validation**: `expo export --platform web` succeeded — 4.72 MB. ESLint clean. Backend `/api/auth/register` returns valid token (curl-tested).
+
+
 - **ChatScreen bubbles**: outgoing bubble migrated from WhatsApp green `#075E54` → branded baby-blue `#5FB6E0`. Padding/radius bumped (radius 18, padding 12×8) for breathing room. Voice play button inverts to white-on-blue when message is mine. Forward badge tinted `rgba(137,207,240,0.18)` with primaryDeep text, aligned to start (no longer overlapping reply preview).
 - **SearchScreen**: search pill, filter button, suggestion box, chips, tags, price inputs all migrated from `borderWidth:1` borders to `shadow.card` + `borderRadius:20`. Search input now RTL-aligned. Active filter chips use primary-tinted soft pill without border. Filter icon button is square-rounded 44×44.
 - **NotificationsScreen**: rebuilt from flat list rows → soft-shadow cards with circular tinted icon avatar, page title, timestamp, and orange unread dot. Empty state has emoji + caption.

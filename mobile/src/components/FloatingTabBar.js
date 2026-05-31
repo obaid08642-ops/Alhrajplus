@@ -4,8 +4,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Platform, I18nManager } from "react-native";
 import { useEffect, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
+import { Home, MoreHorizontal, MessageCircle, User, Plus } from "lucide-react-native";
 import { colors } from "../theme";
 import { useI18n } from "../I18nContext";
 const ACTIVE = "#89CFF0";
@@ -48,8 +47,8 @@ export default function FloatingTabBar({
     label: t("الرئيسية")
   }, {
     name: "ReelsTab",
-    icon: Film,
-    label: t("ستوري")
+    icon: MoreHorizontal,
+    label: t("المزيد")
   }, {
     name: "_SPACER",
     icon: null,
@@ -241,30 +240,35 @@ const styles = StyleSheet.create({
     zIndex: 10
   },
   fabHalo: {
-    // Outer transparent padding ring — gives the FAB a "floating, detached"
-    // halo per the owner's brief (rgba(255,140,0,0.10)).
+    // Outer transparent halo — soft baby-blue glow (mirrors owner reference).
     padding: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(255,140,0,0.10)"
+    backgroundColor: "rgba(137,207,240,0.14)"
   },
   fab: {
-    width: 62,
-    height: 62,
+    width: 68,
+    height: 68,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#89CFF0",
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.95)",
+    borderColor: "#FFFFFF",
     overflow: "hidden",
-    // Orange-tinted shadow per design brief.
-    shadowColor: "#FF8C00",
-    shadowOpacity: 0.45,
+    shadowColor: "#89CFF0",
+    shadowOpacity: 0.50,
     shadowRadius: 18,
     shadowOffset: {
       width: 0,
       height: 10
     },
     elevation: 16
+  },
+  fabLabel: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "900",
+    marginTop: 1
   },
   fabShine: {
     position: "absolute",
@@ -280,9 +284,9 @@ const styles = StyleSheet.create({
   },
   pulseRing: {
     position: "absolute",
-    width: 62,
-    height: 62,
+    width: 68,
+    height: 68,
     borderRadius: 999,
-    backgroundColor: "rgba(255,140,0,0.40)"
+    backgroundColor: "rgba(137,207,240,0.45)"
   }
 });;

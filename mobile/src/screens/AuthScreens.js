@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Modal } from "react-native";
+import { ChevronLeft, Globe } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
 import { theme, shadow } from "../theme";
 import { formatApiError } from "../api";
@@ -7,7 +8,56 @@ import { signInWithGoogle, signInWithApple, signInWithX, signInWithSnapchat } fr
 import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
 import { useI18n } from "../I18nContext";
 import { validatePhone, phoneExampleFor } from "../phoneValidator";
+
+// Helper: navigate to the main tabs in a way that clears the auth stack so
+// the user cannot accidentally swipe back into the login screen post-login.
+function goHome(navigation) {
+  if (!navigation) return;
+  try {
+    navigation.reset({ index: 0, routes: [{ name: "Main" }] });
+  } catch (_) {
+    try { navigation.navigate("Main"); } catch (_) {}
+  }
+}
+
+// Top header for auth screens — RIGHT: back-to-home, LEFT: language picker pill.
+function AuthHeader({ navigation }) {
+  const { t, lang, setLang, supported } = useI18n();
+  const [open, setOpen] = useState(false);
+  const LANG_LABELS = {
+    ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
+    ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷"
+  };
+  return (
+    <View style={styles.authHeader} testID="auth-header">
+      {/* RIGHT side (RTL: end) — back to Home */}
+      <TouchableOpacity onPress={() => goHome(navigation)} style={styles.headerHomeBtn} testID="auth-header-home-btn" hitSlop={6}>
+        <ChevronLeft size={18} color={theme.colors.primary} strokeWidth={2.6} />
+        <Text style={styles.headerHomeText}>{t("الرئيسية")}</Text>
+      </TouchableOpacity>
+      {/* LEFT side — language pill */}
+      <TouchableOpacity onPress={() => setOpen(true)} style={styles.headerLangPill} testID="auth-header-lang-btn" hitSlop={6}>
+        <Globe size={14} color={theme.colors.primaryDeep} strokeWidth={2.4} />
+        <Text style={styles.headerLangText}>{LANG_LABELS[lang] || lang}</Text>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setOpen(false)} style={styles.langSheetBg}>
+          <View style={styles.langSheet}>
+            <Text style={styles.langSheetTitle}>{t("اختر اللغة")}</Text>
+            {supported.map(code => (
+              <TouchableOpacity key={code} onPress={() => { setLang(code); setOpen(false); }} style={[styles.langRow, code === lang && styles.langRowActive]} testID={`auth-lang-opt-${code}`}>
+                <Text style={[styles.langRowText, code === lang && { color: theme.colors.primary, fontWeight: "900" }]}>{LANG_LABELS[code]}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
 function SocialButtons({
+  navigation,
   onSuccess
 }) {
   const { t } = useI18n();
@@ -17,7 +67,8 @@ function SocialButtons({
     setBusy(provider);
     try {
       await fn();
-      onSuccess?.();
+      await onSuccess?.();
+      goHome(navigation);
     } catch (e) {
       if (!String(e?.message || "").includes(t("إلغاء")) && !String(e?.message || "").toLowerCase().includes("cancel")) {
         Alert.alert(t("خطأ"), e.message || `${t("حدث خطأ. حاول مرة أخرى.")} (${provider})`);
@@ -57,6 +108,7 @@ export function LoginScreen({
 }) {
   const { t } = useI18n();
   const {
+    user,
     login,
     refresh
   } = useAuth();
@@ -69,6 +121,13 @@ export function LoginScreen({
   const [bioEnabled, setBioEnabled] = useState(false);
   const [bioLabel, setBioLabel] = useState(t("البصمة"));
   const [askEnable, setAskEnable] = useState(false);
+
+  // If the user becomes truthy while we're sitting on the login screen
+  // (e.g., social OAuth deep-link returns a token), navigate to Main
+  // immediately so we never get stuck on this screen.
+  useEffect(() => {
+    if (user && user.id) goHome(navigation);
+  }, [user, navigation]);
   useEffect(() => {
     (async () => {
       const info = await isBiometricAvailable();
@@ -102,6 +161,8 @@ export function LoginScreen({
       const enabled = await isBiometricEnabled();
       if (!enabled && bioAvailable) {
         setAskEnable(true);
+      } else {
+        goHome(navigation);
       }
     } catch (e) {
       setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
@@ -116,6 +177,7 @@ export function LoginScreen({
       Alert.alert("✅", `${t("تفعيل الدخول بـ")}${bioLabel}.`);
     }
     setAskEnable(false);
+    goHome(navigation);
   };
   const doBiometricLogin = async () => {
     setBusy(true);
@@ -123,6 +185,7 @@ export function LoginScreen({
       const creds = await tryBiometricLogin();
       if (creds?.email && creds?.password) {
         await login(creds.email, creds.password);
+        goHome(navigation);
       } else {
         setErr(t("حدث خطأ. حاول مرة أخرى."));
       }
@@ -134,6 +197,7 @@ export function LoginScreen({
   };
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
             <ScrollView contentContainerStyle={styles.scroll}>
+                <AuthHeader navigation={navigation} />
                 <View style={styles.card}>
                     <View style={styles.logo}>
                         <Text style={styles.logoMain}>{t("الحراج")}</Text>
@@ -161,14 +225,14 @@ export function LoginScreen({
                                 <TouchableOpacity onPress={doEnableBio} style={styles.enableBioYes} testID="mobile-enable-bio-yes">
                                     <Text style={styles.enableBioYesText}>{t("تفعيل")}</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => setAskEnable(false)} style={styles.enableBioNo}>
+                                <TouchableOpacity onPress={() => { setAskEnable(false); goHome(navigation); }} style={styles.enableBioNo}>
                                     <Text style={styles.enableBioNoText}>{t("ليس الآن")}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>}
 
                     <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>{t("أو")}</Text><View style={styles.line} /></View>
-                    <SocialButtons onSuccess={() => refresh()} />
+                    <SocialButtons navigation={navigation} onSuccess={() => refresh()} />
 
                     <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>{t("ليس لديك حساب؟")} <Text style={styles.linkStrong}>{t("إنشاء حساب")}</Text></Text>
@@ -190,6 +254,7 @@ export function RegisterScreen({
 }) {
   const { t } = useI18n();
   const {
+    user,
     register,
     refresh
   } = useAuth();
@@ -203,6 +268,10 @@ export function RegisterScreen({
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Mirror LoginScreen: if user becomes truthy (e.g., social auth), bail to home.
+  useEffect(() => {
+    if (user && user.id) goHome(navigation);
+  }, [user, navigation]);
   const submit = async () => {
     setErr("");
     setBusy(true);
@@ -217,6 +286,7 @@ export function RegisterScreen({
         ...form,
         phone: v.normalized
       });
+      goHome(navigation);
     } catch (e) {
       setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
     } finally {
@@ -225,6 +295,7 @@ export function RegisterScreen({
   };
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
             <ScrollView contentContainerStyle={styles.scroll}>
+                <AuthHeader navigation={navigation} />
                 <View style={styles.card}>
                     <View style={styles.logo}>
                         <Text style={styles.logoMain}>{t("الحراج")}</Text>
@@ -256,7 +327,7 @@ export function RegisterScreen({
                     </TouchableOpacity>
 
                     <View style={styles.divider}><View style={styles.line} /><Text style={styles.dividerText}>{t("أو")}</Text><View style={styles.line} /></View>
-                    <SocialButtons onSuccess={() => refresh()} />
+                    <SocialButtons navigation={navigation} onSuccess={() => refresh()} />
 
                     <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.linkWrap}>
                         <Text style={styles.linkText}>{t("لديك حساب بالفعل؟")} <Text style={styles.linkStrong}>{t("تسجيل الدخول")}</Text></Text>
@@ -274,6 +345,87 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     padding: 16
+  },
+  // Auth header — RIGHT: back-to-home; LEFT: language pill.
+  authHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingTop: 8,
+    paddingBottom: 12
+  },
+  headerHomeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  headerHomeText: {
+    color: theme.colors.primary,
+    fontWeight: "900",
+    fontSize: 14
+  },
+  headerLangPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: theme.colors.surfaceCard,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 2
+  },
+  headerLangText: {
+    color: theme.colors.primaryDeep,
+    fontWeight: "800",
+    fontSize: 12.5
+  },
+  langSheetBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.40)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24
+  },
+  langSheet: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12
+  },
+  langSheetTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: theme.colors.text,
+    textAlign: "center",
+    marginBottom: 12
+  },
+  langRow: {
+    paddingVertical: 13,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginVertical: 2
+  },
+  langRowActive: {
+    backgroundColor: "rgba(137,207,240,0.12)"
+  },
+  langRowText: {
+    fontSize: 15,
+    color: theme.colors.text,
+    textAlign: "right",
+    fontWeight: "700"
   },
   card: {
     backgroundColor: theme.colors.surface,
