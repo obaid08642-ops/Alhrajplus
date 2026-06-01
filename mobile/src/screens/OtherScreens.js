@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
+import { Flame, Plane } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useCountry } from "../CountryContext";

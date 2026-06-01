@@ -398,6 +398,9 @@ function FiltersModal({
 }) {
   const { t } = useI18n();
   
+  // Build sort option labels locally — FiltersModal is its own component
+  // and doesn't share SORT_OPTIONS from the parent SearchScreen scope.
+  const SORT_OPTIONS = SORT_KEYS.map(o => ({ key: o.key, label: t(o.labelKey) }));
   const [local, setLocal] = useState(filters);
   useEffect(() => {
     if (visible) setLocal(filters);

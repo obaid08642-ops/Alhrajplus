@@ -110,6 +110,20 @@ export default function ReelsScreen() {
   const viewConfig = useRef({
     itemVisiblePercentThreshold: 70
   }).current;
+  // Horizontal-swipe-to-exit gesture (YouTube Shorts / FB Reels style).
+  // CRITICAL: useRef must be called BEFORE any conditional early return
+  // (loading / empty state) otherwise hook count changes between renders.
+  const exitPan = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dy) < 16,
+    onPanResponderRelease: (_, g) => {
+      if (Math.abs(g.dx) > 70 && Math.abs(g.dy) < 50) {
+        try {
+          if (nav.canGoBack?.()) nav.goBack();
+          else nav.navigate("HomeTab");
+        } catch (_) {}
+      }
+    },
+  })).current;
   if (loading) {
     return <View style={styles.center}><ActivityIndicator color="#fff" /></View>;
   }
@@ -122,21 +136,6 @@ export default function ReelsScreen() {
                 </TouchableOpacity>
             </View>;
   }
-
-  // Horizontal-swipe-to-exit gesture (YouTube Shorts / FB Reels style).
-  // Triggers on >70px horizontal movement with low vertical movement so it
-  // doesn't conflict with the vertical paging FlatList.
-  const exitPan = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dy) < 16,
-    onPanResponderRelease: (_, g) => {
-      if (Math.abs(g.dx) > 70 && Math.abs(g.dy) < 50) {
-        try {
-          if (nav.canGoBack?.()) nav.goBack();
-          else nav.navigate("HomeTab");
-        } catch (_) {}
-      }
-    },
-  })).current;
 
   return <View style={styles.wrap} {...exitPan.panHandlers}>
             <StatusBar barStyle="light-content" backgroundColor="#000" />

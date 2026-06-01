@@ -105,6 +105,12 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const initialTo = route.params?.to;
   const initialListing = route.params?.listing;
+  // When the user navigates from a listing detail "تواصل مع البائع" CTA we
+  // already have seller_name/avatar/id in the route params. Use them
+  // immediately so the thread opens INSTANTLY without waiting for the
+  // `/users/{id}` fetch — which is what caused the blank-screen bug.
+  const initialSellerName = route.params?.seller_name;
+  const initialSellerAvatar = route.params?.seller_avatar;
   const [convos, setConvos] = useState([]);
   const [activeConvoId, setActiveConvoId] = useState(null);
   const [activeOther, setActiveOther] = useState(null);
@@ -127,21 +133,29 @@ export default function ChatScreen() {
   const onConvosFocus = useCallback(() => { loadConvos(); }, [loadConvos]);
   useFocusEffect(onConvosFocus);
 
-  // If user navigated with a target user, open that thread directly
+  // If user navigated with a target user, open that thread INSTANTLY using
+  // any data we already have (from route params), then enrich asynchronously.
   useEffect(() => {
     if (!initialTo || !user) return;
+    // 1) Open immediately with what we know — never block the UI.
+    const seed = {
+      id: initialTo,
+      name: initialSellerName || t("مستخدم"),
+      avatar: initialSellerAvatar,
+    };
+    openThread(seed);
+    // 2) Enrich profile in the background. If it fails, the seed values stay.
     (async () => {
       try {
-        const {
-          data: u
-        } = await api.get(`/users/${initialTo}`);
-        const otherUser = {
-          id: initialTo,
-          name: u?.name || t("مستخدم"),
-          avatar: u?.avatar,
-          verified: u?.verified
-        };
-        openThread(otherUser);
+        const { data: u } = await api.get(`/users/${initialTo}`);
+        if (u && (u.name || u.avatar)) {
+          setActiveOther(prev => prev && prev.id === initialTo ? {
+            ...prev,
+            name: u.name || prev.name,
+            avatar: u.avatar || prev.avatar,
+            verified: u.verified,
+          } : prev);
+        }
       } catch (_) {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
