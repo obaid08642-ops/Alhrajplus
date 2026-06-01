@@ -91,8 +91,12 @@ export default function FloatingTabBar({
     })]).start();
     navigation.getParent()?.navigate("Post");
   };
+  // Owner directive: tab bar must sit FLUSH with the bottom of the screen
+  // (no extra gap below). Respect the iOS home-indicator inset but DO NOT
+  // add any additional padding beyond it. Android (insets.bottom === 0) →
+  // pin to absolute 0.
   return <View pointerEvents="box-none" style={[styles.wrap, {
-    paddingBottom: Math.max(insets.bottom, 10)
+    paddingBottom: insets.bottom
   }]}>
             {/* Floating gradient FAB — freestanding circular button with an
                  outer translucent halo (rgba(255,140,0,0.10)) so it visually
@@ -239,7 +243,7 @@ const styles = StyleSheet.create({
   // ===== FAB =====
   fabAnchor: {
     position: "absolute",
-    bottom: 30,
+    bottom: 22,
     left: 0,
     right: 0,
     alignItems: "center",

@@ -400,6 +400,36 @@ function ChatThread({
       animated: true
     }), 80);
   }, [messages.length, otherTyping]);
+
+  // Auto-send listing context on first open via "Contact Seller" CTA.
+  // Guarded by:
+  //  • a ref so we only fire ONCE per mount of this thread
+  //  • a scan of loaded history — if the same listing id was already
+  //    referenced by the current user, skip (idempotent across reopens).
+  const autoSentRef = useRef(false);
+  useEffect(() => {
+    if (autoSentRef.current) return;
+    if (!listing || !listing.id || !listing.title) return;
+    if (loading) return; // wait until history loaded so the dedupe check is meaningful
+    const alreadyMentioned = (messages || []).some(
+      m => m.sender_id === user.id && (m.listing_id === listing.id || (m.text && m.text.includes(String(listing.id))))
+    );
+    if (alreadyMentioned) { autoSentRef.current = true; return; }
+    autoSentRef.current = true;
+    const url = `https://alhrajplus.com/listing/${listing.id}`;
+    const priceLine = listing.price ? ` (${Number(listing.price).toLocaleString()} ${listing.currency || ""})` : "";
+    const text = `${t("مرحباً، أنا مهتم بإعلانك")}: ${listing.title}${priceLine}\n${url}`;
+    (async () => {
+      try {
+        const { data } = await api.post("/chat/send", {
+          receiver_id: other.id,
+          listing_id: listing.id,
+          text,
+        });
+        setMessages(m => [...m, data]);
+      } catch (_) {}
+    })();
+  }, [listing, loading, messages, user.id, other.id, t]);
   const sendTyping = is => {
     const now = Date.now();
     if (is && now - lastTypingSentRef.current < 1500) return;

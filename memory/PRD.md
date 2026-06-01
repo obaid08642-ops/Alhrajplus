@@ -205,6 +205,14 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - **Validation**: `expo export --platform web` succeeded — 3038 modules, 4.71 MB bundle, no errors. Backend `/meta/categories` and `/listings` return `200`.
 
 
+## ✅ Phase 17 — Tab Bar Flush + Image Search + Brand Name + Chat Auto-Send (Feb 2026)
+- **FloatingTabBar**: `paddingBottom` reduced from `Math.max(insets.bottom, 10)` → `insets.bottom`. FAB `bottom` from 30 → 22. Bar now sits flush at screen bottom with NO extra gap (mirrors owner mockup).
+- **App Brand Name**: `HomeScreen.TopBar` brand title fixed from `"حراج بلس"` → **`"الحراج بلس"`** (matches `app.json`).
+- **Image Search in Top Header (parity with web)**: `HomeScreen.TopBar` now renders a `Camera` icon inside the search pill (`testID="home-image-search-btn"`). Tap → Alert action sheet (الكاميرا / المعرض) → `ImagePicker` (`base64: true`) → `POST /api/ai/image-search` → navigate to `Search` with returned Arabic `q` param. Re-uses existing backend Gemini endpoint (no backend changes).
+- **Chat Auto-Send Listing Context**: `ChatThread` now fires a one-shot `useEffect` after history loads. Detects mount-time `listing` prop (passed from "تواصل مع البائع" CTA) and posts `/chat/send` with `{listing_id, text: "مرحباً، أنا مهتم بإعلانك: <title> (<price> <currency>)\nhttps://alhrajplus.com/listing/<id>"}`. Guarded by `autoSentRef` + history scan (idempotent across re-opens — never duplicates).
+- **Validation**: `npx expo export --platform web` → 3040 modules, 4.76 MB, no errors. ESLint clean across `HomeScreen.js`, `ChatScreen.js`, `FloatingTabBar.js`. Backend `/api/ai/image-search` responds correctly (400 on invalid input as designed).
+
+
 ## Future / Out-of-scope
 - Voice messages in chat (record/send/playback).
 - Chat "Forward Message".

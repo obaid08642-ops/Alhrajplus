@@ -5,8 +5,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as LucideIcons from "lucide-react-native";
-import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot, Globe, Moon, Sun } from "lucide-react-native";
+import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot, Globe, Moon, Sun, Camera } from "lucide-react-native";
 import { Modal, Alert } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../api";
 import { useAuth } from "../AuthContext";
@@ -152,6 +153,7 @@ function TopBar({
   } = useI18n();
   const [langOpen, setLangOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const [imgSearchBusy, setImgSearchBusy] = useState(false);
   // Persisted preference — full theme propagation is staged; for now the
   // toggle reflects user intent and surfaces a confirmation toast.
   useEffect(() => {
@@ -163,13 +165,69 @@ function TopBar({
     try { await AsyncStorage.setItem("hp_dark_mode", next ? "1" : "0"); } catch (_) {}
     Alert.alert(next ? t("الوضع الليلي") : t("الوضع النهاري"), t("تم الحفظ"));
   };
+  // Image-search: pick or capture an image → send base64 to /ai/image-search →
+  // navigate to Search with the returned Arabic query. Mirrors web TopBar.
+  const startImageSearch = useCallback(async () => {
+    if (imgSearchBusy) return;
+    try {
+      Alert.alert(
+        t("بحث بالصورة"),
+        t("اختر مصدر الصورة"),
+        [
+          {
+            text: t("الكاميرا"),
+            onPress: async () => {
+              const perm = await ImagePicker.requestCameraPermissionsAsync();
+              if (!perm.granted) { Alert.alert(t("تنبيه"), t("يلزم إذن الكاميرا")); return; }
+              const res = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.7,
+                base64: true,
+              });
+              await processImageSearch(res);
+            },
+          },
+          {
+            text: t("المعرض"),
+            onPress: async () => {
+              const res = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.7,
+                base64: true,
+              });
+              await processImageSearch(res);
+            },
+          },
+          { text: t("إلغاء"), style: "cancel" },
+        ],
+        { cancelable: true }
+      );
+    } catch (_) {}
+    async function processImageSearch(res) {
+      if (!res || res.canceled || !res.assets?.[0]) return;
+      const asset = res.assets[0];
+      const b64 = asset.base64;
+      if (!b64) { Alert.alert(t("خطأ"), t("تعذر قراءة الصورة")); return; }
+      setImgSearchBusy(true);
+      try {
+        const { data } = await api.post("/ai/image-search", { image_base64: b64 });
+        const q = (data?.query || "").trim();
+        if (!q) { Alert.alert(t("تنبيه"), t("لم نتمكن من فهم الصورة. حاول بصورة أوضح.")); return; }
+        nav.navigate("Search", { q });
+      } catch (e) {
+        Alert.alert(t("خطأ"), t("خطأ في البحث بالصورة"));
+      } finally {
+        setImgSearchBusy(false);
+      }
+    }
+  }, [imgSearchBusy, nav, t]);
   const LANG_LABELS = {
     ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
     ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷"
   };
   return <View style={{ backgroundColor: colors.bg, paddingTop: insets.top + 4 }}>
             <View style={styles.brandRow}>
-                <Text style={styles.brandTitle}>{t("حراج بلس")}</Text>
+                <Text style={styles.brandTitle}>{t("الحراج بلس")}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                     {/* Dark mode toggle — persists preference. */}
                     <TouchableOpacity onPress={toggleDark} style={styles.headerIconBtn} testID="home-dark-toggle" hitSlop={6}>
@@ -186,6 +244,19 @@ function TopBar({
             <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
                 <SearchIcon size={16} color={colors.primary} />
                 <Text style={styles.searchPh} numberOfLines={1}>{t("ابحث... (AI)")}</Text>
+                {/* Image search — parity with web /api/ai/image-search */}
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation?.(); startImageSearch(); }}
+                  hitSlop={8}
+                  disabled={imgSearchBusy}
+                  testID="home-image-search-btn"
+                  accessibilityLabel={t("بحث بالصورة")}
+                  style={{ paddingHorizontal: 4 }}
+                >
+                  {imgSearchBusy
+                    ? <ActivityIndicator size="small" color={colors.primary} />
+                    : <Camera size={16} color={colors.primary} strokeWidth={2.4} />}
+                </TouchableOpacity>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => nav.navigate("AIAssistant")} style={styles.aiPill} testID="home-ai-assistant">
                 <Bot size={16} color="#fff" strokeWidth={2.5} />
