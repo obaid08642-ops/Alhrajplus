@@ -58,7 +58,27 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
-## ✅ Phase 10 — Chat scroll fix + Deep-links + Auto-link URLs + Download App card (Feb 2026, current)
+## ✅ Phase 11 — Crash fix + Open in App + Reels CTAs + OG share (Feb 2026, current)
+**🔥 Crash fix (CRITICAL):**
+- `FloatingTabBar.js`: removed leftover `<LinearGradient>` JSX (import was already gone) — was throwing `ReferenceError: Property 'LinearGradient' doesn't exist` and blocking the entire app boot. FAB now uses solid baby-blue per spec; no expo-linear-gradient dependency.
+
+**Open in App banner (web):**
+- `SmartAppBanner.js` upgraded: CTA changed from "تحميل من Store" → "افتح في التطبيق" which fires a `harajplus:/<path>` deep-link. If the app isn't installed (page still visible after 1.2s), bounces to the configured store URL. Hidden inside the actual native app (UA token `HarajPlusApp|Expo`).
+- Added Smart App Banner meta tags in `public/index.html`: `apple-itunes-app`, `google-play-app`, `twitter:app:*` so iOS Safari shows its native banner too.
+
+**Reels twin-CTA (web + mobile):**
+- **Mobile `ReelsScreen.js`**: new `ctaRow` at bottom — "عرض الإعلان" (primary baby-blue) + "تواصل مع البائع" (accent orange). The Contact button navigates to `Chat` with full seller + listing payload.
+- **Web `ReelsPage.js`**: same twin-CTA stack — fills the previously-empty bottom whitespace circled in owner's screenshot.
+
+**OG share fix (server-side meta):**
+- New backend endpoint `GET /api/og/listing/{id}` (`server.py`) — returns a minimal HTML page with proper `og:title`, `og:description`, `og:image`, twitter cards, schema.org Product JSON-LD, and a `<meta refresh>` redirect to the SPA for real users. Verified via curl: returns 200 with `آيفون 15 برو — 4,500 SAR | الحراج بلس`. Solves WhatsApp/Twitter/Facebook crawler previews when sharing listings.
+
+**Verification:**
+- `expo export` succeeded (4.73 MB).
+- Backend OG endpoint tested via curl → 200 + correct og:* tags.
+- ESLint clean on 4 mobile/web files.
+
+## ✅ Phase 10 — Chat scroll fix + Deep-links + Auto-link URLs + Download App card (Feb 2026)
 **Critical chat fix:**
 - `chat.css`: removed `scroll-behavior: smooth` from `.hp-chat-messages` (was animating every micro-shift triggered by WS `presence`/`read` events). Added `overflow-anchor: none` to disable browser anchor jumping.
 - `ChatPage.js`: dropped the `visualViewport.scroll` listener that was repeatedly resetting `--hp-vh` and forcing re-layout — kept only `resize` (for keyboard open/close).

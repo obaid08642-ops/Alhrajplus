@@ -21,6 +21,9 @@ export default function SmartAppBanner() {
     const [platform, setPlatform] = useState("unknown");
 
     useEffect(() => {
+        const ua = navigator.userAgent || "";
+        // Hide inside the actual native app (Expo ships a UA token).
+        if (/HarajPlusApp|Expo/i.test(ua)) return;
         setPlatform(detectPlatform());
         const dismissedAt = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
         const stillSnoozed = dismissedAt && Date.now() - dismissedAt < SNOOZE_DAYS * 86400000;
@@ -34,14 +37,36 @@ export default function SmartAppBanner() {
         setVisible(false);
     };
 
-    const storeUrl = storeUrlFor(platform);
-    // Hide if dismissed OR no URL configured for this platform.
-    if (!visible || !storeUrl) return null;
+    // Try the universal deep-link first; if the app isn't installed we fall
+    // back to the configured store URL after 1.2s. This mirrors the "Open
+    // in App" buttons Twitter/Reddit show on shared links.
+    const openApp = (e) => {
+        e?.stopPropagation();
+        const storeUrl = storeUrlFor(platform);
+        const path = window.location.pathname + window.location.search;
+        const deepLink = `harajplus:/${path}`;
+        const start = Date.now();
+        // eslint-disable-next-line no-undef
+        window.location.href = deepLink;
+        setTimeout(() => {
+            // If the page is still visible (i.e. the app didn't take focus),
+            // bounce the user to the store.
+            if (document.visibilityState === "visible" && storeUrl) {
+                window.location.href = storeUrl;
+            }
+            localStorage.setItem(STORAGE_KEY, String(start));
+        }, 1200);
+    };
 
-    const storeLabel =
-        platform === "ios" ? tr("تحميل من App Store")
-            : platform === "android" ? tr("تحميل من Google Play")
-                : platform === "huawei" ? tr("تحميل من AppGallery")
+    const storeUrl = storeUrlFor(platform);
+    // Show banner even without a store URL — primary action is still "Open in App"
+    // (deep-link try). Hide only on dismiss or non-mobile platforms.
+    if (!visible || platform === "desktop" || platform === "unknown") return null;
+
+    const ctaLabel =
+        platform === "ios" ? tr("افتح في التطبيق")
+            : platform === "android" ? tr("افتح في التطبيق")
+                : platform === "huawei" ? tr("افتح في التطبيق")
                     : tr("اعرف المزيد");
 
     return (
@@ -54,9 +79,14 @@ export default function SmartAppBanner() {
                     <div className="font-arabic font-bold text-[12px] sm:text-sm truncate">{tr("تطبيق الحراج بلس — أسرع وأفضل 🚀")}</div>
                     <div className="font-arabic-body text-[10px] sm:text-xs text-white/85 truncate">{tr("إشعارات فورية، بحث أسرع، وتجربة متكاملة على جوالك")}</div>
                 </div>
-                <a href={storeUrl} target="_blank" rel="noopener noreferrer" data-testid="app-banner-download" className="shrink-0 bg-white text-[#1F7BBF] font-bold text-[11px] sm:text-xs rounded-full px-3 py-1.5 flex items-center gap-1.5 hover:scale-105 transition-transform shadow">
-                    <Download className="w-3.5 h-3.5" /> {storeLabel}
-                </a>
+                <button onClick={openApp} data-testid="app-banner-open" className="shrink-0 bg-white text-[#1F7BBF] font-bold text-[11px] sm:text-xs rounded-full px-3 py-1.5 flex items-center gap-1.5 hover:scale-105 transition-transform shadow">
+                    <Download className="w-3.5 h-3.5" /> {ctaLabel}
+                </button>
+                {storeUrl && (
+                    <a href={storeUrl} target="_blank" rel="noopener noreferrer" data-testid="app-banner-store" onClick={dismiss} className="hidden sm:inline shrink-0 underline text-white/90 text-[11px]">
+                        {tr("تثبيت")}
+                    </a>
+                )}
                 <button data-testid="app-banner-dismiss" onClick={dismiss} aria-label={tr("إغلاق")} className="shrink-0 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition">
                     <X className="w-4 h-4" />
                 </button>

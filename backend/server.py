@@ -472,6 +472,99 @@ async def _debug_listings_raw(limit: int = 5):
     return {"count": len(items), "items": items}
 
 
+# ---------------------------------------------------------------------------
+# Server-side OG share endpoint — `/api/og/listing/{id}`.
+#
+# Why: React-Helmet only injects meta tags at runtime, but WhatsApp / Telegram /
+# Facebook / Twitter / Google crawlers DO NOT execute JS. So a deep-shared
+# listing URL (https://alhraj.online/listing/{id}) renders to them as the
+# generic homepage OG and they show only the boilerplate title.
+#
+# This endpoint returns a minimal HTML page with the correct og:title,
+# og:image, og:description, twitter cards, schema.org Product JSON-LD, AND a
+# `<meta http-equiv="refresh">` so that real users opening the URL still land
+# on the SPA at `/listing/{id}`.
+# ---------------------------------------------------------------------------
+@app.get("/api/og/listing/{listing_id}", include_in_schema=False)
+async def _og_listing_share(listing_id: str):
+    try:
+        doc = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    except Exception:
+        doc = None
+    if not doc:
+        return HTMLResponse(
+            "<!doctype html><html><head><meta http-equiv='refresh' content='0; url=/' /></head><body></body></html>",
+            status_code=404,
+        )
+    title = (doc.get("title") or "إعلان").replace('"', "'")[:200]
+    raw_desc = (doc.get("description") or "")
+    desc = (raw_desc[:280] + "…") if len(raw_desc) > 280 else raw_desc
+    desc = (desc or "تصفح هذا الإعلان على الحراج بلس — أكبر سوق رقمي للخليج العربي.").replace('"', "'")
+    images = doc.get("images") or []
+    image = images[0] if images else "https://alhraj.online/og-image.png"
+    price = doc.get("price")
+    currency = doc.get("currency_code") or doc.get("currency") or "SAR"
+    city = doc.get("city") or ""
+    spa_url = f"https://alhraj.online/listing/{listing_id}"
+    price_line = f"{price:,.0f} {currency}" if isinstance(price, (int, float)) and price > 0 else ""
+    composed_title = f"{title}" + (f" — {price_line}" if price_line else "") + " | الحراج بلس"
+    composed_desc = (f"{price_line} • {city} — " if price_line or city else "") + desc
+
+    html = f"""<!doctype html>
+<html lang=\"ar\" dir=\"rtl\">
+<head>
+  <meta charset=\"utf-8\" />
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+  <meta name=\"theme-color\" content=\"#4FB6E6\" />
+  <title>{composed_title}</title>
+  <meta name=\"description\" content=\"{composed_desc}\" />
+
+  <meta property=\"og:type\" content=\"product\" />
+  <meta property=\"og:url\" content=\"{spa_url}\" />
+  <meta property=\"og:title\" content=\"{composed_title}\" />
+  <meta property=\"og:description\" content=\"{composed_desc}\" />
+  <meta property=\"og:image\" content=\"{image}\" />
+  <meta property=\"og:image:width\" content=\"1200\" />
+  <meta property=\"og:image:height\" content=\"630\" />
+  <meta property=\"og:site_name\" content=\"الحراج بلس\" />
+  <meta property=\"og:locale\" content=\"ar_SA\" />
+
+  <meta name=\"twitter:card\" content=\"summary_large_image\" />
+  <meta name=\"twitter:title\" content=\"{composed_title}\" />
+  <meta name=\"twitter:description\" content=\"{composed_desc}\" />
+  <meta name=\"twitter:image\" content=\"{image}\" />
+
+  <script type=\"application/ld+json\">{{
+    \"@context\": \"https://schema.org\",
+    \"@type\": \"Product\",
+    \"name\": \"{title}\",
+    \"image\": \"{image}\",
+    \"description\": \"{desc}\",
+    \"url\": \"{spa_url}\",
+    \"offers\": {{
+      \"@type\": \"Offer\",
+      \"price\": \"{price or 0}\",
+      \"priceCurrency\": \"{currency}\",
+      \"availability\": \"https://schema.org/InStock\"
+    }}
+  }}</script>
+
+  <!-- Real users → SPA. Crawlers stay on this page and just read meta. -->
+  <meta http-equiv=\"refresh\" content=\"0; url={spa_url}\" />
+  <link rel=\"canonical\" href=\"{spa_url}\" />
+</head>
+<body>
+  <p style=\"font-family: -apple-system, sans-serif; text-align:center; padding:24px;\">
+    جاري التحويل إلى <a href=\"{spa_url}\">{title}</a>…
+  </p>
+  <script>window.location.replace(\"{spa_url}\");</script>
+</body>
+</html>"""
+    return HTMLResponse(html, headers={"Cache-Control": "public, max-age=300"})
+
+
+
+
 # Lightweight metrics endpoint — no Prometheus, just enough to grep latency/errors
 # from the live container. Numbers reset on restart, which is fine for a single
 # process; switch to Redis/Prom if you scale horizontally.
