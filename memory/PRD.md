@@ -231,3 +231,15 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 
 ## Test Credentials
 See `/app/memory/test_credentials.md`.
+
+
+## ✅ Phase 19 — Critical fixes: Vercel build + Chat replyTo crash + Dark mode propagation (Feb 2026)
+- **🛑 BLOCKER — Vercel build failure**: `Module not found: '/chat-bg.svg' in src/styles`. Root cause: `chat.css` referenced the asset via absolute public path `url("/chat-bg.svg")` which CRA+webpack's css-loader could not resolve under Vercel's stricter mode. Copied the SVG into `src/styles/chat-bg.svg` and switched to `url("./chat-bg.svg")`. `yarn build` now exits 0 (verified locally).
+- **🛑 BLOCKER — ChatScreen Render Error**: `Property 'replyTo' doesn't exist` at line 805. The `replyTo`/`setReplyTo` symbols were referenced 6+ times inside `ChatThread` but the `useState` declaration was missing. Added `const [replyTo, setReplyTo] = useState(null);` next to the other ChatThread states. Composer reply-preview, long-press "reply" action, and the sendText snapshot all now resolve cleanly.
+- **🌙 Dark mode propagation**: extended `useThemeMode().palette` consumption to the major screens:
+  - `ChatScreen` (convo list View bg + StatusBar barStyle).
+  - `SearchScreen` (root View bg + StatusBar barStyle).
+  - `ProfileScreen` (guest & authed root View bg).
+  - `MoreScreens.NotificationsScreen` (root bg uses palette).
+  - `OtherScreens.FavoritesScreen / MyListingsScreen / DealsScreen` (root bg + title color).
+- **Validation**: `yarn build` (frontend) → exits 0, build folder ready. `npx expo export --platform web` → 3040 modules, no errors. ESLint clean across all 7 modified files.

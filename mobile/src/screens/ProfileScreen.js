@@ -11,10 +11,12 @@ import { Platform, Linking } from "react-native";
 import { User, Heart, ListIcon, LogOut, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Sparkles, Bell, Bookmark, Users as UsersIcon, Award, Copy, MapPin, Gavel, Plane, Flame, Download, Apple, Smartphone } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
 import api from "../api";
+import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
 import CountrySwitcher from "../components/CountrySwitcher";
 export default function ProfileScreen() {
   const { t } = useI18n();
+  const { isDark, palette } = useThemeMode();
   
   const {
     user,
@@ -47,9 +49,9 @@ export default function ProfileScreen() {
   if (!user) {
     return <View style={{
       flex: 1,
-      backgroundColor: colors.bg
+      backgroundColor: palette.bg
     }}>
-                <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+                <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={palette.bg} />
                 <View style={[s.guestWrap, {
         paddingTop: insets.top + 60
       }]}>
@@ -114,7 +116,7 @@ export default function ProfileScreen() {
   };
   return <ScrollView style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }} contentContainerStyle={{
     paddingBottom: 130
   }} showsVerticalScrollIndicator={false}>

@@ -14,6 +14,7 @@ const AudioRecorder = AudioModuleDefault?.AudioRecorder;
 import api from "../api";
 import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
+import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
 import ListingCard from "../components/ListingCard";
 const {
@@ -42,6 +43,7 @@ export default function SearchScreen({
 }) {
   const { t, lang } = useI18n();
   const insets = useSafeAreaInsets();
+  const { isDark, palette } = useThemeMode();
   
   const SORT_OPTIONS = SORT_KEYS.map(o => ({
     key: o.key,
@@ -265,9 +267,9 @@ export default function SearchScreen({
   };
   return <View style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }}>
-            <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={palette.bg} />
             {/* Search Header */}
             <View style={[s.header, {
       paddingTop: insets.top + 2

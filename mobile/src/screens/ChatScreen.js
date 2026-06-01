@@ -21,6 +21,7 @@ import { Send, Camera, MapPin, Mic, Search, ChevronLeft, Check, CheckCheck, Imag
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useChatSocket } from "../useChatSocket";
+import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
 
 // Audio player module for voice playback
@@ -102,6 +103,7 @@ function fmtDay(iso) {
 }
 export default function ChatScreen() {
   const { t } = useI18n();
+  const { isDark, palette } = useThemeMode();
   
   const route = useRoute();
   const nav = useNavigation();

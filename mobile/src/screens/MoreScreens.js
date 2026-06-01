@@ -9,6 +9,7 @@ import { theme, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
 import { useAuth } from "../AuthContext";
 import { useCountry } from "../CountryContext";
+import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import { SkeletonListingGrid, SkeletonCategoryGrid } from "../components/Skeleton";
 
@@ -132,6 +133,7 @@ export function NotificationsScreen({
 }) {
   const { t } = useI18n();
   const { user } = useAuth();
+  const { palette } = useThemeMode();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -182,7 +184,7 @@ export function NotificationsScreen({
   };
   if (!user) return <View style={s.center}><Text style={s.muted}>{t("يجب تسجيل الدخول أولاً")}</Text></View>;
   if (loading) return <View style={s.center}><ActivityIndicator color={theme.colors.primary} /></View>;
-  return <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+  return <View style={{ flex: 1, backgroundColor: palette.bg }}>
             <Text style={s.pageTitle}>{t("الإشعارات")}</Text>
             <FlatList
               data={items}

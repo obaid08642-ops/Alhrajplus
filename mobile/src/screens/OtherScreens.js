@@ -4,6 +4,7 @@ import { Flame, Plane } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useCountry } from "../CountryContext";
+import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import { useI18n } from "../I18nContext";
 
@@ -30,6 +31,7 @@ export function FavoritesScreen() {
   const {
     t
   } = useI18n();
+  const { palette } = useThemeMode();
   const {
     dataVersion
   } = useCountry();
@@ -60,8 +62,8 @@ export function FavoritesScreen() {
   const renderItem = useCallback(({
     item
   }) => <ListingCard listing={item} />, []);
-  return <SafeAreaView style={styles.wrap}>
-            <Text style={styles.title}>{t("المفضلة")}</Text>
+  return <SafeAreaView style={[styles.wrap, { backgroundColor: palette.bg }]}>
+            <Text style={[styles.title, { color: palette.text }]}>{t("المفضلة")}</Text>
             {loading ? <LoadingBlock /> : <FlatList data={items} numColumns={2} keyExtractor={keyExtractor} renderItem={renderItem} contentContainerStyle={{
       padding: 8,
       paddingBottom: 130
@@ -74,6 +76,7 @@ export function MyListingsScreen({
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,9 +124,9 @@ export function MyListingsScreen({
                 </Text>
             </TouchableOpacity>
         </View>, [toggleBoost]);
-  return <SafeAreaView style={styles.wrap}>
+  return <SafeAreaView style={[styles.wrap, { backgroundColor: palette.bg }]}>
             <View style={styles.titleRow}>
-                <Text style={styles.title}>{t("إعلاناتي")}</Text>
+                <Text style={[styles.title, { color: palette.text }]}>{t("إعلاناتي")}</Text>
                 <TouchableOpacity onPress={() => navigation?.navigate?.("Post")} style={styles.addBtn} testID="mylistings-add-btn">
                     <Text style={styles.addText}>{t("+ إضافة")}</Text>
                 </TouchableOpacity>
@@ -138,6 +141,7 @@ export function MyListingsScreen({
 // ---------- DEALS ----------
 export function DealsScreen() {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const {
     dataVersion
@@ -175,13 +179,13 @@ export function DealsScreen() {
                     <Text style={styles.dealBadgeText}>-{item.discount_pct}%</Text>
                 </View>}
         </View>, []);
-  return <SafeAreaView style={styles.wrap}>
+  return <SafeAreaView style={[styles.wrap, { backgroundColor: palette.bg }]}>
             <View style={styles.hero}>
                 <Flame size={32} color="#EF4444" />
                 <View style={{
         flex: 1
       }}>
-                    <Text style={styles.heroTitle}>{t("صفقات اليوم الذهبية")}</Text>
+                    <Text style={[styles.heroTitle, { color: palette.text }]}>{t("صفقات اليوم الذهبية")}</Text>
                     <Text style={styles.heroSub}>{t("أفضل الأسعار تحت متوسط السوق")}</Text>
                 </View>
             </View>
