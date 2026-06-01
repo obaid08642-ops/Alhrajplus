@@ -86,12 +86,31 @@ export default function ReelsPage() {
                     <div key={l.id} className="h-full w-full snap-start relative flex items-center justify-center">
                         <video ref={(el) => (refs.current[i] = el)} src={l.videos[0]} loop muted={muted} playsInline className="w-full h-full object-cover" />
                         {/* Overlay info */}
-                        <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/80 to-transparent">
-                            <Link to={`/listing/${l.id}`} className="block text-white">
+                        <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/85 via-black/60 to-transparent">
+                            <Link to={`/listing/${l.id}`} className="block text-white mb-3">
                                 <h3 className="font-arabic font-bold text-base line-clamp-2 mb-1">{l.title}</h3>
                                 {l.price && <div className="font-latin font-black text-xl text-[var(--primary)]">{Number(l.price).toLocaleString()} {l.currency}</div>}
                                 <div className="text-xs text-white/70 font-arabic-body">{l.city}</div>
                             </Link>
+                            {/* Twin CTA row — owner mandate: never leave the
+                                bottom of the reel empty. Primary = view ad,
+                                Accent = chat with seller. */}
+                            <div className="flex gap-2">
+                                <Link
+                                    to={`/listing/${l.id}`}
+                                    data-testid={`reel-open-${l.id}`}
+                                    className="flex-1 text-center bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] py-3 rounded-2xl font-arabic font-black text-sm shadow-lg shadow-[var(--primary)]/30 active:scale-95 transition-all"
+                                >
+                                    {tr("عرض الإعلان")}
+                                </Link>
+                                <button
+                                    onClick={() => messageSeller(l)}
+                                    data-testid={`reel-contact-${l.id}`}
+                                    className="flex-1 text-center bg-[var(--accent)] hover:opacity-90 text-white py-3 rounded-2xl font-arabic font-black text-sm shadow-lg shadow-[var(--accent)]/30 active:scale-95 transition-all"
+                                >
+                                    {tr("تواصل مع البائع")}
+                                </button>
+                            </div>
                         </div>
                         {/* Right action bar */}
                         <div className="absolute end-3 bottom-32 flex flex-col gap-4 text-white">

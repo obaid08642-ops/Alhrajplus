@@ -274,9 +274,30 @@ function ReelItem({
                     <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
                     {item.price ? <Text style={styles.price}>{Number(item.price).toLocaleString()} <Text style={styles.currency}>{item.currency || t("ر.س")}</Text></Text> : null}
                     {item.city ? <Text style={styles.meta}>📍 {item.city}</Text> : null}
-                    <TouchableOpacity style={styles.cta} onPress={onOpen} testID={`reel-open-${item.id}`}>
-                        <Text style={styles.ctaText}>{t("عرض الإعلان")}</Text>
-                    </TouchableOpacity>
+                    {/* Twin CTA row — Open Ad + Contact Seller — fills the bottom whitespace
+                        the owner highlighted in their screenshot. */}
+                    <View style={styles.ctaRow}>
+                        <TouchableOpacity style={[styles.cta, styles.ctaPrimary]} onPress={onOpen} testID={`reel-open-${item.id}`}>
+                            <Text style={styles.ctaText}>{t("عرض الإعلان")}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.cta, styles.ctaContact]}
+                            onPress={() => {
+                                if (!user) { nav.navigate("Login"); return; }
+                                if (!item.seller?.id) return;
+                                nav.navigate("Chat", {
+                                    to: item.seller.id,
+                                    listing_id: item.id,
+                                    seller_id: item.seller.id,
+                                    seller_name: item.seller.name,
+                                    listing: item,
+                                });
+                            }}
+                            testID={`reel-contact-${item.id}`}
+                        >
+                            <Text style={styles.ctaText}>{t("تواصل مع البائع")}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </TouchableOpacity>;
@@ -446,16 +467,27 @@ const styles = StyleSheet.create({
     textAlign: "right"
   },
   cta: {
-    backgroundColor: theme.colors.primary,
+    flex: 1,
     paddingVertical: 13,
     borderRadius: 20,
     alignItems: "center",
-    marginTop: 6,
     shadowColor: "#89CFF0",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 6
+  },
+  ctaRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 8
+  },
+  ctaPrimary: {
+    backgroundColor: theme.colors.primary
+  },
+  ctaContact: {
+    backgroundColor: theme.colors.accent
   },
   ctaText: {
     color: "#fff",

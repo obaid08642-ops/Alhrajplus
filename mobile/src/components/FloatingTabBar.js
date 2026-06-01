@@ -111,16 +111,10 @@ export default function FloatingTabBar({
       }}>
                     <View style={styles.fabHalo}>
                         <TouchableOpacity onPress={goToPost} activeOpacity={0.85} style={styles.fab} testID="tab-fab-post" accessibilityLabel={t("نشر إعلان")}>
-                            <LinearGradient colors={["#FFB04A", "#FF8C00"]} start={{
-              x: 0,
-              y: 0
-            }} end={{
-              x: 1,
-              y: 1
-            }} style={StyleSheet.absoluteFillObject} />
-                            {/* glossy highlight */}
-                            <View style={styles.fabShine} />
-                            <Plus size={28} color="#fff" strokeWidth={3.2} />
+                            {/* Solid baby-blue per owner reference (image #3) — no gradient
+                                so we don't depend on expo-linear-gradient. */}
+                            <Plus size={26} color="#fff" strokeWidth={3.2} />
+                            <Text style={styles.fabLabel} numberOfLines={1}>{t("أنشئ إعلان")}</Text>
                         </TouchableOpacity>
                     </View>
                 </Animated.View>
