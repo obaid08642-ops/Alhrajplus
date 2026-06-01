@@ -8,11 +8,11 @@ import * as LucideIcons from "lucide-react-native";
 import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot, Globe, Moon, Sun, Camera } from "lucide-react-native";
 import { Modal, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
+import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
 import ListingCard from "../components/ListingCard";
 import NotificationBell from "../components/NotificationBell";
@@ -31,6 +31,7 @@ export default function HomeScreen() {
   const {
     user
   } = useAuth();
+  const { isDark, palette } = useThemeMode();
   
   const {
     dataVersion
@@ -120,9 +121,9 @@ export default function HomeScreen() {
         </View>, [nav, insets, visibleCats, categories.length, showAllCats, lang]);
   return <View style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }}>
-            <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={palette.bg} />
             <FlatList data={listings} keyExtractor={keyExtractor} numColumns={2} columnWrapperStyle={{
       gap: CARD_GAP,
       paddingHorizontal: 12,
@@ -151,19 +152,11 @@ function TopBar({
     setLang,
     supported
   } = useI18n();
+  const { isDark, toggle: toggleDarkMode } = useThemeMode();
   const [langOpen, setLangOpen] = useState(false);
-  const [dark, setDark] = useState(false);
   const [imgSearchBusy, setImgSearchBusy] = useState(false);
-  // Persisted preference — full theme propagation is staged; for now the
-  // toggle reflects user intent and surfaces a confirmation toast.
-  useEffect(() => {
-    AsyncStorage.getItem("hp_dark_mode").then(v => setDark(v === "1")).catch(() => {});
-  }, []);
   const toggleDark = async () => {
-    const next = !dark;
-    setDark(next);
-    try { await AsyncStorage.setItem("hp_dark_mode", next ? "1" : "0"); } catch (_) {}
-    Alert.alert(next ? t("الوضع الليلي") : t("الوضع النهاري"), t("تم الحفظ"));
+    await toggleDarkMode();
   };
   // Image-search: pick or capture an image → send base64 to /ai/image-search →
   // navigate to Search with the returned Arabic query. Mirrors web TopBar.
@@ -225,24 +218,30 @@ function TopBar({
     ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
     ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷"
   };
-  return <View style={{ backgroundColor: colors.bg, paddingTop: insets.top + 4 }}>
+  return <View style={{ paddingTop: insets.top + 4 }}>
+            <LinearGradient
+                colors={[colors.primary, colors.primaryHover]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+            />
             <View style={styles.brandRow}>
                 <Text style={styles.brandTitle}>{t("الحراج بلس")}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    {/* Dark mode toggle — persists preference. */}
+                    {/* Dark mode toggle — switches the global ThemeContext live. */}
                     <TouchableOpacity onPress={toggleDark} style={styles.headerIconBtn} testID="home-dark-toggle" hitSlop={6}>
-                        {dark ? <Sun size={16} color={colors.primaryDeep} strokeWidth={2.4} /> : <Moon size={16} color={colors.primaryDeep} strokeWidth={2.4} />}
+                        {isDark ? <Sun size={16} color="#fff" strokeWidth={2.4} /> : <Moon size={16} color="#fff" strokeWidth={2.4} />}
                     </TouchableOpacity>
                     {/* Language switcher pill */}
                     <TouchableOpacity onPress={() => setLangOpen(true)} style={styles.headerIconBtn} testID="home-lang-btn" hitSlop={6}>
-                        <Globe size={16} color={colors.primaryDeep} strokeWidth={2.4} />
+                        <Globe size={16} color="#fff" strokeWidth={2.4} />
                     </TouchableOpacity>
                     <NotificationBell />
                 </View>
             </View>
             <View style={styles.topBar}>
             <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
-                <SearchIcon size={16} color={colors.primary} />
+                <SearchIcon size={16} color={colors.primaryHover} />
                 <Text style={styles.searchPh} numberOfLines={1}>{t("ابحث... (AI)")}</Text>
                 {/* Image search — parity with web /api/ai/image-search */}
                 <TouchableOpacity
@@ -254,12 +253,12 @@ function TopBar({
                   style={{ paddingHorizontal: 4 }}
                 >
                   {imgSearchBusy
-                    ? <ActivityIndicator size="small" color={colors.primary} />
-                    : <Camera size={16} color={colors.primary} strokeWidth={2.4} />}
+                    ? <ActivityIndicator size="small" color={colors.primaryHover} />
+                    : <Camera size={16} color={colors.primaryHover} strokeWidth={2.4} />}
                 </TouchableOpacity>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => nav.navigate("AIAssistant")} style={styles.aiPill} testID="home-ai-assistant">
-                <Bot size={16} color="#fff" strokeWidth={2.5} />
+                <Bot size={16} color={colors.primaryHover} strokeWidth={2.5} />
             </TouchableOpacity>
             </View>
             {/* Language modal */}
@@ -474,21 +473,18 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 22,
     fontWeight: "900",
-    color: colors.primary,
+    color: "#FFFFFF",
     letterSpacing: 0.5
   },
   headerIconBtn: {
     width: 34,
     height: 34,
     borderRadius: 999,
-    backgroundColor: colors.surfaceCard,
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#89CFF0",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 5,
-    elevation: 2
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)"
   },
   langSheetBg: {
     flex: 1,
@@ -538,14 +534,14 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingBottom: 10,
-    backgroundColor: colors.bg
+    backgroundColor: "transparent"
   },
   searchBox: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.surfaceCard,
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -562,7 +558,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: "#FFFFFF",
     ...shadow.soft,
   },
   iconBtn: {

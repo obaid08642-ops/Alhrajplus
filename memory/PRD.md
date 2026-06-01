@@ -216,6 +216,16 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 ## Future / Out-of-scope
 - Voice messages in chat (record/send/playback).
 - Chat "Forward Message".
+
+## ✅ Phase 18 — Primary color overhaul + Chat fix + Search crash + Dark mode toggle (Feb 2026)
+- **Primary color → #4FB6E6** (web parity, was `#89CFF0`). Updated `theme.js` (`primary`, `primaryHover #2196D9`, `primaryFg #FFFFFF`, `navActive #FFFFFF`, `navInactive rgba(255,255,255,0.72)`, `navBg #4FB6E6`, card-shadow tint).
+- **FloatingTabBar**: entire pill background → `colors.primary` (full primary blue). Active tab gets translucent white pill; inactive tab text/icon = white 72% opacity. FAB kept vibrant orange `#FF8C00` (per user directive) with orange halo + pulse ring. Tab label "المزيد" → **"قصص"** with Film icon (mirrors web Stories/Reels).
+- **HomeScreen TopBar**: full LinearGradient `primary → primaryHover` covering brand row + search pill region. White text/icons on gradient. Search box bg = pure white (high contrast). AI bot pill bg = white with primary icon.
+- **ChatScreen — "Contact Seller" flash fix**: lazy `useState` initializer now seeds `activeOther`/`activeConvoId` synchronously from `route.params` so the thread renders IMMEDIATELY when arriving from a listing's "تواصل مع البائع" CTA. Previously the convo list flashed for ~1 frame before the useEffect populated state, which the user perceived as "opens chat home instead of the thread". The async enrichment effect remains (fetches `/users/{id}` to fill avatar/verified).
+- **SearchScreen + ChatScreen voice mic crash fix**: `expo-audio` v1.1.1 dropped the top-level `AudioModule`/`AudioRecorder` named exports — code was calling `AudioModule.requestRecordingPermissionsAsync()` on `undefined`. Replaced with the documented top-level functions `requestRecordingPermissionsAsync` / `setAudioModeAsync` + grabbed the native `AudioRecorder` constructor via `import AudioModuleDefault from "expo-audio/build/AudioModule"`. Added a defensive `if (!AudioRecorder) return` guard so the screen never throws if the native module is unavailable (e.g. on web).
+- **Dark mode activation**: new `/app/mobile/src/ThemeContext.js` providing `{ isDark, palette, toggle }`. `App.js` wraps tree with `ThemeModeProvider`. Top-bar Moon/Sun button now flips global state + persists via AsyncStorage (`hp_dark_mode`). `HomeScreen` root bg + StatusBar barStyle react live. Other screens to be migrated incrementally.
+- **Validation**: `npx expo export --platform web` → 3040 modules, 4.76 MB, no errors. ESLint clean across all 5 modified files (`theme.js`, `FloatingTabBar.js`, `HomeScreen.js`, `ChatScreen.js`, `SearchScreen.js`, new `ThemeContext.js`, `App.js`). Backend `/api/deals/today` returns 200 (deals route healthy).
+
 - Market-based AI pricing (external scraping).
 - AR Try-On, Escrow, WebRTC calls, Blockchain badges.
 

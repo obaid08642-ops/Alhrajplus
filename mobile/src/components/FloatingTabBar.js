@@ -4,11 +4,12 @@
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Platform, I18nManager } from "react-native";
 import { useEffect, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Home, MoreHorizontal, MessageCircle, User, Plus } from "lucide-react-native";
+import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
 import { colors } from "../theme";
 import { useI18n } from "../I18nContext";
-const ACTIVE = "#89CFF0";
-const INACTIVE = "#9AA8B5";
+// Tab bar palette — primary blue surface, white text/icons.
+const ACTIVE = "#FFFFFF";
+const INACTIVE = "rgba(255,255,255,0.72)";
 export default function FloatingTabBar({
   state,
   descriptors,
@@ -54,8 +55,8 @@ export default function FloatingTabBar({
     label: t("الرئيسية")
   }, {
     name: "ReelsTab",
-    icon: MoreHorizontal,
-    label: t("المزيد")
+    icon: Film,
+    label: t("قصص")
   }, {
     name: "_SPACER",
     icon: null,
@@ -250,10 +251,10 @@ const styles = StyleSheet.create({
     zIndex: 10
   },
   fabHalo: {
-    // Outer transparent halo — soft baby-blue glow (mirrors owner reference).
+    // Outer transparent halo — soft orange glow around the FAB.
     padding: 6,
     borderRadius: 999,
-    backgroundColor: "rgba(137,207,240,0.14)"
+    backgroundColor: "rgba(255,140,0,0.18)"
   },
   fab: {
     width: 68,
@@ -261,11 +262,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#89CFF0",
+    backgroundColor: "#FF8C00",
     borderWidth: 3,
     borderColor: "#FFFFFF",
     overflow: "hidden",
-    shadowColor: "#89CFF0",
+    shadowColor: "#FF8C00",
     shadowOpacity: 0.50,
     shadowRadius: 18,
     shadowOffset: {
@@ -297,6 +298,6 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 999,
-    backgroundColor: "rgba(137,207,240,0.45)"
+    backgroundColor: "rgba(255,140,0,0.45)"
   }
 });;

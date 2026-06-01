@@ -10,7 +10,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { AudioModule, AudioRecorder, RecordingPresets } from "expo-audio";
+// expo-audio v1.1+ removed the top-level `AudioModule`/`AudioRecorder`
+// named exports. Use the documented functions + grab the native AudioRecorder
+// constructor from the default-export module so the chat voice-record
+// feature still works.
+import AudioModuleDefault from "expo-audio/build/AudioModule";
+import { requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from "expo-audio";
+const AudioRecorder = AudioModuleDefault?.AudioRecorder;
 import { Send, Camera, MapPin, Mic, Search, ChevronLeft, Check, CheckCheck, Image as ImageIcon, Plus, Languages, Phone, MoreVertical, X, Play, Pause } from "lucide-react-native";
 import api from "../api";
 import { useAuth } from "../AuthContext";
@@ -112,8 +118,20 @@ export default function ChatScreen() {
   const initialSellerName = route.params?.seller_name;
   const initialSellerAvatar = route.params?.seller_avatar;
   const [convos, setConvos] = useState([]);
-  const [activeConvoId, setActiveConvoId] = useState(null);
-  const [activeOther, setActiveOther] = useState(null);
+  // Eagerly seed the active thread from route params on FIRST render so the
+  // user goes straight to the conversation when arriving from a listing's
+  // "تواصل مع البائع" button. Previously the screen flashed the conversation
+  // list for ~1 frame because state was filled from a useEffect AFTER mount.
+  const [activeOther, setActiveOther] = useState(() =>
+    initialTo ? {
+      id: initialTo,
+      name: initialSellerName || "مستخدم",
+      avatar: initialSellerAvatar,
+    } : null
+  );
+  const [activeConvoId, setActiveConvoId] = useState(() =>
+    initialTo && user?.id ? [user.id, initialTo].sort().join("_") : null
+  );
   const [activeListing, setActiveListing] = useState(initialListing || null);
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -137,13 +155,17 @@ export default function ChatScreen() {
   // any data we already have (from route params), then enrich asynchronously.
   useEffect(() => {
     if (!initialTo || !user) return;
-    // 1) Open immediately with what we know — never block the UI.
+    // 1) Sync state to current route params (handles re-navigation with a
+    //    different seller after the screen was already mounted, and also
+    //    covers the case where `user` arrived AFTER the lazy-init).
     const seed = {
       id: initialTo,
       name: initialSellerName || t("مستخدم"),
       avatar: initialSellerAvatar,
     };
-    openThread(seed);
+    setActiveOther(prev => (prev && prev.id === initialTo ? prev : seed));
+    setActiveConvoId([user.id, initialTo].sort().join("_"));
+    if (initialListing) setActiveListing(initialListing);
     // 2) Enrich profile in the background. If it fails, the seed values stay.
     (async () => {
       try {
@@ -159,7 +181,7 @@ export default function ChatScreen() {
       } catch (_) {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTo, user]);
+  }, [initialTo, user, initialListing]);
   const openThread = other => {
     if (!user) return;
     setActiveOther(other);
@@ -591,15 +613,16 @@ function ChatThread({
         }
         setUploading(false);
       } else {
-        const perm = await AudioModule.requestRecordingPermissionsAsync();
+        const perm = await requestRecordingPermissionsAsync();
         if (!perm.granted) {
           Alert.alert(t("إذن"), t("نحتاج صلاحية الميكروفون"));
           return;
         }
-        await AudioModule.setAudioModeAsync({
+        await setAudioModeAsync({
           allowsRecording: true,
           playsInSilentMode: true
         });
+        if (!AudioRecorder) { Alert.alert(t("خطأ"), t("ميكروفون غير متاح")); return; }
         const rec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
         await rec.prepareToRecordAsync();
         rec.record();

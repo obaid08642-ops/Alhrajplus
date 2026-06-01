@@ -1,12 +1,13 @@
-// Design tokens — Phase 4 redesign.
-// Baby-blue primary + vibrant-orange accent (FAB only) + off-white cards
-// + 16-24px radius + soft shadows. Matches the new identity brief.
+// Design tokens — Phase 18 redesign (Feb 2026).
+// Primary = web-parity medium sky-blue (#4FB6E6 → #2196D9 hover) applied
+// across BOTH top header AND bottom tab bar. FAB stays vibrant orange so
+// the central "create listing" CTA pops against the primary blue surface.
 export const colors = {
-    // PRIMARY — baby blue. Logo, headers, dominant icons, holograms, prices.
-    primary: "#89CFF0",
-    primaryHover: "#5FB6E0",   // hover/pressed state — slightly deeper baby blue
-    primaryDeep: "#2A8CBD",    // text-on-light uses this for AA contrast
-    primaryFg: "#0B1530",      // text color sitting on the primary surface
+    // PRIMARY — medium sky blue (matches web's --primary).
+    primary: "#4FB6E6",
+    primaryHover: "#2196D9",   // deeper hover state — used by gradient & pressed.
+    primaryDeep: "#0F1B3A",    // navy text/icon on light surfaces (AAA contrast).
+    primaryFg: "#FFFFFF",      // text/icons sitting ON the primary surface.
 
     // ACCENT — vibrant orange. RESERVED for the central "create listing" FAB
     // in the tab bar and tiny attention dots. Do NOT use anywhere else.
@@ -34,10 +35,11 @@ export const colors = {
     danger:  "#EF4444",
     warning: "#F59E0B",
 
-    // Bottom nav — primary for active tab, muted slate for inactive.
-    navActive: "#5FB6E0",
-    navInactive: "#94A3B8",
-    navBg: "rgba(255,255,255,0.96)",
+    // Bottom nav — when tab bar background is primary blue, active=white
+    // (high-contrast pill highlight) and inactive=white at 70% opacity.
+    navActive: "#FFFFFF",
+    navInactive: "rgba(255,255,255,0.72)",
+    navBg: "#4FB6E6",
 
     // Legacy alias kept so older screens compile until migration finishes.
     secondary: "#0F1A35",
@@ -59,10 +61,10 @@ export const font = {
 // primary baby blue so cards feel cohesive.
 export const shadow = {
     card: {
-        // Owner-mandated card shadow — soft, diffused, baby-blue tinted.
-        shadowColor: "#89CFF0",
+        // Owner-mandated card shadow — soft, diffused, primary-blue tinted.
+        shadowColor: "#4FB6E6",
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
+        shadowOpacity: 0.08,
         shadowRadius: 12,
         elevation: 3,
     },

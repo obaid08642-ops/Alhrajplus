@@ -4,7 +4,13 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Modal, StatusBar, Dimensions, RefreshControl, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Search, X, ChevronLeft, SlidersHorizontal, Check, MapPin, Mic, Bookmark } from "lucide-react-native";
-import { AudioModule, AudioRecorder, RecordingPresets } from "expo-audio";
+// expo-audio v1.1+ removed the top-level `AudioModule`/`AudioRecorder`
+// named exports. Use the documented functions + grab the native AudioRecorder
+// constructor from the default-export module so `new AudioRecorder(...)`
+// still works without crashing the screen on mic-press.
+import AudioModuleDefault from "expo-audio/build/AudioModule";
+import { requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from "expo-audio";
+const AudioRecorder = AudioModuleDefault?.AudioRecorder;
 import api from "../api";
 import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
@@ -101,12 +107,13 @@ export default function SearchScreen({
       }
     } else {
       try {
-        const perm = await AudioModule.requestRecordingPermissionsAsync();
+        const perm = await requestRecordingPermissionsAsync();
         if (!perm.granted) return;
-        await AudioModule.setAudioModeAsync({
+        await setAudioModeAsync({
           allowsRecording: true,
           playsInSilentMode: true
         });
+        if (!AudioRecorder) { Alert.alert(t("خطأ"), t("ميكروفون غير متاح")); return; }
         const rec = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
         await rec.prepareToRecordAsync();
         rec.record();

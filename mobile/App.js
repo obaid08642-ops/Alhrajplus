@@ -36,6 +36,7 @@ import { AuthProvider, useAuth } from "./src/AuthContext";
 import ErrorBoundary from "./src/ErrorBoundary";
 import { I18nProvider } from "./src/I18nContext";
 import { CountryProvider } from "./src/CountryContext";
+import { ThemeModeProvider, useThemeMode } from "./src/ThemeContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
 import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/PasswordReset";
@@ -210,14 +211,21 @@ export default function App() {
         <ErrorBoundary>
             <SafeAreaProvider>
                 <I18nProvider>
-                    <AuthProvider>
-                        <CountryProvider>
-                            <Navigation />
-                            <StatusBar style="dark" />
-                        </CountryProvider>
-                    </AuthProvider>
+                    <ThemeModeProvider>
+                        <AuthProvider>
+                            <CountryProvider>
+                                <Navigation />
+                                <ThemedStatusBar />
+                            </CountryProvider>
+                        </AuthProvider>
+                    </ThemeModeProvider>
                 </I18nProvider>
             </SafeAreaProvider>
         </ErrorBoundary>
     );
+}
+
+function ThemedStatusBar() {
+    const { isDark } = useThemeMode();
+    return <StatusBar style={isDark ? "light" : "dark"} />;
 }
