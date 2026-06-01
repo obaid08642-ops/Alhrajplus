@@ -23,7 +23,7 @@ if (typeof global !== "undefined" && global.ErrorUtils && !global.__APP_CRASH_TR
 }
 
 import { useEffect, useRef } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
@@ -95,7 +95,9 @@ function TabsNavigator() {
 function Navigation() {
     const { user, loading } = useAuth();
     const { t } = useI18n();
-    const navRef = useRef(null);
+    // Container-level ref — works OUTSIDE any navigator (unlike useNavigation).
+    // Passed down to the global floating FAB so it can navigate without hooks.
+    const navRef = useNavigationContainerRef();
 
     useEffect(() => {
         if (user) registerForNotifications();
@@ -195,8 +197,10 @@ function Navigation() {
                 <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: t("نسيت كلمة المرور؟") }} />
                 <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: t("إعادة تعيين كلمة المرور") }} />
             </Stack.Navigator>
-            {/* Global floating AI assistant — draggable, closable, persists position. */}
-            <AIAssistantFab />
+            {/* Global floating AI assistant — draggable, closable, persists position.
+                Receives the container ref so it can navigate without using
+                useNavigation (which would crash since it's outside any navigator). */}
+            <AIAssistantFab navRef={navRef} />
         </NavigationContainer>
     );
 }

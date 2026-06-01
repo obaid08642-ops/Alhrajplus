@@ -3877,9 +3877,11 @@ async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_curre
     current = top["amount"] if top else (listing.get("price") or 0)
     min_required = current + min_increment
     if body.amount < min_required:
+        # Format with thousand separators — avoids `2.05e+06`-style scientific
+        # notation for large auctions like cars/real-estate.
         raise HTTPException(
             400,
-            f"الحد الأدنى للمزايدة: {min_required:g} (زيادة لا تقل عن {min_increment:g})"
+            f"الحد الأدنى للمزايدة: {min_required:,.0f} (زيادة لا تقل عن {min_increment:,.0f})"
         )
     bid_id = str(uuid.uuid4())
     bid = {

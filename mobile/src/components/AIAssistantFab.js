@@ -10,7 +10,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Dimensions, PanResponder, StyleSheet, TouchableOpacity, View, Text } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation, useNavigationState } from "@react-navigation/native";
 import { Sparkles, X } from "lucide-react-native";
 import { theme } from "../theme";
 import { useI18n } from "../I18nContext";
@@ -19,20 +18,43 @@ const POS_KEY = "hp_ai_fab_pos_mobile";
 const HIDDEN_KEY = "hp_ai_fab_hidden_mobile";
 const FAB_SIZE = 58;
 
-export default function AIAssistantFab() {
-    const { t } = useI18n();
-    const nav = useNavigation();
-    const { width: W, height: H } = Dimensions.get("window");
-
-    // Hide on the AIAssistant screen itself so it doesn't overlap the chat UI,
-    // and on Reels (full-screen). Read current route from navigation state.
-    const routeName = useNavigationState((state) => {
+/**
+ * Helper — read the leaf route name from the container ref. Drills into
+ * nested navigators so we get e.g. "HomeTab" when the user is on the home
+ * screen inside the Main tab navigator. Returns "" if the ref isn't ready
+ * yet (mount-phase race) — caller treats that as "show the FAB".
+ */
+function _getRouteName(navRef) {
+    try {
+        const state = navRef?.current?.getRootState?.();
         if (!state) return "";
-        // Drill into nested navigators to find the leaf route name.
         let r = state.routes?.[state.index || 0];
         while (r?.state) r = r.state.routes?.[r.state.index || 0];
         return r?.name || "";
-    });
+    } catch (_) {
+        return "";
+    }
+}
+
+export default function AIAssistantFab({ navRef }) {
+    const { t } = useI18n();
+    const { width: W, height: H } = Dimensions.get("window");
+
+    // We can't subscribe to the navigation ref via hooks, so we poll it
+    // using a "listener" pattern: subscribe to navRef.addListener('state').
+    const [routeName, setRouteName] = useState("");
+    useEffect(() => {
+        if (!navRef) return undefined;
+        const update = () => setRouteName(_getRouteName(navRef));
+        // Initial read after first paint when the ref is hooked up.
+        const initial = setTimeout(update, 50);
+        // navigation container refs expose addListener for state changes.
+        const off = navRef.addListener?.("state", update);
+        return () => {
+            clearTimeout(initial);
+            if (typeof off === "function") off();
+        };
+    }, [navRef]);
     const hideOnRoute = routeName === "AIAssistant" || routeName === "ReelsTab" || routeName === "Login" || routeName === "Register" || routeName === "Chat";
 
     const [hidden, setHidden] = useState(false);
@@ -75,7 +97,7 @@ export default function AIAssistantFab() {
                 } catch (_) {}
                 // Detect a "tap" (negligible movement): open the assistant.
                 if (Math.abs(g.dx) < 6 && Math.abs(g.dy) < 6) {
-                    try { nav.navigate("AIAssistant"); } catch (_) {}
+                    try { navRef?.current?.navigate?.("AIAssistant"); } catch (_) {}
                 }
             },
         })
