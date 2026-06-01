@@ -1,303 +1,248 @@
-// FloatingTabBar — premium pill-shaped glass tab bar with a floating
-// gradient FAB in the center. Pure RN (no expo-blur dependency) so it
-// runs on every Expo + bare RN build.
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Platform, I18nManager } from "react-native";
+// FloatingTabBar — owner-mandated design (Feb 2026):
+//  • Solid sky-blue (or dark) bar pinned to the screen bottom.
+//  • A U-shaped concave notch in the center where a lime-green vertical
+//    capsule FAB ("أضف إعلان") sits with a soft white glow halo.
+//  • Tab labels (RTL): الرئيسية | قصص | [+] | رسائلي | حسابي.
+//  • Default theme = light (sky blue surface). When the user enables Dark
+//    Mode via the home toggle, the bar switches to a deep navy surface.
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, I18nManager, Dimensions } from "react-native";
 import { useEffect, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
-import { colors } from "../theme";
 import { useI18n } from "../I18nContext";
-// Tab bar palette — primary blue surface, white text/icons.
-const ACTIVE = "#FFFFFF";
-const INACTIVE = "rgba(255,255,255,0.72)";
-export default function FloatingTabBar({
-  state,
-  descriptors,
-  navigation
-}) {
-  const { t } = useI18n();
+import { useThemeMode } from "../ThemeContext";
 
-  // CRITICAL: respect the active route's `tabBarStyle: { display: "none" }`
-  // option so screens like Reels can hide the tab bar via useFocusEffect.
-  // Our custom tab bar doesn't get this for free — must opt in here.
+const BAR_HEIGHT = 72;
+const NOTCH_RADIUS = 40;      // half the notch width
+const CORNER_RADIUS = 26;
+const SIDE_MARGIN = 0;        // full-bleed bar (touches left/right edges)
+
+// FAB dimensions — vertical capsule (taller than wide).
+const FAB_W = 72;
+const FAB_H = 96;
+const FAB_TOP_OFFSET = 26;    // how far above the bar the FAB sits
+
+// Build the SVG path for a rounded rect with a concave top-center notch.
+function buildBarPath(W, H) {
+  const cx = W / 2;
+  const cr = CORNER_RADIUS;
+  const nr = NOTCH_RADIUS;
+  return [
+    `M ${cr} 0`,
+    `L ${cx - nr} 0`,
+    // concave dip — sweep flag 1 = clockwise (curve dips DOWN into the bar).
+    `A ${nr} ${nr} 0 0 1 ${cx + nr} 0`,
+    `L ${W - cr} 0`,
+    `A ${cr} ${cr} 0 0 1 ${W} ${cr}`,
+    `L ${W} ${H - cr}`,
+    `A ${cr} ${cr} 0 0 1 ${W - cr} ${H}`,
+    `L ${cr} ${H}`,
+    `A ${cr} ${cr} 0 0 1 0 ${H - cr}`,
+    `L 0 ${cr}`,
+    `A ${cr} ${cr} 0 0 1 ${cr} 0`,
+    "Z",
+  ].join(" ");
+}
+
+export default function FloatingTabBar({ state, descriptors, navigation }) {
+  const { t } = useI18n();
+  const { isDark } = useThemeMode();
+
+  // Respect a screen's `tabBarStyle: { display: 'none' }` request so screens
+  // like Reels can hide the bar via useFocusEffect.
   const currentRoute = state.routes[state.index];
   const currentOpts = descriptors?.[currentRoute.key]?.options || {};
   const hidden = currentOpts.tabBarStyle?.display === "none" || currentOpts.tabBarVisible === false;
-  
+
   const insets = useSafeAreaInsets();
   const pulse = useRef(new Animated.Value(0)).current;
   const fabPress = useRef(new Animated.Value(1)).current;
 
-  // Soft pulse around the center FAB — runs once mounted.
   useEffect(() => {
-    Animated.loop(Animated.sequence([Animated.timing(pulse, {
-      toValue: 1,
-      duration: 1600,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true
-    }), Animated.timing(pulse, {
-      toValue: 0,
-      duration: 0,
-      useNativeDriver: true
-    })])).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    ).start();
   }, [pulse]);
-  const pulseScale = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.55]
-  });
-  const pulseOpacity = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.35, 0]
-  });
-  const TABS_LTR = [{
-    name: "HomeTab",
-    icon: Home,
-    label: t("الرئيسية")
-  }, {
-    name: "ReelsTab",
-    icon: Film,
-    label: t("قصص")
-  }, {
-    name: "_SPACER",
-    icon: null,
-    label: ""
-  }, {
-    name: "ChatTab",
-    icon: MessageCircle,
-    label: t("المحادثات")
-  }, {
-    name: "ProfileTab",
-    icon: User,
-    label: t("حسابي")
-  }];
-  // RTL (Arabic/Urdu): Home must appear on the RIGHT to match reading direction.
-  // We reverse the array so visually: Profile | Chat | [FAB] | Reels | Home.
+  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
+  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] });
+
+  // Tab ordering — LTR base; reversed for RTL languages (Arabic/Urdu).
+  const TABS_LTR = [
+    { name: "HomeTab",    icon: Home,          label: t("الرئيسية") },
+    { name: "ReelsTab",   icon: Film,          label: t("قصص") },
+    { name: "_SPACER",    icon: null,          label: "" },
+    { name: "ChatTab",    icon: MessageCircle, label: t("رسائلي") },
+    { name: "ProfileTab", icon: User,          label: t("حسابي") },
+  ];
   const TABS = I18nManager.isRTL ? [...TABS_LTR].reverse() : TABS_LTR;
 
-  // After all hooks have been called — bail out if the active route asked us
-  // to hide. Returning null here keeps Reels truly full-screen.
   if (hidden) return null;
 
   const goToPost = () => {
-    Animated.sequence([Animated.spring(fabPress, {
-      toValue: 0.88,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 0
-    }), Animated.spring(fabPress, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 8
-    })]).start();
+    Animated.sequence([
+      Animated.spring(fabPress, { toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 0 }),
+      Animated.spring(fabPress, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 8 }),
+    ]).start();
     navigation.getParent()?.navigate("Post");
   };
-  // Owner directive: tab bar must sit FLUSH with the bottom of the screen
-  // (no extra gap below). Respect the iOS home-indicator inset but DO NOT
-  // add any additional padding beyond it. Android (insets.bottom === 0) →
-  // pin to absolute 0.
-  return <View pointerEvents="box-none" style={[styles.wrap, {
-    paddingBottom: insets.bottom
-  }]}>
-            {/* Floating gradient FAB — freestanding circular button with an
-                 outer translucent halo (rgba(255,140,0,0.10)) so it visually
-                 detaches from the glass pill underneath. */}
-            <View pointerEvents="box-none" style={styles.fabAnchor}>
-                <Animated.View pointerEvents="none" style={[styles.pulseRing, {
-        transform: [{
-          scale: pulseScale
-        }],
-        opacity: pulseOpacity
-      }]} />
-                <Animated.View style={{
-        transform: [{
-          scale: fabPress
-        }]
-      }}>
-                    <View style={styles.fabHalo}>
-                        <TouchableOpacity onPress={goToPost} activeOpacity={0.85} style={styles.fab} testID="tab-fab-post" accessibilityLabel={t("نشر إعلان")}>
-                            {/* Solid baby-blue per owner reference (image #3) — no gradient
-                                so we don't depend on expo-linear-gradient. */}
-                            <Plus size={26} color="#fff" strokeWidth={3.2} />
-                            <Text style={styles.fabLabel} numberOfLines={1}>{t("أنشئ إعلان")}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </Animated.View>
-            </View>
 
-            {/* Glass pill */}
-            <View style={styles.pillShadow}>
-                <View style={styles.pill}>
-                    {/* layered translucent overlays simulate frosted glass */}
-                    <View pointerEvents="none" style={styles.glassFill} />
-                    <View pointerEvents="none" style={styles.glassHighlight} />
+  const W = Dimensions.get("window").width - SIDE_MARGIN * 2;
+  const barPath = buildBarPath(W, BAR_HEIGHT);
 
-                    {TABS.map(tab => {
-          if (tab.name === "_SPACER") return <View key="spacer" style={styles.spacer} />;
-          const routeIndex = state.routes.findIndex(r => r.name === tab.name);
-          if (routeIndex === -1) return <View key={tab.name} style={styles.tabBtnGhost} />;
-          const focused = state.index === routeIndex;
-          const Icon = tab.icon;
-          const onPress = () => {
-            const ev = navigation.emit({
-              type: "tabPress",
-              target: state.routes[routeIndex].key,
-              canPreventDefault: true
-            });
-            if (!focused && !ev.defaultPrevented) navigation.navigate(tab.name);
-          };
-          return <TouchableOpacity key={tab.name} onPress={onPress} activeOpacity={0.7} style={styles.tabBtn} testID={`tab-${tab.name}`} accessibilityRole="tab" accessibilityState={{
-            selected: focused
-          }}>
-                                {focused && <View style={styles.activePill} />}
-                                <Icon size={22} color={focused ? ACTIVE : INACTIVE} strokeWidth={focused ? 2.6 : 2} />
-                                <Text style={[styles.tabLabel, {
-              color: focused ? ACTIVE : INACTIVE,
-              fontWeight: focused ? "900" : "700"
-            }]} numberOfLines={1}>
-                                    {tab.label}
-                                </Text>
-                            </TouchableOpacity>;
-        })}
-                </View>
-            </View>
-        </View>;
+  // Surface colors — light = sky blue (mockup); dark = deep navy.
+  const surface = isDark ? "#0F1B3A" : "#4FB6E6";
+  const surfaceDeep = isDark ? "#152244" : "#3AA9DD";
+  const activeColor = "#FFFFFF";
+  const inactiveColor = isDark ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.78)";
+
+  return (
+    <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: insets.bottom }]}>
+      {/* Lime-green FAB floating above the notch */}
+      <View pointerEvents="box-none" style={[styles.fabAnchor, { bottom: BAR_HEIGHT + insets.bottom - FAB_TOP_OFFSET }]}>
+        <Animated.View pointerEvents="none" style={[styles.pulseRing, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]} />
+        <Animated.View style={{ transform: [{ scale: fabPress }] }}>
+          <View style={styles.fabHalo}>
+            <TouchableOpacity
+              onPress={goToPost}
+              activeOpacity={0.85}
+              style={styles.fab}
+              testID="tab-fab-post"
+              accessibilityLabel={t("أضف إعلان")}
+            >
+              <Plus size={26} color="#0F2A1B" strokeWidth={3.2} />
+              <Text style={styles.fabLabel} numberOfLines={1}>{t("أضف إعلان")}</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </View>
+
+      {/* SVG bar shape with U-notch */}
+      <View style={[styles.barOuter, { width: W, height: BAR_HEIGHT }]}>
+        <Svg width={W} height={BAR_HEIGHT} style={StyleSheet.absoluteFillObject}>
+          <Path d={barPath} fill={surface} />
+        </Svg>
+        {/* Soft deeper-tint overlay for visual depth (under tabs) */}
+        <Svg width={W} height={BAR_HEIGHT} style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          <Path d={barPath} fill={surfaceDeep} opacity={0.18} />
+        </Svg>
+
+        {/* Tabs row */}
+        <View style={styles.tabsRow}>
+          {TABS.map((tab) => {
+            if (tab.name === "_SPACER") return <View key="spacer" style={styles.spacer} />;
+            const routeIndex = state.routes.findIndex((r) => r.name === tab.name);
+            if (routeIndex === -1) return <View key={tab.name} style={styles.spacer} />;
+            const focused = state.index === routeIndex;
+            const Icon = tab.icon;
+            const onPress = () => {
+              const ev = navigation.emit({ type: "tabPress", target: state.routes[routeIndex].key, canPreventDefault: true });
+              if (!focused && !ev.defaultPrevented) navigation.navigate(tab.name);
+            };
+            return (
+              <TouchableOpacity
+                key={tab.name}
+                onPress={onPress}
+                activeOpacity={0.7}
+                style={styles.tabBtn}
+                testID={`tab-${tab.name}`}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: focused }}
+              >
+                <Icon size={22} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
+                <Text style={[styles.tabLabel, { color: focused ? activeColor : inactiveColor, fontWeight: focused ? "900" : "700" }]} numberOfLines={1}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
 }
+
 const styles = StyleSheet.create({
   wrap: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: "center"
+    alignItems: "center",
   },
-  // Shadow wrapper so the pill itself can clip its translucent overlays.
-  pillShadow: {
-    marginHorizontal: 14,
-    borderRadius: 36,
-    shadowColor: "#0F1A35",
-    shadowOpacity: 0.18,
-    shadowRadius: 22,
-    shadowOffset: {
-      width: 0,
-      height: 10
-    },
-    elevation: 16
+  barOuter: {
+    position: "relative",
   },
-  pill: {
+  tabsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    backgroundColor: "rgba(255,255,255,0.78)",
-    borderRadius: 36,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.75)",
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-    minWidth: 320,
-    maxWidth: 480,
-    overflow: "hidden"
-  },
-  // Soft tint underlay → adds depth + frosted feel without a blur lib.
-  glassFill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(241,247,255,0.55)"
-  },
-  glassHighlight: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 14,
-    backgroundColor: "rgba(255,255,255,0.55)"
+    height: BAR_HEIGHT,
+    paddingHorizontal: 8,
+    // Push tab labels slightly down (below the notch curve at top center).
+    paddingTop: 10,
   },
   tabBtn: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 7,
-    paddingHorizontal: 4,
-    borderRadius: 22,
-    gap: 4
-  },
-  tabBtnGhost: {
-    width: 56
-  },
-  // Subtle active background — kept inside the pill, no overlap with FAB
-  activePill: {
-    position: "absolute",
-    top: 4,
-    bottom: 4,
-    left: 8,
-    right: 8,
-    backgroundColor: "rgba(137,207,240,0.18)",
-    borderRadius: 18
-  },
-  tabLabel: {
-    fontSize: 10.5,
-    textAlign: "center",
-    includeFontPadding: false
+    gap: 3,
   },
   spacer: {
-    width: 64
+    // Reserve space for the FAB notch in the center.
+    width: NOTCH_RADIUS * 2 + 12,
+  },
+  tabLabel: {
+    fontSize: 11,
+    textAlign: "center",
+    includeFontPadding: false,
   },
   // ===== FAB =====
   fabAnchor: {
     position: "absolute",
-    bottom: 22,
     left: 0,
     right: 0,
     alignItems: "center",
-    zIndex: 10
+    zIndex: 10,
   },
   fabHalo: {
-    // Outer transparent halo — soft orange glow around the FAB.
-    padding: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,140,0,0.18)"
-  },
-  fab: {
-    width: 68,
-    height: 68,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FF8C00",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    overflow: "hidden",
-    shadowColor: "#FF8C00",
-    shadowOpacity: 0.50,
-    shadowRadius: 18,
-    shadowOffset: {
-      width: 0,
-      height: 10
-    },
-    elevation: 16
-  },
-  fabLabel: {
-    color: "#FFFFFF",
-    fontSize: 9,
-    fontWeight: "900",
-    marginTop: 1
-  },
-  fabShine: {
-    position: "absolute",
-    top: -12,
-    left: -8,
-    width: 36,
-    height: 36,
+    // Soft white-yellow glow ring around the lime capsule.
+    padding: 5,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.55)",
-    transform: [{
-      rotate: "-30deg"
-    }]
+    shadowColor: "#B5E61D",
+    shadowOpacity: 0.45,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 12,
+  },
+  fab: {
+    width: FAB_W,
+    height: FAB_H,
+    borderRadius: 999, // very large → renders as a vertical capsule because height > width.
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#B5E61D",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    overflow: "hidden",
+  },
+  fabLabel: {
+    color: "#0F2A1B",
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: 2,
+    textAlign: "center",
   },
   pulseRing: {
     position: "absolute",
-    width: 68,
-    height: 68,
+    width: FAB_W + 16,
+    height: FAB_H + 16,
     borderRadius: 999,
-    backgroundColor: "rgba(255,140,0,0.45)"
-  }
-});;
+    backgroundColor: "rgba(181,230,29,0.35)",
+  },
+});

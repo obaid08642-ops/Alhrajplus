@@ -243,3 +243,15 @@ See `/app/memory/test_credentials.md`.
   - `MoreScreens.NotificationsScreen` (root bg uses palette).
   - `OtherScreens.FavoritesScreen / MyListingsScreen / DealsScreen` (root bg + title color).
 - **Validation**: `yarn build` (frontend) → exits 0, build folder ready. `npx expo export --platform web` → 3040 modules, no errors. ESLint clean across all 7 modified files.
+
+
+## ✅ Phase 20 — New Tab Bar (U-notch + lime FAB) + WhatsApp-fixed chat BG (Feb 2026)
+- **🎨 FloatingTabBar — complete rebuild to match owner's mockup (IMG_2738)**:
+  - **U-shaped concave notch** in the center of the bar — drawn via SVG `<Path>` (`react-native-svg`). Notch radius 40px, bar height 72px, corner radius 26px.
+  - **Vertical lime-green capsule FAB** (`#B5E61D`, 72×96 → renders as a tall pill via `borderRadius: 999`). White 2px ring + soft white halo wrapper + lime-tinted pulse ring. FAB label = **"أضف إعلان"** (white-on-lime, 10px, weight 900).
+  - **Full-bleed bar** touches the screen's left/right edges (no side margin) so it doesn't appear "raised" anymore. `paddingBottom: insets.bottom` only.
+  - **Tab labels (RTL)**: الرئيسية | قصص | [+] | رسائلي | حسابي. Inactive = white at 78% opacity; active = pure white + bold.
+  - **Dark-mode aware**: bar surface flips from sky-blue (`#4FB6E6`) to deep navy (`#0F1B3A`) when the user toggles dark mode via the home Moon/Sun button. Default is light.
+- **HomeScreen TopBar — dark-mode aware**: top gradient now flips from `[primary, primaryHover]` to `["#0F1B3A", "#152244"]` when dark mode is on.
+- **💬 Chat background — WhatsApp-style FIXED**: the SVG product-pattern bg used to be a sibling of the `FlatList` *inside* the messages container, which (on iOS+KeyboardAvoidingView resize) caused it to repaint and visually shift. Lifted the bg layer to be the FIRST `absoluteFillObject` child of the outer `KeyboardAvoidingView` — now it sits truly behind the header, messages, and composer. No more bg movement on scroll. Removed the redundant inner bg layer.
+- **Validation**: `npx expo export --platform web` → 3041 modules (one new file: rebuilt `FloatingTabBar.js`), 4.76 MB, no errors. ESLint clean on `FloatingTabBar.js`, `ChatScreen.js`, `HomeScreen.js`. Backend `/api/ai/image-search` healthy (HTTP 400 on invalid input as designed).

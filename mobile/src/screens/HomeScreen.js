@@ -220,7 +220,7 @@ function TopBar({
   };
   return <View style={{ paddingTop: insets.top + 4 }}>
             <LinearGradient
-                colors={[colors.primary, colors.primaryHover]}
+                colors={isDark ? ["#0F1B3A", "#152244"] : [colors.primary, colors.primaryHover]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}

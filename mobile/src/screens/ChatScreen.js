@@ -649,6 +649,12 @@ function ChatThread({
     // Bg color matches the SVG's baked background (#f9f6f1) so seams are invisible.
     backgroundColor: "#f9f6f1"
   }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}>
+            {/* Fixed chat background — single absolute layer behind EVERYTHING
+                (header, messages, composer). Lifted out of the messages
+                container so it can never scroll with the FlatList. */}
+            <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+              <SvgXml xml={CHAT_BG_SVG} width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
+            </View>
             {/* Thread header */}
             <View style={[s.threadHeader, {
       paddingTop: insets.top + 2
@@ -753,14 +759,7 @@ function ChatThread({
             {loading ? <View style={{
       flex: 1,
       justifyContent: "center"
-    }}><ActivityIndicator color={colors.primary} /></View> : <View style={{ flex: 1, position: "relative" }}>
-                  {/* SVG product pattern bg — owner-supplied tile (390×844).
-                      Rendered once as a single full-screen layer behind the
-                      message list. We don't tile to avoid expensive re-renders
-                      on big screens; the SVG is opacity-baked already. */}
-                  <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-                    <SvgXml xml={CHAT_BG_SVG} width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
-                  </View>
+    }}><ActivityIndicator color={colors.primary} /></View> : <View style={{ flex: 1 }}>
                   <FlatList ref={listRef} data={messages} keyExtractor={m => m.id} contentContainerStyle={{
                     padding: 12,
                     paddingBottom: 16
