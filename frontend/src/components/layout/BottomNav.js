@@ -40,11 +40,17 @@ export default function BottomNav() {
         return () => clearInterval(id);
     }, [user]);
 
-    // Hide the bottom nav (and floating +) on full-screen experiences:
+    // Hide the bottom nav (and floating +) on full-screen experiences and on
+    // detail/checkout pages where the CTA must be free of any overlay:
     //  - Reels/Stories (immersive vertical video)
-    //  - When the AI Assistant panel is open (so + doesn't overlap input)
+    //  - AI Assistant panel open (so + doesn't overlap input)
+    //  - Listing detail (sticky "Contact / Bid" button lives at bottom)
+    //  - Auction detail (sticky "مزايدة" button lives at bottom)
+    //  - Active chat thread on mobile (chat-active class)
     const onReels = pathname.startsWith("/reels");
-    if (onReels || aiOpen) return null;
+    const onListing = /^\/listing\/[^/]+/.test(pathname);
+    const onAuction = /^\/auctions?\/[^/]+/.test(pathname);
+    if (onReels || onListing || onAuction || aiOpen) return null;
 
     const isActive = (to) => to === "/" ? pathname === "/" : pathname.startsWith(to);
 

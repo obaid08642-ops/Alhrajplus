@@ -489,6 +489,36 @@ export default function ListingDetail() {
 
             {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
             {show360 && <Viewer360 images={listing.images} onClose={() => setShow360(false)} />}
+
+            {/* Sticky bottom CTA bar — fills the space left by the hidden
+                BottomNav. Auctions show "مزايدة الآن", regular listings show
+                "تواصل مع البائع". Hidden for the owner of the listing. */}
+            {!isOwner && listing.seller?.id && (
+                <div data-testid="listing-sticky-cta" className="fixed inset-x-0 bottom-0 z-40 bg-[var(--surface)]/96 backdrop-blur-md border-t border-[var(--border)] shadow-[0_-4px_18px_rgba(0,0,0,0.08)]">
+                    <div className="max-w-7xl mx-auto px-3 py-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0) + 12px)" }}>
+                        {(listing.category === "auctions" || listing.auction_meta || listing.is_auction) ? (
+                            <button
+                                data-testid="listing-sticky-bid-btn"
+                                onClick={() => nav(`/auctions?openBidFor=${listing.id}`)}
+                                className="w-full flex items-center justify-center gap-2 bg-[var(--accent)] hover:opacity-95 text-white py-4 rounded-2xl font-arabic font-black text-base shadow-lg shadow-[var(--accent)]/40 active:scale-[0.98] transition-all"
+                            >
+                                <span className="text-xl">🔨</span> {tr("مزايدة الآن")}
+                            </button>
+                        ) : (
+                            <button
+                                data-testid="listing-sticky-contact-btn"
+                                onClick={() => {
+                                    if (!user) { nav("/auth"); return; }
+                                    nav(`/chat?to=${listing.seller.id}&listing_id=${listing.id}`);
+                                }}
+                                className="w-full flex items-center justify-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] py-4 rounded-2xl font-arabic font-black text-base shadow-lg shadow-[var(--primary)]/40 active:scale-[0.98] transition-all"
+                            >
+                                <MessageCircle className="w-5 h-5" /> {tr("تواصل مع البائع")}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

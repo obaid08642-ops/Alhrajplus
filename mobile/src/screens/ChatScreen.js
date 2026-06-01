@@ -547,7 +547,10 @@ function ChatThread({
   const presenceText = presence.online ? t("متصل الآن") : fmtLastSeen(presence.last_seen);
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{
     flex: 1,
-    backgroundColor: "#E5DDD5"
+    // Brand-aligned chat background — soft baby-blue tint that matches the
+    // app theme (replaces the WhatsApp tan). A subtle decorative product
+    // pattern overlay is rendered via the styles.chatBgPattern absolute view.
+    backgroundColor: "#F1F7FF"
   }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}>
             {/* Thread header */}
             <View style={[s.threadHeader, {

@@ -1,6 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput } from "react-native";
-import { Phone, MessageCircle, Bell, BellOff, Share2 } from "lucide-react-native";
+import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel } from "lucide-react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
@@ -18,7 +20,22 @@ export default function ListingDetailScreen({
   const {
     user
   } = useAuth();
-  
+  const insets = useSafeAreaInsets();
+
+  // Tell the parent tab navigator to hide the floating tab bar so it never
+  // overlaps the sticky bottom CTA on this screen. Restored on blur.
+  const _hideTabBarOnFocus = useCallback(() => {
+    const parent = navigation.getParent?.();
+    const grandparent = parent?.getParent?.();
+    parent?.setOptions?.({ tabBarStyle: { display: "none" } });
+    grandparent?.setOptions?.({ tabBarStyle: { display: "none" } });
+    return () => {
+      parent?.setOptions?.({ tabBarStyle: undefined });
+      grandparent?.setOptions?.({ tabBarStyle: undefined });
+    };
+  }, [navigation]);
+  useFocusEffect(_hideTabBarOnFocus);
+
   const [listing, setListing] = useState(null);
   const [similar, setSimilar] = useState([]);
   const [badge, setBadge] = useState(null);
@@ -198,7 +215,20 @@ export default function ListingDetailScreen({
     }
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`);
   };
-  return <ScrollView style={styles.wrap}>
+  const isAuction = listing && (listing.category === "auctions" || !!listing.auction_meta || !!listing.is_auction);
+  return <View style={styles.wrap}>
+        {/* Floating back button — top-end (RTL: right). High-contrast pill so
+            it works against any image background. */}
+        <TouchableOpacity
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate("Main")}
+          style={[styles.backBtn, { top: insets.top + 10 }]}
+          testID="listing-back-btn"
+          hitSlop={8}
+          activeOpacity={0.85}
+        >
+          <ChevronRight size={22} color="#fff" strokeWidth={2.6} />
+        </TouchableOpacity>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isAuction ? 120 : 90 }}>
             <View style={styles.imageWrap}>
                 {listing.images?.length ? <FlatList ref={carouselRef} data={listing.images} horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyExtractor={(_, i) => `img-${i}`} getItemLayout={(_, i) => ({
         length: SCREEN_W,
@@ -446,12 +476,126 @@ export default function ListingDetailScreen({
             <Modal visible={show360} transparent animationType="fade" onRequestClose={() => setShow360(false)}>
                 <Viewer360Mobile images={listing.images || []} onClose={() => setShow360(false)} />
             </Modal>
-        </ScrollView>;
+        </ScrollView>
+
+        {/* Sticky bottom CTA — replaces the floating tab bar on this screen.
+            For auctions: a single primary "مزايدة" button.
+            For regular listings: full-width "تواصل مع البائع" only for
+            non-owners (owner-mode hides this since they have the owner bar). */}
+        {!isOwner && (isAuction || listing.seller?.id) && (
+          <View style={[styles.stickyCta, { paddingBottom: Math.max(insets.bottom, 10) }]} pointerEvents="box-none">
+            {isAuction ? (
+              <TouchableOpacity
+                onPress={() => {
+                  if (!user) { navigation.navigate("Login"); return; }
+                  // Navigate to the Auctions screen which hosts the BidSheet
+                  // modal — passing the listing so it auto-opens the sheet.
+                  navigation.navigate("Auctions", { openBidFor: listing.id });
+                }}
+                style={styles.stickyBtnAuction}
+                testID="listing-sticky-bid-btn"
+                activeOpacity={0.88}
+              >
+                <Gavel size={20} color="#fff" strokeWidth={2.4} />
+                <Text style={styles.stickyBtnText}>{t("مزايدة الآن")}</Text>
+              </TouchableOpacity>
+            ) : (
+              listing.seller?.id && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!user) { navigation.navigate("Login"); return; }
+                    navigation.navigate("Chat", {
+                      to: listing.seller.id,
+                      listing_id: listing.id,
+                      seller_id: listing.seller.id,
+                      seller_name: listing.seller.name,
+                      listing,
+                    });
+                  }}
+                  style={styles.stickyBtnContact}
+                  testID="listing-sticky-contact-btn"
+                  activeOpacity={0.88}
+                >
+                  <MessageCircle size={20} color="#fff" strokeWidth={2.4} />
+                  <Text style={styles.stickyBtnText}>{t("تواصل مع البائع")}</Text>
+                </TouchableOpacity>
+              )
+            )}
+          </View>
+        )}
+      </View>;
 }
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     backgroundColor: theme.colors.bg
+  },
+  // Floating back button — high-contrast pill on top of the hero image.
+  backBtn: {
+    position: "absolute",
+    insetInlineEnd: 12,
+    zIndex: 60,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 8,
+    elevation: 8
+  },
+  // Sticky bottom CTA strip — covers the full width above the home indicator.
+  stickyCta: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    elevation: 14
+  },
+  stickyBtnAuction: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 15,
+    borderRadius: 20,
+    shadowColor: "#FF8C00",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 10,
+    elevation: 6
+  },
+  stickyBtnContact: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 15,
+    borderRadius: 20,
+    shadowColor: "#89CFF0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 10,
+    elevation: 6
+  },
+  stickyBtnText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 15
   },
   center: {
     flex: 1,

@@ -58,7 +58,26 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
-## ✅ Phase 11 — Crash fix + Open in App + Reels CTAs + OG share (Feb 2026, current)
+## ✅ Phase 12 — Listing/Auction sticky CTA + back button + chat polish (Feb 2026, current)
+**Web:**
+- `BottomNav.js`: also hides on `/listing/:id` and `/auctions/:id` (in addition to `/reels` and AI-panel-open). Ensures the page's sticky "تواصل / مزايدة" CTA at the bottom is never obscured.
+- `ListingDetail.js`: new sticky bottom CTA bar (`fixed inset-x-0 bottom-0`) — auctions show **"مزايدة الآن"** (orange/accent), regular listings show **"تواصل مع البائع"** (baby-blue). Hidden for the owner. Safe-area aware (`env(safe-area-inset-bottom)`).
+
+**Mobile:**
+- `ListingDetailScreen.js`:
+  - `useFocusEffect` now hides the floating tab bar (parent + grandparent navigators) while this screen is active. Restored on blur. So the bid/contact CTA below is never covered.
+  - New **floating back button** at top-right (RTL aware via `insetInlineEnd`) — high-contrast black pill with `ChevronRight` icon. Works against any image background.
+  - New **sticky bottom CTA**: `Gavel` + "مزايدة الآن" for auctions (navigates to `Auctions` with `openBidFor` param), `MessageCircle` + "تواصل مع البائع" for regular listings (passes full payload to `Chat`). Safe-area padding via `useSafeAreaInsets`.
+  - Owner sees neither (their owner-bar handles edit/pause/sold).
+- `ChatScreen.js`: background changed from WhatsApp tan `#E5DDD5` → brand-aligned baby-blue tint `#F1F7FF`. Chat features verified: forward (✅), reply (✅), voice (✅), image (✅), location (✅), linkified URLs (✅).
+  - Note: reactions (emoji react like ❤️/👍) requires backend `reactions` field on chat_messages + a longpress UI — slated as P2.
+
+**Verification:**
+- `expo export` succeeded (4.73 MB).
+- ESLint clean on 4 files.
+- LinearGradient import in ChatScreen confirmed intact (no crash regression).
+
+## ✅ Phase 11 — Crash fix + Open in App + Reels CTAs + OG share (Feb 2026)
 **🔥 Crash fix (CRITICAL):**
 - `FloatingTabBar.js`: removed leftover `<LinearGradient>` JSX (import was already gone) — was throwing `ReferenceError: Property 'LinearGradient' doesn't exist` and blocking the entire app boot. FAB now uses solid baby-blue per spec; no expo-linear-gradient dependency.
 
