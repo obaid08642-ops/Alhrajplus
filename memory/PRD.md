@@ -58,7 +58,29 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
-## ✅ Phase 12 — Listing/Auction sticky CTA + back button + chat polish (Feb 2026, current)
+## ✅ Phase 13 — Min-bid enforcement + Reactions + Bid CTA wiring (Feb 2026, current)
+**🔥 Critical bid fix (backend + frontend):**
+- `server.py POST /auctions/{id}/bid`: now reads `auction_meta.min_increment` (or legacy `min_increment` / `custom_fields.min_increment`) and rejects bids below `current_top + min_increment`. Returns `الحد الأدنى للمزايدة: X (زيادة لا تقل عن Y)`.
+- `AuctionsPage.js` (web) + `AuctionsScreen.js` (mobile) `BidDialog/BidModal`: same client-side validation **before** the API call — instant error, no roundtrip. Placeholder shows the correct required amount.
+
+**Reactions feature (backend + web + mobile):**
+- `server.py POST /chat/messages/{id}/react` (NEW): one-reaction-per-user-per-message, toggle on repeat, broadcast via existing `_chat_hub.send_to_user` to both participants.
+- `ChatPage.js` (web): right-click / long-press shows emoji strip `❤️ 👍 😂 😮 😢 🙏`. Reactions chips render under bubble. WS handler updates list live.
+- `ChatScreen.js` (mobile): long-press action sheet now starts with the emoji reactions strip (above Reply/Forward/Copy). Reactions chips render under bubble. `_toggleReactionLocal` helper for optimistic UI. WS subscribe `"reaction"` event updates messages live.
+
+**BidDialog hides BottomNav:**
+- `AuctionsPage.js` `BidDialog`: adds `body.ai-panel-open` class on mount → `BottomNav` already observes this and hides itself. Sticky bid button is no longer covered.
+
+**Deep-link from listing → auction bid:**
+- Web: `/auctions?openBidFor=ID` auto-opens `BidDialog`.
+- Mobile: `AuctionsScreen` reads `route.params.openBidFor` and auto-opens `BidModal` after listings load.
+
+**Verification:**
+- `expo export` succeeded (4.73 MB).
+- Backend `/api/listings` returns 200.
+- ESLint clean on 4 modified files.
+
+## ✅ Phase 12 — Listing/Auction sticky CTA + back button + chat polish (Feb 2026)
 **Web:**
 - `BottomNav.js`: also hides on `/listing/:id` and `/auctions/:id` (in addition to `/reels` and AI-panel-open). Ensures the page's sticky "تواصل / مزايدة" CTA at the bottom is never obscured.
 - `ListingDetail.js`: new sticky bottom CTA bar (`fixed inset-x-0 bottom-0`) — auctions show **"مزايدة الآن"** (orange/accent), regular listings show **"تواصل مع البائع"** (baby-blue). Hidden for the owner. Safe-area aware (`env(safe-area-inset-bottom)`).

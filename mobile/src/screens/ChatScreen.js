@@ -28,6 +28,24 @@ function fmtLastSeen(iso) {
   if (diff < 604800) return `آخر ظهور قبل ${Math.floor(diff / 86400)} يوم`;
   return `آخر ظهور ${d.toLocaleDateString("ar")}`;
 }
+/**
+ * Toggle helper — applies the same logic as the backend (one reaction per user
+ * per message) so the optimistic UI matches the eventual server state.
+ */
+function _toggleReactionLocal(prev, emoji, userId) {
+  const next = { ...(prev || {}) };
+  let sameExisted = false;
+  for (const em of Object.keys(next)) {
+    const users = (next[em] || []).filter(u => u !== userId);
+    if (em === emoji && (next[em] || []).includes(userId)) sameExisted = true;
+    if (users.length) next[em] = users; else delete next[em];
+  }
+  if (!sameExisted) {
+    next[emoji] = [...(next[emoji] || []), userId];
+  }
+  return next;
+}
+
 function fmtTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -345,11 +363,17 @@ function ChatThread({
         last_seen: ev.last_seen
       });
     });
+    // Reactions WS event — peer added/removed an emoji on one of our messages.
+    const unsubReact = subscribe("reaction", ev => {
+      if (ev.convo_id !== convoId) return;
+      setMessages(prev => prev.map(m => m.id === ev.message_id ? { ...m, reactions: ev.reactions } : m));
+    });
     return () => {
       unsubMsg();
       unsubTyping();
       unsubRead();
       unsubPresence();
+      unsubReact();
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
   }, [subscribe, convoId, other.id, user.id, wsSend]);
@@ -749,10 +773,32 @@ function ChatThread({
                     </View>
                 </Modal>}
 
-            {/* Long-press action sheet — Reply / Forward / Copy / Delete-mine */}
+            {/* Long-press action sheet — Reactions row at top + Reply / Forward / Copy */}
             {longPressMsg && <Modal visible transparent animationType="fade" onRequestClose={() => setLongPressMsg(null)}>
                 <TouchableOpacity activeOpacity={1} onPress={() => setLongPressMsg(null)} style={s.lpBg}>
                     <View style={s.lpSheet}>
+                        {/* Emoji reactions strip — WhatsApp-style */}
+                        <View style={s.reactRow}>
+                            {["❤️", "👍", "😂", "😮", "😢", "🙏"].map(em => (
+                                <TouchableOpacity
+                                    key={em}
+                                    onPress={async () => {
+                                        const mid = longPressMsg.id;
+                                        setLongPressMsg(null);
+                                        try {
+                                            await api.post(`/chat/messages/${mid}/react`, { emoji: em });
+                                            // Optimistic local update — patch the matching message
+                                            setMessages(prev => prev.map(m => m.id === mid ? { ...m, reactions: _toggleReactionLocal(m.reactions, em, user?.id) } : m));
+                                        } catch (_) {}
+                                    }}
+                                    style={s.reactBtn}
+                                    testID={`msg-react-${em}`}
+                                    hitSlop={6}
+                                >
+                                    <Text style={s.reactEmoji}>{em}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
                         <TouchableOpacity onPress={() => { setReplyTo(longPressMsg); setLongPressMsg(null); }} style={s.lpRow} testID="msg-action-reply">
                             <Text style={s.lpText}>↩  {t("الرد")}</Text>
                         </TouchableOpacity>
@@ -892,6 +938,18 @@ function MessageBubble({
                     {isMine && (m.read ? <CheckCheck size={12} color="#4FC3F7" /> : <Check size={12} color="rgba(255,255,255,0.75)" />)}
                 </View>
             </View>
+            {/* Reactions row — rendered just below the bubble, slightly offset
+                to overlap the bottom edge (WhatsApp style). */}
+            {m.reactions && Object.keys(m.reactions).length > 0 && (
+                <View style={[s.reactionsRow, isMine ? { alignSelf: "flex-end" } : { alignSelf: "flex-start" }]}>
+                    {Object.entries(m.reactions).map(([em, users]) => (
+                        <View key={em} style={s.reactionChip}>
+                            <Text style={s.reactionChipEmoji}>{em}</Text>
+                            {(users || []).length > 1 && <Text style={s.reactionChipCount}>{(users || []).length}</Text>}
+                        </View>
+                    ))}
+                </View>
+            )}
         </TouchableOpacity>;
 }
 
@@ -1490,6 +1548,53 @@ const s = StyleSheet.create({
     fontSize: 10.5,
     color: colors.primaryDeep,
     fontWeight: "900"
+  },
+  // Reaction strip inside long-press sheet — 6 emojis in a row.
+  reactRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 999
+  },
+  reactBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 6
+  },
+  reactEmoji: {
+    fontSize: 26
+  },
+  // Reaction chips displayed under a message bubble.
+  reactionsRow: {
+    flexDirection: "row",
+    gap: 3,
+    marginTop: -4,
+    marginBottom: 6,
+    paddingHorizontal: 4
+  },
+  reactionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2
+  },
+  reactionChipEmoji: {
+    fontSize: 11
+  },
+  reactionChipCount: {
+    fontSize: 9.5,
+    color: colors.textMuted,
+    fontWeight: "700"
   },
   lightboxClose: {
     position: "absolute",

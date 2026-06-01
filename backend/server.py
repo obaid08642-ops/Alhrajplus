@@ -3858,9 +3858,28 @@ async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_curre
         raise HTTPException(400, "المزاد منتهي")
     # Check current top bid
     top = await db.bids.find_one({"listing_id": listing_id}, {"_id": 0}, sort=[("amount", -1)])
-    min_required = (top["amount"] if top else (listing.get("price") or 0)) + 1
+    # Owner-defined min increment per bid (e.g. 500 SAR). Falls back to 1.
+    # Read from either the listing root (legacy) or auction_meta (current schema).
+    auction_meta = listing.get("auction_meta") or {}
+    min_increment = (
+        auction_meta.get("min_increment")
+        or listing.get("min_increment")
+        or listing.get("custom_fields", {}).get("min_increment")
+        or 1
+    )
+    try:
+        min_increment = float(min_increment) if min_increment else 1
+        if min_increment < 1:
+            min_increment = 1
+    except (TypeError, ValueError):
+        min_increment = 1
+    current = top["amount"] if top else (listing.get("price") or 0)
+    min_required = current + min_increment
     if body.amount < min_required:
-        raise HTTPException(400, f"الحد الأدنى للمزايدة: {min_required}")
+        raise HTTPException(
+            400,
+            f"الحد الأدنى للمزايدة: {min_required:g} (زيادة لا تقل عن {min_increment:g})"
+        )
     bid_id = str(uuid.uuid4())
     bid = {
         "id": bid_id,
@@ -4259,6 +4278,63 @@ async def get_messages(convo_id: str, before: Optional[str] = None, limit: int =
     await db.messages.update_many({"convo_id": convo_id, "receiver_id": user["id"], "read": False}, {"$set": {"read": True}})
     await db.conversations.update_one({"id": convo_id}, {"$set": {f"unread_{user['id']}": 0}})
     return msgs
+
+
+# ---------------------------------------------------------------------------
+# Message reactions — WhatsApp-style emoji reactions on chat messages.
+# Each (user_id, message_id) pair can hold at most one reaction. Sending the
+# same emoji twice removes it (toggle). Sending a different emoji replaces.
+# Reactions are stored INSIDE the message document as a `reactions` dict:
+#   { "❤️": ["userA_id"], "👍": ["userB_id", "userC_id"] }
+# This keeps reads cheap (no separate collection join) and writes atomic.
+# ---------------------------------------------------------------------------
+class ReactionIn(BaseModel):
+    emoji: str = Field(min_length=1, max_length=8)
+
+
+@api.post("/chat/messages/{message_id}/react")
+async def react_to_message(message_id: str, body: ReactionIn, user: dict = Depends(get_current_user)):
+    msg = await db.messages.find_one({"id": message_id}, {"_id": 0})
+    if not msg:
+        raise HTTPException(404, "الرسالة غير موجودة")
+    # Authorization: only the two participants of the convo can react.
+    parts = (msg.get("convo_id") or "").split("_")
+    if user["id"] not in parts:
+        raise HTTPException(403, "غير مسموح")
+    emoji = body.emoji.strip()
+    if not emoji:
+        raise HTTPException(400, "ايموجي غير صالح")
+    reactions = dict(msg.get("reactions") or {})
+    # Strip user from any prior reaction (one reaction per user per message).
+    same_emoji_existed = False
+    for em, users in list(reactions.items()):
+        if user["id"] in users:
+            users.remove(user["id"])
+            if em == emoji:
+                same_emoji_existed = True
+            if not users:
+                reactions.pop(em, None)
+            else:
+                reactions[em] = users
+    # Toggle: same emoji clicked twice ⇒ removed. Otherwise add the new one.
+    if not same_emoji_existed:
+        reactions.setdefault(emoji, []).append(user["id"])
+    await db.messages.update_one({"id": message_id}, {"$set": {"reactions": reactions}})
+    # WS fan-out to both participants so peers see reactions live.
+    try:
+        for pid in parts:
+            if pid:
+                await _chat_hub.send_to_user(pid, {
+                    "type": "reaction",
+                    "convo_id": msg.get("convo_id"),
+                    "message_id": message_id,
+                    "reactions": reactions,
+                })
+    except Exception:
+        pass
+    return {"success": True, "reactions": reactions}
+
+
 
 
 # ============================================================

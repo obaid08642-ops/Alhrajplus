@@ -9,7 +9,7 @@ import api from "../api";
 import { useAuth } from "../AuthContext";
 import { colors, radius, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
-export default function AuctionsScreen() {
+export default function AuctionsScreen({ route }) {
   const {
     t
   } = useI18n();
@@ -22,6 +22,9 @@ export default function AuctionsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [active, setActive] = useState(null);
+  // Auto-open the bid sheet when navigated here with `openBidFor` param
+  // (used by the sticky CTA on the listing detail screen).
+  const openBidFor = route?.params?.openBidFor;
   const load = useCallback(async () => {
     try {
       const {
@@ -40,6 +43,13 @@ export default function AuctionsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+  // When the list is populated AND a target listing was requested, open its
+  // bid sheet automatically. Useful for deep-links from the listing CTA.
+  useEffect(() => {
+    if (!openBidFor || !items.length) return;
+    const match = items.find(it => it.id === openBidFor);
+    if (match) setActive(match);
+  }, [openBidFor, items]);
   return <ScrollView style={{
     flex: 1,
     backgroundColor: colors.bg
@@ -171,17 +181,30 @@ function BidModal({
     }) => setBids(data || []));
   }, [listing.id]);
   const top = bids[0];
-  const minRequired = (top?.amount || listing.price || 0) + 1;
+  // Owner-defined min increment per bid (e.g. 500 SAR). Falls back to 1.
+  const minIncrement = Number(
+    listing.auction_meta?.min_increment
+    || listing.min_increment
+    || listing.custom_fields?.min_increment
+    || 1
+  ) || 1;
+  const currentAmount = top?.amount || listing.price || 0;
+  const minRequired = currentAmount + minIncrement;
   const submit = async () => {
     if (!user) {
       onClose();
       nav.navigate("Login");
       return;
     }
+    const val = parseFloat(amount);
+    if (!Number.isFinite(val) || val < minRequired) {
+      Alert.alert(t("تنبيه"), `${t("الحد الأدنى للمزايدة")}: ${minRequired.toLocaleString()} (${t("زيادة لا تقل عن")} ${minIncrement.toLocaleString()})`);
+      return;
+    }
     setBusy(true);
     try {
       await api.post(`/auctions/${listing.id}/bid`, {
-        amount: parseFloat(amount)
+        amount: val
       });
       onPlaced();
     } catch (e) {

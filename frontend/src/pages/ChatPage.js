@@ -71,12 +71,18 @@ function linkify(text) {
 
 
 /** Single message bubble — memoised so list updates don't rerender history. */
-const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating }) => {
+const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact }) => {
     const liveShare = m.location?.live_share_id;
     // Swipe-to-reply touch handler — simple horizontal drag detection
     const startX = useRef(null);
-    const onTouchStart = (e) => { startX.current = e.touches[0]?.clientX ?? null; };
+    const longPressTimer = useRef(null);
+    const [showReactStrip, setShowReactStrip] = useState(false);
+    const onTouchStart = (e) => {
+        startX.current = e.touches[0]?.clientX ?? null;
+        longPressTimer.current = setTimeout(() => setShowReactStrip(true), 450);
+    };
     const onTouchMove = (e) => {
+        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
         if (startX.current == null) return;
         const dx = e.touches[0].clientX - startX.current;
         // Only react to the "natural reply direction" (RTL: swipe left ≈ -dx, LTR: swipe right ≈ dx).
@@ -87,17 +93,37 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
             startX.current = null;
         }
     };
-    const onTouchEnd = () => { startX.current = null; };
+    const onTouchEnd = () => {
+        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+        startX.current = null;
+    };
 
     return (
         <div
             data-testid={`msg-${m.id}`}
             className={`hp-bubble ${mine ? "mine" : "theirs"} ${firstOfRun ? "first-of-run" : ""} ${m.pending ? "pending" : ""} ${m.failed ? "failed" : ""}`}
             onDoubleClick={() => onReply?.(m)}
+            onContextMenu={(e) => { e.preventDefault(); setShowReactStrip(v => !v); }}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
+            style={{ position: "relative" }}
         >
+            {/* Reactions picker strip — long-press / right-click to open */}
+            {showReactStrip && (
+                <div className="absolute -top-10 start-1/2 -translate-x-1/2 z-10 flex gap-1 bg-white rounded-full shadow-lg px-2 py-1 border border-gray-200" data-testid={`react-strip-${m.id}`}>
+                    {["❤️", "👍", "😂", "😮", "😢", "🙏"].map(em => (
+                        <button
+                            key={em}
+                            onClick={(e) => { e.stopPropagation(); onReact?.(m, em); setShowReactStrip(false); }}
+                            className="text-lg hover:scale-125 transition-transform p-0.5"
+                            data-testid={`react-${m.id}-${em}`}
+                        >
+                            {em}
+                        </button>
+                    ))}
+                </div>
+            )}
             {m.reply_to && (
                 <div className="reply-quote">
                     <div className="font-bold text-[11px]">{m.reply_to.sender_name || (mine ? tr("أنت") : tr("الطرف الآخر"))}</div>
@@ -144,6 +170,17 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
                     : <Check className="w-3 h-3 opacity-80" />
                 )}
             </span>
+            {/* Reactions chips — WhatsApp-style under the bubble */}
+            {m.reactions && Object.keys(m.reactions).length > 0 && (
+                <div className="absolute -bottom-3 end-2 flex gap-0.5" data-testid={`bubble-reactions-${m.id}`}>
+                    {Object.entries(m.reactions).map(([em, users]) => (
+                        <span key={em} className="bg-white shadow-sm border border-gray-200 rounded-full px-1.5 py-0.5 text-[11px] flex items-center gap-0.5">
+                            <span>{em}</span>
+                            {(users || []).length > 1 && <span className="text-[9px] text-gray-600 font-bold">{(users || []).length}</span>}
+                        </span>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -427,6 +464,12 @@ export default function ChatPage() {
             }
         }));
 
+        // Reactions WS — peer reacted on a message in our convo.
+        offs.push(subscribe("reaction", (ev) => {
+            if (ev.convo_id && ev.convo_id !== activeConvoId) return;
+            setMessages((prev) => prev.map((m) => m.id === ev.message_id ? { ...m, reactions: ev.reactions } : m));
+        }));
+
         return () => offs.forEach((off) => off());
     }, [user, subscribe, activeConvoId, activeOther, scrollToBottom, wsSend, tr]);
 
@@ -656,6 +699,12 @@ export default function ChatPage() {
                                         key={row.id} m={row.m} mine={row.m.sender_id === user.id} firstOfRun={row.firstOfRun}
                                         onReply={setReplyTo} onImageClick={setImgPreview}
                                         onTranslate={translateMsg} translation={translations[row.m.id]} isTranslating={translating === row.m.id}
+                                        onReact={async (msg, emoji) => {
+                                            try {
+                                                const { data } = await api.post(`/chat/messages/${msg.id}/react`, { emoji });
+                                                setMessages(prev => prev.map(x => x.id === msg.id ? { ...x, reactions: data.reactions } : x));
+                                            } catch (_) {}
+                                        }}
                                     />
                                 ))}
                                 {peerTyping && (

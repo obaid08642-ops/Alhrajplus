@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api, { formatApiError } from "@/lib/api";
 import { Gavel, Clock, TrendingUp, Users, X, Sparkles, Wifi, WifiOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,10 +10,13 @@ import { useAuctionLive } from "@/hooks/useAuctionLive";
 export default function AuctionsPage() {
     const { user } = useAuth();
     const { country } = useCountry();
+    const [searchParams] = useSearchParams();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [active, setActive] = useState(null); // listing being bid on
     const [refreshKey, setRefreshKey] = useState(0);
+    // Deep-link: ?openBidFor=ID from the listing detail "مزايدة الآن" CTA.
+    const openBidFor = searchParams.get("openBidFor");
 
     useEffect(() => {
         const params = { limit: 30 };
@@ -22,6 +25,14 @@ export default function AuctionsPage() {
             .then(({ data }) => setItems(data || []))
             .finally(() => setLoading(false));
     }, [country, refreshKey]);
+
+    // Auto-open bid dialog if requested via query param + the listing is in
+    // the active list. Falls back silently if the auction has ended.
+    useEffect(() => {
+        if (!openBidFor || !items.length) return;
+        const match = items.find(it => it.id === openBidFor);
+        if (match) setActive(match);
+    }, [openBidFor, items]);
 
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24">
@@ -127,7 +138,22 @@ function BidDialog({ listing, onClose, onPlaced }) {
     const live = useAuctionLive(listing.id);
     const top = live.topBid || bids[0] || null;
     const liveCount = live.bidCount || bids.length;
-    const minRequired = (top?.amount || listing.price || 0) + 1;
+    // Owner-defined min increment (e.g. 500 SAR per bid). Falls back to 1.
+    const minIncrement = Number(
+        listing.auction_meta?.min_increment
+        || listing.min_increment
+        || listing.custom_fields?.min_increment
+        || 1
+    ) || 1;
+    const currentAmount = top?.amount || listing.price || 0;
+    const minRequired = currentAmount + minIncrement;
+
+    // Hide global BottomNav while this dialog is open — sets a body class the
+    // BottomNav already observes via MutationObserver.
+    useEffect(() => {
+        document.body.classList.add("ai-panel-open");
+        return () => document.body.classList.remove("ai-panel-open");
+    }, []);
 
     useEffect(() => {
         api.get(`/auctions/${listing.id}/bids`).then(({ data }) => setBids(data || []));
@@ -145,9 +171,16 @@ function BidDialog({ listing, onClose, onPlaced }) {
             window.location.href = "/login";
             return;
         }
+        // Client-side validation mirrors backend enforcement so users see the
+        // error instantly without a roundtrip.
+        const val = parseFloat(amount);
+        if (!Number.isFinite(val) || val < minRequired) {
+            setErr(`الحد الأدنى للمزايدة: ${minRequired.toLocaleString()} (زيادة لا تقل عن ${minIncrement.toLocaleString()})`);
+            return;
+        }
         setErr(""); setBusy(true);
         try {
-            await api.post(`/auctions/${listing.id}/bid`, { amount: parseFloat(amount) });
+            await api.post(`/auctions/${listing.id}/bid`, { amount: val });
             onPlaced();
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || "تعذر إيداع المزايدة");
