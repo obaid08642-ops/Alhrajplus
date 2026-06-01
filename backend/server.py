@@ -161,10 +161,7 @@ APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "").strip()
 APPLE_TEAM_ID = os.environ.get("APPLE_TEAM_ID", "").strip()
 APPLE_KEY_ID = os.environ.get("APPLE_KEY_ID", "").strip()
 APPLE_PRIVATE_KEY = os.environ.get("APPLE_PRIVATE_KEY", "").replace("\\n", "\n").strip()
-APPLE_REDIRECT_URI = os.environ.get(
-    "APPLE_REDIRECT_URI",
-    "https://alhrajplus.onrender.com/api/auth/apple/callback",
-).strip()
+APPLE_REDIRECT_URI = os.environ.get("APPLE_REDIRECT_URI", "").strip()
 
 # DB
 client = AsyncIOMotorClient(
@@ -1576,10 +1573,10 @@ async def snap_oauth_start(request: Request, mobile_redirect: Optional[str] = No
         "created_at": datetime.now(timezone.utc),
     })
     if mob:
-        backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+        backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
         redirect_uri = f"{backend}/api/auth/snapchat/callback"
     else:
-        backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+        backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
         redirect_uri = f"{backend}/api/auth/snapchat/callback"
     scope = "https://auth.snapchat.com/oauth2/api/user.display_name https://auth.snapchat.com/oauth2/api/user.bitmoji.avatar https://auth.snapchat.com/oauth2/api/user.external_id"
     auth_url = (
@@ -1612,7 +1609,7 @@ async def snap_oauth_callback(body: SnapCallbackIn, request: Request, response: 
     await db.snap_oauth_states.delete_one({"state": body.state})
 
     origin = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")  # noqa: F841 (kept for parity)
-    backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+    backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     redirect_uri = f"{backend}/api/auth/snapchat/callback"
     basic = _b64.b64encode(f"{SNAPCHAT_CLIENT_ID}:{SNAPCHAT_CLIENT_SECRET}".encode()).decode()
     try:
@@ -1687,7 +1684,7 @@ async def snap_oauth_callback_get(request: Request, code: str = "", state: str =
     # IMPORTANT: For web, always send users back to the FRONTEND domain (alhraj.online),
     # NOT to the backend onrender.com. The generic /auth/callback page on the frontend
     # captures tokens from the URL fragment and logs the user in via localStorage.
-    frontend_url = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     final_target = mob or f"{frontend_url}/auth/callback"
     sep = "?" if "?" not in final_target else "&"
     if error:
@@ -1696,7 +1693,7 @@ async def snap_oauth_callback_get(request: Request, code: str = "", state: str =
         return RedirectResponse(f"{final_target}{sep}error=invalid_state")
     if not SNAPCHAT_CLIENT_ID or not SNAPCHAT_CLIENT_SECRET:
         return RedirectResponse(f"{final_target}{sep}error=not_configured")
-    backend = os.environ.get("BACKEND_PUBLIC_URL", "https://alhrajplus.onrender.com").rstrip("/")
+    backend = os.environ.get("BACKEND_PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     redirect_uri = f"{backend}/api/auth/snapchat/callback"
     basic = _b64.b64encode(f"{SNAPCHAT_CLIENT_ID}:{SNAPCHAT_CLIENT_SECRET}".encode()).decode()
     try:
@@ -1911,10 +1908,9 @@ async def expo_send_push(tokens: list, title: str, body: str, data: Optional[dic
 # ============================================================
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
-GOOGLE_REDIRECT_URI = os.environ.get(
-    "GOOGLE_REDIRECT_URI",
-    "https://alhrajplus.onrender.com/api/auth/google/callback",
-).strip()
+# Empty fallback — resolved dynamically at request time from request.base_url.
+# Keeping it as an env-only value avoids breaking deployment on a new domain.
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "").strip()
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
@@ -1991,12 +1987,12 @@ async def google_oauth_start(request: Request, mobile_redirect: Optional[str] = 
 
 
 @app.get("/api/auth/google/callback", include_in_schema=False)
-async def google_oauth_callback(code: str = "", state: str = "", error: str = ""):
+async def google_oauth_callback(request: Request, code: str = "", state: str = "", error: str = ""):
     """
     Google redirects here with ?code & ?state. We exchange the code for tokens,
     fetch the user profile, upsert in DB, set JWT cookies, then 302 → FRONTEND_URL.
     """
-    frontend = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    frontend = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     if error:
         return RedirectResponse(f"{frontend}/login?error={error}")
     if not code or not state:
@@ -2271,7 +2267,7 @@ async def apple_oauth_callback(request: Request):
     Apple posts back with form-encoded: code, state, [user] (first time only), [id_token].
     We verify the id_token via Apple's JWKS, upsert the user, and redirect to FRONTEND/auth/callback#token=...
     """
-    frontend = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    frontend = os.environ.get("FRONTEND_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     form = await request.form()
     code = (form.get("code") or "").strip()
     state = (form.get("state") or "").strip()
