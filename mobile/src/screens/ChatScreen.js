@@ -323,6 +323,10 @@ function ChatThread({
   const [otherTyping, setOtherTyping] = useState(false);
   const [recording, setRecording] = useState(null);
   const [uploading, setUploading] = useState(false);
+  // Reply-to state — was missing in last build which caused
+  // "Property 'replyTo' doesn't exist" crash at line 805 when the composer
+  // tried to render the reply preview.
+  const [replyTo, setReplyTo] = useState(null);
   const [showActions, setShowActions] = useState(false);
   // Long-press action sheet: when set, shows {message, options[]}
   const [longPressMsg, setLongPressMsg] = useState(null);
