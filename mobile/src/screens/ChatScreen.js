@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useI18n } from "../I18nContext";
 import { View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl, Modal, Linking } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { SvgXml } from "react-native-svg";
+import { CHAT_BG_SVG } from "../components/chatBgSvg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -571,10 +573,8 @@ function ChatThread({
   const presenceText = presence.online ? t("متصل الآن") : fmtLastSeen(presence.last_seen);
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{
     flex: 1,
-    // Brand-aligned chat background — soft baby-blue tint that matches the
-    // app theme (replaces the WhatsApp tan). A subtle decorative product
-    // pattern overlay is rendered via the styles.chatBgPattern absolute view.
-    backgroundColor: "#F1F7FF"
+    // Bg color matches the SVG's baked background (#f9f6f1) so seams are invisible.
+    backgroundColor: "#f9f6f1"
   }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}>
             {/* Thread header */}
             <View style={[s.threadHeader, {
@@ -680,22 +680,31 @@ function ChatThread({
             {loading ? <View style={{
       flex: 1,
       justifyContent: "center"
-    }}><ActivityIndicator color={colors.primary} /></View> : <FlatList ref={listRef} data={messages} keyExtractor={m => m.id} contentContainerStyle={{
-      padding: 12,
-      paddingBottom: 16
-    }} renderItem={({
-      item,
-      index
-    }) => {
-      const prev = messages[index - 1];
-      const showDay = !prev || fmtDay(prev.created_at) !== fmtDay(item.created_at);
-      return <>
-                                {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(item.created_at)}</Text></View>}
-                                <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setLongPressMsg} />
-                            </>;
-    }} ListFooterComponent={otherTyping ? <TypingIndicator /> : null} onContentSizeChange={() => listRef.current?.scrollToEnd({
-      animated: false
-    })} />}
+    }}><ActivityIndicator color={colors.primary} /></View> : <View style={{ flex: 1, position: "relative" }}>
+                  {/* SVG product pattern bg — owner-supplied tile (390×844).
+                      Rendered once as a single full-screen layer behind the
+                      message list. We don't tile to avoid expensive re-renders
+                      on big screens; the SVG is opacity-baked already. */}
+                  <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+                    <SvgXml xml={CHAT_BG_SVG} width="100%" height="100%" preserveAspectRatio="xMidYMid slice" />
+                  </View>
+                  <FlatList ref={listRef} data={messages} keyExtractor={m => m.id} contentContainerStyle={{
+                    padding: 12,
+                    paddingBottom: 16
+                  }} renderItem={({
+                    item,
+                    index
+                  }) => {
+                    const prev = messages[index - 1];
+                    const showDay = !prev || fmtDay(prev.created_at) !== fmtDay(item.created_at);
+                    return <>
+                              {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(item.created_at)}</Text></View>}
+                              <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setLongPressMsg} />
+                          </>;
+                  }} ListFooterComponent={otherTyping ? <TypingIndicator /> : null} onContentSizeChange={() => listRef.current?.scrollToEnd({
+                    animated: false
+                  })} />
+                </View>}
 
             {/* Action sheet */}
             {showActions && <View style={s.actionSheet}>

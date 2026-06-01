@@ -58,7 +58,26 @@ Native rebuild of mobile app for 100% UI/feature parity with web app. Strict 2-c
 - ListingCard + HomeScreen QuickItems migrated to soft shadows (no borderWidth).
 - Lucide-react-native icons (already used) — thin strokeWidth across components.
 
-## ✅ Phase 13 — Min-bid enforcement + Reactions + Bid CTA wiring (Feb 2026, current)
+## ✅ Phase 14 — Real min-bid fix + Anti-Snipe + Chat SVG pattern (Feb 2026, current)
+**🔥 Root-cause fix for min-bid bypass:**
+- Post form saves bid increment under `custom_fields.bid_increment` (NOT `min_increment`). All three layers (`server.py`, `AuctionsPage.js`, `AuctionsScreen.js`) now read `custom_fields.bid_increment` FIRST, with `min_increment`, `auction_meta.*` as legacy fallbacks. A 500 SAR-set auction will now properly reject 1 SAR bids.
+
+**Anti-Snipe (60s extension):**
+- `server.py POST /auctions/{id}/bid`: after inserting a valid bid, computes seconds-left from `custom_fields.end_time`. If `0 < seconds_left < 60`, atomically extends `end_time` by 60 seconds and broadcasts `extended_to` in the WS auction event. Wrapped in try/except so any parsing edge case never blocks a valid bid.
+
+**Chat WhatsApp-style product pattern:**
+- Owner provided a 20 KB SVG with 44 product icons (cars, phones, tablets, furniture, sports, tools, etc.).
+- **Web**: copied to `/app/frontend/public/chat-bg.svg`, applied via `background-image: url("/chat-bg.svg")` on `.hp-chat-messages`. Replaced the legacy inline data-URI pattern (was 3 generic icons).
+- **Mobile**: SVG content stored as a JS string at `mobile/src/components/chatBgSvg.js`. `ChatScreen` renders it once via `SvgXml` as an absolute-positioned full-screen layer behind the message list. Background color updated to `#f9f6f1` (matches the SVG's baked bg) so seams are invisible.
+
+**Verification:**
+- `expo export` succeeded (4.73 MB bundle, no errors).
+- Backend `/api/listings` returns 200.
+- Web `/chat-bg.svg` returns 200.
+- ESLint clean on all modified files.
+- `expo-linear-gradient` import re-verified intact (no crash regression).
+
+## ✅ Phase 13 — Min-bid enforcement + Reactions + Bid CTA wiring (Feb 2026)
 **🔥 Critical bid fix (backend + frontend):**
 - `server.py POST /auctions/{id}/bid`: now reads `auction_meta.min_increment` (or legacy `min_increment` / `custom_fields.min_increment`) and rejects bids below `current_top + min_increment`. Returns `الحد الأدنى للمزايدة: X (زيادة لا تقل عن Y)`.
 - `AuctionsPage.js` (web) + `AuctionsScreen.js` (mobile) `BidDialog/BidModal`: same client-side validation **before** the API call — instant error, no roundtrip. Placeholder shows the correct required amount.

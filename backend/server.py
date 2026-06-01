@@ -3858,13 +3858,18 @@ async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_curre
         raise HTTPException(400, "المزاد منتهي")
     # Check current top bid
     top = await db.bids.find_one({"listing_id": listing_id}, {"_id": 0}, sort=[("amount", -1)])
-    # Owner-defined min increment per bid (e.g. 500 SAR). Falls back to 1.
-    # Read from either the listing root (legacy) or auction_meta (current schema).
+    # Owner-defined min increment per bid (e.g. 500 SAR). The owner enters this
+    # under `custom_fields.bid_increment` in the post form. Fall back to a few
+    # legacy aliases for safety.
     auction_meta = listing.get("auction_meta") or {}
+    cf = listing.get("custom_fields") or {}
     min_increment = (
-        auction_meta.get("min_increment")
+        cf.get("bid_increment")
+        or cf.get("min_increment")
+        or auction_meta.get("min_increment")
+        or auction_meta.get("bid_increment")
         or listing.get("min_increment")
-        or listing.get("custom_fields", {}).get("min_increment")
+        or listing.get("bid_increment")
         or 1
     )
     try:
@@ -3891,13 +3896,43 @@ async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_curre
     }
     await db.bids.insert_one(bid)
     bid.pop("_id", None)
+    # ---- Anti-snipe: if this bid lands within the last 60 seconds of the
+    # auction window, automatically push `end_time` forward by 60 seconds so
+    # other bidders get a fair chance to respond. We update the `custom_fields.
+    # end_time` ISO string and broadcast the new closing time to all watchers.
+    extended_to: Optional[str] = None
+    try:
+        end_iso = (cf.get("end_time") or auction_meta.get("end_time")
+                   or listing.get("end_time") or listing.get("closes_at"))
+        if end_iso:
+            # Tolerate both with/without timezone. fromisoformat handles most cases.
+            end_dt = datetime.fromisoformat(str(end_iso).replace("Z", "+00:00"))
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            seconds_left = (end_dt - now).total_seconds()
+            if 0 < seconds_left < 60:
+                new_end = now + timedelta(seconds=60)
+                extended_to = new_end.isoformat()
+                # Write back in the same place we read it from so the form
+                # round-trips correctly. We update both keys for safety.
+                update_doc = {"custom_fields.end_time": extended_to}
+                if "end_time" in (auction_meta or {}):
+                    update_doc["auction_meta.end_time"] = extended_to
+                await db.listings.update_one({"id": listing_id}, {"$set": update_doc})
+    except Exception as _e:
+        # Anti-snipe is a non-critical enhancement — never block a valid bid.
+        logger.warning(f"[anti-snipe] {_e}")
     # Live fan-out — every connected watcher sees the new bid within <100ms.
     count = await db.bids.count_documents({"listing_id": listing_id})
-    asyncio.create_task(_broadcast_auction_event(listing_id, {
+    event = {
         "type": "bid",
         "bid": bid,
         "bid_count": count,
-    }))
+    }
+    if extended_to:
+        event["extended_to"] = extended_to
+    asyncio.create_task(_broadcast_auction_event(listing_id, event))
     # Notify the previous top bidder they were outbid (best-effort push).
     if top and top.get("user_id") != user["id"]:
         try:

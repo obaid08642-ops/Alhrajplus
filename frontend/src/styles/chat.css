@@ -58,10 +58,14 @@
     /* Disable browser anchor jumping, which was pinning the view to the
        bottom every time a `read`/`presence` WS event re-rendered the list. */
     overflow-anchor: none;
-    background-color: var(--bg);
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'><g fill='none' stroke='%234FB6E6' stroke-opacity='0.10' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M30 60h30l5-10h20l5 10h30v25H30z'/><circle cx='45' cy='90' r='6'/><circle cx='105' cy='90' r='6'/><path d='M140 30h40l8 12v25h-56V42z'/><circle cx='154' cy='73' r='5'/><circle cx='180' cy='73' r='5'/><path d='M40 130l25-22 25 22v25H40z'/><path d='M55 155v-15h20v15'/><rect x='130' y='115' width='30' height='45' rx='3'/><circle cx='145' cy='150' r='2'/><path d='M165 130l15-15 6 6-15 15zm-3 8l8 8'/><path d='M75 175h35l-3 18H78z'/><circle cx='195' cy='180' r='8'/><path d='M195 175v-4M195 184v3M188 180h4M199 180h4'/></g></svg>");
+    background-color: #f9f6f1;
+    /* Owner-supplied SVG pattern of products / vehicles / electronics.
+       Lightweight (~20 KB) and renders at 100% native size, repeated to
+       tile across the entire conversation. */
+    background-image: url("/chat-bg.svg");
     background-repeat: repeat;
-    background-size: 220px 220px;
+    background-size: 390px 844px;
+    background-attachment: local;
     padding: 8px 10px;
     display: flex;
     flex-direction: column;

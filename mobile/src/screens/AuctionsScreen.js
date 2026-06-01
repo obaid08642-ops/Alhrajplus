@@ -181,11 +181,14 @@ function BidModal({
     }) => setBids(data || []));
   }, [listing.id]);
   const top = bids[0];
-  // Owner-defined min increment per bid (e.g. 500 SAR). Falls back to 1.
+  // Owner-defined min increment per bid (saved as `custom_fields.bid_increment`).
   const minIncrement = Number(
-    listing.auction_meta?.min_increment
-    || listing.min_increment
+    listing.custom_fields?.bid_increment
     || listing.custom_fields?.min_increment
+    || listing.auction_meta?.min_increment
+    || listing.auction_meta?.bid_increment
+    || listing.bid_increment
+    || listing.min_increment
     || 1
   ) || 1;
   const currentAmount = top?.amount || listing.price || 0;

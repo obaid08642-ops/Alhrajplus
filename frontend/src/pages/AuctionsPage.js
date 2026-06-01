@@ -138,11 +138,14 @@ function BidDialog({ listing, onClose, onPlaced }) {
     const live = useAuctionLive(listing.id);
     const top = live.topBid || bids[0] || null;
     const liveCount = live.bidCount || bids.length;
-    // Owner-defined min increment (e.g. 500 SAR per bid). Falls back to 1.
+    // Owner-defined min increment (saved as `custom_fields.bid_increment` in the post form).
     const minIncrement = Number(
-        listing.auction_meta?.min_increment
-        || listing.min_increment
+        listing.custom_fields?.bid_increment
         || listing.custom_fields?.min_increment
+        || listing.auction_meta?.min_increment
+        || listing.auction_meta?.bid_increment
+        || listing.bid_increment
+        || listing.min_increment
         || 1
     ) || 1;
     const currentAmount = top?.amount || listing.price || 0;
