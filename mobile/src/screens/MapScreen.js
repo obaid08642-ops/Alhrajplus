@@ -6,6 +6,7 @@ import api from "../api";
 import { theme } from "../theme";
 import { useNavigation } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
+import StandaloneFloatingTabBar from "../components/StandaloneFloatingTabBar";
 
 // Hologram-pin Leaflet map rendered inside a WebView. Works in Expo Go.
 export default function MapScreen() {
@@ -69,6 +70,7 @@ export default function MapScreen() {
     }} onMessage={onMessage} style={{
       flex: 1
     }} javaScriptEnabled domStorageEnabled setSupportMultipleWindows={false} />
+            <StandaloneFloatingTabBar />
         </SafeAreaView>;
 }
 function buildHtml(items, myPos) {

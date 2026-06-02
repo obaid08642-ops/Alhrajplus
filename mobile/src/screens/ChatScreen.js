@@ -153,6 +153,20 @@ export default function ChatScreen() {
   const onConvosFocus = useCallback(() => { loadConvos(); }, [loadConvos]);
   useFocusEffect(onConvosFocus);
 
+  // Hide the bottom tab bar whenever the chat thread is open (within
+  // ChatTab) — owner mandate: tab bar must NEVER appear over a 1:1 chat.
+  // Use the parent Tab navigator's setOptions to toggle tabBarStyle.
+  useEffect(() => {
+    const parent = nav.getParent?.();
+    if (!parent) return;
+    if (activeConvoId && activeOther) {
+      parent.setOptions({ tabBarStyle: { display: "none" } });
+    } else {
+      parent.setOptions({ tabBarStyle: undefined });
+    }
+    return () => parent.setOptions({ tabBarStyle: undefined });
+  }, [activeConvoId, activeOther, nav]);
+
   // If user navigated with a target user, open that thread INSTANTLY using
   // any data we already have (from route params), then enrich asynchronously.
   useEffect(() => {

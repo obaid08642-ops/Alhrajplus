@@ -255,3 +255,18 @@ See `/app/memory/test_credentials.md`.
 - **HomeScreen TopBar — dark-mode aware**: top gradient now flips from `[primary, primaryHover]` to `["#0F1B3A", "#152244"]` when dark mode is on.
 - **💬 Chat background — WhatsApp-style FIXED**: the SVG product-pattern bg used to be a sibling of the `FlatList` *inside* the messages container, which (on iOS+KeyboardAvoidingView resize) caused it to repaint and visually shift. Lifted the bg layer to be the FIRST `absoluteFillObject` child of the outer `KeyboardAvoidingView` — now it sits truly behind the header, messages, and composer. No more bg movement on scroll. Removed the redundant inner bg layer.
 - **Validation**: `npx expo export --platform web` → 3041 modules (one new file: rebuilt `FloatingTabBar.js`), 4.76 MB, no errors. ESLint clean on `FloatingTabBar.js`, `ChatScreen.js`, `HomeScreen.js`. Backend `/api/ai/image-search` healthy (HTTP 400 on invalid input as designed).
+
+## ✅ Phase 21 — Tab Bar revision 2 + visibility rules + Map embed (Feb 2026)
+- **🎨 FloatingTabBar — second revision** per owner verbal spec:
+  - **Flush to screen bottom**: removed `paddingBottom: insets.bottom`; instead the SVG bar shape now extends through the safe inset (`totalH = BAR_HEIGHT + insets.bottom`) so the surface colour reaches the true screen edge with zero white margin.
+  - **Slimmer bar**: `BAR_HEIGHT` 72 → **48 px** (content), no rounded corners (full-bleed).
+  - **Deeper U-notch**: `NOTCH_RADIUS` 40 → **38** (semicircle: width 76, depth 38 ≈ 79% of bar height). Bar's bottom strip (~10 px / 21%) stays solid blue under the FAB.
+  - **FAB capsule** `60×84` (was 72×96) with `FAB_SUBMERGE = 22` → ~74% of FAB sits ABOVE the bar, ~26% inside the notch leaving a small **visible transparent gap** between the capsule's curved bottom and the notch arc (screen content shows through).
+  - Lime glow + pulse ring retained.
+- **🚫 Tab bar visibility rules (owner mandate)**:
+  - `Reels/Stories`: already hidden via `useFocusEffect → tabBarStyle: {display:'none'}` in ReelsScreen.
+  - `Chat thread inside ChatTab`: NEW — added `useEffect` in ChatScreen that toggles `parent.setOptions({ tabBarStyle: {display:'none'} })` whenever `activeConvoId && activeOther` are set, restoring on unmount. Solves the "tab bar shows over a 1:1 chat" flicker.
+  - `ListingDetail / Stack Chat`: already hidden by Stack covering the tabs.
+- **🗺️ Map needs tab bar** — but Map is a Stack screen (not inside Tab navigator). Created a NEW component `/app/mobile/src/components/StandaloneFloatingTabBar.js` (identical visual to FloatingTabBar) that uses `useNavigation()` to navigate to tabs via `nav.navigate("Main", {screen: tabName})`. Rendered at the bottom of `MapScreen` so the bar appears persistently on Map.
+- **Validation**: `npx expo export --platform web` → 3043 modules (new file), no errors. ESLint clean on all 4 modified files (`FloatingTabBar.js`, `StandaloneFloatingTabBar.js`, `ChatScreen.js`, `MapScreen.js`).
+
