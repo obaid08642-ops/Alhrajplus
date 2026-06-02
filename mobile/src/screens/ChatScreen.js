@@ -334,6 +334,9 @@ function ChatThread({
   const [longPressMsg, setLongPressMsg] = useState(null);
   // Forward picker: when set to a message object, shows the contact picker modal
   const [forwardSrc, setForwardSrc] = useState(null);
+  // Lightbox state — when set to an image URL, shows full-screen image modal.
+  // Missing useState caused "Property 'lightbox' doesn't exist" crash.
+  const [lightbox, setLightbox] = useState(null);
   const listRef = useRef(null);
   const typingTimerRef = useRef(null);
   const lastTypingSentRef = useRef(0);
