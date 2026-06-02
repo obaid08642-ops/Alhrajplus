@@ -589,6 +589,16 @@ function ChatThread({
       Alert.alert(t("خطأ"), t("تعذر إرسال الموقع"));
     }
   };
+  // Ensure playback-friendly audio mode on screen mount so voice notes are
+  // audible even when the device is on silent / had previously been in
+  // record mode.
+  useEffect(() => {
+    (async () => {
+      try {
+        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      } catch (_) {}
+    })();
+  }, []);
   const toggleRecording = async () => {
     try {
       if (recording) {
@@ -597,6 +607,16 @@ function ChatThread({
         const uri = recording.uri;
         const duration_ms = Math.max(0, Date.now() - startTs);
         setRecording(null);
+        // Restore playback-friendly audio mode IMMEDIATELY after stopping.
+        // Without this, iOS keeps the session in record mode (earpiece route)
+        // and `useAudioPlayer` plays silently → user reports "voice notes
+        // don't play back".
+        try {
+          await setAudioModeAsync({
+            allowsRecording: false,
+            playsInSilentMode: true,
+          });
+        } catch (_) {}
         if (!uri) return;
         setUploading(true);
         const {

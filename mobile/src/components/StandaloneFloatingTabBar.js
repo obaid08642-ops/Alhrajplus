@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 import { useNavigation } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
@@ -39,6 +40,7 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
   const nav = useNavigation();
   const pulse = useRef(new Animated.Value(0)).current;
   const fabPress = useRef(new Animated.Value(1)).current;
+  const burst = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -85,6 +87,7 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
     <View pointerEvents="box-none" style={styles.wrap}>
       <View pointerEvents="box-none" style={[styles.fabAnchor, { bottom: fabBottom }]}>
         <Animated.View pointerEvents="none" style={[styles.pulseRing, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]} />
+        <Animated.View pointerEvents="none" style={[styles.burstRing, { transform: [{ scale: burstScale }], opacity: burstOpacity }]} />
         <Animated.View style={{ transform: [{ scale: fabPress }] }}>
           <TouchableOpacity
             onPress={goToPost}
@@ -150,5 +153,11 @@ const styles = StyleSheet.create({
     position: "absolute", bottom: 0,
     width: FAB_W + 14, height: FAB_H + 14, borderRadius: 999,
     backgroundColor: "rgba(181,230,29,0.30)",
+  },
+  burstRing: {
+    position: "absolute", bottom: 6,
+    width: FAB_W + 10, height: FAB_H + 10, borderRadius: 999,
+    borderWidth: 4, borderColor: "#B5E61D",
+    backgroundColor: "rgba(181,230,29,0.18)",
   },
 });

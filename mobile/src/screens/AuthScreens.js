@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { ChevronLeft, Globe } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
 import { theme, shadow } from "../theme";
+import { useThemeMode } from "../ThemeContext";
 import { formatApiError } from "../api";
 import { signInWithGoogle, signInWithApple, signInWithX, signInWithSnapchat } from "../socialAuth";
 import { isBiometricAvailable, isBiometricEnabled, enableBiometric, tryBiometricLogin } from "../biometric";
@@ -117,6 +118,7 @@ export function LoginScreen({
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   const {
     user,
     login,
@@ -220,7 +222,7 @@ export function LoginScreen({
       setBusy(false);
     }
   };
-  return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
+  return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.wrap, { backgroundColor: palette.bg }]}>
             <ScrollView contentContainerStyle={styles.scroll}>
                 <AuthHeader navigation={navigation} />
                 <View style={styles.card}>
@@ -278,6 +280,7 @@ export function RegisterScreen({
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   const {
     user,
     register,
@@ -318,7 +321,7 @@ export function RegisterScreen({
       setBusy(false);
     }
   };
-  return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
+  return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.wrap, { backgroundColor: palette.bg }]}>
             <ScrollView contentContainerStyle={styles.scroll}>
                 <AuthHeader navigation={navigation} />
                 <View style={styles.card}>

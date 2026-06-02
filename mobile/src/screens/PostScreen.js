@@ -14,6 +14,7 @@ import api, { formatApiError } from "../api";
 import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
 import { useAuth } from "../AuthContext";
+import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
 import { CarCascadeMobile, PhoneCascadeMobile, FurnitureCascadeMobile, HomeAppliancesCascadeMobile } from "../components/CategoryCascadesMobile";
 import { JobsDetailsBoxMobile, RealEstateDetailsBoxMobile } from "../components/JobsRealEstateBoxesMobile";
@@ -24,6 +25,7 @@ export default function PostScreen({
   route
 }) {
   const { t, lang } = useI18n();
+  const { palette } = useThemeMode();
   
   const {
     current: country
@@ -253,10 +255,32 @@ export default function PostScreen({
       Alert.alert(t("إذن"), t("نحتاج صلاحية الكاميرا"));
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8
-    });
-    if (!result.canceled) await uploadAssets(result.assets);
+    // Owner directive: camera should also allow VIDEO capture (not just
+    // photos). Present an action sheet to choose photo vs. video.
+    Alert.alert(t("الكاميرا"), t("ماذا تريد التقاطه؟"), [
+      {
+        text: t("صورة"),
+        onPress: async () => {
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
+          if (!result.canceled) await uploadAssets(result.assets);
+        },
+      },
+      {
+        text: t("فيديو"),
+        onPress: async () => {
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+            quality: 0.8,
+            videoMaxDuration: 60,
+          });
+          if (!result.canceled && result.assets?.[0]) await uploadVideoAsset(result.assets[0]);
+        },
+      },
+      { text: t("إلغاء"), style: "cancel" },
+    ]);
   };
   const pickVideo = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -270,7 +294,11 @@ export default function PostScreen({
       videoMaxDuration: 60
     });
     if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
+    await uploadVideoAsset(result.assets[0]);
+  };
+  // Shared video uploader so both `pickVideo` (gallery) and `takePhoto`
+  // (camera-video branch) push to Cloudinary via the same path.
+  const uploadVideoAsset = async (asset) => {
     setUploadingVid(true);
     try {
       const {
@@ -480,7 +508,7 @@ export default function PostScreen({
   }, [step, form.title, form.category, form.city, form.price, form.images, editId]);
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }}>
             {/* Slim app bar — minimal vertical space (was eating ¼ of screen). */}
             <View style={[s.header, {

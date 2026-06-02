@@ -270,3 +270,20 @@ See `/app/memory/test_credentials.md`.
 - **🗺️ Map needs tab bar** — but Map is a Stack screen (not inside Tab navigator). Created a NEW component `/app/mobile/src/components/StandaloneFloatingTabBar.js` (identical visual to FloatingTabBar) that uses `useNavigation()` to navigate to tabs via `nav.navigate("Main", {screen: tabName})`. Rendered at the bottom of `MapScreen` so the bar appears persistently on Map.
 - **Validation**: `npx expo export --platform web` → 3043 modules (new file), no errors. ESLint clean on all 4 modified files (`FloatingTabBar.js`, `StandaloneFloatingTabBar.js`, `ChatScreen.js`, `MapScreen.js`).
 
+
+## ✅ Phase 22 — Reels UX + Map search + Voice playback + Post camera-video + FAB haptic + Dark-mode expansion (Feb 2026)
+- **🎥 Reels (Stories) UX fixes**:
+  - **Default = NOT muted** (`muted` initial state flipped from `true` → `false`). Player `p.muted = false` on init.
+  - **Mute button moved DOWN** — removed from the topBar, now absolute-positioned at `top: 110, right: 16` so it sits below the safe-area without overlapping brand text.
+  - **Tap on video = pause/play** (NOT navigate to listing). Added `userPaused` local state; `onTapVideo` toggles it. The auto-play-when-active effect now respects `userPaused`. Tapping the play overlay icon also shows when paused. Listing detail is still reachable via the explicit "فتح الإعلان" CTA below.
+- **🗺️ Map search bar**: added a search row at the top of MapScreen with a debounced (350ms) call to `/api/listings/map/nearby?q=...`. Listings update on the map live as the user types.
+- **🎙️ Voice notes playback fix**: iOS records in earpiece-route mode (`allowsRecording: true`) — when the recording stops, the audio session needs to be switched back to playback (`allowsRecording: false, playsInSilentMode: true`) or `useAudioPlayer` plays silently. Added `setAudioModeAsync` call (a) once on ChatScreen mount, and (b) immediately after `recording.stop()`.
+- **📸 Post camera supports VIDEO**: `takePhoto` now opens an Alert action sheet (صورة / فيديو / إلغاء). The video branch calls `launchCameraAsync({ mediaTypes: Videos, videoMaxDuration: 60 })` and routes through a new shared `uploadVideoAsset` helper (also reused by the gallery `pickVideo`).
+- **🟢 FAB haptic + lime-burst animation**: added `expo-haptics@56.0.3`. On FAB press: `Haptics.impactAsync(Medium)` + spring-scale + a **burst ring** (lime border, scales 0.7→2.2, fades over 520 ms). Applied to BOTH `FloatingTabBar` and `StandaloneFloatingTabBar` for parity.
+- **🌙 Dark-mode propagation (Phase 22 batch)**: added `useThemeMode().palette` inline overrides on root containers of:
+  - `ListingDetailScreen` (root View bg)
+  - `PostScreen` (root KeyboardAvoidingView bg)
+  - `AuctionsScreen` (root ScrollView bg)
+  - `AuthScreens.LoginScreen` + `RegisterScreen` (root KeyboardAvoidingView bg)
+- **Validation**: `npx expo export --platform web` → 3050 modules (new haptics + standalone bar), no errors. ESLint clean across all 9 modified files.
+

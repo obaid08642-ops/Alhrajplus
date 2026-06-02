@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, SafeAreaView } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, SafeAreaView, TextInput } from "react-native";
 import { WebView } from "react-native-webview";
+import { Search as SearchIcon } from "lucide-react-native";
 import * as Location from "expo-location";
 import api from "../api";
 import { theme } from "../theme";
@@ -17,19 +18,23 @@ export default function MapScreen() {
   const [items, setItems] = useState([]);
   const [myPos, setMyPos] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
   const ref = useRef(null);
+  // Reload map listings whenever the query changes (debounced).
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      try {
+        const params = { limit: 200 };
+        if (query.trim()) params.q = query.trim();
+        const { data } = await api.get("/listings/map/nearby", { params });
+        setItems(data || []);
+        setLoading(false);
+      } catch (_) { setLoading(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query]);
   useEffect(() => {
     (async () => {
-      try {
-        const {
-          data
-        } = await api.get("/listings/map/nearby", {
-          params: {
-            limit: 200
-          }
-        });
-        setItems(data || []);
-      } catch (_) {}
       try {
         const perm = await Location.requestForegroundPermissionsAsync();
         if (perm.granted) {
@@ -40,7 +45,6 @@ export default function MapScreen() {
           });
         }
       } catch (_) {}
-      setLoading(false);
     })();
   }, []);
   const html = buildHtml(items, myPos);
@@ -64,6 +68,18 @@ export default function MapScreen() {
             <View style={styles.header}>
                 <Text style={styles.title}>{t("🗺️ خريطة الإعلانات")}</Text>
                 <Text style={styles.sub}>{items.length} {t("إعلان بالقرب منك")}</Text>
+                <View style={styles.searchRow}>
+                    <SearchIcon size={16} color={theme.colors.primary} />
+                    <TextInput
+                        value={query}
+                        onChangeText={setQuery}
+                        placeholder={t("ابحث في الخريطة...")}
+                        placeholderTextColor="#94A3B8"
+                        style={styles.searchInput}
+                        testID="map-search-input"
+                        returnKeyType="search"
+                    />
+                </View>
             </View>
             <WebView ref={ref} originWhitelist={["*"]} source={{
       html
@@ -228,5 +244,22 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: "right",
     marginTop: 2
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 8
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.colors.text,
+    textAlign: "right",
+    paddingVertical: 0
   }
 });

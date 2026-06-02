@@ -7,12 +7,14 @@ import { useNavigation } from "@react-navigation/native";
 import { Gavel, Clock, TrendingUp, Users, X, Sparkles } from "lucide-react-native";
 import api from "../api";
 import { useAuth } from "../AuthContext";
+import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
 export default function AuctionsScreen({ route }) {
   const {
     t
   } = useI18n();
+  const { palette } = useThemeMode();
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const {
@@ -52,7 +54,7 @@ export default function AuctionsScreen({ route }) {
   }, [openBidFor, items]);
   return <ScrollView style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }} contentContainerStyle={{
     padding: 12,
     paddingBottom: 130

@@ -7,6 +7,7 @@ import api from "../api";
 import { theme } from "../theme";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
+import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import Viewer360Mobile from "../components/Viewer360Mobile";
 export default function ListingDetailScreen({
@@ -14,6 +15,7 @@ export default function ListingDetailScreen({
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   const {
     id
   } = route.params;
@@ -216,7 +218,7 @@ export default function ListingDetailScreen({
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`);
   };
   const isAuction = listing && (listing.category === "auctions" || !!listing.auction_meta || !!listing.is_auction);
-  return <View style={styles.wrap}>
+  return <View style={[styles.wrap, { backgroundColor: palette.bg }]}>
         {/* Floating back button — top-end (RTL: right). High-contrast pill so
             it works against any image background. */}
         <TouchableOpacity

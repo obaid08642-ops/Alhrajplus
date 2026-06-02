@@ -27,7 +27,7 @@ export default function ReelsScreen() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
 
   // Hide the floating tab bar while reels are visible — restored on blur.
   // Targets the PARENT tab navigator (this screen is inside the bottom tabs).
@@ -187,18 +187,21 @@ function ReelItem({
   const nav = useNavigation();
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(item.likes || 0);
+  // User-controlled pause via tap-on-video (separate from auto-pause when reel
+  // scrolls off-screen). Default = playing.
+  const [userPaused, setUserPaused] = useState(false);
   const videoUrl = item.videos?.[0];
   const player = useVideoPlayer(videoUrl || null, p => {
     if (!p) return;
     p.loop = true;
-    p.muted = true;
+    p.muted = false;
   });
   useEffect(() => {
     if (!player || !videoUrl) return;
     try {
       player.muted = muted;
     } catch (_) {}
-    if (active) {
+    if (active && !userPaused) {
       try {
         player.play();
       } catch (_) {}
@@ -207,7 +210,18 @@ function ReelItem({
         player.pause();
       } catch (_) {}
     }
-  }, [active, muted, player, videoUrl]);
+  }, [active, muted, player, videoUrl, userPaused]);
+
+  // Tap on the video area → toggle play/pause (NOT navigate to listing).
+  // Listing detail is reachable via the explicit "فتح الإعلان" CTA below.
+  const onTapVideo = () => {
+    if (!videoUrl) {
+      // No video → keep legacy behaviour (image card opens listing).
+      onOpen?.();
+      return;
+    }
+    setUserPaused(p => !p);
+  };
 
   const onLike = async () => {
     if (!user) { nav.navigate("Login"); return; }
@@ -230,7 +244,7 @@ function ReelItem({
     } catch (_) {}
   };
 
-  return <TouchableOpacity activeOpacity={0.95} onPress={onOpen} style={styles.reel} testID={`reel-${item.id}`}>
+  return <TouchableOpacity activeOpacity={0.95} onPress={onTapVideo} style={styles.reel} testID={`reel-${item.id}`}>
             {videoUrl ? <VideoView player={player} style={styles.media} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} /> : item.images?.[0] ? <Image source={{
       uri: item.images[0]
     }} style={styles.media} resizeMode="cover" /> : <View style={[styles.media, {
@@ -240,12 +254,15 @@ function ReelItem({
             <View style={styles.overlay} pointerEvents="box-none">
                 <View style={styles.topBar}>
                     <Text style={styles.brandText}>الحراج <Text style={styles.brandAccent}>{t("بلس")}</Text></Text>
-                    {videoUrl && <TouchableOpacity onPress={onToggleMute} hitSlop={12} style={styles.muteBtn} testID={`reel-mute-${item.id}`}>
-                            {muted ? <VolumeX size={18} color="#fff" /> : <Volume2 size={18} color="#fff" />}
-                        </TouchableOpacity>}
                 </View>
+                {/* Mute toggle — moved DOWN per owner directive. Sits below
+                    the top bar so it never overlaps the safe-area notch
+                    or the brand text. */}
+                {videoUrl && <TouchableOpacity onPress={onToggleMute} hitSlop={12} style={styles.muteBtn} testID={`reel-mute-${item.id}`}>
+                    {muted ? <VolumeX size={18} color="#fff" /> : <Volume2 size={18} color="#fff" />}
+                </TouchableOpacity>}
 
-                {videoUrl && !active && <View style={styles.playOverlay} pointerEvents="none">
+                {videoUrl && (!active || userPaused) && <View style={styles.playOverlay} pointerEvents="none">
                         <Play size={48} color="#fff" fill="#fff" />
                     </View>}
 
@@ -377,6 +394,9 @@ const styles = StyleSheet.create({
     color: theme.colors.primary
   },
   muteBtn: {
+    position: "absolute",
+    top: 110,
+    right: 16,
     width: 38,
     height: 38,
     borderRadius: 999,
