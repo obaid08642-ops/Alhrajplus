@@ -8,12 +8,14 @@ import api from "../api";
 import { theme } from "../theme";
 import { useI18n } from "../I18nContext";
 import { useAuth } from "../AuthContext";
+import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 export default function SellerProfileScreen({
   route,
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   const {
     sellerId
   } = route.params || {};
@@ -92,7 +94,7 @@ export default function SellerProfileScreen({
   if (!seller) return <View style={s.center}><Text style={{
       color: theme.colors.text
     }}>{t("لا توجد بيانات")}</Text></View>;
-  return <ScrollView style={s.wrap}>
+  return <ScrollView style={[s.wrap, { backgroundColor: palette.bg }]}>
             <View style={s.header}>
                 <View style={s.avatar}><Text style={s.avatarText}>{seller.name?.[0] || "U"}</Text></View>
                 <Text style={s.name}>{seller.name}{seller.verified ? " ✓" : ""}</Text>

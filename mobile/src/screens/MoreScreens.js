@@ -69,6 +69,7 @@ export function CategoryListingsScreen({
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   const {
     categoryKey,
     name
@@ -115,7 +116,7 @@ export function CategoryListingsScreen({
       id: item.id
     })} />
         </View>, [navigation]);
-  return <View style={s.wrap}>
+  return <View style={[s.wrap, { backgroundColor: palette.bg }]}>
             <Text style={s.pageTitle}>{name || t("التصنيف")}</Text>
             {loading ? <View style={s.center}><ActivityIndicator color={theme.colors.primary} size="large" /></View> : <FlatList data={items} keyExtractor={item => String(item?.id)} numColumns={2} contentContainerStyle={{
       padding: 8,
@@ -217,6 +218,7 @@ export function SettingsScreen({
 }) {
   const { t, lang, setLang, supported } = useI18n();
   const { current: country, countries, setCountry } = useCountry();
+  const { palette, isDark, toggle: toggleDark } = useThemeMode();
   const [langOpen, setLangOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
 
@@ -228,9 +230,12 @@ export function SettingsScreen({
     bn: "বাংলা 🇧🇩",
     fr: "Français 🇫🇷"
   };
-  return <ScrollView style={s.wrap}>
+  return <ScrollView style={[s.wrap, { backgroundColor: palette.bg }]}>
             <Text style={s.pageTitle}>{t("الإعدادات")}</Text>
             <View style={s.menu}>
+                <TouchableOpacity style={s.menuItem} onPress={toggleDark} testID="settings-dark-toggle">
+                    <Text style={s.menuLabel}>{isDark ? "🌙" : "☀️"} {t("الوضع الداكن")}: {isDark ? t("مفعل") : t("معطل")}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => setLangOpen(true)} testID="mobile-lang-switcher">
                     <Text style={s.menuLabel}>🌐 {t("اللغة")}: {LANG_LABELS[lang]}</Text>
                 </TouchableOpacity>
@@ -326,6 +331,7 @@ export function StaticPageScreen({
   route
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const slug = route.params?.key || route.params?.slug || "about";
   const STATIC_FALLBACK = Object.fromEntries(Object.entries(STATIC_FALLBACK_KEYS).map(([k, v]) => [k, {
@@ -356,7 +362,7 @@ export function StaticPageScreen({
     flex: 1,
     justifyContent: "center"
   }}><ActivityIndicator color={theme.colors.primary} /></View>;
-  return <ScrollView style={s.wrap} contentContainerStyle={{
+  return <ScrollView style={[s.wrap, { backgroundColor: palette.bg }]} contentContainerStyle={{
     padding: 18
   }}>
             <Text style={s.pageTitle} testID="static-page-title">{page?.title}</Text>
@@ -553,6 +559,7 @@ export function SavedSearchesScreen({
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -577,13 +584,13 @@ export function SavedSearchesScreen({
   }}><ActivityIndicator color={theme.colors.primary} /></View>;
   return <View style={{
     flex: 1,
-    backgroundColor: theme.colors.bg
+    backgroundColor: palette.bg
   }}>
             <Text style={{
       padding: 16,
       fontSize: 18,
       fontWeight: "900",
-      color: theme.colors.text,
+      color: palette.text,
       textAlign: "right"
     }}>{t("الأبحاث المحفوظة")}</Text>
             <FlatList data={items} keyExtractor={it => it.id} renderItem={({
@@ -619,6 +626,7 @@ export function FollowingScreen({
   navigation
 }) {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const [data, setData] = useState({
     categories: [],
@@ -656,13 +664,13 @@ export function FollowingScreen({
   }}><ActivityIndicator color={theme.colors.primary} /></View>;
   return <ScrollView style={{
     flex: 1,
-    backgroundColor: theme.colors.bg
+    backgroundColor: palette.bg
   }}>
             <Text style={{
       padding: 16,
       fontSize: 18,
       fontWeight: "900",
-      color: theme.colors.text,
+      color: palette.text,
       textAlign: "right"
     }}>{t("متابعاتي")}</Text>
             <Text style={{
@@ -726,6 +734,7 @@ export function FollowingScreen({
 import { Switch } from "react-native";
 export function NotifSettingsScreen() {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const [prefs, setPrefs] = useState({});
   const [loaded, setLoaded] = useState(false);
@@ -756,13 +765,13 @@ export function NotifSettingsScreen() {
   }}><ActivityIndicator color={theme.colors.primary} /></View>;
   return <ScrollView style={{
     flex: 1,
-    backgroundColor: theme.colors.bg
+    backgroundColor: palette.bg
   }}>
             <Text style={{
       padding: 16,
       fontSize: 18,
       fontWeight: "900",
-      color: theme.colors.text,
+      color: palette.text,
       textAlign: "right"
     }}>{t("إعدادات الإشعارات")}</Text>
             <View style={{

@@ -6,6 +6,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Plane, MapPin, Calendar, Users, Search, ExternalLink, Globe, X } from "lucide-react-native";
 import { colors, radius, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
+import { useThemeMode } from "../ThemeContext";
 
 // Top 60 airports — Arabic + IATA codes
 const AIRPORTS = [{
@@ -384,6 +385,7 @@ const pStyles = StyleSheet.create({
 });
 export default function FlightsScreen() {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const [from, setFrom] = useState("RUH");
   const [to, setTo] = useState("DXB");
@@ -420,7 +422,7 @@ export default function FlightsScreen() {
   };
   return <ScrollView style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }} contentContainerStyle={{
     padding: 12,
     paddingBottom: 130

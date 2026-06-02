@@ -287,3 +287,13 @@ See `/app/memory/test_credentials.md`.
   - `AuthScreens.LoginScreen` + `RegisterScreen` (root KeyboardAvoidingView bg)
 - **Validation**: `npx expo export --platform web` → 3050 modules (new haptics + standalone bar), no errors. ESLint clean across all 9 modified files.
 
+
+
+## ✅ Phase 23 — Dark mode finalization across remaining screens (Feb 2026)
+- **Local install error**: user reported `"expo-haptics" is added as a dependency but doesn't seem to be installed`. Expected when pulling fresh — solution: `yarn install` (or `npm install`) locally then `npx expo start -c`. Dependency correctly listed in `package.json` + `yarn.lock`.
+- **🌙 Dark-mode expanded** to all remaining screens via `useThemeMode().palette` inline overrides on root containers:
+  - `AIAssistantScreen`, `FlightsScreen`, `WalletScreen`, `SellerProfile`
+  - `MoreScreens.SettingsScreen` (+ NEW dark-mode toggle menu item at top with ☀️/🌙 icon and persisted state)
+  - `MoreScreens.CategoryListingsScreen`, `StaticPageScreen`, `SavedSearchesScreen`, `FollowingScreen`, `NotifSettingsScreen`
+- **Fixed pre-existing syntax fragment** in `WalletScreen.js` (stray `});,` at end of file).
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean across all 6 modified files.

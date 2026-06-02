@@ -77,7 +77,7 @@ export default function WalletScreen() {
   const hasBonus = (data.transactions || []).some(t => t.type === "bonus");
   return <ScrollView style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }} contentContainerStyle={{
     padding: 12,
     paddingBottom: 130

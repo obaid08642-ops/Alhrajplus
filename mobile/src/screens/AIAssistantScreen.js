@@ -7,6 +7,7 @@ import { Send, Bot, Sparkles, RotateCcw } from "lucide-react-native";
 import api from "../api";
 import { colors, radius } from "../theme";
 import { useI18n } from "../I18nContext";
+import { useThemeMode } from "../ThemeContext";
 const SESSION_KEY = "hp_ai_session_id";
 const HIST_KEY = "hp_ai_history";
 async function getSessionId() {
@@ -20,6 +21,7 @@ async function getSessionId() {
 const SUGGESTION_KEYS = ["كيف أنشر إعلاناً جديداً؟", "ما متوسط سعر سيارة كامري 2020؟", "هل البيع آمن؟ نصائح للحماية من الاحتيال"];
 export default function AIAssistantScreen() {
   const { t } = useI18n();
+  const { palette } = useThemeMode();
   
   const SUGGESTIONS = SUGGESTION_KEYS.map(k => t(k));
   const [messages, setMessages] = useState([]);
@@ -82,7 +84,7 @@ export default function AIAssistantScreen() {
   };
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{
     flex: 1,
-    backgroundColor: colors.bg
+    backgroundColor: palette.bg
   }}>
             {/* Header */}
             <View style={styles.header}>
