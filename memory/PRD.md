@@ -348,3 +348,23 @@ See `/app/memory/test_credentials.md`.
 - **🎙 Voice playback fix** (owner: "ارسال صوت ومحاولة تشغيله. لا يعمل"). iOS keeps the audio session in record mode (earpiece route) after a recording, even on a DIFFERENT message's playback. Made `VoicePlayer.toggle` `async` and call `setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })` BEFORE every play. Also added rewind-on-replay (if `currentTime >= duration`, seekTo(0)) so users can replay a clip without manually rewinding. Wrapped in try/catch to alert on hard failures.
 - **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on `App.js`, `ReelsScreen.js`, `ChatScreen.js`.
 
+
+## ✅ Phase 28 — Voice playback (true root cause) + Presence accuracy + Swipe-to-reply (Feb 2026)
+- **🛑 ROOT-CAUSE FIX — Voice notes don't play**: this had nothing to do with audio mode. The bug was in `MessageBubble`'s URL extraction:
+  - `text.slice(2)` was used to strip the emoji prefix from `"🎙️ <url>"`.
+  - But 🎙️ is a **3-code-unit grapheme** (surrogate pair `\uD83C\uDF99` + variation selector `\uFE0F`).
+  - `slice(2)` left a stray `\uFE0F` character at the START of the URL.
+  - The Cloudinary URL became invalid → `useAudioPlayer` silently failed to load.
+  - **Fix**: replaced with `text.slice("🎙️ ".length).trim()` (uses full prefix length). Same fix applied to 📷 (works incidentally) and 📍 (which had the same bug).
+- **👤 Presence accuracy + i18n**:
+  - `fmtLastSeen(null)` used to return **"متصل الآن"** as a fallback → made users appear online even when they had never connected via WS. Fixed to return **"غير متصل"** instead.
+  - `fmtLastSeen` now accepts a `t` translator and produces all strings via `t(...)` → fully translated to user's language (was hardcoded Arabic).
+  - `toLocaleDateString("ar")` → `toLocaleDateString()` (respects device locale).
+  - Caller `presenceText` updated to pass `t` into `fmtLastSeen`.
+- **👈 Swipe-to-reply (WhatsApp-style)**:
+  - Wrapped every message bubble in `Animated.View` + `PanResponder`.
+  - Horizontal swipe ≥ 60 px in either direction → fires `onSwipeReply(m)` which sets `replyTo` state (composer reply preview appears).
+  - Bubble follows finger up to ±90 px then springs back.
+  - Pan intercepts only when `|dx| > 12` AND mostly horizontal (`|dx| > |dy| * 1.5`) → vertical list scrolling stays smooth.
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on `ChatScreen.js`.
+

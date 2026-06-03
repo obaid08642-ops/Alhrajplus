@@ -2,7 +2,7 @@
 // Two views: conversations list  +  chat thread (selected by route.params.to or list tap).
 import { useEffect, useRef, useState, useCallback, useMemo, useLayoutEffect } from "react";
 import { useI18n } from "../I18nContext";
-import { View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl, Modal, Linking } from "react-native";
+import { View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl, Modal, Linking, PanResponder, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SvgXml } from "react-native-svg";
 import { CHAT_BG_SVG } from "../components/chatBgSvg";
@@ -26,16 +26,19 @@ import { colors, radius, shadow } from "../theme";
 
 // Audio player module for voice playback
 import { useAudioPlayer } from "expo-audio";
-function fmtLastSeen(iso) {
-  if (!iso) return "متصل الآن";
+function fmtLastSeen(iso, t) {
+  const _ = t || ((s) => s);
+  // Owner mandate: if we have NO last_seen, we must NOT pretend the user
+  // is online. Show a neutral "غير متاح" instead.
+  if (!iso) return _("غير متصل");
   const d = new Date(iso);
   const now = new Date();
   const diff = (now - d) / 1000;
-  if (diff < 60) return "آخر ظهور قبل لحظات";
-  if (diff < 3600) return `آخر ظهور قبل ${Math.floor(diff / 60)} دقيقة`;
-  if (diff < 86400) return `آخر ظهور قبل ${Math.floor(diff / 3600)} ساعة`;
-  if (diff < 604800) return `آخر ظهور قبل ${Math.floor(diff / 86400)} يوم`;
-  return `آخر ظهور ${d.toLocaleDateString("ar")}`;
+  if (diff < 60) return _("آخر ظهور قبل لحظات");
+  if (diff < 3600) return `${_("آخر ظهور قبل")} ${Math.floor(diff / 60)} ${_("دقيقة")}`;
+  if (diff < 86400) return `${_("آخر ظهور قبل")} ${Math.floor(diff / 3600)} ${_("ساعة")}`;
+  if (diff < 604800) return `${_("آخر ظهور قبل")} ${Math.floor(diff / 86400)} ${_("يوم")}`;
+  return `${_("آخر ظهور")} ${d.toLocaleDateString()}`;
 }
 /**
  * Toggle helper — applies the same logic as the backend (one reaction per user
@@ -695,7 +698,7 @@ function ChatThread({
       Alert.alert(t("خطأ"), t("تعذر التسجيل"));
     }
   };
-  const presenceText = presence.online ? t("متصل الآن") : fmtLastSeen(presence.last_seen);
+  const presenceText = presence.online ? t("متصل الآن") : fmtLastSeen(presence.last_seen, t);
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{
     flex: 1,
     // Bg color matches the SVG's baked background (#f9f6f1) so seams are invisible.
@@ -823,7 +826,7 @@ function ChatThread({
                     const showDay = !prev || fmtDay(prev.created_at) !== fmtDay(item.created_at);
                     return <>
                               {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(item.created_at)}</Text></View>}
-                              <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setLongPressMsg} />
+                              <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setLongPressMsg} onSwipeReply={setReplyTo} />
                           </>;
                   }} ListFooterComponent={otherTyping ? <TypingIndicator /> : null} onContentSizeChange={() => listRef.current?.scrollToEnd({
                     animated: false
@@ -1004,20 +1007,51 @@ function MessageBubble({
   m,
   isMine,
   onImagePress,
-  onLongPress
+  onLongPress,
+  onSwipeReply
 }) {
   const { t } = useI18n();
-  
+  // Swipe-to-reply (WhatsApp-style). Horizontal pan ≥ 60 px in the user's
+  // natural reading direction (RTL → swipe LEFT, LTR → swipe RIGHT) triggers
+  // onSwipeReply(m). The bubble follows the finger up to ±90 px then springs
+  // back. We intentionally only intercept when the swipe is mostly horizontal
+  // so vertical list scrolling stays smooth.
+  const translateX = useRef(new Animated.Value(0)).current;
+  const SWIPE_TRIGGER = 60;
+  const MAX_TRANSLATE = 90;
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onPanResponderMove: (_e, g) => {
+      const dx = Math.max(-MAX_TRANSLATE, Math.min(MAX_TRANSLATE, g.dx));
+      translateX.setValue(dx);
+    },
+    onPanResponderRelease: (_e, g) => {
+      const triggered = Math.abs(g.dx) > SWIPE_TRIGGER;
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
+      if (triggered && onSwipeReply) onSwipeReply(m);
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+    },
+  })).current;
   const text = m.text || "";
   const isImage = text.startsWith("📷 ");
   const isVoice = text.startsWith("🎙️ ");
   const isLocation = text.startsWith("📍 ");
-  const url = isImage || isVoice || isLocation ? text.slice(2).trim() : null;
+  // 🛑 CRITICAL bug fix: previous code used `text.slice(2)` to strip the
+  // emoji prefix — but 🎙️ is a 3-code-unit grapheme (surrogate pair +
+  // variation selector U+FE0F). slice(2) left a stray U+FE0F at the URL's
+  // start which corrupted Cloudinary playback. Use the full prefix length.
+  const url = isImage ? text.slice("📷 ".length).trim()
+            : isVoice ? text.slice("🎙️ ".length).trim()
+            : isLocation ? text.slice("📍 ".length).trim()
+            : null;
   // Strict null-guard per owner mandate — never destructure or access reply_to
   // sub-properties unless explicitly validated. Prevents the runtime crash
   // "Property 'replyTo' doesn't exist" reported on the previous build.
   const replyTo = m?.reply_to ?? null;
-  return <TouchableOpacity activeOpacity={0.85} onLongPress={() => onLongPress?.(m)} delayLongPress={350} style={[s.bubbleWrap, {
+  return <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX }] }}>
+    <TouchableOpacity activeOpacity={0.85} onLongPress={() => onLongPress?.(m)} delayLongPress={350} style={[s.bubbleWrap, {
     alignItems: isMine ? "flex-end" : "flex-start"
   }]}>
             <View style={[s.bubble, isMine ? s.bubbleMine : s.bubbleOther, isImage && {
@@ -1083,7 +1117,8 @@ function MessageBubble({
                     ))}
                 </View>
             )}
-        </TouchableOpacity>;
+        </TouchableOpacity>
+  </Animated.View>;
 }
 
 // =============== Voice Player ===============
