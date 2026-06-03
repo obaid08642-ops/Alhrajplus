@@ -11,11 +11,12 @@ import { useNavigation } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 
-const BAR_HEIGHT = 48;
+// ---- Dimensions (revision 3 — owner spec Feb 2026) ----
+const BAR_HEIGHT = 42;
 const NOTCH_RADIUS = 38;
-const FAB_W = 60;
-const FAB_H = 84;
-const FAB_SUBMERGE = 22;
+const FAB_W = 56;
+const FAB_H = 80;
+const FAB_SUBMERGE = 30;
 
 function buildBarPath(W, totalH) {
   const cx = W / 2;
@@ -119,7 +120,7 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
                 style={styles.tabBtn}
                 testID={`standalone-tab-${tab.key}`}
               >
-                <Icon size={20} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
+                <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
                 <Text style={[styles.tabLabel, { color: focused ? activeColor : inactiveColor, fontWeight: focused ? "900" : "700" }]} numberOfLines={1}>
                   {tab.label}
                 </Text>
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
   tabsRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6 },
   tabBtn: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
   spacer: { width: NOTCH_RADIUS * 2 + 8 },
-  tabLabel: { fontSize: 10.5, textAlign: "center", includeFontPadding: false },
+  tabLabel: { fontSize: 9.5, textAlign: "center", includeFontPadding: false },
   fabAnchor: { position: "absolute", left: 0, right: 0, alignItems: "center", zIndex: 10, height: FAB_H, justifyContent: "flex-end" },
   fab: {
     width: FAB_W, height: FAB_H, borderRadius: 999,
@@ -152,12 +153,13 @@ const styles = StyleSheet.create({
   pulseRing: {
     position: "absolute", bottom: 0,
     width: FAB_W + 14, height: FAB_H + 14, borderRadius: 999,
-    backgroundColor: "rgba(181,230,29,0.30)",
+    borderWidth: 2, borderColor: "rgba(181,230,29,0.45)",
+    backgroundColor: "transparent",
   },
   burstRing: {
     position: "absolute", bottom: 6,
     width: FAB_W + 10, height: FAB_H + 10, borderRadius: 999,
     borderWidth: 4, borderColor: "#B5E61D",
-    backgroundColor: "rgba(181,230,29,0.18)",
+    backgroundColor: "transparent",
   },
 });

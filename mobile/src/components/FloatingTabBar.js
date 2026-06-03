@@ -17,18 +17,21 @@ import * as Haptics from "expo-haptics";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 
-// ---- Dimensions ----
-const BAR_HEIGHT = 48;        // visible content height of the bar (excludes safe inset)
-const NOTCH_RADIUS = 38;      // semicircle: width = 76, depth = 38 (≈79% of BAR_HEIGHT)
-const CORNER_RADIUS = 0;      // flush full-bleed bar — no rounded corners
+// ---- Dimensions (revision 3 — owner spec Feb 2026) ----
+// • Slimmer bar (was 48 → 42 px) per "نقلل ارتفاعه ملي او ملي ونص".
+// • Notch is a FULL semicircle that completely "cuts" the top edge so the
+//   FAB capsule sits inside with a visible transparent gap (~0.5–1 mm) all
+//   around it.
+const BAR_HEIGHT = 42;
+const NOTCH_RADIUS = 38;
+const CORNER_RADIUS = 0;
 
-// FAB — vertical capsule (taller than wide).
-const FAB_W = 60;
-const FAB_H = 84;
-// How many px of the FAB are BELOW the bar's top edge (i.e. inside the notch).
-// Tuned so most of the FAB sits ABOVE the bar while leaving a small visible
-// transparent gap between the capsule's curved bottom and the notch curve.
-const FAB_SUBMERGE = 22;
+// FAB capsule (vertical pill) — sized so a visible transparent gap remains
+// between its curved edge and the notch curve on ALL sides.
+const FAB_W = 56;
+const FAB_H = 80;
+// How far the FAB's BOTTOM dips below the bar's TOP edge.
+const FAB_SUBMERGE = 30;
 
 // Build the rounded-rect-with-top-notch SVG path.
 function buildBarPath(W, totalH) {
@@ -167,7 +170,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: focused }}
               >
-                <Icon size={20} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
+                <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
                 <Text style={[styles.tabLabel, { color: focused ? activeColor : inactiveColor, fontWeight: focused ? "900" : "700" }]} numberOfLines={1}>
                   {tab.label}
                 </Text>
@@ -207,7 +210,7 @@ const styles = StyleSheet.create({
     width: NOTCH_RADIUS * 2 + 8,
   },
   tabLabel: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     textAlign: "center",
     includeFontPadding: false,
   },
@@ -252,7 +255,9 @@ const styles = StyleSheet.create({
     width: FAB_W + 14,
     height: FAB_H + 14,
     borderRadius: 999,
-    backgroundColor: "rgba(181,230,29,0.30)",
+    borderWidth: 2,
+    borderColor: "rgba(181,230,29,0.45)",
+    backgroundColor: "transparent",
   },
   burstRing: {
     position: "absolute",
@@ -262,6 +267,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 4,
     borderColor: "#B5E61D",
-    backgroundColor: "rgba(181,230,29,0.18)",
+    backgroundColor: "transparent",
   },
 });

@@ -297,3 +297,20 @@ See `/app/memory/test_credentials.md`.
   - `MoreScreens.CategoryListingsScreen`, `StaticPageScreen`, `SavedSearchesScreen`, `FollowingScreen`, `NotifSettingsScreen`
 - **Fixed pre-existing syntax fragment** in `WalletScreen.js` (stray `});,` at end of file).
 - **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean across all 6 modified files.
+
+## ✅ Phase 24 — Map crash hardening + Tab bar revision 3 (slimmer + true cut-through notch + visible gap) (Feb 2026)
+- **🗺️ Map crash fix**: MapScreen now hardened against any failure path:
+  - Renamed the inner `setTimeout` variable from `t` (which shadowed the i18n `t`) to `tid`.
+  - Wrapped `buildHtml(items, myPos)` in try/catch — never throws to the renderer.
+  - `setLoading(false)` now in a `finally` block so the screen NEVER stays in the loading spinner forever if the network fails.
+  - `setItems(Array.isArray(data) ? data : [])` defensively guards against unexpected backend shapes.
+  - Added an `err` state for debugging (not surfaced as a fatal modal yet).
+- **🎨 Tab bar revision 3 (owner spec)**:
+  - **Slimmer bar**: `BAR_HEIGHT` 48 → **42 px** ("نقلل ارتفاعه ملي أو ملي ونص").
+  - **Smaller FAB capsule**: `FAB_W` 60 → **56**, `FAB_H` 84 → **80**. This makes the FAB strictly smaller than the notch (38 × 2 = 76 diameter), creating a visible transparent gap on every side.
+  - **Deeper notch + visible gap**: `NOTCH_RADIUS = 38` on a 42-px bar → notch cuts almost all the way through (leaves a 4-px solid blue strip at the bottom). `FAB_SUBMERGE = 30` → FAB bottom sits 8 px above the notch's lowest point, creating a **visible transparent gap** between the FAB capsule's curved bottom and the notch curve (screen content shows through).
+  - **Pulse + Burst rings → border-only** (no opaque fill) so the transparent gap stays truly transparent during the animation; only the lime border traces around.
+  - **Tab labels** font 10.5 → 9.5 px, icons 20 → 18 px to fit the slimmer bar.
+  - Applied identically to both `FloatingTabBar.js` AND `StandaloneFloatingTabBar.js` (Map).
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on 3 modified files (`FloatingTabBar.js`, `StandaloneFloatingTabBar.js`, `MapScreen.js`).
+

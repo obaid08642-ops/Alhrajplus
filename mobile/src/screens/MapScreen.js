@@ -19,19 +19,25 @@ export default function MapScreen() {
   const [myPos, setMyPos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [err, setErr] = useState(null);
   const ref = useRef(null);
   // Reload map listings whenever the query changes (debounced).
   useEffect(() => {
-    const t = setTimeout(async () => {
+    const tid = setTimeout(async () => {
       try {
         const params = { limit: 200 };
         if (query.trim()) params.q = query.trim();
         const { data } = await api.get("/listings/map/nearby", { params });
-        setItems(data || []);
+        setItems(Array.isArray(data) ? data : []);
+      } catch (e) {
+        // Don't crash — render an empty map with the search bar instead.
+        setErr(e?.message || "load_failed");
+        setItems([]);
+      } finally {
         setLoading(false);
-      } catch (_) { setLoading(false); }
+      }
     }, 350);
-    return () => clearTimeout(t);
+    return () => clearTimeout(tid);
   }, [query]);
   useEffect(() => {
     (async () => {
