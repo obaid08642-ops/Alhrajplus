@@ -5,7 +5,7 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { Volume2, VolumeX, Play, Film, Heart, Share2, MapPin, X } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
 import { useAuth } from "../AuthContext";
 const {
@@ -30,12 +30,17 @@ export default function ReelsScreen() {
   const [muted, setMuted] = useState(false);
 
   // Hide the floating tab bar while reels are visible — restored on blur.
-  // Targets the PARENT tab navigator (this screen is inside the bottom tabs).
+  // Owner mandate: tab bar MUST NEVER show on Reels (covers buttons).
+  // Targets BOTH the parent Tab navigator AND its parent Stack so it never
+  // re-appears mid-session regardless of how the navigator is nested.
   const _hideTabBarOnFocus = useCallback(() => {
     const parent = nav.getParent?.();
+    const grand  = parent?.getParent?.();
     parent?.setOptions?.({ tabBarStyle: { display: "none" } });
+    grand?.setOptions?.({ tabBarStyle: { display: "none" } });
     return () => {
       parent?.setOptions?.({ tabBarStyle: undefined });
+      grand?.setOptions?.({ tabBarStyle: undefined });
     };
   }, [nav]);
   useFocusEffect(_hideTabBarOnFocus);
@@ -147,7 +152,7 @@ export default function ReelsScreen() {
               testID="reels-exit-btn"
               accessibilityLabel={t("خروج")}
             >
-              <X size={20} color="#fff" strokeWidth={2.6} />
+              <X size={22} color="#fff" strokeWidth={3} />
             </TouchableOpacity>
             <FlatList
               data={items}
@@ -185,6 +190,10 @@ function ReelItem({
 }) {
   const { t } = useI18n();
   const nav = useNavigation();
+  // When the Reels screen is unfocused (user switched tab / pressed X /
+  // navigated to ListingDetail) we MUST pause every active player. Owner
+  // mandate: video should NEVER keep playing after leaving Reels.
+  const isFocused = useIsFocused();
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(item.likes || 0);
   // User-controlled pause via tap-on-video (separate from auto-pause when reel
@@ -201,7 +210,8 @@ function ReelItem({
     try {
       player.muted = muted;
     } catch (_) {}
-    if (active && !userPaused) {
+    // PAUSE if any of: screen unfocused, reel not active, user paused.
+    if (isFocused && active && !userPaused) {
       try {
         player.play();
       } catch (_) {}
@@ -210,7 +220,15 @@ function ReelItem({
         player.pause();
       } catch (_) {}
     }
-  }, [active, muted, player, videoUrl, userPaused]);
+  }, [active, muted, player, videoUrl, userPaused, isFocused]);
+
+  // Hard-stop when component unmounts (e.g. list re-renders or screen
+  // teardown) — release the player so audio stops immediately.
+  useEffect(() => {
+    return () => {
+      try { player?.pause?.(); } catch (_) {}
+    };
+  }, [player]);
 
   // Tap on the video area → toggle play/pause (NOT navigate to listing).
   // Listing detail is reachable via the explicit "فتح الإعلان" CTA below.
@@ -323,18 +341,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000"
   },
-  // Top-right exit button — floats above all reels content.
+  // Top-right exit button — floats above all reels content. Owner directive:
+  // must be HIGHLY visible (was semi-transparent black — invisible against
+  // dark videos). Now solid app-red ring with white X icon + soft shadow.
   exitBtn: {
     position: "absolute",
     top: 48,
     left: 16,
     zIndex: 50,
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "#EF4444",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 8,
   },
   center: {
     flex: 1,

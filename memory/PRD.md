@@ -326,3 +326,17 @@ See `/app/memory/test_credentials.md`.
   - Detection: `m.matched = !!query && (title or category includes query, lowercased)`.
   - Non-matched items keep the original blue/orange alternation.
 - **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on both modified files.
+
+## ✅ Phase 26 — Reels: tab bar fully hidden + visible exit button + video stops on leave (Feb 2026)
+- **🚫 Tab bar completely hidden on Reels** (owner mandate — was sometimes flickering back). Now hides on BOTH the parent Tab navigator AND its grandparent Stack via `nav.getParent()?.getParent()?.setOptions({tabBarStyle:{display:'none'}})`. Restored on blur for both levels.
+- **❌ Exit (X) button highly visible** (was semi-transparent black, invisible on dark videos):
+  - Background `rgba(0,0,0,0.55)` → **solid red `#EF4444`** + white 2 px border.
+  - Size 40×40 → **44×44**.
+  - X icon stroke 2.6 → **3** + size 20 → 22.
+  - Added soft black shadow (radius 8, opacity 0.45) so it pops against any video background.
+- **⏸ Video stops on screen unfocus** (owner mandate — was looping forever after leaving Reels):
+  - Added `useIsFocused()` to `ReelItem`.
+  - Play condition tightened: `isFocused && active && !userPaused` — pauses immediately on tab switch, X press, or navigation to ListingDetail.
+  - Added unmount cleanup that calls `player.pause()` so audio stops if the list re-renders or the screen tears down.
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on `ReelsScreen.js`.
+
