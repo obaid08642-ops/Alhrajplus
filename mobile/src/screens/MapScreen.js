@@ -95,7 +95,7 @@ export default function MapScreen() {
             <StandaloneFloatingTabBar />
         </SafeAreaView>;
 }
-function buildHtml(items, myPos) {
+function buildHtml(items, myPos, query) {
   const center = myPos || (items[0] ? {
     lat: items[0].lat,
     lng: items[0].lng
@@ -103,6 +103,7 @@ function buildHtml(items, myPos) {
     lat: 24.7136,
     lng: 46.6753
   });
+  const q = (query || "").trim().toLowerCase();
   const markers = items.filter(i => i.lat && i.lng).map(i => ({
     id: i.id,
     lat: i.lat,
@@ -110,7 +111,13 @@ function buildHtml(items, myPos) {
     title: (i.title || "").replace(/"/g, "'"),
     price: i.price ? Number(i.price).toLocaleString() : "",
     currency: i.currency || "ر.س",
-    category: i.category || "general"
+    category: i.category || "general",
+    // Owner-mandated: when a search is active, results that match the query
+    // pulse BIGGER and glow in a distinct LIME color to stand out.
+    matched: !!q && (
+      (i.title || "").toLowerCase().includes(q) ||
+      (i.category || "").toLowerCase().includes(q)
+    )
   }));
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -148,6 +155,14 @@ function buildHtml(items, myPos) {
   /* Orange family (accent — for highlighted/featured items) */
   .orange .ring { border-color: rgba(255,140,0,0.80); }
   .orange .core { box-shadow: 0 4px 14px rgba(255,140,0,0.55); }
+  /* Lime "matched" family — search hits glow bigger & brighter */
+  .lime .ring { border-color: rgba(181,230,29,0.95); border-width: 3px; }
+  .lime .core { background: #B5E61D; box-shadow: 0 0 24px rgba(181,230,29,0.9), 0 4px 14px rgba(181,230,29,0.6); }
+  .lime .ring-wrap, .lime { width: 110px !important; height: 110px !important; }
+  .lime .icon-svg { stroke: #0F2A1B; }
+  .lime .ring.r1 { width: 48px; height: 48px; }
+  .lime .ring.r2 { width: 76px; height: 76px; }
+  .lime .ring.r3 { width: 104px; height: 104px; }
   .icon-svg { width: 18px; height: 18px; stroke: #FF8C00; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .blue .icon-svg { stroke: #FF8C00; }
   .orange .icon-svg { stroke: #FF8C00; }
@@ -189,12 +204,13 @@ function buildHtml(items, myPos) {
   };
   markers.forEach(function(m, idx) {
     var svg = CAT_SVG[m.category] || CAT_SVG.general;
-    // Alternate every third listing to orange ring; rest stay blue (mirrors
-    // the owner-supplied reference where some pings are highlighted).
-    var family = (idx % 3 === 1) ? 'orange' : 'blue';
+    // Search-matched items always glow LIME (biggest). Otherwise alternate
+    // orange/blue to mirror the owner-supplied reference.
+    var family = m.matched ? 'lime' : ((idx % 3 === 1) ? 'orange' : 'blue');
+    var size = m.matched ? 110 : 80;
     var icon = L.divIcon({
       className: 'hp-wrap',
-      iconSize: [80, 80], iconAnchor: [40, 40], popupAnchor: [0, -40],
+      iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2],
       html:
         '<div class="ring-wrap ' + family + '">' +
           '<div class="ring r3"></div>' +

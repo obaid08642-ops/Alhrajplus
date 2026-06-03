@@ -69,12 +69,17 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
   const TABS = I18nManager.isRTL ? [...TABS_LTR].reverse() : TABS_LTR;
 
   const goToPost = () => {
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch (_) {}
     Animated.sequence([
-      Animated.spring(fabPress, { toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 0 }),
-      Animated.spring(fabPress, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 8 }),
+      Animated.spring(fabPress, { toValue: 0.86, useNativeDriver: true, speed: 50, bounciness: 0 }),
+      Animated.spring(fabPress, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 10 }),
     ]).start();
+    burst.setValue(0);
+    Animated.timing(burst, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     nav.navigate("Post");
   };
+  const burstScale = burst.interpolate({ inputRange: [0, 1], outputRange: [0.7, 2.2] });
+  const burstOpacity = burst.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.85, 0.4, 0] });
 
   const W = Dimensions.get("window").width;
   const barTotalH = BAR_HEIGHT + insets.bottom;

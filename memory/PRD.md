@@ -314,3 +314,15 @@ See `/app/memory/test_credentials.md`.
   - Applied identically to both `FloatingTabBar.js` AND `StandaloneFloatingTabBar.js` (Map).
 - **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on 3 modified files (`FloatingTabBar.js`, `StandaloneFloatingTabBar.js`, `MapScreen.js`).
 
+
+
+## ✅ Phase 25 — Map crash fix (burstScale undefined) + Map search-hit highlight (Feb 2026)
+- **🛑 BLOCKER fix — Map crash**: `ReferenceError: Property 'burstScale' doesn't exist` in `StandaloneFloatingTabBar.js`. The JSX referenced `burstScale`/`burstOpacity` (lime burst ring) but the interpolated values were never defined in the component scope. Added them with the missing `Haptics.impactAsync` + `burst.setValue/Animated.timing` block. Map screen now opens.
+- **🟢 Map search-matched glow** (owner directive: "النتائج علي الخريطة تتوهج بشكل اكبر او تتلون بلون مختلف"):
+  - New `lime` marker family in the WebView CSS: rings border `#B5E61D` width 3 px + core bg lime + `box-shadow: 0 0 24px rgba(181,230,29,0.9)`.
+  - Marker size when matched: **110×110** (was 80×80) → ~38% bigger.
+  - Ring radii r1/r2/r3 = 48/76/104 px (was 36/56/76).
+  - Icon stroke flips from orange to `#0F2A1B` so it reads on lime.
+  - Detection: `m.matched = !!query && (title or category includes query, lowercased)`.
+  - Non-matched items keep the original blue/orange alternation.
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on both modified files.
