@@ -340,3 +340,11 @@ See `/app/memory/test_credentials.md`.
   - Added unmount cleanup that calls `player.pause()` so audio stops if the list re-renders or the screen tears down.
 - **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on `ReelsScreen.js`.
 
+
+## ✅ Phase 27 — Bullet-proof tab bar hide + Chat speed (optimistic send) + Voice playback (Feb 2026)
+- **🚫 Reels: tab bar permanently hidden**. Replaced the unreliable `useFocusEffect` hack with the canonical solution — `<Tab.Screen name="ReelsTab" options={{ tabBarStyle: { display: "none" } }} />` in `App.js`. Now the tab bar is hidden at navigator-config level, not runtime. **Never re-appears regardless of refresh / navigation re-entry**.
+- **🚫 Chat 1-on-1 thread: tab bar hidden** (but visible on the conversation LIST). Root cause of previous flicker: the old code called `nav.getParent()?.setOptions(...)` which targeted the parent STACK (wrong navigator — tabBarStyle is a tab-screen option). The new code calls `nav.setOptions({tabBarStyle: ...})` directly (correct target = ChatTab screen), and uses **`useLayoutEffect`** instead of `useEffect` so the option is set BEFORE first paint → zero flicker. Restored on screen blur/unmount.
+- **⚡ Chat send speed — optimistic UI** (owner: "بطئ جدا. ينتظر ثانية أو اثنين"). `sendText` now appends an optimistic message **immediately** (with a temp ID + `pending: true` flag) before the network call. On success → temp message is replaced with the server payload. On failure → temp message gets `failed: true` flag (visible to user, not lost). The composer is cleared instantly. **Send feels INSTANT now** regardless of network latency.
+- **🎙 Voice playback fix** (owner: "ارسال صوت ومحاولة تشغيله. لا يعمل"). iOS keeps the audio session in record mode (earpiece route) after a recording, even on a DIFFERENT message's playback. Made `VoicePlayer.toggle` `async` and call `setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })` BEFORE every play. Also added rewind-on-replay (if `currentTime >= duration`, seekTo(0)) so users can replay a clip without manually rewinding. Wrapped in try/catch to alert on hard failures.
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on `App.js`, `ReelsScreen.js`, `ChatScreen.js`.
+

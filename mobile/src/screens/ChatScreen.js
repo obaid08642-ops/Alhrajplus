@@ -1,6 +1,6 @@
 // ChatScreen — Premium WhatsApp-grade design with typing/presence/last-seen/read receipts.
 // Two views: conversations list  +  chat thread (selected by route.params.to or list tap).
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, useLayoutEffect } from "react";
 import { useI18n } from "../I18nContext";
 import { View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl, Modal, Linking } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -153,19 +153,20 @@ export default function ChatScreen() {
   const onConvosFocus = useCallback(() => { loadConvos(); }, [loadConvos]);
   useFocusEffect(onConvosFocus);
 
-  // Hide the bottom tab bar whenever the chat thread is open (within
-  // ChatTab) — owner mandate: tab bar must NEVER appear over a 1:1 chat.
-  // Use the parent Tab navigator's setOptions to toggle tabBarStyle.
+  // Hide the bottom tab bar whenever a 1:1 chat thread is open.
+  // `nav` here IS the Tab navigator's screen-options interface (because
+  // ChatScreen is mounted as <Tab.Screen name="ChatTab">). Setting
+  // `tabBarStyle` directly on `nav` toggles it for the ChatTab route.
+  // useLayoutEffect runs BEFORE paint → no flicker on enter/exit.
+  useLayoutEffect(() => {
+    const inThread = !!(activeOther && activeOther.id);
+    nav.setOptions({ tabBarStyle: inThread ? { display: "none" } : undefined });
+  }, [activeOther, nav]);
+  // Restore when the screen blurs / unmounts (e.g. user swipes the tab
+  // away while still inside a thread).
   useEffect(() => {
-    const parent = nav.getParent?.();
-    if (!parent) return;
-    if (activeConvoId && activeOther) {
-      parent.setOptions({ tabBarStyle: { display: "none" } });
-    } else {
-      parent.setOptions({ tabBarStyle: undefined });
-    }
-    return () => parent.setOptions({ tabBarStyle: undefined });
-  }, [activeConvoId, activeOther, nav]);
+    return () => { try { nav.setOptions({ tabBarStyle: undefined }); } catch (_) {} };
+  }, [nav]);
 
   // If user navigated with a target user, open that thread INSTANTLY using
   // any data we already have (from route params), then enrich asynchronously.
@@ -496,23 +497,37 @@ function ChatThread({
     sendTyping(false);
     const replySnap = replyTo;
     setReplyTo(null);
+    // Optimistic send — append immediately, replace with server payload on
+    // success, mark failed on error. Owner mandate: sending must feel
+    // INSTANT (no 1–3 sec wait).
+    const tempId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const optimistic = {
+      id: tempId,
+      sender_id: user.id,
+      receiver_id: other.id,
+      listing_id: listing?.id || null,
+      text,
+      reply_to: replySnap ? {
+        id: replySnap.id,
+        text: replySnap.text,
+        sender_id: replySnap.sender_id,
+        sender_name: replySnap.sender_id === user.id ? t("أنت") : other.name
+      } : null,
+      created_at: new Date().toISOString(),
+      reactions: {},
+      pending: true,
+    };
+    setMessages(m => [...m, optimistic]);
     try {
-      const {
-        data
-      } = await api.post("/chat/send", {
+      const { data } = await api.post("/chat/send", {
         receiver_id: other.id,
         listing_id: listing?.id || null,
         text,
-        reply_to: replySnap ? {
-          id: replySnap.id,
-          text: replySnap.text,
-          sender_id: replySnap.sender_id,
-          sender_name: replySnap.sender_id === user.id ? t("أنت") : other.name
-        } : null
+        reply_to: optimistic.reply_to,
       });
-      setMessages(m => [...m, data]);
+      setMessages(m => m.map(msg => msg.id === tempId ? { ...data, pending: false } : msg));
     } catch (e) {
-      Alert.alert(t("خطأ"), t("تعذر إرسال الرسالة"));
+      setMessages(m => m.map(msg => msg.id === tempId ? { ...msg, failed: true, pending: false } : msg));
     }
   };
   const sendImage = async () => {
@@ -1078,11 +1093,18 @@ function VoicePlayer({
   duration_ms
 }) {
   const { t } = useI18n();
-  
   const player = useAudioPlayer(url);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0..1 position
   const [elapsed, setElapsed] = useState(0);   // seconds played
+  // Ensure playback-route audio mode (not record route) BEFORE every play.
+  // Solves "voice messages don't play back" — iOS keeps the session in
+  // record mode (earpiece) after recording until reset.
+  const ensurePlaybackMode = useCallback(async () => {
+    try {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    } catch (_) {}
+  }, []);
   // Stable per-message waveform — derived from the URL so each clip has its
   // own pseudo-random heights instead of every bubble showing the same shape.
   const BARS = useMemo(() => {
@@ -1092,13 +1114,22 @@ function VoicePlayer({
       return 5 + Math.round(((x + 1) / 2) * 18); // 5..23 px
     });
   }, [url]);
-  const toggle = () => {
-    if (playing) {
-      player.pause();
-      setPlaying(false);
-    } else {
-      player.play();
-      setPlaying(true);
+  const toggle = async () => {
+    if (!player) return;
+    try {
+      if (playing) {
+        player.pause();
+        setPlaying(false);
+      } else {
+        // Reset audio session every time → guarantees speaker-route playback.
+        await ensurePlaybackMode();
+        // If clip already finished, rewind before playing again.
+        try { if ((player.currentTime || 0) >= (player.duration || 0) - 0.1) player.seekTo(0); } catch (_) {}
+        player.play();
+        setPlaying(true);
+      }
+    } catch (_) {
+      Alert.alert(t("خطأ"), t("تعذر تشغيل الصوت"));
     }
   };
   useEffect(() => {

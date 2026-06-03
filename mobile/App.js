@@ -86,7 +86,11 @@ function TabsNavigator() {
             screenOptions={{ headerShown: false }}
         >
             <Tab.Screen name="HomeTab" component={HomeScreen} />
-            <Tab.Screen name="ReelsTab" component={ReelsScreen} />
+            <Tab.Screen
+              name="ReelsTab"
+              component={ReelsScreen}
+              options={{ tabBarStyle: { display: "none" } }}
+            />
             <Tab.Screen name="ChatTab" component={ChatScreen} />
             <Tab.Screen name="ProfileTab" component={ProfileScreen} />
         </Tab.Navigator>

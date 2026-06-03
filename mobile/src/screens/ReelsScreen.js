@@ -29,21 +29,8 @@ export default function ReelsScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(false);
 
-  // Hide the floating tab bar while reels are visible — restored on blur.
-  // Owner mandate: tab bar MUST NEVER show on Reels (covers buttons).
-  // Targets BOTH the parent Tab navigator AND its parent Stack so it never
-  // re-appears mid-session regardless of how the navigator is nested.
-  const _hideTabBarOnFocus = useCallback(() => {
-    const parent = nav.getParent?.();
-    const grand  = parent?.getParent?.();
-    parent?.setOptions?.({ tabBarStyle: { display: "none" } });
-    grand?.setOptions?.({ tabBarStyle: { display: "none" } });
-    return () => {
-      parent?.setOptions?.({ tabBarStyle: undefined });
-      grand?.setOptions?.({ tabBarStyle: undefined });
-    };
-  }, [nav]);
-  useFocusEffect(_hideTabBarOnFocus);
+  // Tab bar is hidden permanently via `Tab.Screen options` in App.js — no
+  // need for runtime focus-effect hacks here. Reels screen is full-immersive.
   useEffect(() => {
     (async () => {
       try {
