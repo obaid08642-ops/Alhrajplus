@@ -97,18 +97,19 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
     setOptions([]);
     setQuery("");
     setFetchError("");
-    const params = { lang: lang || "ar", country: effectiveCountry || "EG", limit: 800 };
-    // Only filter by level for the top-level cascade. Once a parent is known
-    // we fetch ALL direct children (some Egyptian governorates skip the
-    // markaz layer in Geonames).
-    if (parent?.id) {
-      params.parent_id = parent.id;
-    } else {
-      params.level = openLevel;
-    }
+    const params = { lang: lang || "ar", country: effectiveCountry || "EG", limit: 800, level: openLevel };
+    if (parent?.id) params.parent_id = parent.id;
     api.get("/locations/children", { params })
-      .then(r => {
-        const data = Array.isArray(r.data) ? r.data : [];
+      .then(async r => {
+        let data = Array.isArray(r.data) ? r.data : [];
+        // Smart widening — if the strict level returns 0 children for a
+        // selected parent, try the next deeper level too (handles
+        // governorates that skip the markaz layer in Geonames).
+        const widerByLevel = { adm2: "adm2,adm3", adm3: "adm3,city" };
+        if (data.length === 0 && parent?.id && widerByLevel[openLevel]) {
+          const r2 = await api.get("/locations/children", { params: { ...params, level: widerByLevel[openLevel] } });
+          data = Array.isArray(r2.data) ? r2.data : [];
+        }
         setOptions(data);
       })
       .catch(e => {

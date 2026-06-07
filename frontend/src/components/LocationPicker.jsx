@@ -57,27 +57,29 @@ function LevelRow({ country, level, value, parent, lang, onPick, disabled }) {
             setLoading(true);
             setFetchError("");
             const params = { lang: lang || "ar", country: country || "EG", limit: 800 };
-            // Only filter by level for the FIRST cascade step. Once parent_id
-            // is known, fetch ALL direct children regardless of level — some
-            // Egyptian governorates (Cairo, Alexandria, Suez, Port Said,
-            // Ismailia, Luxor) skip the markaz layer in Geonames.
             if (parent?.id) {
                 params.parent_id = parent.id;
+                // Strict level filter; if empty, we'll widen below.
+                params.level = level;
             } else {
                 params.level = level;
             }
             try {
-                // eslint-disable-next-line no-console
-                console.info("[LocationPicker] GET /locations/children", params);
-                const r = await api.get("/locations/children", { params });
-                const data = Array.isArray(r.data) ? r.data : [];
-                // eslint-disable-next-line no-console
-                console.info(`[LocationPicker] ✓ ${level} → ${data.length} records`);
+                let r = await api.get("/locations/children", { params });
+                let data = Array.isArray(r.data) ? r.data : [];
+                // Smart widening: when a parent has no children at the
+                // requested level (common for Egyptian governorates that
+                // skip the markaz layer, or for cities with no listed
+                // sub-districts), re-query with the next deeper level too.
+                const widerByLevel = { adm2: "adm2,adm3", adm3: "adm3,city" };
+                if (data.length === 0 && parent?.id && widerByLevel[level]) {
+                    const widened = { ...params, level: widerByLevel[level] };
+                    r = await api.get("/locations/children", { params: widened });
+                    data = Array.isArray(r.data) ? r.data : [];
+                }
                 if (!cancelled) setOptions(data);
             } catch (e) {
                 const detail = `${e?.response?.status || ""} ${e?.message || ""} ${e?.config?.url || ""}`.trim();
-                // eslint-disable-next-line no-console
-                console.error("[LocationPicker] FAIL", detail);
                 if (!cancelled) { setOptions([]); setFetchError(detail || "network error"); }
             } finally {
                 if (!cancelled) setLoading(false);

@@ -48,21 +48,25 @@ SUPPORTED_LANGS = ["ar", "en", "fr", "ur", "hi", "bn", "pa"]
 COUNTRY_LEVELS: Dict[str, List[Tuple[str, List[str]]]] = {
     # (level_key, accepted_feature_codes)
     # ------- EGYPT (4 logical levels) -------
-    # Geonames EG dump distribution:
-    #   ADM1=27 governorates | ADM2=138 marakez | PPLA=26 gov capitals |
-    #   PPLA2=8 markaz capitals | PPLX=434 districts/neighbourhoods |
-    #   PPL=11567 villages/cities | PPLF/PPLQ/PPLL=49 farm/seasonal
+    # Egypt's admin hierarchy in Geonames is FLAT — many PPLX (neighborhood)
+    # rows link straight to the governorate without an intermediate city.
+    # We therefore *also* apply a population-based promotion rule in
+    # `parse_geonames_file()` so that:
+    #   • large PPL (> 50 000)  → promoted to adm2 (city) — e.g. 6th of October
+    #   • large PPLX (> 100 000) → promoted to adm2 (city) — e.g. Madinat Nasr
+    #   • medium PPL (5 000 - 50 000) → promoted to adm3 (district)
+    #   • PPLX of any size → adm3 (neighborhood) — e.g. Mohandessin, Doqqi
     "EG": [
-        ("adm1", ["ADM1"]),                                # Governorate (محافظة)
-        ("adm2", ["ADM2"]),                                # Markaz (مركز) — administrative city
-        ("adm3", ["PPLA", "PPLA2", "PPLA3", "PPLX"]),      # District / qism / neighborhood (قسم / حي)
-        ("city", ["PPL", "PPLA4", "PPLF", "PPLQ", "PPLL"]),# Village / locality (قرية)
+        ("adm1", ["ADM1"]),                          # Governorate (محافظة)
+        ("adm2", ["ADM2", "PPLA", "PPLA2"]),         # Markaz / major city (مركز / مدينة)
+        ("adm3", ["ADM3", "PPLA3", "PPLA4", "PPLX"]),# District / neighborhood (قسم / حي)
+        ("city", ["PPL", "PPLF", "PPLQ", "PPLL"]),   # Village / locality (قرية)
     ],
     # ------- Gulf countries (3 logical levels) -------
     "SA": [
-        ("adm1", ["ADM1"]),                              # Region (منطقة)
-        ("adm2", ["ADM2", "PPLA", "PPLA2"]),             # City (مدينة)
-        ("city", ["PPL", "PPLA3", "PPLA4", "PPLX"]),     # District (حي) / locality
+        ("adm1", ["ADM1"]),
+        ("adm2", ["ADM2", "PPLA", "PPLA2"]),
+        ("city", ["PPL", "PPLA3", "PPLA4", "PPLX"]),
     ],
     "AE": [("adm1", ["ADM1"]), ("adm2", ["ADM2", "PPLA", "PPLA2"]), ("city", ["PPL", "PPLA3", "PPLA4", "PPLX"])],
     "KW": [("adm1", ["ADM1"]), ("adm2", ["ADM2", "PPLA", "PPLA2"]), ("city", ["PPL", "PPLA3", "PPLA4", "PPLX"])],
@@ -209,17 +213,40 @@ def parse_alternatenames(blob: str, base_name: str, base_ascii: str) -> Dict[str
     return out
 
 
-def _classify_level(country: str, feature_code: str) -> Optional[str]:
+def _classify_level(country: str, feature_code: str, pop: int = 0) -> Optional[str]:
     """Map a Geonames feature_code → our logical level key for the given
-    country. Returns None for rows we don't want to import (rivers, hills…)."""
-    rules = COUNTRY_LEVELS.get(country)
-    if not rules:
-        # Default to 3-level Gulf rules for any unknown country.
-        rules = COUNTRY_LEVELS["SA"]
+    country. Returns None for rows we don't want to import.
+
+    **Population-based promotion (Egypt-aware):**
+    GeoNames classifies major commercial cities (6th of October, New Cairo)
+    as plain `PPL` and neighbourhoods (Mohandessin, Doqqi) as `PPLX`. Without
+    population promotion, every PPL ends up in the "village" bucket and the
+    City/District levels become noise. We therefore promote by population:
+
+        PPL  > 50 000 → adm2 (major city)
+        PPLX > 100 000 → adm2 (major district capital, e.g. Madinat Nasr)
+        PPL  >  5 000 → adm3 (urban district / large neighborhood)
+        PPLX  > 1 000 → adm3 (regular neighborhood)
+        everything else stays at the level dictated by its feature code.
+    """
+    rules = COUNTRY_LEVELS.get(country) or COUNTRY_LEVELS["SA"]
+    base = None
     for level_key, codes in rules:
         if feature_code in codes:
-            return level_key
-    return None
+            base = level_key
+            break
+    if base is None:
+        return None
+    # Population-based promotion — Egypt-only for now (Gulf rules already
+    # treat city/district correctly via PPLA/PPLA2/PPLA3 codes).
+    if country == "EG":
+        if feature_code == "PPL" and pop >= 50_000:
+            return "adm2"
+        if feature_code == "PPLX" and pop >= 100_000:
+            return "adm2"
+        if feature_code == "PPL" and pop >= 5_000:
+            return "adm3"
+    return base
 
 
 def parse_geonames_file(text: str, country_code: str) -> List[Dict]:
@@ -259,7 +286,7 @@ def parse_geonames_file(text: str, country_code: str) -> List[Dict]:
             continue
         if fclass not in ("A", "P"):
             continue
-        level = _classify_level(cc, fcode)
+        level = _classify_level(cc, fcode, pop)
         if not level:
             continue
         names = parse_alternatenames(alt, name, asciiname)
@@ -282,51 +309,106 @@ def parse_geonames_file(text: str, country_code: str) -> List[Dict]:
     return records
 
 
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance between two lat/lng pairs (km). Used as a
+    fallback parent-linker when Geonames' admin codes are blank."""
+    from math import radians, sin, cos, asin, sqrt
+    if 0.0 in (lat1, lat2) and 0.0 in (lng1, lng2):
+        return 1e9
+    p1, p2 = radians(lat1), radians(lat2)
+    dp = radians(lat2 - lat1)
+    dl = radians(lng2 - lng1)
+    a = sin(dp / 2) ** 2 + cos(p1) * cos(p2) * sin(dl / 2) ** 2
+    return 6371.0 * 2 * asin(sqrt(a))
+
+
 def link_parents(records: List[Dict]) -> List[Dict]:
     """2nd-pass: connect each record to its immediate logical parent.
 
-    Approach:
-    1. Build admin-code anchor table from records whose `level` is adm1/adm2/adm3.
-       Key = (country, admin1, admin2, admin3) up to that level's depth.
-    2. For each child, climb upward by truncating the admin tuple until a
-       known anchor is found. Falls back to country root (None) for orphans.
-    """
-    # level → which admin codes uniquely identify it.
-    # We only use admin1..admin4 from Geonames.
-    anchors: Dict[Tuple[str, str, str, str, str, str], int] = {}
-    # For each adm-level record, register the appropriate truncated key.
-    for r in records:
-        lvl = r["level"]
-        a1, a2, a3 = r["admin1"], r["admin2"], r["admin3"]
-        if lvl == "adm1":
-            key = (r["country"], lvl, a1, "", "", "")
-        elif lvl == "adm2":
-            key = (r["country"], lvl, a1, a2, "", "")
-        elif lvl == "adm3":
-            key = (r["country"], lvl, a1, a2, a3, "")
-        else:
-            continue  # leaves never act as anchors.
-        anchors[key] = r["_id"]
+    Strategy:
+      1. **Admin-code anchors** — exact match via Geonames `admin1/2/3` codes.
+      2. **Geographic fallback** — when admin codes are blank (extremely common
+         for `PPLX` neighbourhoods and small `PPL`s in Egypt) we link the row
+         to the nearest record at the level above within the same governorate.
 
-    # Climb-the-ladder lookup.
-    def find_parent(r):
+    Distance caps avoid wild cross-governorate links:
+      • adm3  → nearest adm2  in same gov, within 80 km   else governorate.
+      • city  → nearest adm3  in same gov, within 15 km;
+                else nearest adm2 within 60 km;
+                else the governorate root.
+    """
+    # ---------- Build admin-code lookup tables ----------
+    by_a1: Dict[Tuple[str, str], int] = {}                     # (country, a1) -> adm1 id
+    by_a1_a2: Dict[Tuple[str, str, str], int] = {}             # (country, a1, a2) -> adm2 id
+    by_a1_a2_a3: Dict[Tuple[str, str, str, str], int] = {}     # adm3 id
+    for r in records:
+        cc = r["country"]
+        a1, a2, a3 = r["admin1"], r["admin2"], r["admin3"]
+        if r["level"] == "adm1":
+            by_a1[(cc, a1)] = r["_id"]
+        elif r["level"] == "adm2" and a2:
+            by_a1_a2[(cc, a1, a2)] = r["_id"]
+        elif r["level"] == "adm3" and a2 and a3:
+            by_a1_a2_a3[(cc, a1, a2, a3)] = r["_id"]
+
+    # ---------- Build per-governorate geographic indexes ----------
+    # Each list: [(id, lat, lng), …] sorted lazily; we'll scan linearly per
+    # row — for Egypt this is 11.6k × ~5 cities ≈ 60k haversines, sub-second.
+    adm2_by_gov: Dict[Tuple[str, str], List[Tuple[int, float, float]]] = {}
+    adm3_by_gov: Dict[Tuple[str, str], List[Tuple[int, float, float]]] = {}
+    for r in records:
+        if not (r["lat"] or r["lng"]):
+            continue  # skip rows with no coordinates
+        key = (r["country"], r["admin1"])
+        if r["level"] == "adm2":
+            adm2_by_gov.setdefault(key, []).append((r["_id"], r["lat"], r["lng"]))
+        elif r["level"] == "adm3":
+            adm3_by_gov.setdefault(key, []).append((r["_id"], r["lat"], r["lng"]))
+
+    def _nearest(target_lat: float, target_lng: float, candidates: List[Tuple[int, float, float]], max_km: float) -> Optional[int]:
+        if not candidates or not (target_lat or target_lng):
+            return None
+        best = min(candidates, key=lambda c: _haversine_km(target_lat, target_lng, c[1], c[2]))
+        d = _haversine_km(target_lat, target_lng, best[1], best[2])
+        return best[0] if d <= max_km else None
+
+    # ---------- Pass: assign parent_id with smart fallback ----------
+    for r in records:
         cc, a1, a2, a3 = r["country"], r["admin1"], r["admin2"], r["admin3"]
         lvl = r["level"]
-        # Define the candidate parent levels in order (closest → farthest).
-        ladders = {
-            "city": [("adm3", a1, a2, a3, ""), ("adm2", a1, a2, "", ""), ("adm1", a1, "", "", "")],
-            "adm3": [("adm2", a1, a2, "", ""), ("adm1", a1, "", "", "")],
-            "adm2": [("adm1", a1, "", "", "")],
-            "adm1": [],
-        }
-        for plvl, k1, k2, k3, k4 in ladders.get(lvl, []):
-            key = (cc, plvl, k1, k2, k3, k4)
-            if key in anchors and anchors[key] != r["_id"]:
-                return anchors[key]
-        return None
+        parent_id = None
+        gov_id = by_a1.get((cc, a1))  # always the safe-net fallback
 
-    for r in records:
-        r["parent_id"] = find_parent(r)
+        if lvl == "adm1":
+            parent_id = None
+        elif lvl == "adm2":
+            # markaz / city under governorate.
+            parent_id = gov_id
+        elif lvl == "adm3":
+            # 1) exact admin-code match
+            if a2 and (cc, a1, a2) in by_a1_a2:
+                parent_id = by_a1_a2[(cc, a1, a2)]
+            else:
+                # 2) geographic nearest adm2 in same governorate (≤ 80 km)
+                parent_id = _nearest(r["lat"], r["lng"], adm2_by_gov.get((cc, a1), []), 80.0) or gov_id
+        elif lvl == "city":
+            # 1) exact match on admin3 chain
+            if a2 and a3 and (cc, a1, a2, a3) in by_a1_a2_a3:
+                parent_id = by_a1_a2_a3[(cc, a1, a2, a3)]
+            elif a2 and (cc, a1, a2) in by_a1_a2:
+                parent_id = by_a1_a2[(cc, a1, a2)]
+            else:
+                # 2) geographic: nearest adm3 within 15 km, then adm2 within 60 km, else governorate
+                parent_id = _nearest(r["lat"], r["lng"], adm3_by_gov.get((cc, a1), []), 15.0)
+                if parent_id is None:
+                    parent_id = _nearest(r["lat"], r["lng"], adm2_by_gov.get((cc, a1), []), 60.0)
+                if parent_id is None:
+                    parent_id = gov_id
+
+        # Never let a row be its own parent (defensive).
+        if parent_id == r["_id"]:
+            parent_id = gov_id
+        r["parent_id"] = parent_id
     return records
 
 
@@ -500,17 +582,17 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
         filt: Dict = {}
         if parent_id is not None:
             filt["parent_id"] = parent_id
-            # When parent_id is provided, we cascade by adjacency — DO NOT
-            # filter by `level`. Some governorates (Cairo, Alexandria, Suez,
-            # Port Said) skip the markaz layer and have ADM3 directly under
-            # ADM1; the old strict filter returned empty for them.
-        else:
-            if country:
-                filt["country"] = country
-            if level:
-                filt["level"] = level
-        if country and "country" not in filt:
+        if country:
             filt["country"] = country
+        if level:
+            # Allow comma-separated levels: e.g. `level=adm3,city` returns both
+            # adm3 districts AND city villages for the same parent. The picker
+            # uses this to gracefully merge depths when one is empty.
+            levels = [lv.strip() for lv in level.split(",") if lv.strip()]
+            if len(levels) == 1:
+                filt["level"] = levels[0]
+            elif levels:
+                filt["level"] = {"$in": levels}
         if q:
             # Search across ALL language fields.
             or_clauses = [{f"names.{lg}": {"$regex": re.escape(q), "$options": "i"}} for lg in SUPPORTED_LANGS]
