@@ -10,12 +10,8 @@
 //   className : optional outer wrapper className.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, X, Search as SearchIcon, MapPin, Check } from "lucide-react";
+import api from "@/lib/api";
 import { useI18n, tr } from "@/contexts/I18nContext";
-
-// 🔒 EMERGENCY HARDCODE — bypass the shared axios `api` instance + any
-// env-injection path. The picker MUST always reach the Geonames-backed
-// preview backend regardless of `REACT_APP_BACKEND_URL` / build env.
-const LOCATIONS_BASE = "https://platform-inspect.preview.emergentagent.com/api/locations";
 const LEVELS_BY_COUNTRY = {
     EG: ["adm1", "adm2", "adm3", "city"],
     default: ["adm2", "city"],
@@ -60,23 +56,29 @@ function LevelRow({ country, level, value, parent, lang, onPick, disabled }) {
         const load = async () => {
             setLoading(true);
             setFetchError("");
-            const sp = new URLSearchParams({ lang: lang || "ar", level, country: country || "EG", limit: "800" });
-            if (parent?.id) sp.set("parent_id", String(parent.id));
-            const url = `${LOCATIONS_BASE}/children?${sp.toString()}`;
+            const params = { lang: lang || "ar", country: country || "EG", limit: 800 };
+            // Only filter by level for the FIRST cascade step. Once parent_id
+            // is known, fetch ALL direct children regardless of level — some
+            // Egyptian governorates (Cairo, Alexandria, Suez, Port Said,
+            // Ismailia, Luxor) skip the markaz layer in Geonames.
+            if (parent?.id) {
+                params.parent_id = parent.id;
+            } else {
+                params.level = level;
+            }
             try {
                 // eslint-disable-next-line no-console
-                console.info("[LocationPicker] GET", url);
-                const r = await fetch(url);
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                const data = await r.json();
-                const list = Array.isArray(data) ? data : [];
+                console.info("[LocationPicker] GET /locations/children", params);
+                const r = await api.get("/locations/children", { params });
+                const data = Array.isArray(r.data) ? r.data : [];
                 // eslint-disable-next-line no-console
-                console.info(`[LocationPicker] ✓ ${level} → ${list.length} records`);
-                if (!cancelled) setOptions(list);
+                console.info(`[LocationPicker] ✓ ${level} → ${data.length} records`);
+                if (!cancelled) setOptions(data);
             } catch (e) {
+                const detail = `${e?.response?.status || ""} ${e?.message || ""} ${e?.config?.url || ""}`.trim();
                 // eslint-disable-next-line no-console
-                console.error("[LocationPicker] FAIL", e?.message, "URL=", url);
-                if (!cancelled) { setOptions([]); setFetchError(`${e?.message || "network"} @ ${url}`); }
+                console.error("[LocationPicker] FAIL", detail);
+                if (!cancelled) { setOptions([]); setFetchError(detail || "network error"); }
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -178,21 +180,14 @@ export default function LocationPicker({ country = "EG", value, onChange, classN
     // dropdown is never empty.
     useEffect(() => {
         let cancelled = false;
-        const url = `${LOCATIONS_BASE}/countries`;
-        // eslint-disable-next-line no-console
-        console.info("[LocationPicker] booting — fetching", url);
-        fetch(url)
-            .then((r) => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-            .then((data) => {
-                const codes = (data || []).map((x) => x.code);
-                // eslint-disable-next-line no-console
-                console.info("[LocationPicker] supported countries:", codes);
+        api.get("/locations/countries")
+            .then((r) => {
+                const codes = (r.data || []).map((x) => x.code);
                 if (!cancelled) setSupportedCountries(codes);
             })
             .catch((e) => {
-                // eslint-disable-next-line no-console
-                console.error("[LocationPicker] /countries FAILED:", e?.message, "URL=", url);
-                if (!cancelled) { setSupportedCountries([]); setBootError(e?.message || "network"); }
+                const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
+                if (!cancelled) { setSupportedCountries([]); setBootError(detail || "network"); }
             });
         return () => { cancelled = true; };
     }, []);
@@ -227,7 +222,7 @@ export default function LocationPicker({ country = "EG", value, onChange, classN
         <div className={className} data-testid="location-picker-root">
             {bootError && (
                 <div className="mb-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[11px] text-red-700 dark:text-red-300 font-arabic-body break-all">
-                    ⚠️ {tr("لا يمكن الاتصال بخدمة المواقع")}: <code>{bootError}</code> @ <code>{LOCATIONS_BASE}</code>
+                    ⚠️ {tr("لا يمكن الاتصال بخدمة المواقع")}: <code>{bootError}</code> @ <code>{api.defaults.baseURL}</code>
                 </div>
             )}
             {showFallbackNotice && (

@@ -60,21 +60,14 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
   // so the dropdown is never empty.
   useEffect(() => {
     let cancelled = false;
-    const url = `${LOCATIONS_BASE}/countries`;
-    // eslint-disable-next-line no-console
-    console.info("[LocationPicker] fetching", url);
-    fetch(url)
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(data => {
-        const codes = (data || []).map(x => x.code);
-        // eslint-disable-next-line no-console
-        console.info("[LocationPicker] supported countries:", codes);
+    api.get("/locations/countries")
+      .then(r => {
+        const codes = (r.data || []).map(x => x.code);
         if (!cancelled) setSupportedCountries(codes);
       })
       .catch(e => {
-        // eslint-disable-next-line no-console
-        console.error("[LocationPicker] /countries FAILED:", e?.message, "URL=", url);
-        if (!cancelled) { setSupportedCountries([]); setBootError(e?.message || "network"); }
+        const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
+        if (!cancelled) { setSupportedCountries([]); setBootError(detail || "network"); }
       });
     return () => { cancelled = true; };
   }, []);
@@ -104,27 +97,24 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
     setOptions([]);
     setQuery("");
     setFetchError("");
-    // Always default country to EG when nothing else is resolved — only EG
-    // is seeded right now and we want the picker to always have data.
-    const cc = effectiveCountry || "EG";
-    const params = new URLSearchParams({ lang: lang || "ar", level: openLevel, country: cc, limit: "800" });
-    if (parent?.id) params.set("parent_id", String(parent.id));
-    const url = `${LOCATIONS_BASE}/children?${params.toString()}`;
-    // eslint-disable-next-line no-console
-    console.info("[LocationPicker] GET", url);
-    fetch(url)
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(data => {
-        const list = Array.isArray(data) ? data : [];
-        // eslint-disable-next-line no-console
-        console.info(`[LocationPicker] ✓ ${openLevel} → ${list.length} records`);
-        setOptions(list);
+    const params = { lang: lang || "ar", country: effectiveCountry || "EG", limit: 800 };
+    // Only filter by level for the top-level cascade. Once a parent is known
+    // we fetch ALL direct children (some Egyptian governorates skip the
+    // markaz layer in Geonames).
+    if (parent?.id) {
+      params.parent_id = parent.id;
+    } else {
+      params.level = openLevel;
+    }
+    api.get("/locations/children", { params })
+      .then(r => {
+        const data = Array.isArray(r.data) ? r.data : [];
+        setOptions(data);
       })
       .catch(e => {
-        // eslint-disable-next-line no-console
-        console.error("[LocationPicker] FAIL", e?.message, "URL=", url);
+        const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
         setOptions([]);
-        setFetchError(e?.message || "network error");
+        setFetchError(detail || "network error");
       })
       .finally(() => setLoading(false));
   }, [openLevel, value, lang, effectiveCountry]);
@@ -154,7 +144,7 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
             ⚠️ {t("لا يمكن الاتصال بخدمة المواقع")}: {bootError}
           </Text>
           <Text style={{ fontSize: 10, color: "#7f1d1d", textAlign: "right", marginTop: 2 }} numberOfLines={1}>
-            {LOCATIONS_BASE}
+            {api.defaults.baseURL}
           </Text>
         </View>
       ) : null}

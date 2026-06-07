@@ -83,6 +83,9 @@ _ARABIC_BLOCK = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFE
 _PERSIAN_ONLY = re.compile(r"[\u067E\u0686\u0698\u06AF\u06CC]")
 # Urdu-specific letters (ہ U+06C1, ے U+06D2, ٹ U+0679, ڈ U+0688, ڑ U+0691, ں U+06BA, ھ U+06BE).
 _URDU_ONLY = re.compile(r"[\u06C1\u06D2\u0679\u0688\u0691\u06BA\u06BE]")
+# Berber / Maghrebi / Tachelhit / Pashto letters that NEVER appear in standard
+# Arabic. Keeps "لمحافظة د لڭيزة" (Berber) out of the `ar` field.
+_BERBER_ONLY = re.compile(r"[\u06AD\u0763\u06A8\u06D5\u0768\u06BE]")  # ڭ ݣ ڨ ە ݨ ھ
 # Devanagari (Hindi).
 _DEVANAGARI = re.compile(r"[\u0900-\u097F]")
 # Bengali.
@@ -102,12 +105,14 @@ _DIACRITIC_RE = re.compile(r"[āīūēōḩẓşṣḑḏţṭḍāīūĀĪŪ]")
 
 
 def _is_arabic(s: str) -> bool:
-    """True iff the string is *Arabic-script* AND not Persian/Urdu-specific."""
+    """True iff the string is *Arabic-script* AND not Persian/Urdu/Berber-specific."""
     if not s or not _ARABIC_BLOCK.search(s):
         return False
     if _PERSIAN_ONLY.search(s):
         return False
     if _URDU_ONLY.search(s):
+        return False
+    if _BERBER_ONLY.search(s):
         return False
     if _NOT_ARABIC_TOKENS.search(s):
         return False
@@ -140,13 +145,20 @@ def parse_alternatenames(blob: str, base_name: str, base_ascii: str) -> Dict[str
     arabic_cands = [p for p in parts if _is_arabic(p)]
     if _is_arabic(base_name):
         arabic_cands.insert(0, base_name)
-    # Prefer ones containing official admin prefixes (محافظة / مدينة / مركز / قرية / قسم / حي).
-    pri = [c for c in arabic_cands if any(k in c for k in ("محافظة", "مدينة", "مركز", "قرية", "قسم", "حي "))]
-    if pri:
-        out["ar"] = pri[0]
-    elif arabic_cands:
-        # Pick the shortest clean Arabic candidate (avoids long alt phrases).
-        out["ar"] = min(arabic_cands, key=len)
+    # Prefer entries STARTING with an official admin prefix (محافظة / مدينة /
+    # مركز / قرية / قسم / حي).  This excludes Berber/dialect forms like
+    # "لمحافظة د لڭيزة" which only CONTAIN محافظة as a sub-string.
+    starts_with_admin = [c for c in arabic_cands if c.startswith(("محافظة ", "مدينة ", "مركز ", "قرية ", "قسم ", "حي "))]
+    if starts_with_admin:
+        # Among those, prefer the shortest (avoids unnecessary suffixes).
+        out["ar"] = min(starts_with_admin, key=len)
+    else:
+        # Fallback: any candidate that CONTAINS the admin word.
+        contains_admin = [c for c in arabic_cands if any(k in c for k in ("محافظة", "مدينة", "مركز", "قرية", "قسم", "حي "))]
+        if contains_admin:
+            out["ar"] = min(contains_admin, key=len)
+        elif arabic_cands:
+            out["ar"] = min(arabic_cands, key=len)
 
     # --------- Urdu (ur) ----------
     urdu_cands = [p for p in parts if _is_urdu(p)]
@@ -488,10 +500,17 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
         filt: Dict = {}
         if parent_id is not None:
             filt["parent_id"] = parent_id
-        if country:
+            # When parent_id is provided, we cascade by adjacency — DO NOT
+            # filter by `level`. Some governorates (Cairo, Alexandria, Suez,
+            # Port Said) skip the markaz layer and have ADM3 directly under
+            # ADM1; the old strict filter returned empty for them.
+        else:
+            if country:
+                filt["country"] = country
+            if level:
+                filt["level"] = level
+        if country and "country" not in filt:
             filt["country"] = country
-        if level:
-            filt["level"] = level
         if q:
             # Search across ALL language fields.
             or_clauses = [{f"names.{lg}": {"$regex": re.escape(q), "$options": "i"}} for lg in SUPPORTED_LANGS]
