@@ -635,6 +635,58 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
         _cache_clear()
         return {"country": cc, "imported": len(records)}
 
+    @router.get("/admin/import")
+    async def admin_import_get(
+        country: str = Query(..., min_length=2, max_length=2),
+        url: str = Query(..., description="Public HTTPS URL of a Geonames XX.txt"),
+        token: Optional[str] = Query(None, description="Admin token (matches LOCATIONS_ADMIN_TOKEN env var)"),
+    ):
+        """GET-trigger variant of `/admin/import` — useful when you want to
+        kick off a re-seed from a browser tab or a one-line `curl` without
+        crafting a multipart upload.
+
+        Security: requires `?token=` to match the `LOCATIONS_ADMIN_TOKEN`
+        env var. Without that env var set, the endpoint is disabled.
+
+        Example:
+            GET /api/locations/admin/import?country=EG
+                &url=https://download.geonames.org/export/dump/EG.txt
+                &token=<your-token>
+        """
+        import os as _os
+        import httpx as _httpx
+        expected = _os.environ.get("LOCATIONS_ADMIN_TOKEN", "")
+        if not expected:
+            raise HTTPException(503, "admin GET import disabled (set LOCATIONS_ADMIN_TOKEN to enable)")
+        if token != expected:
+            raise HTTPException(403, "invalid admin token")
+        if not url.startswith(("http://", "https://")):
+            raise HTTPException(400, "url must be http(s)")
+        cc = country.upper()
+        # Download the file (large — 6-30 MB typically).
+        try:
+            async with _httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                raw = resp.text
+        except Exception as e:
+            raise HTTPException(502, f"download failed: {e}")
+        records = parse_geonames_file(raw, cc)
+        if not records:
+            raise HTTPException(400, "no records matched — wrong country file or URL?")
+        link_parents(records)
+        await db.locations.delete_many({"country": cc})
+        try:
+            await db.locations.insert_many(records, ordered=False)
+        except Exception:
+            for r in records:
+                await db.locations.replace_one({"_id": r["_id"]}, r, upsert=True)
+        await db.locations.create_index([("country", 1), ("level", 1)])
+        await db.locations.create_index([("parent_id", 1)])
+        await db.locations.create_index([("country", 1), ("name", 1)])
+        _cache_clear()
+        return {"country": cc, "imported": len(records), "via": "GET"}
+
     @router.get("/cache/stats")
     async def cache_stats():
         """Visibility into the in-memory cache (size, TTL)."""
