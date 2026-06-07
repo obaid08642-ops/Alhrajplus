@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
 import ListingCard from "@/components/listings/ListingCard";
+import LocationPicker from "@/components/LocationPicker";
 import { Search as SearchIcon, Mic } from "lucide-react";
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -107,6 +108,7 @@ export function SearchPage() {
     const [days, setDays] = useState(searchParams.get("days") || "");
     const [minPrice, setMinPrice] = useState(searchParams.get("min") || "");
     const [maxPrice, setMaxPrice] = useState(searchParams.get("max") || "");
+    const [locationFilter, setLocationFilter] = useState({});
     const [userLoc, setUserLoc] = useState(null);
 
     useEffect(() => {
@@ -129,6 +131,9 @@ export function SearchPage() {
                 if (days) params.days = days;
                 if (minPrice) params.min_price = minPrice;
                 if (maxPrice) params.max_price = maxPrice;
+                // Geonames-backed location filter — pick the deepest selected level as the `city` server filter.
+                const leaf = locationFilter?.city || locationFilter?.adm3 || locationFilter?.adm2 || locationFilter?.adm1;
+                if (leaf?.name) params.city = leaf.name;
                 if ((sortBy === "nearest" || sortBy === "farthest") && userLoc) {
                     params.lat = userLoc.lat;
                     params.lng = userLoc.lng;
@@ -145,10 +150,10 @@ export function SearchPage() {
                         results_count: (data.items || []).length,
                     }).catch(() => {});
                 }
-            } catch (_) {} finally { setLoading(false); }
+            } catch (_) { /* ignore — search aborted or transient network */ } finally { setLoading(false); }
         }, 300);
         return () => { clearTimeout(timer); ctrl.abort(); };
-    }, [q, user, sortBy, days, minPrice, maxPrice, userLoc, country]);
+    }, [q, user, sortBy, days, minPrice, maxPrice, userLoc, country, locationFilter]);
 
     const startVoice = () => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -202,9 +207,18 @@ export function SearchPage() {
                     </select>
                 </div>
                 {showFilters && (
-                    <div data-testid="filter-panel" className="mt-3 grid grid-cols-2 gap-2">
-                        <input data-testid="filter-min" type="number" placeholder={tr("السعر من")} value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
-                        <input data-testid="filter-max" type="number" placeholder={tr("السعر إلى")} value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                    <div data-testid="filter-panel" className="mt-3 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                            <input data-testid="filter-min" type="number" placeholder={tr("السعر من")} value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                            <input data-testid="filter-max" type="number" placeholder={tr("السعر إلى")} value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                        </div>
+                        {/* Geonames cascading location filter (محافظة → مركز → حي → قرية for EG) */}
+                        <LocationPicker country={country || "EG"} value={locationFilter} onChange={setLocationFilter} />
+                        {Object.keys(locationFilter).length > 0 && (
+                            <button type="button" data-testid="clear-location-filter" onClick={() => setLocationFilter({})} className="text-[11px] font-arabic text-[var(--danger)] hover:underline">
+                                {tr("مسح فلتر الموقع")}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -214,7 +228,7 @@ export function SearchPage() {
             {fuzzy && q && results.length > 0 && (
                 <div data-testid="fuzzy-match-banner" className="mb-3 px-4 py-2.5 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl text-sm text-[var(--text)] font-arabic-body flex items-center gap-2">
                     <SearchIcon className="w-4 h-4 text-[var(--accent)] shrink-0" />
-                    <span>{tr("لم نجد نتائج مطابقة بالضبط، عرضنا نتائج مشابهة لـ")} <strong>"{q}"</strong></span>
+                    <span>{tr("لم نجد نتائج مطابقة بالضبط، عرضنا نتائج مشابهة لـ")} <strong>&ldquo;{q}&rdquo;</strong></span>
                 </div>
             )}
 

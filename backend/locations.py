@@ -321,6 +321,35 @@ def link_parents(records: List[Dict]) -> List[Dict]:
 # ============================================================
 # API router
 # ============================================================
+# ----- In-memory TTL cache (lightning-fast cascading dropdowns) -----
+# Keyed by (endpoint, lang, parent_id, country, level, q, limit, loc_id).
+# Cleared automatically on `admin/import`.  No external Redis dependency.
+import time as _time
+_CACHE: Dict[Tuple, Tuple[float, object]] = {}
+_CACHE_TTL = 300  # 5 minutes — locations are near-static.
+_CACHE_MAX = 4096  # hard ceiling to keep memory bounded.
+
+def _cache_get(key):
+    item = _CACHE.get(key)
+    if not item:
+        return None
+    ts, val = item
+    if _time.time() - ts > _CACHE_TTL:
+        _CACHE.pop(key, None)
+        return None
+    return val
+
+def _cache_set(key, val):
+    if len(_CACHE) >= _CACHE_MAX:
+        # Drop the 25 % oldest entries (cheap LRU approximation).
+        for k in sorted(_CACHE.keys(), key=lambda k: _CACHE[k][0])[: _CACHE_MAX // 4]:
+            _CACHE.pop(k, None)
+    _CACHE[key] = (_time.time(), val)
+
+def _cache_clear():
+    _CACHE.clear()
+
+
 def build_router(db, get_current_user_optional=None) -> APIRouter:
     router = APIRouter(prefix="/api/locations", tags=["locations"])
 
@@ -366,6 +395,10 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
         """
         if lang not in SUPPORTED_LANGS:
             lang = "en"
+        cache_key = ("children", parent_id, country, level, q or "", lang, limit)
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
         filt: Dict = {}
         if parent_id is not None:
             filt["parent_id"] = parent_id
@@ -380,18 +413,32 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
             filt["$or"] = or_clauses
         cur = db.locations.find(filt, projection={"_id": 1, "country": 1, "level": 1, "parent_id": 1, "names": 1, "name": 1, "lat": 1, "lng": 1, "population": 1}).sort([("population", -1), ("name", 1)]).limit(limit)
         rows = [doc async for doc in cur]
-        return [_localise(r, lang) for r in rows]
+        result = [_localise(r, lang) for r in rows]
+        _cache_set(cache_key, result)
+        return result
 
     @router.get("/get/{loc_id}")
     async def get_location(loc_id: int, lang: str = "en"):
+        lang = lang if lang in SUPPORTED_LANGS else "en"
+        cache_key = ("get", loc_id, lang)
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
         doc = await db.locations.find_one({"_id": loc_id}, projection={"_id": 1, "country": 1, "level": 1, "parent_id": 1, "names": 1, "name": 1, "lat": 1, "lng": 1, "population": 1})
         if not doc:
             raise HTTPException(404)
-        return _localise(doc, lang if lang in SUPPORTED_LANGS else "en")
+        result = _localise(doc, lang)
+        _cache_set(cache_key, result)
+        return result
 
     @router.get("/path/{loc_id}")
     async def get_path(loc_id: int, lang: str = "en"):
         """Return the breadcrumb (country → ... → loc) for a given location."""
+        lang = lang if lang in SUPPORTED_LANGS else "en"
+        cache_key = ("path", loc_id, lang)
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
         out = []
         cur_id: Optional[int] = loc_id
         seen = set()
@@ -400,9 +447,11 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
             doc = await db.locations.find_one({"_id": cur_id}, projection={"_id": 1, "country": 1, "level": 1, "parent_id": 1, "names": 1, "name": 1, "lat": 1, "lng": 1, "population": 1})
             if not doc:
                 break
-            out.append(_localise(doc, lang if lang in SUPPORTED_LANGS else "en"))
+            out.append(_localise(doc, lang))
             cur_id = doc.get("parent_id")
-        return list(reversed(out))
+        result = list(reversed(out))
+        _cache_set(cache_key, result)
+        return result
 
     # ============================================================
     # IP-based country detection (multi-provider fallback)
@@ -477,6 +526,13 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
         await db.locations.create_index([("country", 1), ("level", 1)])
         await db.locations.create_index([("parent_id", 1)])
         await db.locations.create_index([("country", 1), ("name", 1)])
+        # Bust the in-memory cache so the new data is reflected immediately.
+        _cache_clear()
         return {"country": cc, "imported": len(records)}
+
+    @router.get("/cache/stats")
+    async def cache_stats():
+        """Visibility into the in-memory cache (size, TTL)."""
+        return {"entries": len(_CACHE), "max": _CACHE_MAX, "ttl_seconds": _CACHE_TTL}
 
     return router

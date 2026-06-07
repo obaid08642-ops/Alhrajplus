@@ -15,6 +15,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import GeoAutocomplete from "@/components/GeoAutocomplete";
 import CitySelect from "@/components/CitySelect";
+import LocationPicker from "@/components/LocationPicker";
 
 export default function PostListing() {
     const nav = useNavigate();
@@ -40,6 +41,7 @@ export default function PostListing() {
         videos: [],
         city: "",
         district: "",
+        location: {},  // { adm1: {id,name}, adm2: {id,name}, adm3: {id,name}, city: {id,name} } — Geonames-backed
         lat: null,
         lng: null,
         show_phone: true,
@@ -146,7 +148,7 @@ export default function PostListing() {
                 if (categories.find((c) => c.key === data.category)) {
                     setForm((f) => f.category ? f : { ...f, category: data.category });
                 }
-            } catch (_) {}
+            } catch (_) { /* ignore — best-effort autofill */ }
         }, 1200);
         return () => clearTimeout(tid);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -830,31 +832,23 @@ export default function PostListing() {
                                 {geoMsg}
                             </div>
                         )}
-                        <CitySelect
-                            testId="post-city"
-                            kind="city"
-                            country={country?.code}
-                            staticItems={country?.cities || []}
-                            value={form.city}
-                            onChange={(v) => setForm({ ...form, city: v, district: "" })}
+                        <LocationPicker
+                            country={country?.code || "EG"}
+                            value={form.location || {}}
+                            onChange={(next) => {
+                                // Mirror the legacy `city`/`district` string fields so the
+                                // existing backend / draft-listing flow keeps working.
+                                const leaf = next.city || next.adm3 || next.adm2 || next.adm1;
+                                const district = next.city ? (next.adm3?.name || "") : "";
+                                setForm({
+                                    ...form,
+                                    location: next,
+                                    city: next.adm2?.name || next.adm1?.name || leaf?.name || "",
+                                    district: next.adm3?.name || (next.city?.name && district) || "",
+                                });
+                            }}
                         />
                     </div>
-
-                    {/* District selector — uses same dropdown UI */}
-                    {form.city && (
-                        <div>
-                            <label className="block text-sm font-arabic font-bold text-[var(--text)] mb-1.5">{tr("الحي / المنطقة")}</label>
-                            <CitySelect
-                                testId="post-district"
-                                kind="district"
-                                country={country?.code}
-                                parentCity={form.city}
-                                staticItems={(country?.cities?.find((c) => c.name_ar === form.city)?.districts || []).map((d) => ({ name_ar: d }))}
-                                value={form.district === "__other__" ? "" : form.district}
-                                onChange={(v) => setForm({ ...form, district: v })}
-                            />
-                        </div>
-                    )}
                 </div>
             )}
 

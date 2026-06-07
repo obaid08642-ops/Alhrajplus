@@ -17,6 +17,7 @@ import { useCountry } from "../CountryContext";
 import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
 import ListingCard from "../components/ListingCard";
+import LocationPicker from "../components/LocationPicker";
 const {
   width: SCREEN_W
 } = Dimensions.get("window");
@@ -66,6 +67,7 @@ export default function SearchScreen({
   const [filters, setFilters] = useState({
     category: initialCat,
     city: "",
+    location: {},  // Geonames-backed cascading selection
     priceMin: "",
     priceMax: "",
     condition: "",
@@ -242,6 +244,7 @@ export default function SearchScreen({
   const clearFilters = () => setFilters({
     category: "",
     city: "",
+    location: {},
     priceMin: "",
     priceMax: "",
     condition: "",
@@ -475,22 +478,21 @@ function FiltersModal({
             })} placeholder={t("إلى")} placeholderTextColor={colors.textMuted} keyboardType="numeric" style={s.priceInput} />
                         </View>
 
-                        {/* City */}
-                        <Text style={s.sectionLabel}>{t("المدينة")}</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            <View style={{
-              flexDirection: "row",
-              gap: 6,
-              paddingVertical: 2
-            }}>
-                                {(country?.cities || []).slice(0, 20).map(c => <TouchableOpacity key={c.name_ar} onPress={() => setLocal({
-                ...local,
-                city: local.city === c.name_ar ? "" : c.name_ar
-              })} style={[s.tag, local.city === c.name_ar && s.tagActive]}>
-                                        <Text style={[s.tagText, local.city === c.name_ar && s.tagTextActive]}>{c.name_ar}</Text>
-                                    </TouchableOpacity>)}
-                            </View>
-                        </ScrollView>
+                        {/* City — Geonames cascading picker (محافظة → مركز → حي → قرية) */}
+                        <Text style={s.sectionLabel}>{t("الموقع")}</Text>
+                        <LocationPicker
+                            country={country?.code || "EG"}
+                            value={local.location || {}}
+                            onChange={(next) => {
+                                const leaf = next.city || next.adm3 || next.adm2 || next.adm1;
+                                setLocal({ ...local, location: next, city: leaf?.name || "" });
+                            }}
+                        />
+                        {local.city ? (
+                            <TouchableOpacity onPress={() => setLocal({ ...local, location: {}, city: "" })} style={{ alignSelf: "flex-start", marginTop: 6 }}>
+                                <Text style={{ color: colors.danger || "#ef4444", fontSize: 11, fontWeight: "700" }}>{t("مسح فلتر الموقع")}</Text>
+                            </TouchableOpacity>
+                        ) : null}
 
                         {/* Category */}
                         <Text style={s.sectionLabel}>{t("التصنيف")}</Text>

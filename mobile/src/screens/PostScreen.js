@@ -20,6 +20,7 @@ import { CarCascadeMobile, PhoneCascadeMobile, FurnitureCascadeMobile, HomeAppli
 import { JobsDetailsBoxMobile, RealEstateDetailsBoxMobile } from "../components/JobsRealEstateBoxesMobile";
 import { AuctionsDetailsBoxMobile, ServicesProDetailsBoxMobile } from "../components/AuctionsServicesBoxesMobile";
 import { AnimalsDetailsBoxMobile, EquipmentDetailsBoxMobile } from "../components/AnimalsEquipmentBoxesMobile";
+import LocationPicker from "../components/LocationPicker";
 export default function PostScreen({
   navigation,
   route
@@ -55,6 +56,7 @@ export default function PostScreen({
     videos: [],
     city: "",
     district: "",
+    location: {},
     lat: null,
     lng: null,
     show_phone: true,
@@ -1184,17 +1186,23 @@ function Step2({
       }))} placeholder={t("اختر...")} onChange={v => updateCF(f.key, v)} /> : f.type === "number" ? <TextInput value={String(form.custom_fields[f.key] || "")} onChangeText={v => updateCF(f.key, v)} keyboardType="numeric" placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} /> : <TextInput value={form.custom_fields[f.key] || ""} onChangeText={v => updateCF(f.key, v)} placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} />}
                 </Field>)}
 
-            {/* City / District (geo autocomplete + fallback to local list) */}
-            <Field label={t("المدينة") + " *"}>
-                <TouchableOpacity onPress={() => onPickerOpen("city")} style={s.input}>
-                    <Text style={form.city ? s.inputText : s.inputPh}>{form.city || t("اختر المدينة")}</Text>
-                </TouchableOpacity>
+            {/* City / District — Geonames cascading picker (محافظة → مركز → حي → قرية for EG) */}
+            <Field label={t("الموقع") + " *"}>
+                <LocationPicker
+                    country={country?.code || "EG"}
+                    value={form.location || {}}
+                    onChange={(next) => {
+                        // Mirror to legacy city/district string fields so the existing
+                        // backend payload + draft-listing flow stays compatible.
+                        setForm(f => ({
+                            ...f,
+                            location: next,
+                            city: next.adm2?.name || next.adm1?.name || next.city?.name || "",
+                            district: next.adm3?.name || next.city?.name || "",
+                        }));
+                    }}
+                />
             </Field>
-            {form.city && <Field label={t("الحي / المنطقة")}>
-                    <TouchableOpacity onPress={() => onPickerOpen("district")} style={s.input}>
-                        <Text style={form.district ? s.inputText : s.inputPh}>{form.district || t("اختر الحي (اختياري)")}</Text>
-                    </TouchableOpacity>
-                </Field>}
 
             {/* Video (required for stories, optional otherwise) */}
             {(() => {
