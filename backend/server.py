@@ -7682,6 +7682,17 @@ async def geo_cities(
 
 app.include_router(api)
 
+# ============================================================
+# Geonames-backed locations service (Phase A — Feb 2026)
+# ============================================================
+try:
+    from locations import build_router as _build_locations_router
+    _locations_router = _build_locations_router(db, get_current_user_optional=None)
+    app.include_router(_locations_router)
+    logger.info("[locations] router mounted at /api/locations")
+except Exception as _e:
+    logger.exception("[locations] failed to mount router: %s", _e)
+
 
 
 

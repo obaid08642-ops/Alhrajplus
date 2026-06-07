@@ -64,7 +64,15 @@ export function CountryProvider({ children }) {
                     cc = (me?.data?.country_code || "").toUpperCase();
                 } catch (_) {}
             }
-            // 4c) IP-based fallback
+            // 4c) IP-based fallback — try our new Geonames detector first
+            //     (multi-provider with internal fallback chain), then the
+            //     legacy /geo endpoint.
+            if (!cc) {
+                try {
+                    const det = await api.get("/locations/detect-country");
+                    cc = (det?.data?.country || "").toUpperCase();
+                } catch (_) {}
+            }
             if (!cc) {
                 try {
                     const det = await api.get("/geo/detect-country");
