@@ -7875,6 +7875,19 @@ async def startup():
                 logger.warning("[locations-seed] parser returned 0 records — skip")
                 return
             link_parents(records)
+            # ---- Optional AI verification pass (Gemini Flash) ----
+            # Re-parents any adm3 district that the LLM identifies as belonging
+            # to a different adm2 city in the same governorate (e.g. Mohandessin
+            # under Giza city not Giza governorate). Silently skipped if the
+            # Emergent LLM key is not set, so the seed never fails.
+            try:
+                from ai_validate_locations import ai_validate_egypt
+                if os.environ.get("EMERGENT_LLM_KEY"):
+                    logger.info("[locations-seed] running AI validation pass (Gemini)...")
+                    stats = await ai_validate_egypt(records)
+                    logger.info(f"[locations-seed] AI pass complete: {stats}")
+            except Exception as _aie:
+                logger.warning(f"[locations-seed] AI pass skipped: {_aie}")
             logger.info(f"[locations-seed] parsed {len(records)} EG records — inserting...")
             try:
                 await db.locations.insert_many(records, ordered=False)
