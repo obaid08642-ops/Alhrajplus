@@ -382,3 +382,18 @@ See `/app/memory/test_credentials.md`.
   - Wrapped in try/catch so a malformed URL never silently swallows the tap.
 - **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on 4 modified files.
 
+
+## ✅ Phase 30 — Tab bar revision 4: floating FAB with TRUE circular gap (Feb 2026)
+- **🎯 Owner's true intent decoded** ("الزر يبدو عائماً منفصلاً عن التاب بار"): the FAB should look DETACHED from the bar, with a continuous transparent ring all around its lower half so the user's content (a listing card, the map, etc.) is visible BEHIND the bar through that gap.
+- **🎨 SVG geometry rewrite**:
+  - Switched from a half-circle NOTCH (cut on top edge only) to a **full-circle HOLE** punched through the bar using `fillRule="evenodd"` + two sub-paths (outer rectangle + carved circle).
+  - `HOLE_RADIUS = 46` — independent of bar height, so the hole can be larger than the bar's height. This creates a complete "U-shaped" cutout that the FAB sits inside with room to breathe.
+  - At the FAB's lower midpoint (y = `FAB_SUBMERGE = 30`), hole width ≈ 70 px. FAB width = 52 px → **~9 px transparent gap on each side**. Top/bottom gaps are even larger.
+- **📏 Slimmer bar**: `BAR_HEIGHT` 42 → **36 px** (~14% reduction) — addresses "ارتفاعه كبير شوية".
+- **📐 FAB submersion** owner-mandated 40/60 split:
+  - `FAB_W` 56 → 52, `FAB_H` 80 → 74 (very minor — keeps the iconic look).
+  - `FAB_SUBMERGE = 30` of `FAB_H 74` = **40.5%** inside the bar / 59.5% above. ✅
+- **Spacer width** updated `NOTCH_RADIUS*2+8` → `HOLE_RADIUS*2+8` so tab labels never overlap the hole.
+- Applied identically to BOTH `FloatingTabBar.js` and `StandaloneFloatingTabBar.js` (Map).
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on both modified files.
+

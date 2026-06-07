@@ -12,22 +12,20 @@ import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 
 // ---- Dimensions (revision 3 — owner spec Feb 2026) ----
-const BAR_HEIGHT = 42;
-const NOTCH_RADIUS = 38;
-const FAB_W = 56;
-const FAB_H = 80;
+const BAR_HEIGHT = 36;
+const HOLE_RADIUS = 46;
+const FAB_W = 52;
+const FAB_H = 74;
 const FAB_SUBMERGE = 30;
 
 function buildBarPath(W, totalH) {
   const cx = W / 2;
-  const nr = NOTCH_RADIUS;
+  const r = HOLE_RADIUS;
   return [
-    `M 0 0`,
-    `L ${cx - nr} 0`,
-    `A ${nr} ${nr} 0 0 1 ${cx + nr} 0`,
-    `L ${W} 0`,
-    `L ${W} ${totalH}`,
-    `L 0 ${totalH}`,
+    `M 0 0`, `L ${W} 0`, `L ${W} ${totalH}`, `L 0 ${totalH}`, `Z`,
+    `M ${cx - r} 0`,
+    `a ${r} ${r} 0 1 0 ${r * 2} 0`,
+    `a ${r} ${r} 0 1 0 ${-r * 2} 0`,
     `Z`,
   ].join(" ");
 }
@@ -110,7 +108,7 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
 
       <View style={[styles.barOuter, { width: W, height: barTotalH }]}>
         <Svg width={W} height={barTotalH} style={StyleSheet.absoluteFillObject}>
-          <Path d={barPath} fill={surface} />
+          <Path d={barPath} fill={surface} fillRule="evenodd" />
         </Svg>
         <View style={[styles.tabsRow, { height: BAR_HEIGHT }]}>
           {TABS.map((tab) => {
@@ -143,7 +141,7 @@ const styles = StyleSheet.create({
   barOuter: { position: "relative" },
   tabsRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6 },
   tabBtn: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
-  spacer: { width: NOTCH_RADIUS * 2 + 8 },
+  spacer: { width: HOLE_RADIUS * 2 + 8 },
   tabLabel: { fontSize: 9.5, textAlign: "center", includeFontPadding: false },
   fabAnchor: { position: "absolute", left: 0, right: 0, alignItems: "center", zIndex: 10, height: FAB_H, justifyContent: "flex-end" },
   fab: {

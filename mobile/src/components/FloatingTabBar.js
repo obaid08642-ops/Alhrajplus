@@ -17,35 +17,46 @@ import * as Haptics from "expo-haptics";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 
-// ---- Dimensions (revision 3 — owner spec Feb 2026) ----
-// • Slimmer bar (was 48 → 42 px) per "نقلل ارتفاعه ملي او ملي ونص".
-// • Notch is a FULL semicircle that completely "cuts" the top edge so the
-//   FAB capsule sits inside with a visible transparent gap (~0.5–1 mm) all
-//   around it.
-const BAR_HEIGHT = 42;
-const NOTCH_RADIUS = 38;
-const CORNER_RADIUS = 0;
+// ---- Dimensions (revision 4 — owner spec Feb 2026) ----
+// • Slimmer bar (42 → 36 px) per "ارتفاعه كبير شوية فمحتاجين نقلل".
+// • The bar SHAPE now uses fill-rule="evenodd" with a CIRCULAR HOLE
+//   centered on the bar's top edge. The hole radius is LARGER than the
+//   FAB's outer radius → a real, fully-transparent ring-shaped gap exists
+//   between the bar surface and the FAB capsule. The visual effect: FAB
+//   appears to FLOAT, fully detached from the bar. Whatever content sits
+//   behind the bar (a listing card, the map, etc.) is visible through
+//   that gap.
+const BAR_HEIGHT = 36;
+const HOLE_RADIUS = 46;
 
-// FAB capsule (vertical pill) — sized so a visible transparent gap remains
-// between its curved edge and the notch curve on ALL sides.
-const FAB_W = 56;
-const FAB_H = 80;
-// How far the FAB's BOTTOM dips below the bar's TOP edge.
-const FAB_SUBMERGE = 30;
+// FAB capsule — owner wants ~40% INSIDE the bar, ~60% above.
+// Kept the same colour/style; only dimensions tightened marginally so the
+// FAB fits inside the hole with a visible ~8–10 px gap on every side.
+const FAB_W = 52;
+const FAB_H = 74;
+const FAB_SUBMERGE = 30; // 30/74 ≈ 40.5% submerged → 60% above the bar.
 
-// Build the rounded-rect-with-top-notch SVG path.
+// Build the bar path with a fully-cut-out CIRCULAR HOLE in the top-center.
+// Uses two sub-paths + fill-rule="evenodd":
+//   1) outer rectangle = the bar surface,
+//   2) circle centered at (W/2, 0) with HOLE_RADIUS = punches a clean
+//      hole through the bar where the FAB sits.
+// Result: the FAB looks like a floating capsule with transparent breathing
+// room on every side.
 function buildBarPath(W, totalH) {
   const cx = W / 2;
-  const nr = NOTCH_RADIUS;
-  // No corner radius (flush bar).
+  const r = HOLE_RADIUS;
   return [
+    // Outer rectangle
     `M 0 0`,
-    `L ${cx - nr} 0`,
-    // Concave half-circle dip — sweep=1 (clockwise) so curve goes DOWN into bar.
-    `A ${nr} ${nr} 0 0 1 ${cx + nr} 0`,
     `L ${W} 0`,
     `L ${W} ${totalH}`,
     `L 0 ${totalH}`,
+    `Z`,
+    // Inner circle (carved out) — drawn as two semicircle arcs.
+    `M ${cx - r} 0`,
+    `a ${r} ${r} 0 1 0 ${r * 2} 0`,
+    `a ${r} ${r} 0 1 0 ${-r * 2} 0`,
     `Z`,
   ].join(" ");
 }
@@ -144,7 +155,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
       {/* Bar (SVG path with U-notch) */}
       <View style={[styles.barOuter, { width: W, height: barTotalH }]}>
         <Svg width={W} height={barTotalH} style={StyleSheet.absoluteFillObject}>
-          <Path d={barPath} fill={surface} />
+          <Path d={barPath} fill={surface} fillRule="evenodd" />
         </Svg>
 
         {/* Tabs row — sits in the visible BAR_HEIGHT zone (above the safe
@@ -207,7 +218,7 @@ const styles = StyleSheet.create({
   },
   spacer: {
     // Reserve horizontal space matching the notch + small horizontal padding.
-    width: NOTCH_RADIUS * 2 + 8,
+    width: HOLE_RADIUS * 2 + 8,
   },
   tabLabel: {
     fontSize: 9.5,
