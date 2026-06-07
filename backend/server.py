@@ -7863,32 +7863,37 @@ async def startup():
             if existing > 0:
                 logger.info(f"[locations-seed] EG already has {existing} rows — skipping auto-seed")
                 return
-            data_path = os.path.join(os.path.dirname(__file__), "data", "EG.txt")
-            if not os.path.exists(data_path):
-                logger.warning(f"[locations-seed] no source file at {data_path} — skip auto-seed")
+            # Prefer the hand-curated master file when present; fall back to
+            # the raw Geonames dump.
+            master_path = os.path.join(os.path.dirname(__file__), "data", "egypt_master.json")
+            geonames_path = os.path.join(os.path.dirname(__file__), "data", "EG.txt")
+            records: list = []
+            if os.path.exists(master_path):
+                from master_egypt_parser import parse_master_file
+                records, stats = parse_master_file(master_path)
+                logger.info(f"[locations-seed] master file parsed: {stats}")
+            elif os.path.exists(geonames_path):
+                from locations import parse_geonames_file, link_parents
+                with open(geonames_path, "r", encoding="utf-8", errors="replace") as f:
+                    raw = f.read()
+                records = parse_geonames_file(raw, "EG")
+                link_parents(records)
+                # Optional AI verification pass
+                try:
+                    from ai_validate_locations import ai_validate_egypt
+                    if os.environ.get("EMERGENT_LLM_KEY"):
+                        logger.info("[locations-seed] running AI validation pass (Gemini)...")
+                        ai_stats = await ai_validate_egypt(records)
+                        logger.info(f"[locations-seed] AI pass complete: {ai_stats}")
+                except Exception as _aie:
+                    logger.warning(f"[locations-seed] AI pass skipped: {_aie}")
+            else:
+                logger.warning(f"[locations-seed] no source file at {master_path} or {geonames_path} — skip")
                 return
-            from locations import parse_geonames_file, link_parents
-            with open(data_path, "r", encoding="utf-8", errors="replace") as f:
-                raw = f.read()
-            records = parse_geonames_file(raw, "EG")
             if not records:
                 logger.warning("[locations-seed] parser returned 0 records — skip")
                 return
-            link_parents(records)
-            # ---- Optional AI verification pass (Gemini Flash) ----
-            # Re-parents any adm3 district that the LLM identifies as belonging
-            # to a different adm2 city in the same governorate (e.g. Mohandessin
-            # under Giza city not Giza governorate). Silently skipped if the
-            # Emergent LLM key is not set, so the seed never fails.
-            try:
-                from ai_validate_locations import ai_validate_egypt
-                if os.environ.get("EMERGENT_LLM_KEY"):
-                    logger.info("[locations-seed] running AI validation pass (Gemini)...")
-                    stats = await ai_validate_egypt(records)
-                    logger.info(f"[locations-seed] AI pass complete: {stats}")
-            except Exception as _aie:
-                logger.warning(f"[locations-seed] AI pass skipped: {_aie}")
-            logger.info(f"[locations-seed] parsed {len(records)} EG records — inserting...")
+            logger.info(f"[locations-seed] inserting {len(records)} EG records...")
             try:
                 await db.locations.insert_many(records, ordered=False)
             except Exception:
