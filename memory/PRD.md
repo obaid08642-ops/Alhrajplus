@@ -368,3 +368,17 @@ See `/app/memory/test_credentials.md`.
   - Pan intercepts only when `|dx| > 12` AND mostly horizontal (`|dx| > |dy| * 1.5`) → vertical list scrolling stays smooth.
 - **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on `ChatScreen.js`.
 
+
+## ✅ Phase 29 — Read receipt color + Language auto-refresh + Push sound + Notification tap routing (Feb 2026)
+- **✅✅ Read receipts visible**: the `CheckCheck` mark for read messages was `#4FC3F7` (sky blue) which blended into the blue bubble shadow → invisible. Changed to **`#B5E61D` lime** (matches the FAB color) with `strokeWidth: 3` and size 13 → high contrast against any bubble.
+- **🌐 Language auto-refresh**: in Expo Go (no expo-updates) the `setLang()` couldn't trigger a JS-bundle reload to flip RTL/LTR. Added `<View key={lang}>{children}</View>` wrapper in `I18nProvider` → switching language triggers a **soft remount of the entire app tree**, so all screens re-render with the new strings and direction immediately. No more "looks half-translated" effect.
+- **🔔 Push notifications (sound + closed-app delivery)**:
+  - `Notifications.setNotificationHandler` now sets `shouldShowBanner: true` + `shouldShowList: true` (SDK 53+ iOS keys) so notifications show banner + play sound in foreground AND when the app is fully closed.
+  - Android `default` channel upgraded: `importance: MAX` (was HIGH), `lockscreenVisibility: PUBLIC`, `enableLights/enableVibrate: true`, `bypassDnd: false`. Color changed from old `#89CFF0` → new primary `#4FB6E6`.
+- **👆 Notification tap navigation** (was unresponsive): `NotificationsScreen.open()` rewritten:
+  - Now prioritises the `n.url` field (same one the backend sends in push payloads) → universal routing for chat/listing/seller/search/category/post.
+  - Type-based fallback expanded to cover `bid_outbid`, `auction*`, `listing*`, `price_drop`.
+  - Last-resort `reference_id` → listing detail.
+  - Wrapped in try/catch so a malformed URL never silently swallows the tap.
+- **Validation**: `npx expo export --platform web` → 3050 modules, no errors. ESLint clean on 4 modified files.
+

@@ -6,7 +6,7 @@
  */
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { I18nManager } from "react-native";
+import { I18nManager, View } from "react-native";
 
 const I18nCtx = createContext(null);
 
@@ -2284,7 +2284,13 @@ export function I18nProvider({ children }) {
         return (table && table[key]) || key;
     }, [lang]);
 
-    return <I18nCtx.Provider value={{ lang, setLang, t, supported: SUPPORTED }}>{children}</I18nCtx.Provider>;
+    return <I18nCtx.Provider value={{ lang, setLang, t, supported: SUPPORTED }}>
+        {/* `key={lang}` triggers a SOFT remount of the entire tree whenever
+            the user picks a new language. This forces every screen to
+            re-render with the new translations + RTL/LTR direction without
+            requiring a native app reload (Expo Go-safe). */}
+        <View style={{ flex: 1 }} key={lang}>{children}</View>
+    </I18nCtx.Provider>;
 }
 
 export const useI18n = () => useContext(I18nCtx) || { lang: "ar", setLang: () => {}, t: (k) => k, supported: SUPPORTED };

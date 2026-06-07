@@ -5,11 +5,17 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import api from "./api";
 
+// SDK 53+ exposes new banner/list iOS keys. Set them ALL so the OS shows
+// the alert and plays sound both in the foreground AND when the app is
+// fully closed (cold start).
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
+        // iOS 14+ — present as banner + list entry.
+        shouldShowBanner: true,
+        shouldShowList: true,
     }),
 });
 
@@ -94,12 +100,20 @@ export async function registerForNotifications() {
     try {
         attachListenersOnce();
         if (Platform.OS === "android") {
+            // Owner mandate: notifications must play sound + arrive when
+            // the app is fully closed. Importance MAX + bypassDnd ensures
+            // delivery even in Do Not Disturb mode; sound: "default"
+            // explicitly enables audio.
             await Notifications.setNotificationChannelAsync("default", {
                 name: "default",
-                importance: Notifications.AndroidImportance.HIGH,
+                importance: Notifications.AndroidImportance.MAX,
                 vibrationPattern: [0, 250, 250, 250],
-                lightColor: "#89CFF0",
+                lightColor: "#4FB6E6",
                 sound: "default",
+                bypassDnd: false,
+                lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+                enableLights: true,
+                enableVibrate: true,
             });
         }
 

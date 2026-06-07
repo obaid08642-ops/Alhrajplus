@@ -1102,7 +1102,7 @@ function MessageBubble({
                     <Text style={[s.metaTime, isMine && {
           color: "rgba(255,255,255,0.75)"
         }]}>{fmtTime(m.created_at)}</Text>
-                    {isMine && (m.read ? <CheckCheck size={12} color="#4FC3F7" /> : <Check size={12} color="rgba(255,255,255,0.75)" />)}
+                    {isMine && (m.read ? <CheckCheck size={13} color="#B5E61D" strokeWidth={3} /> : <Check size={13} color="rgba(255,255,255,0.75)" />)}
                 </View>
             </View>
             {/* Reactions row — rendered just below the bubble, slightly offset

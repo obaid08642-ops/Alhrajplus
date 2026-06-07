@@ -147,26 +147,47 @@ export function NotificationsScreen({
     try {
       await api.post(`/notifications/${n.id}/read`);
     } catch (_) {}
-    // Mirror the web NotificationBell `urlFor` mapping so deep links work
-    // identically across web + mobile. Falls back to legacy `reference_id`
-    // for older notification rows the backend may still emit.
+    // Owner mandate: tapping a notification MUST navigate to the relevant
+    // screen (chat thread / listing / etc.). Previous logic only checked
+    // a few specific `type` values and silently failed for everything
+    // else. New logic prioritises the explicit `url` field (same one the
+    // push payload uses) and falls back to type/reference_id heuristics.
     const d = n.data || {};
+    const url = n.url || d.url || "";
+    // 1) Use the push-payload `url` field if backend included it.
+    if (url) {
+      try {
+        let m = url.match(/^\/listing\/([^/?#]+)/);
+        if (m) { navigation.navigate("ListingDetail", { id: m[1] }); return; }
+        m = url.match(/^\/seller\/([^/?#]+)/);
+        if (m) { navigation.navigate("SellerProfile", { sellerId: m[1] }); return; }
+        m = url.match(/^\/chat(?:\?to=([^&]+))?/);
+        if (m) { navigation.navigate("Chat", m[1] ? { to: m[1] } : {}); return; }
+        m = url.match(/^\/c\/([^/?#]+)/);
+        if (m) { navigation.navigate("Search", { category: decodeURIComponent(m[1]) }); return; }
+        if (url.startsWith("/post")) { navigation.navigate("Post"); return; }
+        m = url.match(/^\/search(?:\?q=([^&]+))?/);
+        if (m) { navigation.navigate("Search", m[1] ? { q: decodeURIComponent(m[1]) } : {}); return; }
+      } catch (_) {}
+    }
+    // 2) Type-based fallback (legacy notifications without `url`).
     const type = n.type || "";
     if (type === "new_message" || type === "message" || type === "chat") {
-      const to = d.sender_id || n.reference_id;
-      if (to) navigation.navigate("Chat", { to });
-      return;
+      const to = d.sender_id || d.from || n.reference_id;
+      if (to) { navigation.navigate("Chat", { to }); return; }
     }
-    if (type === "listing_approved" || type === "listing_rejected" || type === "price_drop" || type === "listing") {
+    if (type.startsWith("listing") || type === "price_drop") {
       const id = d.listing_id || n.reference_id;
-      if (id) navigation.navigate("ListingDetail", { id });
-      return;
+      if (id) { navigation.navigate("ListingDetail", { id }); return; }
     }
-    if (type === "auction") {
+    if (type === "auction" || type.startsWith("auction") || type === "bid_outbid") {
+      const id = d.listing_id || n.reference_id;
+      if (id) { navigation.navigate("ListingDetail", { id }); return; }
       navigation.navigate("Auctions");
       return;
     }
-    // Generic fallback — use reference_id if present.
+    // 3) Last-resort fallback — if a reference_id looks like a listing UUID,
+    // open that.
     if (n.reference_id) {
       navigation.navigate("ListingDetail", { id: n.reference_id });
     }
