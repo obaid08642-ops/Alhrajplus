@@ -7849,6 +7849,47 @@ async def startup():
     if _MEDIA_CLEANUP_TASK is None or _MEDIA_CLEANUP_TASK.done():
         _MEDIA_CLEANUP_TASK = asyncio.create_task(_media_cleanup_retry_worker())
 
+    # ───────────────────────────────────────────────────────────────────
+    # Auto-seed the Geonames-backed `locations` collection if it's empty.
+    # On first deploy to a fresh MongoDB, this reads /app/backend/data/EG.txt
+    # (committed to git) and bulk-inserts all 12,247 Egyptian locations
+    # (governorates → markaz → districts → villages) in one shot. Runs in
+    # the background so the server starts listening immediately. Idempotent
+    # — if any rows already exist for EG we skip.
+    # ───────────────────────────────────────────────────────────────────
+    async def _auto_seed_locations():
+        try:
+            existing = await db.locations.count_documents({"country": "EG"})
+            if existing > 0:
+                logger.info(f"[locations-seed] EG already has {existing} rows — skipping auto-seed")
+                return
+            data_path = os.path.join(os.path.dirname(__file__), "data", "EG.txt")
+            if not os.path.exists(data_path):
+                logger.warning(f"[locations-seed] no source file at {data_path} — skip auto-seed")
+                return
+            from locations import parse_geonames_file, link_parents
+            with open(data_path, "r", encoding="utf-8", errors="replace") as f:
+                raw = f.read()
+            records = parse_geonames_file(raw, "EG")
+            if not records:
+                logger.warning("[locations-seed] parser returned 0 records — skip")
+                return
+            link_parents(records)
+            logger.info(f"[locations-seed] parsed {len(records)} EG records — inserting...")
+            try:
+                await db.locations.insert_many(records, ordered=False)
+            except Exception:
+                for r in records:
+                    await db.locations.replace_one({"_id": r["_id"]}, r, upsert=True)
+            await db.locations.create_index([("country", 1), ("level", 1)])
+            await db.locations.create_index([("parent_id", 1)])
+            await db.locations.create_index([("country", 1), ("name", 1)])
+            cnt = await db.locations.count_documents({"country": "EG"})
+            logger.info(f"[locations-seed] ✓ inserted {cnt} EG locations on first boot")
+        except Exception as e:
+            logger.exception(f"[locations-seed] failed: {e}")
+    asyncio.create_task(_auto_seed_locations())
+
     # Seed admin (idempotent)
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if existing is None:
