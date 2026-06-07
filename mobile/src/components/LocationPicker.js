@@ -14,9 +14,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, Modal, TextInput, FlatList, ActivityIndicator, StyleSheet } from "react-native";
 import { ChevronDown, X, Search as SearchIcon, MapPin } from "lucide-react-native";
-import api from "../api";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
+
+// 🔒 EMERGENCY HARDCODE — the EAS / Expo Go environment was not injecting
+// the correct backendUrl into the active bundle, causing the picker to hit
+// a stale `alhrajplus.onrender.com` server that doesn't have the new
+// `/api/locations/*` module. We pin the URL here so the picker ALWAYS
+// reaches the live Geonames-backed endpoints regardless of build profile.
+const LOCATIONS_BASE = "https://platform-inspect.preview.emergentagent.com/api/locations";
 
 // Egypt has 4 levels (adm1=governorate, adm2=city/markaz, adm3=district,
 // city=village/locality). Gulf has 3 (adm2=city, city=district).
@@ -54,20 +60,21 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
   // so the dropdown is never empty.
   useEffect(() => {
     let cancelled = false;
+    const url = `${LOCATIONS_BASE}/countries`;
     // eslint-disable-next-line no-console
-    console.info("[LocationPicker] booting — fetching /locations/countries from", api.defaults.baseURL);
-    api.get("/locations/countries")
-      .then(r => {
-        const codes = (r.data || []).map(x => x.code);
+    console.info("[LocationPicker] fetching", url);
+    fetch(url)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        const codes = (data || []).map(x => x.code);
         // eslint-disable-next-line no-console
         console.info("[LocationPicker] supported countries:", codes);
         if (!cancelled) setSupportedCountries(codes);
       })
       .catch(e => {
-        const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
         // eslint-disable-next-line no-console
-        console.error("[LocationPicker] /countries FAILED:", detail, "BASE=", api.defaults.baseURL);
-        if (!cancelled) { setSupportedCountries([]); setBootError(detail || "network"); }
+        console.error("[LocationPicker] /countries FAILED:", e?.message, "URL=", url);
+        if (!cancelled) { setSupportedCountries([]); setBootError(e?.message || "network"); }
       });
     return () => { cancelled = true; };
   }, []);
@@ -97,23 +104,27 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
     setOptions([]);
     setQuery("");
     setFetchError("");
-    const params = { lang, level: openLevel, country: effectiveCountry, limit: 800 };
-    if (parent?.id) params.parent_id = parent.id;
+    // Always default country to EG when nothing else is resolved — only EG
+    // is seeded right now and we want the picker to always have data.
+    const cc = effectiveCountry || "EG";
+    const params = new URLSearchParams({ lang: lang || "ar", level: openLevel, country: cc, limit: "800" });
+    if (parent?.id) params.set("parent_id", String(parent.id));
+    const url = `${LOCATIONS_BASE}/children?${params.toString()}`;
     // eslint-disable-next-line no-console
-    console.info("[LocationPicker] GET /locations/children", params);
-    api.get("/locations/children", { params })
-      .then(r => {
-        const data = Array.isArray(r.data) ? r.data : [];
+    console.info("[LocationPicker] GET", url);
+    fetch(url)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(data => {
+        const list = Array.isArray(data) ? data : [];
         // eslint-disable-next-line no-console
-        console.info(`[LocationPicker] ✓ ${openLevel} → ${data.length} records`);
-        setOptions(data);
+        console.info(`[LocationPicker] ✓ ${openLevel} → ${list.length} records`);
+        setOptions(list);
       })
       .catch(e => {
-        const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
         // eslint-disable-next-line no-console
-        console.error("[LocationPicker] FAIL", detail);
+        console.error("[LocationPicker] FAIL", e?.message, "URL=", url);
         setOptions([]);
-        setFetchError(detail || "network error");
+        setFetchError(e?.message || "network error");
       })
       .finally(() => setLoading(false));
   }, [openLevel, value, lang, effectiveCountry]);
@@ -143,7 +154,7 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
             ⚠️ {t("لا يمكن الاتصال بخدمة المواقع")}: {bootError}
           </Text>
           <Text style={{ fontSize: 10, color: "#7f1d1d", textAlign: "right", marginTop: 2 }} numberOfLines={1}>
-            {api.defaults.baseURL}
+            {LOCATIONS_BASE}
           </Text>
         </View>
       ) : null}
