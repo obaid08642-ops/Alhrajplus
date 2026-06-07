@@ -5,9 +5,10 @@ import * as SecureStore from "expo-secure-store";
 import { tr } from "./I18nContext";
 
 const BACKEND_URL =
+    process.env.EXPO_PUBLIC_BACKEND_URL ||
     Constants.expoConfig?.extra?.backendUrl ||
     Constants.manifest?.extra?.backendUrl ||
-    "https://alhrajplus.onrender.com";
+    "https://platform-inspect.preview.emergentagent.com";
 
 const api = axios.create({
     baseURL: `${BACKEND_URL}/api`,

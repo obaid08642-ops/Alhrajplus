@@ -118,7 +118,7 @@
       "expo-video"
     ],
     "extra": {
-      "backendUrl": "https://alhrajplus.onrender.com",
+      "backendUrl": "https://platform-inspect.preview.emergentagent.com",
       "eas": {
         "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
       }
