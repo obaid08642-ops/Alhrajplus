@@ -39,6 +39,7 @@ function LevelRow({ country, level, value, parent, lang, onPick, disabled }) {
     const [options, setOptions] = useState([]);
     const [q, setQ] = useState("");
     const [loading, setLoading] = useState(false);
+    const [fetchError, setFetchError] = useState("");
     const wrapRef = useRef(null);
 
     // Close on outside click.
@@ -54,13 +55,22 @@ function LevelRow({ country, level, value, parent, lang, onPick, disabled }) {
         let cancelled = false;
         const load = async () => {
             setLoading(true);
+            setFetchError("");
+            const params = { lang, level, country, limit: 800 };
+            if (parent?.id) params.parent_id = parent.id;
             try {
-                const params = { lang, level, country, limit: 800 };
-                if (parent?.id) params.parent_id = parent.id;
+                // eslint-disable-next-line no-console
+                console.info("[LocationPicker] GET /locations/children", params);
                 const r = await api.get("/locations/children", { params });
-                if (!cancelled) setOptions(Array.isArray(r.data) ? r.data : []);
-            } catch (_) {
-                if (!cancelled) setOptions([]);
+                const data = Array.isArray(r.data) ? r.data : [];
+                // eslint-disable-next-line no-console
+                console.info(`[LocationPicker] ✓ ${level} → ${data.length} records`);
+                if (!cancelled) setOptions(data);
+            } catch (e) {
+                const detail = `${e?.response?.status || ""} ${e?.message || ""} ${e?.config?.url || ""}`.trim();
+                // eslint-disable-next-line no-console
+                console.error("[LocationPicker] FAIL", detail, e);
+                if (!cancelled) { setOptions([]); setFetchError(detail || "network error"); }
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -119,6 +129,10 @@ function LevelRow({ country, level, value, parent, lang, onPick, disabled }) {
                                 <span className="inline-block w-3 h-3 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></span>
                                 {tr("جاري التحميل...")}
                             </div>
+                        ) : fetchError ? (
+                            <div className="px-3 py-4 text-center text-[11px] text-red-500 font-arabic-body break-all">
+                                ⚠️ {tr("خطأ في الاتصال")}: {fetchError}
+                            </div>
                         ) : filtered.length === 0 ? (
                             <div className="px-3 py-6 text-center text-[11px] text-[var(--text-muted)] font-arabic-body">
                                 {tr("لا توجد نتائج")}
@@ -152,19 +166,40 @@ function LevelRow({ country, level, value, parent, lang, onPick, disabled }) {
 export default function LocationPicker({ country = "EG", value, onChange, className = "" }) {
     const { lang } = useI18n();
     const [supportedCountries, setSupportedCountries] = useState(null);
+    const [bootError, setBootError] = useState("");
     // Auto-fallback: if the requested country has no imported data yet (e.g.
     // user is on SA but only EG is seeded), silently switch to EG so the
     // dropdown is never empty.
     useEffect(() => {
         let cancelled = false;
+        // eslint-disable-next-line no-console
+        console.info("[LocationPicker] booting — fetching /locations/countries from", api.defaults.baseURL);
         api.get("/locations/countries")
-            .then((r) => { if (!cancelled) setSupportedCountries((r.data || []).map((x) => x.code)); })
-            .catch(() => { if (!cancelled) setSupportedCountries([]); });
+            .then((r) => {
+                const codes = (r.data || []).map((x) => x.code);
+                // eslint-disable-next-line no-console
+                console.info("[LocationPicker] supported countries:", codes);
+                if (!cancelled) setSupportedCountries(codes);
+            })
+            .catch((e) => {
+                const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
+                // eslint-disable-next-line no-console
+                console.error("[LocationPicker] /countries FAILED:", detail, "BASE_URL=", api.defaults.baseURL);
+                if (!cancelled) { setSupportedCountries([]); setBootError(detail || "network"); }
+            });
         return () => { cancelled = true; };
     }, []);
 
+    // While only Egypt is imported, hard-lock the picker to EG regardless of
+    // the user's selected country. As soon as additional Gulf countries are
+    // imported (and surfaced via /locations/countries) this falls back to the
+    // dynamic supported-list logic.
     const effectiveCountry = useMemo(() => {
-        if (!supportedCountries || supportedCountries.length === 0) return country;
+        if (!supportedCountries || supportedCountries.length === 0) {
+            // No data fetched yet → still default to EG so the picker
+            // labels render with the 4-level Egyptian hierarchy.
+            return "EG";
+        }
         if (supportedCountries.includes(country)) return country;
         return supportedCountries.includes("EG") ? "EG" : supportedCountries[0];
     }, [country, supportedCountries]);
@@ -183,6 +218,11 @@ export default function LocationPicker({ country = "EG", value, onChange, classN
 
     return (
         <div className={className} data-testid="location-picker-root">
+            {bootError && (
+                <div className="mb-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[11px] text-red-700 dark:text-red-300 font-arabic-body break-all">
+                    ⚠️ {tr("لا يمكن الاتصال بخدمة المواقع")}: <code>{bootError}</code> @ <code>{api.defaults.baseURL}</code>
+                </div>
+            )}
             {showFallbackNotice && (
                 <div className="mb-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300 font-arabic-body">
                     {tr("بيانات الموقع متاحة حالياً لـ")} <strong>{effectiveCountry}</strong> {tr("فقط — استخدامه مؤقتاً.")}

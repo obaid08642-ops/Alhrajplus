@@ -47,20 +47,35 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
   const { t, lang } = useI18n();
   const { palette } = useThemeMode();
   const [supportedCountries, setSupportedCountries] = useState(null);
+  const [bootError, setBootError] = useState("");
 
   // Auto-fallback: ask the backend which countries have imported data.
   // If the user's selected country is not yet seeded, silently switch to EG
   // so the dropdown is never empty.
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line no-console
+    console.info("[LocationPicker] booting — fetching /locations/countries from", api.defaults.baseURL);
     api.get("/locations/countries")
-      .then(r => { if (!cancelled) setSupportedCountries((r.data || []).map(x => x.code)); })
-      .catch(() => { if (!cancelled) setSupportedCountries([]); });
+      .then(r => {
+        const codes = (r.data || []).map(x => x.code);
+        // eslint-disable-next-line no-console
+        console.info("[LocationPicker] supported countries:", codes);
+        if (!cancelled) setSupportedCountries(codes);
+      })
+      .catch(e => {
+        const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
+        // eslint-disable-next-line no-console
+        console.error("[LocationPicker] /countries FAILED:", detail, "BASE=", api.defaults.baseURL);
+        if (!cancelled) { setSupportedCountries([]); setBootError(detail || "network"); }
+      });
     return () => { cancelled = true; };
   }, []);
 
+  // While only Egypt is imported, hard-default to EG so the picker always
+  // shows the 4-level Egyptian hierarchy even before /countries resolves.
   const effectiveCountry = useMemo(() => {
-    if (!supportedCountries || supportedCountries.length === 0) return country;
+    if (!supportedCountries || supportedCountries.length === 0) return "EG";
     if (supportedCountries.includes(country)) return country;
     return supportedCountries.includes("EG") ? "EG" : supportedCountries[0];
   }, [country, supportedCountries]);
@@ -71,6 +86,7 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [fetchError, setFetchError] = useState("");
 
   // Fetch children for the current open level. Parent = selection at previous level.
   useEffect(() => {
@@ -80,11 +96,25 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
     setLoading(true);
     setOptions([]);
     setQuery("");
+    setFetchError("");
     const params = { lang, level: openLevel, country: effectiveCountry, limit: 800 };
     if (parent?.id) params.parent_id = parent.id;
+    // eslint-disable-next-line no-console
+    console.info("[LocationPicker] GET /locations/children", params);
     api.get("/locations/children", { params })
-      .then(r => setOptions(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setOptions([]))
+      .then(r => {
+        const data = Array.isArray(r.data) ? r.data : [];
+        // eslint-disable-next-line no-console
+        console.info(`[LocationPicker] ✓ ${openLevel} → ${data.length} records`);
+        setOptions(data);
+      })
+      .catch(e => {
+        const detail = `${e?.response?.status || ""} ${e?.message || ""}`.trim();
+        // eslint-disable-next-line no-console
+        console.error("[LocationPicker] FAIL", detail);
+        setOptions([]);
+        setFetchError(detail || "network error");
+      })
       .finally(() => setLoading(false));
   }, [openLevel, value, lang, effectiveCountry]);
 
@@ -107,6 +137,16 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
   const styles = makeStyles(palette);
   return (
     <View>
+      {bootError ? (
+        <View style={{ marginBottom: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: "#fee2e2", borderWidth: 1, borderColor: "#fca5a5" }}>
+          <Text style={{ fontSize: 11, color: "#991b1b", textAlign: "right" }}>
+            ⚠️ {t("لا يمكن الاتصال بخدمة المواقع")}: {bootError}
+          </Text>
+          <Text style={{ fontSize: 10, color: "#7f1d1d", textAlign: "right", marginTop: 2 }} numberOfLines={1}>
+            {api.defaults.baseURL}
+          </Text>
+        </View>
+      ) : null}
       {showFallbackNotice ? (
         <View style={{ marginBottom: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: palette.surfaceCard, borderWidth: 1, borderColor: palette.border }}>
           <Text style={{ fontSize: 11, color: palette.textMuted, textAlign: "right" }}>
@@ -173,7 +213,13 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={
-                  <Text style={styles.empty}>{t("لا توجد نتائج")}</Text>
+                  fetchError ? (
+                    <View style={{ padding: 16 }}>
+                      <Text style={{ fontSize: 12, color: "#dc2626", textAlign: "center" }}>
+                        ⚠️ {t("خطأ في الاتصال")}: {fetchError}
+                      </Text>
+                    </View>
+                  ) : <Text style={styles.empty}>{t("لا توجد نتائج")}</Text>
                 }
               />
             )}

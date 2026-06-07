@@ -62,16 +62,26 @@ export function CountryProvider({ children }) {
         try { seen = localStorage.getItem(SEEN_PICKER_KEY) || "0"; } catch (_) {}
         let cancelled = false;
         (async () => {
+            // Try Geonames-backed multi-provider detector first (ip-api → ipapi → ipinfo),
+            // then fall back to the legacy /geo/detect-country.
+            let detected = "";
             try {
-                const { data } = await api.get("/geo/detect-country");
-                if (cancelled) return;
-                if (data?.country) {
-                    try { localStorage.setItem(STORAGE_KEY, data.country); } catch (_) {}
-                    try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
-                    setCountryState(data.country);
-                    return; // auto-detected; no manual picker needed
-                }
-            } catch (_) { /* fall through to manual picker */ }
+                const { data } = await api.get("/locations/detect-country");
+                detected = (data?.country || "").toUpperCase();
+            } catch (_) { /* try legacy */ }
+            if (!detected) {
+                try {
+                    const { data } = await api.get("/geo/detect-country");
+                    detected = (data?.country || "").toUpperCase();
+                } catch (_) { /* fall through to manual picker */ }
+            }
+            if (cancelled) return;
+            if (detected) {
+                try { localStorage.setItem(STORAGE_KEY, detected); } catch (_) {}
+                try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
+                setCountryState(detected);
+                return;
+            }
             if (!cancelled && seen !== "1") {
                 setShowPicker(true);
             }
