@@ -12507,3 +12507,416 @@ print(f"📊 Total cities/centers: {cities_count}")
 print(f"📊 Total districts/sections: {districts_count}")
 print(f"📊 Total areas/villages: {areas_count}")
 
+
+
+# Qalyubia governorate added
+qalyubia = {
+  "governorate": {
+    "id": "EG-QLY",
+    "name_ar": "القليوبية",
+    "name_en": "Qalyubia",
+    "capital_ar": "بنها",
+    "capital_en": "Banha",
+    "type": "governorate"
+  },
+  "cities_and_centers": [
+    {
+      "id": "EG-QLY-001",
+      "name_ar": "مدينة بنها",
+      "name_en": "Banha City",
+      "type": "city",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-001-001",
+          "name_ar": "حي شرق بنها",
+          "name_en": "East Banha District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة سكة بنها",
+              "name_en": "Sikka Banha Area"
+            },
+            {
+              "name_ar": "منطقة كفر فرسيس",
+              "name_en": "Kafr Farsis Area"
+            },
+            {
+              "name_ar": "منطقة بنها الجديدة",
+              "name_en": "New Banha Area"
+            },
+            {
+              "name_ar": "منطقة كفر الجزار",
+              "name_en": "Kafr El-Gazzar Area"
+            },
+            {
+              "name_ar": "منطقة ميت نما",
+              "name_en": "Mit Nima Area"
+            }
+          ]
+        },
+        {
+          "id": "EG-QLY-001-002",
+          "name_ar": "حي غرب بنها",
+          "name_en": "West Banha District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة شبرا بنها",
+              "name_en": "Shubra Banha Area"
+            },
+            {
+              "name_ar": "منطقة كفر سعد",
+              "name_en": "Kafr Saad Area"
+            },
+            {
+              "name_ar": "منطقة كفر الحمام",
+              "name_en": "Kafr El-Hammam Area"
+            },
+            {
+              "name_ar": "منطقة ميت حلفا",
+              "name_en": "Mit Halfa Area"
+            }
+          ]
+        },
+        {
+          "id": "EG-QLY-001-003",
+          "name_ar": "حي جنوب بنها",
+          "name_en": "South Banha District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة كفر منصور",
+              "name_en": "Kafr Mansour Area"
+            },
+            {
+              "name_ar": "منطقة ميت كنانة",
+              "name_en": "Mit Kanana Area"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-002",
+      "name_ar": "مدينة الخصوص",
+      "name_en": "El-Khosous City",
+      "type": "city",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-002-001",
+          "name_ar": "حي الخصوص",
+          "name_en": "El-Khosous District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة الخصوص البلد",
+              "name_en": "El-Khosous El-Balad Area"
+            },
+            {
+              "name_ar": "منطقة عزبة البرج",
+              "name_en": "Ezbet El-Borg Area"
+            },
+            {
+              "name_ar": "منطقة كفر أبو زيد",
+              "name_en": "Kafr Abu Zaid Area"
+            },
+            {
+              "name_ar": "منطقة كفر أبو طالب",
+              "name_en": "Kafr Abu Taleb Area"
+            }
+          ]
+        },
+        {
+          "id": "EG-QLY-002-002",
+          "name_ar": "حي عزبة النخل",
+          "name_en": "Ezbet El-Nakhl District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة عزبة النخل",
+              "name_en": "Ezbet El-Nakhl Area"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-003",
+      "name_ar": "مدينة شبرا الخيمة",
+      "name_en": "Shubra El-Kheima City",
+      "type": "city",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-003-001",
+          "name_ar": "حي شرق شبرا الخيمة",
+          "name_en": "East Shubra El-Kheima District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة شبرا الخيمة الأولى",
+              "name_en": "Shubra El-Kheima 1 Area"
+            },
+            {
+              "name_ar": "منطقة شبرا الخيمة الثانية",
+              "name_en": "Shubra El-Kheima 2 Area"
+            }
+          ]
+        },
+        {
+          "id": "EG-QLY-003-002",
+          "name_ar": "حي غرب شبرا الخيمة",
+          "name_en": "West Shubra El-Kheima District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة شبرا الخيمة الثالثة",
+              "name_en": "Shubra El-Kheima 3 Area"
+            },
+            {
+              "name_ar": "منطقة شبرا الخيمة الرابعة",
+              "name_en": "Shubra El-Kheima 4 Area"
+            }
+          ]
+        },
+        {
+          "id": "EG-QLY-003-003",
+          "name_ar": "حي شبرا الخيمة الجديدة",
+          "name_en": "New Shubra El-Kheima District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة شبرا الخيمة الجديدة",
+              "name_en": "New Shubra El-Kheima Area"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-004",
+      "name_ar": "مدينة القناطر الخيرية",
+      "name_en": "El-Qanater El-Khairia City",
+      "type": "city",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-004-001",
+          "name_ar": "حي القناطر الخيرية",
+          "name_en": "El-Qanater El-Khairia District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة القناطر الخيرية البلد",
+              "name_en": "El-Qanater El-Khairia El-Balad Area"
+            }
+          ]
+        },
+        {
+          "id": "EG-QLY-004-002",
+          "name_ar": "حي كفر شكر",
+          "name_en": "Kafr Shukr District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة كفر شكر البلد",
+              "name_en": "Kafr Shukr El-Balad Area"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-005",
+      "name_ar": "مدينة طوخ",
+      "name_en": "Toukh City",
+      "type": "city",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-005-001",
+          "name_ar": "حي طوخ",
+          "name_en": "Toukh District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة طوخ البلد",
+              "name_en": "Toukh El-Balad Area"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-006",
+      "name_ar": "مدينة كفر شكر",
+      "name_en": "Kafr Shukr City",
+      "type": "city",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-006-001",
+          "name_ar": "حي كفر شكر",
+          "name_en": "Kafr Shukr District",
+          "areas_and_villages": [
+            {
+              "name_ar": "منطقة كفر شكر البلد",
+              "name_en": "Kafr Shukr El-Balad Area"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-007",
+      "name_ar": "مركز بنها",
+      "name_en": "Banha Center",
+      "type": "center",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-007-001",
+          "name_ar": "قسم بنها",
+          "name_en": "Banha Section",
+          "areas_and_villages": [
+            {
+              "name_ar": "قرية كفر فرسيس",
+              "name_en": "Kafr Farsis Village"
+            },
+            {
+              "name_ar": "قرية كفر الجزار",
+              "name_en": "Kafr El-Gazzar Village"
+            },
+            {
+              "name_ar": "قرية ميت نما",
+              "name_en": "Mit Nima Village"
+            },
+            {
+              "name_ar": "قرية كفر سعد",
+              "name_en": "Kafr Saad Village"
+            },
+            {
+              "name_ar": "قرية ميت حلفا",
+              "name_en": "Mit Halfa Village"
+            },
+            {
+              "name_ar": "قرية كفر منصور",
+              "name_en": "Kafr Mansour Village"
+            },
+            {
+              "name_ar": "قرية ميت كنانة",
+              "name_en": "Mit Kanana Village"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-008",
+      "name_ar": "مركز الخصوص",
+      "name_en": "El-Khosous Center",
+      "type": "center",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-008-001",
+          "name_ar": "قسم الخصوص",
+          "name_en": "El-Khosous Section",
+          "areas_and_villages": [
+            {
+              "name_ar": "قرية الخصوص البلد",
+              "name_en": "El-Khosous El-Balad Village"
+            },
+            {
+              "name_ar": "قرية عزبة النخل",
+              "name_en": "Ezbet El-Nakhl Village"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-009",
+      "name_ar": "مركز القناطر الخيرية",
+      "name_en": "El-Qanater El-Khairia Center",
+      "type": "center",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-009-001",
+          "name_ar": "قسم القناطر الخيرية",
+          "name_en": "El-Qanater El-Khairia Section",
+          "areas_and_villages": [
+            {
+              "name_ar": "قرية القناطر الخيرية البلد",
+              "name_en": "El-Qanater El-Khairia El-Balad Village"
+            },
+            {
+              "name_ar": "قرية كفر شكر",
+              "name_en": "Kafr Shukr Village"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-010",
+      "name_ar": "مركز طوخ",
+      "name_en": "Toukh Center",
+      "type": "center",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-010-001",
+          "name_ar": "قسم طوخ",
+          "name_en": "Toukh Section",
+          "areas_and_villages": [
+            {
+              "name_ar": "قرية طوخ البلد",
+              "name_en": "Toukh El-Balad Village"
+            },
+            {
+              "name_ar": "قرية طوخ الجديدة",
+              "name_en": "New Toukh Village"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-011",
+      "name_ar": "مركز كفر شكر",
+      "name_en": "Kafr Shukr Center",
+      "type": "center",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-011-001",
+          "name_ar": "قسم كفر شكر",
+          "name_en": "Kafr Shukr Section",
+          "areas_and_villages": [
+            {
+              "name_ar": "قرية كفر شكر البلد",
+              "name_en": "Kafr Shukr El-Balad Village"
+            },
+            {
+              "name_ar": "قرية كفر شكر الجديدة",
+              "name_en": "New Kafr Shukr Village"
+            },
+            {
+              "name_ar": "قرية كفر شكر القديمة",
+              "name_en": "Old Kafr Shukr Village"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EG-QLY-012",
+      "name_ar": "مركز شبرا الخيمة",
+      "name_en": "Shubra El-Kheima Center",
+      "type": "center",
+      "districts_and_sections": [
+        {
+          "id": "EG-QLY-012-001",
+          "name_ar": "قسم شبرا الخيمة",
+          "name_en": "Shubra El-Kheima Section",
+          "areas_and_villages": [
+            {
+              "name_ar": "قرية شبرا الخيمة البلد",
+              "name_en": "Shubra El-Kheima El-Balad Village"
+            },
+            {
+              "name_ar": "قرية شبرا الخيمة الجديدة",
+              "name_en": "New Shubra El-Kheima Village"
+            },
+            {
+              "name_ar": "قرية شبرا الخيمة القديمة",
+              "name_en": "Old Shubra El-Kheima Village"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
