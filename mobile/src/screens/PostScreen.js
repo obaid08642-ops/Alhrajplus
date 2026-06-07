@@ -353,49 +353,40 @@ export default function PostScreen({
     }
     try {
       const loc = await Location.getCurrentPositionAsync({});
-      const lat = loc.coords.latitude,
-        lng = loc.coords.longitude;
-      // Also reverse-geocode to auto-suggest city + district (user can still change).
+      const lat = loc.coords.latitude;
+      const lng = loc.coords.longitude;
+      // Primary: hit the new Geonames-backed /locations/locate which returns
+      // the FULL cascading path (adm1/adm2/adm3/city). Auto-falls back to EG
+      // server-side if the user's country has no data yet.
       try {
-        const {
-          data
-        } = await api.get("/geo/reverse", {
-          params: {
-            lat,
-            lng,
-            lang: "ar"
-          }
-        });
+        const { data } = await api.get("/locations/locate", { params: { lat, lng, country: country?.code || "EG", lang } });
+        const sel = data?.selection || {};
+        const leaf = sel.city || sel.adm3 || sel.adm2 || sel.adm1;
+        setForm(f => ({
+          ...f,
+          lat, lng,
+          location: sel,
+          city: sel.adm2?.name || sel.adm1?.name || leaf?.name || "",
+          district: sel.adm3?.name || sel.city?.name || "",
+        }));
+        Alert.alert("✅", `${t("تم اقتراح:")} ${leaf?.name || ""}\n${t("يمكنك تغييرها يدوياً.")}`);
+        return;
+      } catch (_) { /* fall through to legacy /geo/reverse */ }
+      // Legacy fallback (older /geo/reverse — kept for safety).
+      try {
+        const { data } = await api.get("/geo/reverse", { params: { lat, lng, lang: "ar" } });
         if (data?.out_of_area) {
-          setForm(f => ({
-            ...f,
-            lat,
-            lng
-          }));
+          setForm(f => ({ ...f, lat, lng }));
           Alert.alert("⚠️", t("موقعك خارج المنطقة المدعومة. اختر المدينة يدوياً."));
         } else if (data?.city) {
-          setForm(f => ({
-            ...f,
-            lat,
-            lng,
-            city: data.city,
-            district: data.district || ""
-          }));
+          setForm(f => ({ ...f, lat, lng, city: data.city, district: data.district || "" }));
           Alert.alert("✅", `${t("تم اقتراح:")} ${data.city}${data.district ? " — " + data.district : ""}\n${t("يمكنك تغييرها يدوياً.")}`);
         } else {
-          setForm(f => ({
-            ...f,
-            lat,
-            lng
-          }));
+          setForm(f => ({ ...f, lat, lng }));
           Alert.alert("✅", t("تم تحديد موقعك. اختر المدينة يدوياً."));
         }
       } catch (_) {
-        setForm(f => ({
-          ...f,
-          lat,
-          lng
-        }));
+        setForm(f => ({ ...f, lat, lng }));
         Alert.alert("✅", t("تم تحديد موقعك"));
       }
     } catch (_) {

@@ -333,27 +333,47 @@ export default function PostListing() {
     const [geoBusy, setGeoBusy] = useState(false);
     const [geoMsg, setGeoMsg] = useState("");
 
-    // Try to auto-fill city + district from the user's current GPS location.
-    // Falls back gracefully if the user denies permission or the area is outside our service zone.
+    // Try to auto-fill the cascading location picker from the user's GPS.
+    // Primary: hit our Geonames-backed /locations/locate (returns full path).
+    // Fallback: legacy /geo/reverse (city/district strings only).
     const geoLocateAndFill = () => {
         if (!navigator.geolocation) { setGeoMsg(tr("❌ المتصفح لا يدعم تحديد الموقع")); return; }
         setGeoBusy(true); setGeoMsg("");
         navigator.geolocation.getCurrentPosition(
             async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                // 1) Try Geonames cascading reverse-geocode.
                 try {
-                    const { data } = await api.get("/geo/reverse", {
-                        params: { lat: pos.coords.latitude, lng: pos.coords.longitude, lang: "ar" },
+                    const { data } = await api.get("/locations/locate", {
+                        params: { lat, lng, country: country?.code || "EG", lang },
                     });
+                    const sel = data?.selection || {};
+                    const leaf = sel.city || sel.adm3 || sel.adm2 || sel.adm1;
+                    if (leaf) {
+                        setForm((f) => ({
+                            ...f,
+                            lat, lng,
+                            location: sel,
+                            city: sel.adm2?.name || sel.adm1?.name || leaf.name,
+                            district: sel.adm3?.name || sel.city?.name || "",
+                        }));
+                        setGeoMsg(`✓ ${tr("تم اقتراح:")} ${leaf.name} ${tr("(يمكنك تغييرها)")}`);
+                        setGeoBusy(false);
+                        return;
+                    }
+                } catch (_) { /* fall through to legacy reverse */ }
+                // 2) Legacy fallback.
+                try {
+                    const { data } = await api.get("/geo/reverse", { params: { lat, lng, lang: "ar" } });
                     if (data.out_of_area) {
                         setGeoMsg(tr("⚠️ موقعك خارج المنطقة المدعومة (الخليج + مصر). يرجى اختيار المدينة يدوياً."));
                     } else if (!data.city) {
                         setGeoMsg(tr("⚠️ تعذّر تحديد المدينة من موقعك. اختر يدوياً من القائمة."));
                     } else {
-                        // Save lat/lng + city + district. User can change manually afterwards.
                         setForm((f) => ({
                             ...f,
-                            lat: pos.coords.latitude,
-                            lng: pos.coords.longitude,
+                            lat, lng,
                             city: data.city,
                             district: data.district || "",
                         }));

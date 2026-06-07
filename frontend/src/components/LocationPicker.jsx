@@ -12,7 +12,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, X, Search as SearchIcon, MapPin, Check } from "lucide-react";
 import api from "@/lib/api";
 import { useI18n, tr } from "@/contexts/I18nContext";
-
 const LEVELS_BY_COUNTRY = {
     EG: ["adm1", "adm2", "adm3", "city"],
     default: ["adm2", "city"],
@@ -152,7 +151,26 @@ function LevelRow({ country, level, value, parent, lang, onPick, disabled }) {
 
 export default function LocationPicker({ country = "EG", value, onChange, className = "" }) {
     const { lang } = useI18n();
-    const levels = levelsFor(country);
+    const [supportedCountries, setSupportedCountries] = useState(null);
+    // Auto-fallback: if the requested country has no imported data yet (e.g.
+    // user is on SA but only EG is seeded), silently switch to EG so the
+    // dropdown is never empty.
+    useEffect(() => {
+        let cancelled = false;
+        api.get("/locations/countries")
+            .then((r) => { if (!cancelled) setSupportedCountries((r.data || []).map((x) => x.code)); })
+            .catch(() => { if (!cancelled) setSupportedCountries([]); });
+        return () => { cancelled = true; };
+    }, []);
+
+    const effectiveCountry = useMemo(() => {
+        if (!supportedCountries || supportedCountries.length === 0) return country;
+        if (supportedCountries.includes(country)) return country;
+        return supportedCountries.includes("EG") ? "EG" : supportedCountries[0];
+    }, [country, supportedCountries]);
+
+    const levels = levelsFor(effectiveCountry);
+    const showFallbackNotice = effectiveCountry !== country && supportedCountries && supportedCountries.length > 0;
 
     const handlePick = (level, item) => {
         const idx = levels.indexOf(level);
@@ -164,23 +182,30 @@ export default function LocationPicker({ country = "EG", value, onChange, classN
     };
 
     return (
-        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${className}`} data-testid="location-picker-root">
-            {levels.map((lvl, i) => {
-                const parent = i === 0 ? null : value?.[levels[i - 1]];
-                const disabled = i > 0 && !parent;
-                return (
-                    <LevelRow
-                        key={`${country}-${lvl}-${lang}`}
-                        country={country}
-                        level={lvl}
-                        value={value?.[lvl]}
-                        parent={parent}
-                        lang={lang}
-                        disabled={disabled}
-                        onPick={(item) => handlePick(lvl, item)}
-                    />
-                );
-            })}
+        <div className={className} data-testid="location-picker-root">
+            {showFallbackNotice && (
+                <div className="mb-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300 font-arabic-body">
+                    {tr("بيانات الموقع متاحة حالياً لـ")} <strong>{effectiveCountry}</strong> {tr("فقط — استخدامه مؤقتاً.")}
+                </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {levels.map((lvl, i) => {
+                    const parent = i === 0 ? null : value?.[levels[i - 1]];
+                    const disabled = i > 0 && !parent;
+                    return (
+                        <LevelRow
+                            key={`${effectiveCountry}-${lvl}-${lang}`}
+                            country={effectiveCountry}
+                            level={lvl}
+                            value={value?.[lvl]}
+                            parent={parent}
+                            lang={lang}
+                            disabled={disabled}
+                            onPick={(item) => handlePick(lvl, item)}
+                        />
+                    );
+                })}
+            </div>
         </div>
     );
 }

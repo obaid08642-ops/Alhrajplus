@@ -377,6 +377,92 @@ def build_router(db, get_current_user_optional=None) -> APIRouter:
             result.append({"code": cc, "name": cc})
         return result
 
+    @router.get("/locate")
+    async def locate(
+        lat: float = Query(...),
+        lng: float = Query(...),
+        country: Optional[str] = Query(None),
+        lang: str = Query("en"),
+    ):
+        """Reverse-geocode GPS → full breadcrumb path inside our Geonames-backed
+        collection. Returns `{adm1, adm2, adm3, city}` (only the levels that
+        have a candidate) so the front-end can pre-populate the cascading
+        picker with one call.
+
+        Algorithm: pick the country (auto-fallback to EG if the requested
+        one has no data), find the leaf-most level present, return the row
+        with the smallest haversine distance, then walk parents up.
+        Cached for 60 s — GPS rarely changes that quickly.
+        """
+        lang = lang if lang in SUPPORTED_LANGS else "en"
+        cc = (country or "").upper()
+        # Auto-fallback: if requested country has no data, pick the first one that does.
+        available = await db.locations.distinct("country")
+        if cc not in available:
+            cc = "EG" if "EG" in available else (available[0] if available else "")
+        if not cc:
+            raise HTTPException(404, "no location data imported")
+
+        cache_key = ("locate", round(lat, 3), round(lng, 3), cc, lang)
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
+        # Pick the deepest level that exists for this country.
+        priority = ["city", "adm3", "adm2", "adm1"]
+        leaf_level = None
+        for lvl in priority:
+            if await db.locations.count_documents({"country": cc, "level": lvl}) > 0:
+                leaf_level = lvl
+                break
+        if not leaf_level:
+            raise HTTPException(404, f"no rows for {cc}")
+
+        # Find nearest by scanning bounding box (cheap — 1° ≈ 111 km).
+        BOX = 0.5  # ±0.5° ≈ 55 km — large enough to catch nearest even in deserts.
+        cur = db.locations.find({
+            "country": cc, "level": leaf_level,
+            "lat": {"$gte": lat - BOX, "$lte": lat + BOX},
+            "lng": {"$gte": lng - BOX, "$lte": lng + BOX},
+        }, projection={"_id": 1, "lat": 1, "lng": 1, "parent_id": 1}).limit(2000)
+        candidates = [d async for d in cur]
+        if not candidates:
+            # Widen — fall back to a country-wide top-population scan.
+            cur = db.locations.find({"country": cc, "level": leaf_level}, projection={"_id": 1, "lat": 1, "lng": 1, "parent_id": 1}).sort("population", -1).limit(500)
+            candidates = [d async for d in cur]
+        if not candidates:
+            raise HTTPException(404, "no candidates")
+
+        def _hav(la1, lo1, la2, lo2):
+            from math import radians, sin, cos, asin, sqrt
+            la1, lo1, la2, lo2 = map(radians, (la1, lo1, la2, lo2))
+            dlat = la2 - la1
+            dlon = lo2 - lo1
+            a = sin(dlat / 2) ** 2 + cos(la1) * cos(la2) * sin(dlon / 2) ** 2
+            return 6371.0 * 2 * asin(sqrt(a))
+
+        nearest = min(candidates, key=lambda d: _hav(lat, lng, d.get("lat") or 0.0, d.get("lng") or 0.0))
+
+        # Walk parents to build the full path.
+        path: List[Dict] = []
+        cur_id = nearest["_id"]
+        seen = set()
+        while cur_id and cur_id not in seen:
+            seen.add(cur_id)
+            doc = await db.locations.find_one({"_id": cur_id}, projection={"_id": 1, "country": 1, "level": 1, "parent_id": 1, "names": 1, "name": 1, "lat": 1, "lng": 1, "population": 1})
+            if not doc:
+                break
+            path.append(_localise(doc, lang))
+            cur_id = doc.get("parent_id")
+
+        # Build the {adm1,adm2,adm3,city} result.
+        out: Dict[str, Dict] = {}
+        for node in path:
+            out[node["level"]] = node
+        result = {"country": cc, "selection": out, "matched_id": nearest["_id"]}
+        _cache_set(cache_key, result)
+        return result
+
     @router.get("/children")
     async def list_children(
         parent_id: Optional[int] = Query(None),

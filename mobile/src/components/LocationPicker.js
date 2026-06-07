@@ -46,7 +46,27 @@ function labelFor(t, country, level) {
 export default function LocationPicker({ country = "EG", value, onChange }) {
   const { t, lang } = useI18n();
   const { palette } = useThemeMode();
-  const levels = levelsFor(country);
+  const [supportedCountries, setSupportedCountries] = useState(null);
+
+  // Auto-fallback: ask the backend which countries have imported data.
+  // If the user's selected country is not yet seeded, silently switch to EG
+  // so the dropdown is never empty.
+  useEffect(() => {
+    let cancelled = false;
+    api.get("/locations/countries")
+      .then(r => { if (!cancelled) setSupportedCountries((r.data || []).map(x => x.code)); })
+      .catch(() => { if (!cancelled) setSupportedCountries([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const effectiveCountry = useMemo(() => {
+    if (!supportedCountries || supportedCountries.length === 0) return country;
+    if (supportedCountries.includes(country)) return country;
+    return supportedCountries.includes("EG") ? "EG" : supportedCountries[0];
+  }, [country, supportedCountries]);
+  const showFallbackNotice = effectiveCountry !== country && supportedCountries && supportedCountries.length > 0;
+
+  const levels = levelsFor(effectiveCountry);
   const [openLevel, setOpenLevel] = useState(null);
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,13 +80,13 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
     setLoading(true);
     setOptions([]);
     setQuery("");
-    const params = { lang, level: openLevel, country, limit: 800 };
+    const params = { lang, level: openLevel, country: effectiveCountry, limit: 800 };
     if (parent?.id) params.parent_id = parent.id;
     api.get("/locations/children", { params })
       .then(r => setOptions(Array.isArray(r.data) ? r.data : []))
       .catch(() => setOptions([]))
       .finally(() => setLoading(false));
-  }, [openLevel, value, lang, country]);
+  }, [openLevel, value, lang, effectiveCountry]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return options;
@@ -87,12 +107,19 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
   const styles = makeStyles(palette);
   return (
     <View>
+      {showFallbackNotice ? (
+        <View style={{ marginBottom: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: palette.surfaceCard, borderWidth: 1, borderColor: palette.border }}>
+          <Text style={{ fontSize: 11, color: palette.textMuted, textAlign: "right" }}>
+            {t("بيانات الموقع متاحة حالياً لـ")} <Text style={{ fontWeight: "900", color: palette.text }}>{effectiveCountry}</Text> {t("فقط — استخدامه مؤقتاً.")}
+          </Text>
+        </View>
+      ) : null}
       {levels.map((lvl, i) => {
         const prevSelected = i === 0 || value?.[levels[i - 1]];
         const sel = value?.[lvl];
         return (
           <View key={lvl} style={styles.row}>
-            <Text style={styles.label}>{labelFor(t, country, lvl)}</Text>
+            <Text style={styles.label}>{labelFor(t, effectiveCountry, lvl)}</Text>
             <TouchableOpacity
               onPress={() => prevSelected && setOpenLevel(lvl)}
               disabled={!prevSelected}
@@ -113,7 +140,7 @@ export default function LocationPicker({ country = "EG", value, onChange }) {
         <View style={styles.modalBg}>
           <View style={styles.sheet}>
             <View style={styles.sheetHead}>
-              <Text style={styles.sheetTitle}>{labelFor(t, country, openLevel || "city")}</Text>
+              <Text style={styles.sheetTitle}>{labelFor(t, effectiveCountry, openLevel || "city")}</Text>
               <TouchableOpacity onPress={() => setOpenLevel(null)} testID="location-picker-close">
                 <X size={22} color={palette.text} />
               </TouchableOpacity>
