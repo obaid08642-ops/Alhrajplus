@@ -7860,9 +7860,16 @@ async def startup():
     async def _auto_seed_locations():
         try:
             existing = await db.locations.count_documents({"country": "EG"})
-            if existing > 0:
-                logger.info(f"[locations-seed] EG already has {existing} rows — skipping auto-seed")
+            master_existing = await db.locations.count_documents({"country": "EG", "source": "master"})
+            # Re-seed if: DB is empty OR DB has only legacy/Geonames rows
+            # (no `source: master` rows yet). This makes the deploy idempotent
+            # even when the previous Geonames seed already populated the DB.
+            if existing > 0 and master_existing > 0:
+                logger.info(f"[locations-seed] EG already has {master_existing} master rows — skipping")
                 return
+            if existing > 0 and master_existing == 0:
+                logger.info(f"[locations-seed] found {existing} legacy EG rows — wiping for master re-seed")
+                await db.locations.delete_many({"country": "EG"})
             # Prefer the hand-curated master file when present; fall back to
             # the raw Geonames dump.
             master_path = os.path.join(os.path.dirname(__file__), "data", "egypt_master.json")
