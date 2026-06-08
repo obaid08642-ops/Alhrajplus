@@ -14,7 +14,13 @@ import api from "@/lib/api";
 import { useI18n, tr } from "@/contexts/I18nContext";
 const LEVELS_BY_COUNTRY = {
     EG: ["adm1", "adm2", "adm3", "city"],
-    default: ["adm2", "city"],
+    SA: ["adm1", "adm2", "adm3"],
+    AE: ["adm1", "adm2"],
+    KW: ["adm1", "adm2"],
+    QA: ["adm1", "adm2"],
+    BH: ["adm1", "adm2"],
+    OM: ["adm1", "adm2"],
+    default: ["adm1", "adm2"],
 };
 
 function levelsFor(country) {
@@ -28,8 +34,26 @@ function labelFor(country, level) {
         if (level === "adm3") return tr("الحي / القسم");
         if (level === "city") return tr("القرية / المنطقة");
     }
+    if (country === "SA") {
+        if (level === "adm1") return tr("المنطقة");
+        if (level === "adm2") return tr("المدينة");
+        if (level === "adm3") return tr("الحي");
+    }
+    if (country === "AE") {
+        if (level === "adm1") return tr("الإمارة");
+        if (level === "adm2") return tr("المدينة");
+    }
+    if (country === "QA") {
+        if (level === "adm1") return tr("البلدية");
+        if (level === "adm2") return tr("المدينة");
+    }
+    if (country === "KW" || country === "BH" || country === "OM") {
+        if (level === "adm1") return tr("المحافظة");
+        if (level === "adm2") return tr("المدينة");
+    }
     if (level === "adm1") return tr("المنطقة");
     if (level === "adm2") return tr("المدينة");
+    if (level === "adm3") return tr("الحي");
     if (level === "city") return tr("الحي");
     return tr("الموقع");
 }

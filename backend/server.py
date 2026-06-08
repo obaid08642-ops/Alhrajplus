@@ -7913,7 +7913,64 @@ async def startup():
             logger.info(f"[locations-seed] ✓ inserted {cnt} EG locations on first boot")
         except Exception as e:
             logger.exception(f"[locations-seed] failed: {e}")
+
+    # ───────────────────────────────────────────────────────────────────
+    # Auto-seed Gulf countries (SA / AE / KW / QA / BH / OM) from
+    # /app/backend/data/gulf_master.txt. Independent of EG seed — does NOT
+    # touch any EG records. Re-seeds whenever the existing rows lack the
+    # `source: master` marker (legacy Geonames rows) OR when the row-count
+    # differs significantly from the parsed master file (data refresh).
+    # ───────────────────────────────────────────────────────────────────
+    async def _auto_seed_gulf_locations():
+        try:
+            gulf_path = os.path.join(os.path.dirname(__file__), "data", "gulf_master.txt")
+            if not os.path.exists(gulf_path):
+                logger.info(f"[gulf-seed] no source file at {gulf_path} — skip")
+                return
+            from master_gulf_parser import parse_gulf_file
+            records, stats = parse_gulf_file(gulf_path)
+            if not records:
+                logger.warning("[gulf-seed] parser returned 0 records — skip")
+                return
+            logger.info(f"[gulf-seed] master file parsed: {stats}")
+
+            GULF_CCS = ["SA", "AE", "KW", "QA", "BH", "OM"]
+            # Re-seed condition: any of the 6 countries lacks `source: master` rows
+            # or its master-row count drifts from what the parser yields.
+            needs_seed = False
+            target_counts = {cc: sum(1 for r in records if r["country"] == cc) for cc in GULF_CCS}
+            for cc in GULF_CCS:
+                master_n = await db.locations.count_documents({"country": cc, "source": "master"})
+                if master_n != target_counts.get(cc, 0):
+                    needs_seed = True
+                    logger.info(f"[gulf-seed] {cc}: master={master_n}, target={target_counts.get(cc, 0)} → reseed needed")
+                    break
+            if not needs_seed:
+                logger.info("[gulf-seed] all Gulf countries already up-to-date — skipping")
+                return
+
+            # Wipe ONLY the 6 Gulf countries (NEVER touch EG).
+            wipe_filter = {"country": {"$in": GULF_CCS}}
+            wiped = await db.locations.delete_many(wipe_filter)
+            logger.info(f"[gulf-seed] wiped {wiped.deleted_count} legacy Gulf rows")
+
+            logger.info(f"[gulf-seed] inserting {len(records)} Gulf records...")
+            try:
+                await db.locations.insert_many(records, ordered=False)
+            except Exception:
+                for r in records:
+                    await db.locations.replace_one({"_id": r["_id"]}, r, upsert=True)
+            await db.locations.create_index([("country", 1), ("level", 1)])
+            await db.locations.create_index([("parent_id", 1)])
+            await db.locations.create_index([("country", 1), ("name", 1)])
+            for cc in GULF_CCS:
+                cnt = await db.locations.count_documents({"country": cc})
+                logger.info(f"[gulf-seed] ✓ {cc}: {cnt} rows")
+        except Exception as e:
+            logger.exception(f"[gulf-seed] failed: {e}")
+
     asyncio.create_task(_auto_seed_locations())
+    asyncio.create_task(_auto_seed_gulf_locations())
 
     # Seed admin (idempotent)
     existing = await db.users.find_one({"email": ADMIN_EMAIL})

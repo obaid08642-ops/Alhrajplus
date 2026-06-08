@@ -16,19 +16,24 @@ import { View, Text, TouchableOpacity, Modal, TextInput, FlatList, ActivityIndic
 import { ChevronDown, X, Search as SearchIcon, MapPin } from "lucide-react-native";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
+import api from "../api";
 
-// 🔒 EMERGENCY HARDCODE — the EAS / Expo Go environment was not injecting
-// the correct backendUrl into the active bundle, causing the picker to hit
-// a stale `alhrajplus.onrender.com` server that doesn't have the new
-// `/api/locations/*` module. We pin the URL here so the picker ALWAYS
-// reaches the live Geonames-backed endpoints regardless of build profile.
-const LOCATIONS_BASE = "https://platform-inspect.preview.emergentagent.com/api/locations";
+// 🔒 URL is loaded from EXPO_PUBLIC_BACKEND_URL via the shared `api`
+// instance — never hardcode preview URLs here.
 
-// Egypt has 4 levels (adm1=governorate, adm2=city/markaz, adm3=district,
-// city=village/locality). Gulf has 3 (adm2=city, city=district).
+// Country-specific level hierarchies.
+//   • Egypt (EG): adm1=governorate → adm2=city/markaz → adm3=district → city=village (4 levels)
+//   • Saudi (SA): adm1=region      → adm2=city       → adm3=district          (3 levels)
+//   • UAE / Kuwait / Qatar / Bahrain / Oman: adm1=state/emirate/gov/municipality → adm2=city (2 levels)
 const LEVELS_BY_COUNTRY = {
   EG: ["adm1", "adm2", "adm3", "city"],
-  default: ["adm2", "city"],
+  SA: ["adm1", "adm2", "adm3"],
+  AE: ["adm1", "adm2"],
+  KW: ["adm1", "adm2"],
+  QA: ["adm1", "adm2"],
+  BH: ["adm1", "adm2"],
+  OM: ["adm1", "adm2"],
+  default: ["adm1", "adm2"],
 };
 
 function levelsFor(country) {
@@ -36,15 +41,32 @@ function levelsFor(country) {
 }
 
 function labelFor(t, country, level) {
-  // Owner-mandated labels in Arabic; translator handles other langs.
   if (country === "EG") {
     if (level === "adm1") return t("المحافظة");
     if (level === "adm2") return t("المدينة / المركز");
     if (level === "adm3") return t("الحي / القسم");
     if (level === "city") return t("القرية / المنطقة");
   }
+  if (country === "SA") {
+    if (level === "adm1") return t("المنطقة");
+    if (level === "adm2") return t("المدينة");
+    if (level === "adm3") return t("الحي");
+  }
+  if (country === "AE") {
+    if (level === "adm1") return t("الإمارة");
+    if (level === "adm2") return t("المدينة");
+  }
+  if (country === "QA") {
+    if (level === "adm1") return t("البلدية");
+    if (level === "adm2") return t("المدينة");
+  }
+  if (country === "KW" || country === "BH" || country === "OM") {
+    if (level === "adm1") return t("المحافظة");
+    if (level === "adm2") return t("المدينة");
+  }
   if (level === "adm1") return t("المنطقة");
   if (level === "adm2") return t("المدينة");
+  if (level === "adm3") return t("الحي");
   if (level === "city") return t("الحي");
   return t("الموقع");
 }

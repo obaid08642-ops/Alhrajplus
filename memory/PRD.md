@@ -51,7 +51,27 @@ Native rebuild of Mobile App (Expo) to reach 100% feature/UI parity with Web. Ne
 ```
 
 ## Pending
-- **P0 (next, waiting on user):** Gulf country GeoNames files (SA / AE / KW / QA / BH / OM) → `POST /api/locations/admin/import?country=XX`. Cache + frontend already ready; the moment SA is imported, the auto-fallback gracefully steps aside.
+- All location work complete for Egypt + 6 Gulf countries. **Awaiting user production validation on Render.**
+
+## Locations Architecture — Phase D (Gulf Expansion) — ✅ DONE (2026-02)
+
+- **Data ingested from `/app/backend/data/gulf_master.txt`** via new `master_gulf_parser.py`:
+  - 🇸🇦 SA: 5 regions, 28 cities, 812 districts (3 levels: Region → City → District)
+  - 🇦🇪 AE: 7 emirates, 36 cities (2 levels: Emirate → City)
+  - 🇰🇼 KW: 6 governorates, 34 cities (2 levels: Governorate → City)
+  - 🇶🇦 QA: 7 municipalities, 20 cities (2 levels: Municipality → City)
+  - 🇧🇭 BH: 4 governorates, 21 cities (2 levels: Governorate → City)
+  - 🇴🇲 OM: 6 governorates, 30 cities (2 levels: Governorate → City)
+  - **Total Gulf rows: 1016** | EG untouched at 3507 rows.
+- **Auto-seed** added in `server.py` (`_auto_seed_gulf_locations()`): only wipes 6 Gulf countries (NEVER EG) and re-seeds when row counts drift from the parser output.
+- **Dynamic cascading dropdowns** in `LocationPicker.jsx` (web) + `LocationPicker.js` (mobile):
+  - SA: 3 dropdowns (المنطقة → المدينة → الحي).
+  - AE: الإمارة → المدينة.
+  - QA: البلدية → المدينة.
+  - KW / BH / OM: المحافظة → المدينة.
+  - EG: unchanged (المحافظة → المدينة/المركز → الحي/القسم → القرية/المنطقة).
+- No country selector inside the picker — driven by the active country context (from `/api/locations/detect-country` or app-wide setting).
+- **Cleanup:** removed hardcoded preview URL from mobile picker; added missing `api` import (pre-existing bug).
 
 ## Backlog (P2)
 - AR Try-On (fashion/glasses), Escrow Payments + Wallet Topup, WebRTC voice/video, Blockchain Verified Seller.
