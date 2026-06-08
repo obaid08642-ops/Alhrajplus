@@ -127,7 +127,12 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
             {m.reply_to && (
                 <div className="reply-quote">
                     <div className="font-bold text-[11px]">{m.reply_to.sender_name || (mine ? tr("أنت") : tr("الطرف الآخر"))}</div>
-                    <div className="line-clamp-2">{m.reply_to.text || (m.reply_to.image ? "📷 صورة" : "🎙️ صوت")}</div>
+                    <div className="line-clamp-2">{
+                        m.reply_to.image || /^📷\s+https?:\/\//.test(m.reply_to.text || "") ? "📷 صورة"
+                        : m.reply_to.voice || /^🎙️\s+https?:\/\//.test(m.reply_to.text || "") ? "🎙️ صوت"
+                        : m.reply_to.location || /^📍\s+https?:\/\//.test(m.reply_to.text || "") ? "📍 موقع"
+                        : m.reply_to.text || ""
+                    }</div>
                 </div>
             )}
             {m.image && <img src={m.image} alt="" onClick={() => onImageClick(m.image)} className="rounded-lg max-w-full max-h-64 object-cover cursor-zoom-in" />}
@@ -145,10 +150,27 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
                     </div>
                 </a>
             )}
-            {m.text && (
+            {/* Backward-compat: legacy mobile messages stored URLs inside `text`
+                with an emoji prefix (📷 / 🎙️ / 📍). Hide that text in the
+                bubble — the URL is rendered as media just above/below. */}
+            {m.text && !/^(📷|🎙️|📍)\s+https?:\/\//.test(m.text) && (
                 <span className="whitespace-pre-wrap" data-testid="bubble-text">
                     {linkify(m.text)}
                 </span>
+            )}
+            {/* If a legacy text-with-emoji-URL message has NO media field,
+                render the media from the embedded URL so the recipient still
+                sees the image/voice/location, not the raw link. */}
+            {m.text && /^📷\s+https?:\/\//.test(m.text) && !m.image && (
+                <img src={m.text.slice("📷 ".length).trim()} alt="" onClick={() => onImageClick(m.text.slice("📷 ".length).trim())} className="rounded-lg max-w-full max-h-64 object-cover cursor-zoom-in" />
+            )}
+            {m.text && /^🎙️\s+https?:\/\//.test(m.text) && !m.voice && (
+                <audio controls src={m.text.slice("🎙️ ".length).trim()} className="max-w-full mt-1" />
+            )}
+            {m.text && /^📍\s+https?:\/\//.test(m.text) && !m.location && (
+                <a href={m.text.slice("📍 ".length).trim()} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 underline">
+                    <MapPin className="w-4 h-4" /> {tr("عرض الموقع")}
+                </a>
             )}
             {translation && (
                 <div className="mt-1 pt-1 border-t border-black/10 text-[12px] italic flex gap-1">
@@ -165,9 +187,9 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
                 {mine && (
                     m.failed ? <span className="text-red-500 font-bold" title={tr("فشل الإرسال")}>!</span>
                     : m.pending ? <Check className="w-3 h-3 opacity-60" />
-                    : m.read_at ? <CheckCheck className="w-3 h-3" style={{ color: "#3b82f6" }} />
-                    : m.delivered ? <CheckCheck className="w-3 h-3 opacity-80" />
-                    : <Check className="w-3 h-3 opacity-80" />
+                    : m.read_at ? <CheckCheck className="w-3.5 h-3.5" style={{ color: "#B5E61D", strokeWidth: 3 }} />
+                    : m.delivered ? <CheckCheck className="w-3.5 h-3.5" style={{ color: "rgba(181,230,29,0.55)", strokeWidth: 3 }} />
+                    : <Check className="w-3.5 h-3.5" style={{ color: "#B5E61D", strokeWidth: 3 }} />
                 )}
             </span>
             {/* Reactions chips — WhatsApp-style under the bubble */}

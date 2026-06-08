@@ -422,6 +422,14 @@ function ChatThread({
         read_at: ev.ts
       } : m));
     });
+    const unsubDelivered = subscribe("delivered", ev => {
+      if (ev.convo_id && ev.convo_id !== convoId) return;
+      setMessages(prev => prev.map(m => m.id === ev.message_id ? {
+        ...m,
+        delivered: true,
+        delivered_at: ev.ts || new Date().toISOString()
+      } : m));
+    });
     const unsubPresence = subscribe("presence", ev => {
       if (ev.user_id === other.id) setPresence({
         online: !!ev.online,
@@ -437,6 +445,7 @@ function ChatThread({
       unsubMsg();
       unsubTyping();
       unsubRead();
+      unsubDelivered();
       unsubPresence();
       unsubReact();
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -573,7 +582,8 @@ function ChatThread({
         } = await api.post("/chat/send", {
           receiver_id: other.id,
           listing_id: listing?.id || null,
-          text: `📷 ${out.secure_url}`
+          image: out.secure_url,
+          text: null
         });
         setMessages(m => [...m, data]);
       }
@@ -594,13 +604,13 @@ function ChatThread({
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
-      const url = `https://maps.google.com/?q=${loc.coords.latitude},${loc.coords.longitude}`;
       const {
         data
       } = await api.post("/chat/send", {
         receiver_id: other.id,
         listing_id: listing?.id || null,
-        text: `📍 ${url}`
+        location: { lat: loc.coords.latitude, lng: loc.coords.longitude },
+        text: null
       });
       setMessages(m => [...m, data]);
     } catch (_) {
@@ -668,7 +678,7 @@ function ChatThread({
             listing_id: listing?.id || null,
             voice: out.secure_url,
             voice_duration_ms: duration_ms,
-            text: `🎙️ ${out.secure_url}`
+            text: null
           });
           setMessages(m => [...m, data]);
         }
@@ -823,9 +833,11 @@ function ChatThread({
                     index
                   }) => {
                     const prev = messages[index - 1];
-                    const showDay = !prev || fmtDay(prev.created_at) !== fmtDay(item.created_at);
+                    const prevTs = prev?.ts || prev?.created_at;
+                    const itemTs = item.ts || item.created_at;
+                    const showDay = !prev || fmtDay(prevTs) !== fmtDay(itemTs);
                     return <>
-                              {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(item.created_at)}</Text></View>}
+                              {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(itemTs)}</Text></View>}
                               <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setLongPressMsg} onSwipeReply={setReplyTo} />
                           </>;
                   }} ListFooterComponent={otherTyping ? <TypingIndicator /> : null} onContentSizeChange={() => listRef.current?.scrollToEnd({
@@ -1035,17 +1047,28 @@ function MessageBubble({
     },
   })).current;
   const text = m.text || "";
-  const isImage = text.startsWith("📷 ");
-  const isVoice = text.startsWith("🎙️ ");
-  const isLocation = text.startsWith("📍 ");
-  // 🛑 CRITICAL bug fix: previous code used `text.slice(2)` to strip the
-  // emoji prefix — but 🎙️ is a 3-code-unit grapheme (surrogate pair +
-  // variation selector U+FE0F). slice(2) left a stray U+FE0F at the URL's
-  // start which corrupted Cloudinary playback. Use the full prefix length.
-  const url = isImage ? text.slice("📷 ".length).trim()
-            : isVoice ? text.slice("🎙️ ".length).trim()
-            : isLocation ? text.slice("📍 ".length).trim()
-            : null;
+  // ✅ NEW unified schema: read media from dedicated fields (matches Web).
+  //    Fallback (backward-compat): older messages stored the URL inside `text`
+  //    with an emoji prefix — keep parsing those so the history still renders.
+  const legacyImage = text.startsWith("📷 ");
+  const legacyVoice = text.startsWith("🎙️ ");
+  const legacyLocation = text.startsWith("📍 ");
+  const isImage = !!m.image || legacyImage;
+  const isVoice = !!m.voice || legacyVoice;
+  const isLocation = !!m.location || legacyLocation;
+  // Build the URL (or coords) for whichever media this message carries.
+  let url = null;
+  if (m.image) url = m.image;
+  else if (m.voice) url = m.voice;
+  else if (m.location && (m.location.lat != null) && (m.location.lng != null))
+    url = `https://maps.google.com/?q=${m.location.lat},${m.location.lng}`;
+  else if (legacyImage) url = text.slice("📷 ".length).trim();
+  else if (legacyVoice) url = text.slice("🎙️ ".length).trim();
+  else if (legacyLocation) url = text.slice("📍 ".length).trim();
+  // Hide the raw URL when the message has a media field (web→mobile would
+  // otherwise dump the bare Cloudinary link below the player).  Plain text
+  // messages still render through the normal `text` path below.
+  const showText = !isImage && !isVoice && !isLocation && text.length > 0;
   // Strict null-guard per owner mandate — never destructure or access reply_to
   // sub-properties unless explicitly validated. Prevents the runtime crash
   // "Property 'replyTo' doesn't exist" reported on the previous build.
@@ -1092,17 +1115,23 @@ function MessageBubble({
                         <Text style={[s.bubbleText, isMine && {
           color: "#fff"
         }]}>{t("📍 الموقع المشترك")}</Text>
-                    </TouchableOpacity> : <Text style={[s.bubbleText, isMine && {
+                    </TouchableOpacity> : showText ? <Text style={[s.bubbleText, isMine && {
         color: "#fff"
-      }]} selectable>{renderLinkedText(text, isMine)}</Text>}
+      }]} selectable>{renderLinkedText(text, isMine)}</Text> : null}
                 <View style={[s.metaRow, isImage && {
         paddingHorizontal: 8,
         paddingBottom: 4
       }]}>
                     <Text style={[s.metaTime, isMine && {
-          color: "rgba(255,255,255,0.75)"
-        }]}>{fmtTime(m.created_at)}</Text>
-                    {isMine && (m.read ? <CheckCheck size={13} color="#B5E61D" strokeWidth={3} /> : <Check size={13} color="rgba(255,255,255,0.75)" />)}
+          color: "rgba(255,255,255,0.85)"
+        }]}>{fmtTime(m.ts || m.created_at)}</Text>
+                    {isMine && (
+                      m.failed ? <Text style={{ color: "#fca5a5", fontSize: 12, fontWeight: "900" }}>!</Text>
+                      : m.pending ? <Check size={13} color="rgba(255,255,255,0.55)" />
+                      : m.read ? <CheckCheck size={14} color="#B5E61D" strokeWidth={3} />
+                      : m.delivered ? <CheckCheck size={14} color="rgba(181,230,29,0.55)" strokeWidth={3} />
+                      : <Check size={14} color="#B5E61D" strokeWidth={3} />
+                    )}
                 </View>
             </View>
             {/* Reactions row — rendered just below the bubble, slightly offset
