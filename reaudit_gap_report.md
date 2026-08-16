@@ -122,3 +122,7 @@
 أُضيف handler صريح لمسار `/notifications` في Mobile، مع دعم الروابط المطلقة التي يرسلها backend وتطبيعها إلى path داخلي، ثم أُعيد تشغيل Expo export بنجاح. كما تم التأكد من أن backend يملك endpoints فعلية لـ`/notifications`, `/push/register`, `/auctions`, و`/listing-offers`، وأن تسجيل Expo token يعتمد على user authentication.
 
 اختبارات `pytest` الخاصة بالbackend لم تستطع تنفيذ integration لأنها مبرمجة افتراضيًا على `127.0.0.1:8000` والخادم المحلي غير مشغّل في البيئة الحالية؛ هذا **ليس فشلًا مثبتًا في الكود** ولا يجوز اعتباره نجاح staging. يلزم تشغيل backend أو استخدام URL staging صالح مع حسابات اختبار قبل إغلاق chat/push/admin/Cloudinary/Redis.
+
+### منع البيانات الوهمية في الإدارة
+
+تم تعديل `DataIntegrityPanel` بحيث لا يعرض أصفارًا افتراضية عند فشل `/admin/data-integrity`. أصبحت النتيجة حالة خطأ صريحة، لأن عرض «لا توجد مشاكل» عند تعذر الاتصال كان قد يعطي انطباعًا مضللًا عن سلامة البيانات. كما تم إغلاق آخر ESLint warning في Auth، ونجح Web production build بـ`Compiled successfully` دون تحذيرات.
