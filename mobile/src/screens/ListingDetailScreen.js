@@ -964,21 +964,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     lineHeight: 28
   },
-  /* demoBadge removed: production listings use real moderation/status data. */
-  demoBadge: {
-    marginTop: 12,
-    padding: 10,
-    borderRadius: theme.radius.md,
-    backgroundColor: "#FEF3C7",
-    borderWidth: 1,
-    borderColor: "#F59E0B",
-    alignItems: "center"
-  },
-  demoBadgeText: {
-    color: "#92400E",
-    fontWeight: "900",
-    fontSize: 13
-  },
   model3dBtn: {
     position: "absolute",
     top: 54,
