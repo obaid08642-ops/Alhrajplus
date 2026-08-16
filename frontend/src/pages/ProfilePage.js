@@ -56,7 +56,7 @@ function CountryCard() {
 }
 
 export default function ProfilePage() {
-    const { user, loading, logout } = useAuth();
+    const { user, loading, logout, updateUser } = useAuth();
     const { t, tr } = useI18n();
     const nav = useNavigate();
     const [tab, setTab] = useState("listings");
@@ -81,7 +81,7 @@ export default function ProfilePage() {
         try {
             const next = !(user.show_phone ?? true);
             await api.put("/auth/me", { show_phone: next });
-            window.location.reload();
+            updateUser?.({ show_phone: next });
         } catch (_) {}
     };
 

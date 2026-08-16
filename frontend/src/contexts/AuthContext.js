@@ -44,6 +44,10 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         return data.user;
     };
+    const updateUser = useCallback((patch) => {
+        setUser((current) => current && current !== false ? { ...current, ...patch } : current);
+    }, []);
+
     const logout = async () => {
         try { await api.post("/auth/logout"); } catch (_) {}
         tokenStore.clear();
@@ -51,7 +55,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthCtx.Provider value={{ user, loading, login, register, logout, refresh: fetchMe, formatApiError }}>
+        <AuthCtx.Provider value={{ user, loading, login, register, logout, updateUser, refresh: fetchMe, formatApiError }}>
             {children}
         </AuthCtx.Provider>
     );
