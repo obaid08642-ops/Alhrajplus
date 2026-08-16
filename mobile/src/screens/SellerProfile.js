@@ -101,8 +101,9 @@ export default function SellerProfileScreen({
   return <ScrollView style={[s.wrap, { backgroundColor: palette.bg }]}>
             <View style={s.header}>
                 <View style={s.avatar}><Text style={s.avatarText}>{seller.name?.[0] || "U"}</Text></View>
-                <Text style={s.name}>{seller.name}{seller.verified ? " ✓" : ""}</Text>
-                {seller.bio ? <Text style={s.bio}>{seller.bio}</Text> : null}
+                <Text style={s.name}>{seller.store_name || seller.name}{seller.verified ? " ✓" : ""}</Text>
+                {(seller.store_description || seller.bio) ? <Text style={s.bio}>{seller.store_description || seller.bio}</Text> : null}
+                {seller.store_slug ? <Text style={s.muted}>{seller.store_slug}</Text> : null}
                 <View style={s.stats}>
                     <View style={s.stat}><Text style={s.statNum}>{seller.rating_avg || "—"}</Text><Text style={s.statLbl}>⭐ {t("التقييم")}</Text></View>
                     <View style={s.stat}><Text style={s.statNum}>{seller.rating_count || 0}</Text><Text style={s.statLbl}>{t("تقييمات")}</Text></View>
