@@ -35,3 +35,20 @@
 4. الدولة الافتراضية عند فشل الكشف هي SA، بينما اختيار المستخدم اليدوي هو المصدر الأعلى أولوية.
 5. أي emoji أو رمز موجود في الواجهة يجب أن يدخل inventory ويُستبدل أو يُبرر استثناؤه.
 6. كل إصلاح يجب أن ينعكس على Web وReact Native ما لم يوجد سبب تقني موثق.
+
+## سجل التنفيذ — 2026-08-16
+
+| البند | الحالة الحالية | دليل التحقق |
+|---|---|---|
+| جرد الأزرار والأيقونات والـEmoji | منفذ جزئيًا مع تقرير inventory | `button_icon_emoji_inventory.md` |
+| تحويل عناصر Home/Deals/Reels/Flights/Profile/Notifications إلى Vector | منفذ للدفعات ذات الأولوية العالية | Web build وExpo export ناجحان |
+| إزالة رمز 3D القديم | منفذ في Web ListingDetail | زر GLB/GLTF يستخدم `Box` Vector |
+| تحسين المزادات Web/Mobile | منفذ جزئيًا | حالات الخطأ وإعادة المحاولة، bid flow، live status، وbuild ناجح |
+| اللغة والثيم من إعدادات الجهاز | منفذ في contexts الحالية | system listener وmanual override موجودان |
+| الدولة الافتراضية | منفذ | fallback صريح إلى SA في Web/Mobile |
+| staging public health | ناجح | `/api/health` أعاد 200 و`db: connected` |
+| staging public theme | ناجح | `/api/meta/theme` أعاد 200 والـprimary الحالي `#01c9ff` |
+| staging categories/listings/auctions | ناجح | endpoints العامة أعادت 200 |
+| المتبقي | قيد التنفيذ | بقية الأزرار والرموز، Mobile translation parity، chat/push/private flows، responsive device matrix، admin flows، cleanup verification |
+
+> لا يُغلق أي بند نهائيًا إلا بعد اختبار مسار النجاح والفشل والفراغ على Web وMobile، ثم مطابقة backend الحقيقي وملف البيئة الخاص بالنشر.

@@ -4594,7 +4594,84 @@
     "en": "Select your country from the top first",
     "ur": "پہلے اوپر سے اپنا ملک منتخب کریں",
     "hi": "पहले ऊपर से अपना देश चुनें",
-    "bn": "প্রথমে উপরে থেকে দেশ নির্বাচন করুন",
+    "bn": "প্রথমে উপরে থেকে আপনার দেশ নির্বাচন করুন",
     "fr": "Sélectionnez d'abord votre pays en haut"
+  },
+  "لا توجد فيديوهات متاحة الآن": {
+    "en": "No videos are available right now",
+    "ur": "اس وقت کوئی ویڈیوز دستیاب نہیں ہیں",
+    "hi": "अभी कोई वीडियो उपलब्ध नहीं है",
+    "bn": "এই মুহূর্তে কোনো ভিডিও উপলব্ধ নেই",
+    "fr": "Aucune vidéo n'est disponible pour le moment"
+  },
+  "صفقة": {
+    "en": "Deal",
+    "ur": "ڈیل",
+    "hi": "डील",
+    "bn": "ডিল",
+    "fr": "Bon plan"
+  },
+  "موصى به": {
+    "en": "Recommended",
+    "ur": "تجویز کردہ",
+    "hi": "सिफारिश की गई",
+    "bn": "প্রস্তাবিত",
+    "fr": "Recommandé"
+  },
+  "العودة للرئيسية": {
+    "en": "Back to home",
+    "ur": "ہوم پر واپس جائیں",
+    "hi": "होम पर वापस जाएँ",
+    "bn": "হোমে ফিরে যান",
+    "fr": "Retour à l'accueil"
+  },
+  "ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً": {
+    "en": "Invite friends and earn verified badges for free",
+    "ur": "دوستوں کو مدعو کریں اور مفت تصدیق شدہ بیجز حاصل کریں",
+    "hi": "दोस्तों को आमंत्रित करें और मुफ्त सत्यापित बैज पाएं",
+    "bn": "বন্ধুদের আমন্ত্রণ জানান এবং বিনামূল্যে যাচাইকৃত ব্যাজ অর্জন করুন",
+    "fr": "Invitez vos amis et obtenez gratuitement des badges vérifiés"
+  },
+  "المزايدة على": {
+    "en": "Bid on",
+    "ur": "پر بولی لگائیں",
+    "hi": "इस पर बोली लगाएँ",
+    "bn": "এতে বিড করুন",
+    "fr": "Enchérir sur"
+  },
+  "تعذر إيداع المزايدة": {
+    "en": "Could not place the bid",
+    "ur": "بولی جمع نہیں ہو سکی",
+    "hi": "बोली जमा नहीं हो सकी",
+    "bn": "বিড জমা দেওয়া যায়নি",
+    "fr": "Impossible de placer l'enchère"
+  },
+  "إعادة المحاولة": {
+    "en": "Try again",
+    "ur": "دوبارہ کوشش کریں",
+    "hi": "फिर कोशिश करें",
+    "bn": "আবার চেষ্টা করুন",
+    "fr": "Réessayer"
+  },
+  "تعذر تحميل المزادات. حاول مرة أخرى.": {
+    "en": "Could not load auctions. Please try again.",
+    "ur": "مزادات لوڈ نہیں ہو سکے۔ دوبارہ کوشش کریں۔",
+    "hi": "नीलामियाँ लोड नहीं हो सकीं। कृपया फिर प्रयास करें।",
+    "bn": "নিলাম লোড করা যায়নি। আবার চেষ্টা করুন।",
+    "fr": "Impossible de charger les enchères. Réessayez."
+  },
+  "زيادة لا تقل عن": {
+    "en": "minimum increment",
+    "ur": "کم از کم اضافہ",
+    "hi": "न्यूनतम वृद्धि",
+    "bn": "ন্যূনতম বৃদ্ধি",
+    "fr": "incrément minimum"
+  },
+  "الحراج بلس وسيط فقط • النتائج والأسعار من المحركات أعلاه مباشرة • أكثر من 1,200 شركة طيران": {
+    "en": "Haraj Plus is only an intermediary • Results and prices come directly from the engines above • More than 1,200 airlines",
+    "ur": "حراج پلس صرف ایک ثالث ہے • نتائج اور قیمتیں براہ راست اوپر دیے گئے انجنوں سے ہیں • 1,200 سے زیادہ ایئرلائنز",
+    "hi": "हराज प्लस केवल मध्यस्थ है • परिणाम और कीमतें सीधे ऊपर दिए गए इंजन से हैं • 1,200 से अधिक एयरलाइंस",
+    "bn": "হারাজ প্লাস কেবল মধ্যস্থতাকারী • ফলাফল ও দাম সরাসরি উপরের ইঞ্জিন থেকে • ১,২০০টিরও বেশি এয়ারলাইন",
+    "fr": "Haraj Plus est uniquement un intermédiaire • Résultats et prix directement issus des moteurs ci-dessus • Plus de 1 200 compagnies aériennes"
   }
 }
