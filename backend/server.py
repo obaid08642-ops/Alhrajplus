@@ -6527,12 +6527,12 @@ async def get_seller_profile(seller_id: str):
 async def get_seller_listings(seller_id: str, limit: int = 20, skip: int = 0):
     limit = max(1, min(limit, 20))
     cursor = db.listings.find(
-        {"user_id": seller_id, "status": "active"},
+        public_listing_filter({"user_id": seller_id}),
         {"_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
          "category": 1, "city": 1, "images": {"$slice": 1}, "created_at": 1, "views": 1}
     ).sort("created_at", -1).skip(skip).limit(limit)
     items = await cursor.to_list(length=limit)
-    total = await db.listings.count_documents({"user_id": seller_id, "status": "active"})
+    total = await db.listings.count_documents(public_listing_filter({"user_id": seller_id}))
     return {"items": items, "total": total}
 
 
