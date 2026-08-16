@@ -14,14 +14,14 @@
 
 | ID | المتطلب/العطل | الحالة الحالية | دليل/معيار القبول |
 |---|---|---|---|
-| A01 | Web `/map` يفتح بدون crash | FAIL | runtime سجل `TypeError: a.map is not a function`; الإصلاح يحتاج response guard وenv صحيح |
-| A02 | Web `/register` يفتح ويعرض النموذج | FAIL | runtime سجل `TypeError: X.find is not a function` عند `/meta/countries` |
-| A03 | Web `/post` يفتح ويعرض خطوات إنشاء الإعلان | FAIL | AppErrorBoundary في build المحلي؛ يجب اختبار كل فئات/حقول النشر |
-| A04 | Web BottomNav يستخدم primary الحقيقي | FAIL | computed background فعليًا `rgba(0,0,0,0)` بدل primary |
-| A05 | Mobile StandaloneFloatingTabBar موحد مع palette الحية | FAIL/PARTIAL | يستخدم `colors.primary` الثابتة ولا يقرأ `palette` من ThemeModeProvider |
-| A06 | Web runtime backend config | FAIL in local baseline | console: `BACKEND_URL = (empty!)`; يجب error واضح وعدم انهيار الصفحات |
+| A01 | Web `/map` يفتح بدون crash | PARTIAL | response/coordinate guards أضيفت وWeb build نجح؛ runtime staging مع API صحيح/خاطئ لم يُغلق بعد |
+| A02 | Web `/register` يفتح ويعرض النموذج | PARTIAL | countries/cities guards وSA fallback أضيفت وWeb build نجح؛ فتح المسار على staging لم يُثبت بعد |
+| A03 | Web `/post` يفتح ويعرض خطوات إنشاء الإعلان | PARTIAL | categories/countries guards أضيفت؛ يلزم اختبار كل الفئات والحقول والنشر الحقيقي |
+| A04 | Web BottomNav يستخدم primary الحقيقي | PARTIAL | انتقل background إلى inline `var(--primary)`؛ يلزم computed-style matrix light/dark/system |
+| A05 | Mobile StandaloneFloatingTabBar موحد مع palette الحية | PARTIAL | يقرأ `palette` الديناميكية الآن؛ يلزم اختبار أجهزة فعلية/safe areas |
+| A06 | Web runtime backend config | PARTIAL | `API_BASE` يدعم host وhost/api وsame-origin؛ يلزم اختبار deployment config الفعلي |
 | A07 | Web runtime language follows device | FAIL/PARTIAL | runtime عرض English `Sell, Buy, Rent, Hire` و`Home/Story/Chat/More` في جلسة الفحص |
-| A08 | Notification deep links لكل الشاشات | PARTIAL | router لا يعالج Reels/Auctions/Map/Offers/Notifications صراحة |
+| A08 | Notification deep links لكل الشاشات | PARTIAL | handlers صريحة أضيفت لـReels/Auctions/Map/Offers/Notifications/Deals وabsolute URLs؛ يلزم cold-start على أجهزة حقيقية |
 | A09 | Authenticated staging | BLOCKED | admin tests 401؛ يحتاج حساب/token staging صالح |
 
 ## B. متطلبات المستخدم المباشرة من بداية المحادثة
