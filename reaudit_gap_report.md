@@ -162,3 +162,7 @@
 ### حماية Web Notifications
 
 تم تصحيح fallback قائمة الإشعارات في `NotificationsPage` و`NotificationBell` بحيث لا يتم قبول object كقائمة، مع الحفاظ على unread count وmark-read وWebSocket subscription. نجح Web production build بلا تحذيرات بعد التعديل. يلزم staging authenticated لإثبات push خارج الصفحة، background/cold-start، والـdeep-link من payload حقيقي.
+
+### حماية قوائم الإدارة
+
+تم تطبيع قوائم المستخدمين والبلاغات والبنرات الإعلانية في AdminPage إلى arrays قبل العرض، مع fallback فارغ حقيقي عند فشل endpoint بدل تمرير object إلى map. نجح Web production build بلا تحذيرات. صحة الصلاحيات، pagination، bulk actions، Cloudinary cleanup، وسجلات analytics ما زالت تحتاج اختبار staging بحساب admin فعلي.
