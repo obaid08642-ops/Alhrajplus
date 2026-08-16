@@ -139,15 +139,16 @@ export function SearchPage() {
                     params.lng = userLoc.lng;
                 }
                 const { data } = await api.get("/listings", { params, signal: ctrl.signal });
-                setResults(data.items);
-                setFuzzy(Boolean(data.fuzzy));
+                const nextItems = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+                setResults(nextItems);
+                setFuzzy(Boolean(data?.fuzzy));
                 // Log a search event so the smart-notif worker can re-engage the user
                 // if they bounce. Fire-and-forget; ignore errors for guests / aborts.
                 if (q && q.trim().length >= 2) {
                     api.post("/users/me/search-event", {
                         query: q.trim(),
                         city: user?.city || "",
-                        results_count: (data.items || []).length,
+                        results_count: nextItems.length,
                     }).catch(() => {});
                 }
             } catch (_) { /* ignore — search aborted or transient network */ } finally { setLoading(false); }
@@ -258,6 +259,7 @@ export function MapPage() {
     const [myPos, setMyPos] = useState(null);
     const [categoryFilter, setCategoryFilter] = useState("");
     const center = [24.7136, 46.6753];
+    const safeItems = (Array.isArray(items) ? items : []).filter((it) => Number.isFinite(Number(it?.lat)) && Number.isFinite(Number(it?.lng)));
 
     useEffect(() => {
         const params = { limit: 200 };
@@ -307,11 +309,11 @@ export function MapPage() {
             <div className="h-[70vh] rounded-3xl overflow-hidden border border-[var(--border)]">
                 {loading && <div className="absolute z-[1000] m-3 rounded-full bg-[var(--surface)]/90 px-3 py-2 text-xs font-arabic shadow">{tr("جاري تحميل الخريطة...")}</div>}
                 {loadError && <div className="absolute z-[1000] left-1/2 -translate-x-1/2 mt-3 rounded-xl bg-red-50 text-red-700 px-3 py-2 text-xs font-arabic shadow">{loadError}</div>}
-                <MapContainer center={myPos || (items[0] ? [items[0].lat, items[0].lng] : center)} zoom={myPos ? 13 : (items.length ? 10 : 6)} className="w-full h-full" key={myPos ? myPos.join(",") : "default"}>
+                <MapContainer center={myPos || (safeItems[0] ? [Number(safeItems[0].lat), Number(safeItems[0].lng)] : center)} zoom={myPos ? 13 : (safeItems.length ? 10 : 6)} className="w-full h-full" key={myPos ? myPos.join(",") : "default"}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                     {myPos && <Marker position={myPos} icon={buildMyLocationIcon()}><Popup>{tr("موقعك الحالي")}</Popup></Marker>}
-                    {(Array.isArray(items) ? items : []).map((it) => (
-                        <Marker key={it.id} position={[it.lat, it.lng]} icon={buildHologramIcon({ price: it.price, currency: it.currency, category: it.category })}>
+                    {safeItems.map((it) => (
+                        <Marker key={it.id} position={[Number(it.lat), Number(it.lng)]} icon={buildHologramIcon({ price: it.price, currency: it.currency, category: it.category })}>
                             <Popup>
                                 <div className="font-arabic">
                                     <div className="font-bold text-sm">{it.title}</div>
