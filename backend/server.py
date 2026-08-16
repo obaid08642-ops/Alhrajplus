@@ -2890,8 +2890,8 @@ async def ai_moderate_listing(listing_id: str, title: str, description: str) -> 
 # Make Offer — structured negotiation without leaving the listing
 # ============================================================
 @api.post("/listings/{listing_id}/offers")
-async def create_listing_offer(listing_id: str, body: OfferIn, user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one({"id": listing_id, **public_listing_filter({})}, {"_id": 0, "id": 1, "user_id": 1, "title": 1, "price": 1, "currency": 1, "status": 1})
+async def create_listing_offer(listing_id: str, body: OfferIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 0, "id": 1, "user_id": 1, "title": 1, "price": 1, "currency": 1, "status": 1})
     if not listing:
         raise HTTPException(404, "الإعلان غير موجود أو غير متاح")
     if listing.get("user_id") == user["id"]:
@@ -2923,14 +2923,14 @@ async def create_listing_offer(listing_id: str, body: OfferIn, user: dict = Depe
     return payload
 
 @api.get("/listings/{listing_id}/offers")
-async def list_listing_offers(listing_id: str, user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1})
+async def list_listing_offers(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 0, "user_id": 1})
     if not listing or listing.get("user_id") != user["id"]:
         raise HTTPException(403, "غير مصرح")
     return await db.listing_offers.find({"listing_id": listing_id}, {"_id": 0}).sort("updated_at", -1).to_list(length=200)
 
 @api.get("/offers/mine")
-async def my_listing_offers(role: str = "all", user: dict = Depends(get_current_user)):
+async def my_listing_offers(role: str = "all", country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
     if role not in ("all", "buyer", "seller"):
         raise HTTPException(400, "role must be all, buyer, or seller")
     match = {"buyer_id": user["id"]} if role == "buyer" else {"seller_id": user["id"]} if role == "seller" else {"$or": [{"buyer_id": user["id"]}, {"seller_id": user["id"]}]}
@@ -2938,7 +2938,7 @@ async def my_listing_offers(role: str = "all", user: dict = Depends(get_current_
     listing_ids = list({x.get("listing_id") for x in items if x.get("listing_id")})
     listings = {}
     if listing_ids:
-        async for listing in db.listings.find({"id": {"$in": listing_ids}}, {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "images": {"$slice": 1}, "status": 1}):
+        async for listing in db.listings.find(public_listing_filter_for_country(country_code, {"id": {"$in": listing_ids}}), {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "images": {"$slice": 1}, "status": 1}):
             listings[listing["id"]] = listing
     for item in items:
         item["listing"] = listings.get(item.get("listing_id"))
@@ -3325,10 +3325,13 @@ async def recommended_listings(category: Optional[str] = None, country_code: Opt
 
 
 @api.post("/listings/{listing_id}/click")
-async def track_click(listing_id: str):
-    """Lightweight click tracking — anonymous, fire-and-forget."""
-    await db.listings.update_one({"id": listing_id}, {"$inc": {"clicks": 1}})
-    return {"ok": True}
+async def track_click(listing_id: str, country_code: Optional[str] = None):
+    """Lightweight click tracking, bounded to the active public country."""
+    result = await db.listings.update_one(
+        public_listing_filter_for_country(country_code, {"id": listing_id}),
+        {"$inc": {"clicks": 1}},
+    )
+    return {"ok": True, "tracked": bool(result.modified_count)}
 
 
 # ============================================================
@@ -3336,8 +3339,10 @@ async def track_click(listing_id: str):
 # Uses Redis when available, falls back to Mongo. Per-user, capped at 20.
 # ============================================================
 @api.post("/listings/{listing_id}/view")
-async def track_view(listing_id: str, request: Request):
-    """Record that the current user viewed this listing (for /listings/recent)."""
+async def track_view(listing_id: str, request: Request, country_code: Optional[str] = None):
+    """Record a viewed listing only when it belongs to the active public country."""
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+        return {"ok": True, "tracked": False}
     user = await _get_user_from_cookie(request)
     if not user:
         return {"ok": True, "tracked": False}
@@ -3359,7 +3364,7 @@ async def track_view(listing_id: str, request: Request):
 
 
 @api.get("/listings/recent")
-async def recent_listings(user: dict = Depends(get_current_user), limit: int = 20):
+async def recent_listings(country_code: Optional[str] = None, user: dict = Depends(get_current_user), limit: int = 20):
     """Recently viewed listings for the authenticated user, newest first."""
     limit = max(1, min(limit, 20))
     rv = await db.recently_viewed.find({"user_id": user["id"]}, {"_id": 0, "listing_id": 1, "ts": 1}).sort("ts", -1).limit(limit).to_list(length=limit)
@@ -3371,7 +3376,7 @@ async def recent_listings(user: dict = Depends(get_current_user), limit: int = 2
         "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
         "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
     }
-    docs = await db.listings.find(public_listing_filter({"id": {"$in": ids}}), SLIM).to_list(length=limit)
+    docs = await db.listings.find(public_listing_filter_for_country(country_code, {"id": {"$in": ids}}), SLIM).to_list(length=limit)
     # Preserve recently-viewed order.
     by_id = {d["id"]: d for d in docs}
     items = [by_id[i] for i in ids if i in by_id]
@@ -3389,6 +3394,10 @@ class SavedSearchIn(BaseModel):
 @api.post("/search/save")
 async def save_search(body: SavedSearchIn, user: dict = Depends(get_current_user)):
     """Persist a search so we can notify the user when matching new listings appear."""
+    saved_country = (body.country_code or user.get("country_code") or "SA").upper().strip()
+    supported_cc = {str(item.get("code") or "").upper() for item in COUNTRIES}
+    if saved_country not in supported_cc:
+        raise HTTPException(400, "دولة البحث غير مدعومة")
     sid = uuid.uuid4().hex
     doc = {
         "id": sid,
@@ -3396,7 +3405,7 @@ async def save_search(body: SavedSearchIn, user: dict = Depends(get_current_user
         "q": body.q.strip(),
         "q_lower": body.q.strip().lower(),
         "category": body.category,
-        "country_code": body.country_code,
+        "country_code": saved_country,
         "min_price": body.min_price,
         "max_price": body.max_price,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -4214,13 +4223,15 @@ async def listings_map(
 # Favorites
 # ============================================================
 @api.post("/favorites/{listing_id}")
-async def toggle_favorite(listing_id: str, user: dict = Depends(get_current_user)):
+async def toggle_favorite(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
     """Toggle favorite (web frontend uses this as a toggle). Mobile uses the
     paired POST/DELETE pattern with `data.favorited` checked optimistically."""
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+        raise HTTPException(404, "الإعلان غير موجود")
     existing = await db.favorites.find_one({"user_id": user["id"], "listing_id": listing_id})
     if existing:
         await db.favorites.delete_one({"user_id": user["id"], "listing_id": listing_id})
-        await db.listings.update_one({"id": listing_id}, {"$inc": {"favorites": -1}})
+        await db.listings.update_one({"id": listing_id, "favorites": {"$gt": 0}}, {"$inc": {"favorites": -1}})
         return {"favorited": False}
     await db.favorites.insert_one({
         "user_id": user["id"], "listing_id": listing_id,
@@ -4230,24 +4241,28 @@ async def toggle_favorite(listing_id: str, user: dict = Depends(get_current_user
     return {"favorited": True}
 
 @api.delete("/favorites/{listing_id}")
-async def delete_favorite(listing_id: str, user: dict = Depends(get_current_user)):
+async def delete_favorite(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
     """Explicit unfavorite (idempotent). Mobile ListingCard + ReelsScreen call
     DELETE on unlike instead of relying on toggle semantics."""
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+        return {"favorited": False}
     res = await db.favorites.delete_one({"user_id": user["id"], "listing_id": listing_id})
     if res.deleted_count:
-        await db.listings.update_one({"id": listing_id}, {"$inc": {"favorites": -1}})
+        await db.listings.update_one({"id": listing_id, "favorites": {"$gt": 0}}, {"$inc": {"favorites": -1}})
     return {"favorited": False}
 
 @api.get("/favorites/{listing_id}/check")
-async def check_favorite(listing_id: str, user: dict = Depends(get_current_user)):
+async def check_favorite(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+        return {"favorited": False}
     existing = await db.favorites.find_one({"user_id": user["id"], "listing_id": listing_id})
     return {"favorited": bool(existing)}
 
 @api.get("/favorites")
-async def list_favorites(user: dict = Depends(get_current_user)):
+async def list_favorites(country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
     favs = await db.favorites.find({"user_id": user["id"]}, {"_id": 0}).to_list(length=500)
     listing_ids = [f["listing_id"] for f in favs]
-    listings = await db.listings.find(public_listing_filter({"id": {"$in": listing_ids}}), {"_id": 0}).to_list(length=500)
+    listings = await db.listings.find(public_listing_filter_for_country(country_code, {"id": {"$in": listing_ids}}), {"_id": 0}).to_list(length=500)
     return listings
 
 

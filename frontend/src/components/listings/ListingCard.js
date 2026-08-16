@@ -15,6 +15,18 @@ export default function ListingCard({ listing, compact = true }) {
     const images = (listing.images || []).filter(Boolean);
 
     useEffect(() => {
+        let cancelled = false;
+        if (!user || !listing?.id) {
+            setFav(false);
+            return undefined;
+        }
+        api.get(`/favorites/${listing.id}/check`).then(({ data }) => {
+            if (!cancelled) setFav(!!data?.favorited);
+        }).catch(() => { if (!cancelled) setFav(false); });
+        return () => { cancelled = true; };
+    }, [user, listing?.id]);
+
+    useEffect(() => {
         if (images.length < 2) return undefined;
         const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         if (reduceMotion) return undefined;
