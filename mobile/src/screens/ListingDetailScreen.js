@@ -10,6 +10,7 @@ import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import Viewer360Mobile from "../components/Viewer360Mobile";
+import { trackEvent } from "../analytics";
 export default function ListingDetailScreen({
   route,
   navigation
@@ -57,6 +58,7 @@ export default function ListingDetailScreen({
           data: null
         }))]);
         setListing(l.data);
+        trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
         setSimilar(s.data);
         setBadge(b.data);
         // Fire-and-forget: log to "recently viewed" so /listings/recent works.
@@ -377,6 +379,7 @@ export default function ListingDetailScreen({
           navigation.navigate("Login");
           return;
         }
+        trackEvent("chat_started", { listing_id: listing.id, category: listing.category, country_code: listing.country_code });
         navigation.navigate("Chat", {
           to: listing.seller.id,
           listing_id: listing.id,
