@@ -324,6 +324,7 @@ function ChatThread({
   onBack
 }) {
   const { t } = useI18n();
+  const { isDark, palette } = useThemeMode();
   
   const {
     user
@@ -750,7 +751,7 @@ function ChatThread({
   return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{
     flex: 1,
     // Bg color matches the SVG's baked background (#f9f6f1) so seams are invisible.
-    backgroundColor: "#f9f6f1"
+    backgroundColor: palette.bg
   }} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}>
             {/* Fixed chat background — single absolute layer behind EVERYTHING
                 (header, messages, composer). Lifted out of the messages
@@ -762,7 +763,7 @@ function ChatThread({
             <View style={[s.threadHeader, {
       paddingTop: insets.top + 2
     }]}>
-                <LinearGradient colors={[colors.primary, "#2A8CBD"]} style={StyleSheet.absoluteFillObject} start={{
+                <LinearGradient colors={[palette.primary, palette.primaryHover || palette.primary]} style={StyleSheet.absoluteFillObject} start={{
         x: 0,
         y: 0
       }} end={{
