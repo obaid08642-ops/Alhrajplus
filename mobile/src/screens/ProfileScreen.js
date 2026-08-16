@@ -8,7 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Platform, Linking } from "react-native";
-import { User, Heart, ListIcon, LogOut, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Sparkles, Bell, Bookmark, Users as UsersIcon, Award, Copy, MapPin, Gavel, Plane, Flame, Download, Apple, Smartphone } from "lucide-react-native";
+import { User, Heart, ListIcon, LogOut, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Sparkles, Bell, Bookmark, Users as UsersIcon, Award, Copy, MapPin, Gavel, Plane, Flame, Tag, Download, Apple, Smartphone } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
 import api from "../api";
 import { useThemeMode } from "../ThemeContext";
@@ -195,6 +195,7 @@ export default function ProfileScreen() {
                 <QuickTile icon={Heart} label={t("المفضلة")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Favorites")} />
                 <QuickTile icon={Sparkles} label={t("المساعد")} tint={colors.primary} tintBg="rgba(137,207,240,0.18)" onPress={() => nav.navigate("AIAssistant")} />
                 <QuickTile icon={Gavel} label={t("المزادات")} tint="#F59E0B" tintBg="#FEF3C7" onPress={() => nav.navigate("Auctions")} />
+                <QuickTile icon={Tag} label={t("العروض")} tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Offers")} />
                 <QuickTile icon={Plane} label={t("الطيران")} tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Flights")} />
                 <QuickTile icon={Flame} label={t("الصفقات")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Deals")} />
                 <QuickTile icon={MapPin} label={t("الخريطة")} tint="#10B981" tintBg="#D1FAE5" onPress={() => nav.navigate("Map")} />

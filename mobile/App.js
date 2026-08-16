@@ -43,6 +43,7 @@ import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/Passwor
 import { CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen } from "./src/screens/MoreScreens";
 import SearchScreen from "./src/screens/SearchScreen";
 import SellerProfileScreen from "./src/screens/SellerProfile";
+import OffersScreen from "./src/screens/OffersScreen";
 import ListingDetailScreen from "./src/screens/ListingDetailScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import PostScreen from "./src/screens/PostScreen";
@@ -190,6 +191,7 @@ function Navigation() {
                 <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("الإعدادات") }} />
                 <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
                 <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: t("الملف الشخصي للبائع") }} />
+                <Stack.Screen name="Offers" component={OffersScreen} options={{ title: t("العروض والمفاوضات") }} />
                 <Stack.Screen name="Map" component={MapScreen} options={{ title: t("الخريطة") }} />
                 <Stack.Screen name="Deals" component={DealsScreen} options={{ title: t("صفقات اليوم") }} />
                 <Stack.Screen name="Auctions" component={AuctionsScreen} options={{ title: t("المزادات") }} />

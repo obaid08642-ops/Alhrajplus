@@ -34,6 +34,7 @@ const DealsPage = lazy(() => import("@/pages/DealsPage"));
 const WalletPage = lazy(() => import("@/pages/WalletPage"));
 const AIAssistantWidget = lazy(() => import("@/components/AIAssistantWidget"));
 const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage"));
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
 const XAuthCallback = lazy(() => import("@/pages/XAuthCallback"));
 const SnapAuthCallback = lazy(() => import("@/pages/SnapAuthCallback"));
 const StaticPagesModule = () => import("@/pages/StaticPages");
@@ -106,6 +107,7 @@ function AppRouter() {
             <Route path="/post" element={<Layout><PostListing /></Layout>} />
             <Route path="/chat" element={<Layout><ChatPage /></Layout>} />
             <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
+            <Route path="/notifications" element={<Layout><NotificationsPage /></Layout>} />
             <Route path="/search" element={<Layout><SearchPage /></Layout>} />
             <Route path="/map" element={<Layout><MapPage /></Layout>} />
             <Route path="/admin" element={<Layout><AdminPage /></Layout>} />

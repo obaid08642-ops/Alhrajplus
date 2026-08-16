@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon, Tag } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import ListingCard from "@/components/listings/ListingCard";
 
@@ -193,6 +193,11 @@ export default function ProfilePage() {
                 <Link to="/wallet" data-testid="menu-wallet" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Wallet className="w-5 h-5 text-[var(--accent)]" />
                     <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("محفظتي")}</span>
+                    <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                </Link>
+                <Link to="/notifications" data-testid="menu-notifications" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
+                    <Bell className="w-5 h-5 text-[var(--primary)]" />
+                    <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("الإشعارات")}</span>
                     <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
                 </Link>
                 <Link to="/settings" data-testid="menu-settings" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
