@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput } from "react-native";
-import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2 } from "lucide-react-native";
+import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2, Eye, MapPin } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "../api";
@@ -370,8 +370,8 @@ export default function ListingDetailScreen({
                         <Heart size={17} color={liked ? "#E11D48" : theme.colors.textMuted} fill={liked ? "#E11D48" : "transparent"} />
                         <Text style={[styles.engagementText, liked && { color: "#E11D48" }]}>{likeCount}</Text>
                     </TouchableOpacity>
-                    <View style={styles.engagementBtn}><Text style={styles.engagementText}>👁 {Number(listing.views || 0)}</Text></View>
-                    <View style={styles.engagementBtn}><Text style={styles.engagementText}>💬 {comments.length}</Text></View>
+                    <View style={styles.engagementBtn}><Eye size={16} color={theme.colors.textMuted} /><Text style={styles.engagementText}>{Number(listing.views || 0)}</Text></View>
+                    <View style={styles.engagementBtn}><MessageCircle size={16} color={theme.colors.textMuted} /><Text style={styles.engagementText}>{comments.length}</Text></View>
                 </View>
                 {badge?.badge && <View style={[styles.badge, {
         borderColor: theme.colors.primary
@@ -447,12 +447,12 @@ export default function ListingDetailScreen({
                         <TouchableOpacity onPress={call} style={[styles.cta, {
           backgroundColor: theme.colors.success
         }]} testID="mobile-call-btn">
-                            <Text style={styles.ctaText}>{t("📞 اتصال مباشر")}</Text>
+                            <Phone size={16} color="#fff" /><Text style={styles.ctaText}>{t("اتصال مباشر")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={wa} style={[styles.cta, {
           backgroundColor: "#25D366"
         }]} testID="mobile-wa-btn">
-                            <Text style={styles.ctaText}>{t("💬 واتساب")}</Text>
+                            <MessageCircle size={16} color="#fff" /><Text style={styles.ctaText}>{t("واتساب")}</Text>
                         </TouchableOpacity>
                     </View>}
 
@@ -478,7 +478,7 @@ export default function ListingDetailScreen({
                     </TouchableOpacity>}
 
                 {listing.lat && listing.lng && <TouchableOpacity onPress={openInMaps} style={styles.openMapsBtn} testID="mobile-open-in-maps">
-                        <Text style={styles.openMapsText}>📍 {t("افتح في خرائط Google")}</Text>
+                        <MapPin size={16} color={theme.colors.primary} /><Text style={styles.openMapsText}>{t("افتح في خرائط Google")}</Text>
                     </TouchableOpacity>}
 
                 {!isOwner && user && <TouchableOpacity onPress={() => {
