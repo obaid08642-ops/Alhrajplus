@@ -130,3 +130,7 @@
 ### جولة البحث والخريطة
 
 تمت حماية `SearchPage` من استجابة `/listings` غير المصفوفية، مع الحفاظ على empty state الحقيقي وعدم اختلاق نتائج. كما تمت تصفية markers التي لا تملك lat/lng رقمية وتحويل الإحداثيات قبل تمريرها إلى Leaflet. نجح Web production build بعد التعديل.
+
+### حماية صفحة الإعلان
+
+تم تطبيع response صفحة الإعلان قبل عرضه: `listing.images`, `listing.videos`, `custom_fields`, `similar`, `categories`, `comments`, و`watches` أصبحت تمر عبر guards حقيقية. كما تمت حماية Leaflet/search سابقًا من malformed data. نجح Web production build بعد ذلك. هذا يغلق crash class على مستوى الكود، لكنه لا يغلق اختبار المسار authenticated أو Cloudinary/3D أو تزامن التعليقات دون staging حقيقي.
