@@ -1174,7 +1174,7 @@ function Step2({
                     {f.type === "select" ? <SelectInput value={form.custom_fields[f.key] || ""} options={(f.options_ar || f.options || []).map((opt, i) => ({
         value: f.options_ar?.[i] || opt,
         label: opt
-      }))} placeholder={t("اختر...")} onChange={v => updateCF(f.key, v)} /> : f.type === "number" ? <TextInput value={String(form.custom_fields[f.key] || "")} onChangeText={v => updateCF(f.key, v)} keyboardType="numeric" placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} /> : <TextInput value={form.custom_fields[f.key] || ""} onChangeText={v => updateCF(f.key, v)} placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} />}
+      }))} placeholder={t("اختر...")} onChange={v => updateCF(f.key, v)} /> : f.type === "number" ? <TextInput value={String(form.custom_fields[f.key] || "")} onChangeText={v => updateCF(f.key, v)} keyboardType="numeric" placeholder={f.placeholder || ""} placeholderTextColor={colors.textMuted} style={s.input} /> : <TextInput value={form.custom_fields[f.key] || ""} onChangeText={v => updateCF(f.key, v)} keyboardType={f.type === "url" ? "url" : "default"} placeholder={f.type === "date" ? "YYYY-MM-DD" : (f.placeholder || "")} placeholderTextColor={colors.textMuted} style={s.input} />}
                 </Field>)}
 
             {/* City / District — Geonames cascading picker (محافظة → مركز → حي → قرية for EG) */}

@@ -202,6 +202,10 @@ CATEGORIES = [
             {"key": "color", "label_ar": "اللون", "label_en": "Color", "type": "select", "options": ["أبيض", "أسود", "فضي", "رمادي", "أزرق", "أحمر", "ذهبي", "بني", "أخضر", "آخر"], "required": False},
             {"key": "seller_type", "label_ar": "البائع", "label_en": "Seller", "type": "select", "options": ["فرد", "معرض"], "required": True},
             {"key": "seal_status", "label_ar": "حالة الجمرك", "label_en": "Customs", "type": "select", "options": ["مدفوع", "معروض للتنازل"], "required": False},
+            {"key": "inspection_status", "label_ar": "حالة الفحص", "label_en": "Inspection", "type": "select", "options": ["فحص حديث", "فحص منتهي", "لم يتم الفحص"], "required": False},
+            {"key": "service_history", "label_ar": "سجل الصيانة", "label_en": "Service History", "type": "select", "options": ["موثق", "جزئي", "غير متوفر"], "required": False},
+            {"key": "accident_history", "label_ar": "سجل الحوادث", "label_en": "Accident History", "type": "select", "options": ["بدون حوادث", "حوادث بسيطة", "غير معروف"], "required": False},
+            {"key": "warranty_expiry", "label_ar": "انتهاء الضمان", "label_en": "Warranty Expiry", "type": "date", "required": False},
         ]
     },
     {
@@ -227,6 +231,11 @@ CATEGORIES = [
             {"key": "street_width", "label_ar": "عرض الشارع (م)", "label_en": "Street Width", "type": "number", "required": False},
             {"key": "furnished", "label_ar": "مفروشة", "label_en": "Furnished", "type": "select", "options": ["نعم", "لا", "جزئياً"], "required": False},
             {"key": "rent_period", "label_ar": "فترة الإيجار", "label_en": "Rent Period", "type": "select", "options": ["يومي", "شهري", "سنوي"], "required": False},
+            {"key": "parking", "label_ar": "مواقف السيارات", "label_en": "Parking", "type": "select", "options": ["متوفر", "غير متوفر", "غير محدد"], "required": False},
+            {"key": "elevator", "label_ar": "مصعد", "label_en": "Elevator", "type": "select", "options": ["نعم", "لا"], "required": False},
+            {"key": "air_conditioning", "label_ar": "التكييف", "label_en": "Air Conditioning", "type": "select", "options": ["مركزي", "سبليت", "شباك", "غير متوفر"], "required": False},
+            {"key": "ownership_document", "label_ar": "وثيقة الملكية", "label_en": "Ownership Document", "type": "select", "options": ["متوفرة", "غير متوفرة", "للمراجعة"], "required": False},
+            {"key": "virtual_tour_url", "label_ar": "رابط الجولة الافتراضية", "label_en": "Virtual Tour URL", "type": "url", "required": False},
         ]
     },
     {
@@ -272,6 +281,10 @@ CATEGORIES = [
             {"key": "benefits", "label_ar": "المميزات (سكن/تأمين/مواصلات...)", "label_en": "Benefits", "type": "text", "required": False},
             {"key": "work_hours", "label_ar": "ساعات العمل", "label_en": "Work Hours", "type": "text", "required": False},
             {"key": "company_name", "label_ar": "اسم الشركة", "label_en": "Company", "type": "text", "required": False},
+            {"key": "company_verified", "label_ar": "شركة موثقة", "label_en": "Verified Company", "type": "select", "options": ["نعم", "لا"], "required": False},
+            {"key": "remote_allowed", "label_ar": "العمل عن بُعد", "label_en": "Remote Allowed", "type": "select", "options": ["نعم", "هجين", "لا"], "required": False},
+            {"key": "application_method", "label_ar": "طريقة التقديم", "label_en": "Application Method", "type": "select", "options": ["رسائل المنصة", "البريد الإلكتروني", "رابط خارجي", "اتصال"], "required": False},
+            {"key": "application_url", "label_ar": "رابط التقديم", "label_en": "Application URL", "type": "url", "required": False},
         ]
     },
     {
