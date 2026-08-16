@@ -306,3 +306,52 @@ body.chat-active [data-testid="nav-post-fab"] {
     body.chat-active { padding-bottom: 0 !important; }
     body.chat-active .hp-chat-shell { height: 100dvh; }
 }
+
+/* ============================================================
+   Premium interaction layer — accessible, low-noise, touch-first.
+   ============================================================ */
+:where(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
+    outline-offset: 3px;
+}
+
+:where(button, [role="button"], a) {
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+:where(button, [role="button"]):active {
+    transform: translateY(1px) scale(0.985);
+}
+
+.hp-premium-card {
+    border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 96%, white), var(--surface));
+    box-shadow: 0 14px 38px rgba(15, 23, 42, 0.07);
+}
+
+.dark .hp-premium-card {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 92%, white), var(--surface));
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+.hp-premium-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 46px rgba(15, 23, 42, 0.12);
+}
+
+.hp-premium-gradient {
+    background:
+        radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 32%),
+        radial-gradient(circle at 90% 18%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 28%),
+        linear-gradient(135deg, var(--secondary), color-mix(in srgb, var(--secondary) 78%, var(--primary)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
