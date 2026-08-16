@@ -10,6 +10,7 @@ import uuid
 import time
 import asyncio
 import json
+from html import escape as html_escape
 import logging
 import secrets
 import bcrypt
@@ -486,7 +487,7 @@ async def _debug_listings_raw(limit: int = 5):
 @app.get("/api/og/listing/{listing_id}", include_in_schema=False)
 async def _og_listing_share(listing_id: str):
     try:
-        doc = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+        doc = await db.listings.find_one(public_listing_filter({"id": listing_id}), {"_id": 0})
     except Exception:
         doc = None
     if not doc:
@@ -494,10 +495,12 @@ async def _og_listing_share(listing_id: str):
             "<!doctype html><html><head><meta http-equiv='refresh' content='0; url=/' /></head><body></body></html>",
             status_code=404,
         )
-    title = (doc.get("title") or "إعلان").replace('"', "'")[:200]
-    raw_desc = (doc.get("description") or "")
-    desc = (raw_desc[:280] + "…") if len(raw_desc) > 280 else raw_desc
-    desc = (desc or "تصفح هذا الإعلان على الحراج بلس — أكبر سوق رقمي للخليج العربي.").replace('"', "'")
+    raw_title = str(doc.get("title") or "إعلان")[:200]
+    raw_desc = str(doc.get("description") or "")
+    raw_desc = (raw_desc[:280] + "…") if len(raw_desc) > 280 else raw_desc
+    raw_desc = raw_desc or "تصفح هذا الإعلان على الحراج بلس — أكبر سوق رقمي للخليج العربي."
+    title = html_escape(raw_title, quote=True)
+    desc = html_escape(raw_desc, quote=True)
     images = doc.get("images") or []
     image = images[0] if images else "https://alhraj.online/og-image.png"
     price = doc.get("price")
@@ -505,8 +508,29 @@ async def _og_listing_share(listing_id: str):
     city = doc.get("city") or ""
     spa_url = f"https://alhraj.online/listing/{listing_id}"
     price_line = f"{price:,.0f} {currency}" if isinstance(price, (int, float)) and price > 0 else ""
-    composed_title = f"{title}" + (f" — {price_line}" if price_line else "") + " | الحراج بلس"
-    composed_desc = (f"{price_line} • {city} — " if price_line or city else "") + desc
+    city = html_escape(str(city), quote=True)
+    image = html_escape(str(image), quote=True)
+    composed_title = f"{title}" + (f" — {html_escape(price_line, quote=True)}" if price_line else "") + " | الحراج بلس"
+    composed_desc = (f"{html_escape(price_line, quote=True)} • {city} — " if price_line or city else "") + desc
+    cf = doc.get("custom_fields") or {}
+    schema = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": raw_title,
+        "image": images,
+        "description": raw_desc,
+        "url": spa_url,
+    }
+    if doc.get("category") == "cars":
+        schema.update({"@type": "Vehicle", "vehicleModelDate": cf.get("year"), "brand": {"@type": "Brand", "name": cf.get("make")}, "model": cf.get("model"), "mileageFromOdometer": {"@type": "QuantitativeValue", "value": cf.get("kilometers"), "unitCode": "KMT"} if cf.get("kilometers") else None})
+    elif doc.get("category") == "realestate":
+        schema.update({"@type": "Residence", "numberOfRooms": cf.get("rooms"), "floorSize": {"@type": "QuantitativeValue", "value": cf.get("area_m2"), "unitCode": "MTK"} if cf.get("area_m2") else None, "address": {"@type": "PostalAddress", "addressLocality": doc.get("city")}})
+    elif doc.get("category") == "jobs":
+        schema.update({"@type": "JobPosting", "title": cf.get("job_title") or raw_title, "datePosted": doc.get("created_at"), "employmentType": cf.get("employment_type"), "hiringOrganization": {"@type": "Organization", "name": cf.get("company_name") or "الحراج بلس"}})
+    if isinstance(price, (int, float)) and price > 0:
+        schema["offers"] = {"@type": "Offer", "price": price, "priceCurrency": currency, "availability": "https://schema.org/InStock"}
+    schema = {k: v for k, v in schema.items() if v not in (None, "")}
+    schema_json = json.dumps(schema, ensure_ascii=False).replace("</", "<\\/")
 
     html = f"""<!doctype html>
 <html lang=\"ar\" dir=\"rtl\">
@@ -532,20 +556,7 @@ async def _og_listing_share(listing_id: str):
   <meta name=\"twitter:description\" content=\"{composed_desc}\" />
   <meta name=\"twitter:image\" content=\"{image}\" />
 
-  <script type=\"application/ld+json\">{{
-    \"@context\": \"https://schema.org\",
-    \"@type\": \"Product\",
-    \"name\": \"{title}\",
-    \"image\": \"{image}\",
-    \"description\": \"{desc}\",
-    \"url\": \"{spa_url}\",
-    \"offers\": {{
-      \"@type\": \"Offer\",
-      \"price\": \"{price or 0}\",
-      \"priceCurrency\": \"{currency}\",
-      \"availability\": \"https://schema.org/InStock\"
-    }}
-  }}</script>
+  <script type=\"application/ld+json\">{schema_json}</script>
 
   <!-- Real users → SPA. Crawlers stay on this page and just read meta. -->
   <meta http-equiv=\"refresh\" content=\"0; url={spa_url}\" />
