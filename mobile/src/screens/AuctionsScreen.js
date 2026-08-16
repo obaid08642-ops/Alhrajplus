@@ -38,7 +38,7 @@ export default function AuctionsScreen({ route }) {
           limit: 30
         }
       });
-      setItems(Array.isArray(data) ? data : []);
+      setItems(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
     } catch (_) { setItems([]); setLoadError(t("تعذر تحميل المزادات. حاول مرة أخرى.")); } finally {
       setLoading(false);
       setRefreshing(false);
@@ -182,7 +182,7 @@ function BidModal({
   useEffect(() => {
     let alive = true;
     const loadBids = () => api.get(`/auctions/${listing.id}/bids`).then(({ data }) => {
-      if (alive) setBids(data || []);
+      if (alive) setBids(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
     }).catch(() => {});
     loadBids();
     const timer = setInterval(loadBids, 4000);

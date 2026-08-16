@@ -22,7 +22,7 @@ export default function OffersScreen() {
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    try { const { data } = await api.get("/offers/mine"); setOffers(data || []); } catch (_) { setOffers([]); } finally { setLoading(false); }
+    try { const { data } = await api.get("/offers/mine"); setOffers(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])); } catch (_) { setOffers([]); } finally { setLoading(false); }
   }, [user]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
