@@ -946,6 +946,7 @@ class ChatMessageIn(BaseModel):
     location: Optional[dict] = None  # {lat, lng}
     reply_to: Optional[dict] = None  # snapshot {id, text, image, sender_name}
     forwarded_from: Optional[dict] = None  # {name, message_id} — origin info shown above the bubble
+    client_message_id: Optional[str] = Field(default=None, min_length=8, max_length=100)
 
 class ReportIn(BaseModel):
     target_type: str  # listing | user | message
@@ -4387,6 +4388,16 @@ async def get_presence(user_id: str, _: dict = Depends(get_current_user)):
 async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_user)):
     if body.receiver_id == user["id"]:
         raise HTTPException(400, "Cannot message yourself")
+    # Idempotency for mobile/web offline retries: if the client already
+    # persisted this request and the first attempt actually reached Mongo,
+    # return the original message instead of creating a duplicate.
+    if body.client_message_id:
+        existing = await db.messages.find_one({
+            "sender_id": user["id"],
+            "client_message_id": body.client_message_id,
+        }, {"_id": 0})
+        if existing:
+            return existing
     text = (body.text or "").strip()
     if not text and not any([body.image, body.voice, body.location]):
         raise HTTPException(400, "Message content required")
@@ -4415,6 +4426,7 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         "location": body.location,
         "reply_to": body.reply_to,
         "forwarded_from": body.forwarded_from,
+        "client_message_id": body.client_message_id,
         "read": False,
         "ts": datetime.now(timezone.utc).isoformat(),
     }
@@ -8129,6 +8141,7 @@ async def startup():
     await _safe_index(db.google_oauth_states, "state", unique=True)
     await _safe_index(db.google_oauth_states, "expires_at", expireAfterSeconds=0)
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
+    await _safe_index(db.messages, [("sender_id", 1), ("client_message_id", 1)], unique=True, partialFilterExpression={"client_message_id": {"$type": "string"}})
     await db.conversations.create_index("id", unique=True)
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
     await db.bids.create_index([("listing_id", 1), ("amount", -1)])
