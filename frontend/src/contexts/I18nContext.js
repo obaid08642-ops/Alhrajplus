@@ -317,12 +317,17 @@ export function I18nProvider({ children }) {
         return field.label_en || field.label_ar || field.key;
     };
     const chooseLanguage = (next) => {
+        if (next === "auto") {
+            localStorage.removeItem("hp_lang_manual");
+            setLang(detectDeviceLanguage());
+            return;
+        }
         if (!next || !TRANSLATIONS[next]) return;
         localStorage.setItem("hp_lang_manual", "1");
         setLang(next);
     };
     return (
-        <I18nCtx.Provider value={{ lang, setLang: chooseLanguage, t, tr, isRTL, pickName, pickLabel, available: ["ar", "en", "ur", "hi", "bn", "fr"] }}>
+        <I18nCtx.Provider value={{ lang, setLang: chooseLanguage, t, tr, isRTL, pickName, pickLabel, available: ["auto", "ar", "en", "ur", "hi", "bn", "fr"] }}>
             {children}
         </I18nCtx.Provider>
     );

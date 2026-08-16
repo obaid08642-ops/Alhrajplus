@@ -3033,9 +3033,9 @@ async def list_listings(
     # One shared policy keeps feeds, search, and autocomplete consistent.
     # Legacy records without moderation remain visible, while explicit pending,
     # rejected, demo, and test-seeded records stay out of public discovery.
-    query: dict = public_listing_filter()
-    if country_code:
-        query["country_code"] = country_code
+    # Public discovery is never global. Missing country selection follows the
+    # product default (SA), and explicit selection stays an exact equality.
+    query: dict = public_listing_filter_for_country(country_code)
     if category:
         query["category"] = category
     if subcategory:
@@ -3602,12 +3602,13 @@ async def get_listing(listing_id: str, request: Request, country_code: Optional[
     return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600", "Vary": "Accept-Encoding", "X-Cache-Ready": "true"})
 
 @api.get("/listings/{listing_id}/like/check")
-async def check_listing_like(listing_id: str, user: dict = Depends(get_current_user)):
+async def check_listing_like(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+        raise HTTPException(404, "الإعلان غير موجود")
     return {"liked": bool(await db.listing_likes.find_one({"listing_id": listing_id, "user_id": user["id"]}, {"_id": 1}))}
-
 @api.post("/listings/{listing_id}/like")
-async def toggle_listing_like(listing_id: str, user: dict = Depends(get_current_user)):
-    if not await db.listings.find_one(public_listing_filter({"id": listing_id}), {"_id": 1}):
+async def toggle_listing_like(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
         raise HTTPException(404, "الإعلان غير موجود")
     existing = await db.listing_likes.find_one({"listing_id": listing_id, "user_id": user["id"]})
     if existing:
@@ -3619,8 +3620,8 @@ async def toggle_listing_like(listing_id: str, user: dict = Depends(get_current_
     return {"liked": liked, "like_count": await db.listing_likes.count_documents({"listing_id": listing_id})}
 
 @api.get("/listings/{listing_id}/comments")
-async def list_listing_comments(listing_id: str, limit: int = 50, before: Optional[str] = None):
-    if not await db.listings.find_one(public_listing_filter({"id": listing_id}), {"_id": 1}):
+async def list_listing_comments(listing_id: str, country_code: Optional[str] = None, limit: int = 50, before: Optional[str] = None):
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
         raise HTTPException(404, "الإعلان غير موجود")
     limit = max(1, min(limit, 100))
     query = {"listing_id": listing_id, "deleted": {"$ne": True}}
@@ -3637,8 +3638,8 @@ async def list_listing_comments(listing_id: str, limit: int = 50, before: Option
     return {"items": comments, "total": await db.listing_comments.count_documents({"listing_id": listing_id, "deleted": {"$ne": True}})}
 
 @api.post("/listings/{listing_id}/comments")
-async def create_listing_comment(listing_id: str, body: ListingCommentIn, user: dict = Depends(get_current_user)):
-    if not await db.listings.find_one(public_listing_filter({"id": listing_id}), {"_id": 0, "user_id": 1, "title": 1}):
+async def create_listing_comment(listing_id: str, body: ListingCommentIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 0, "user_id": 1, "title": 1}):
         raise HTTPException(404, "الإعلان غير موجود")
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
     if await db.listing_comments.count_documents({"user_id": user["id"], "created_at": {"$gte": cutoff}}) >= 10:

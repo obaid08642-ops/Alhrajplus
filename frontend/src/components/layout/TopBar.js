@@ -9,7 +9,7 @@ import { useState, useRef, useEffect } from "react";
 import api from "@/lib/api";
 
 export default function TopBar() {
-    const { isDark, toggle } = useTheme();
+    const { isDark, themeMode, setThemeMode } = useTheme();
     const { user, logout } = useAuth();
     const { t, lang, setLang, available } = useI18n();
     const nav = useNavigate();
@@ -133,13 +133,13 @@ export default function TopBar() {
 
     return (
         <header className="sticky top-0 z-40 backdrop-blur-xl bg-[var(--primary)] dark:bg-[var(--primary)] border-b border-[var(--primary-hover)]/45 dark:border-white/10 shadow-md">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center gap-2 sm:gap-3" ref={ref}>
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3" ref={ref}>
                 <Link to="/" className="flex items-baseline gap-1 sm:gap-1.5 select-none shrink-0" data-testid="logo-link">
                     <img src="/logo-haraj.png" alt="" className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow-md" />
                 </Link>
 
                 {/* Search with suggestions */}
-                <div className="flex-1 mx-1 sm:mx-2 relative" ref={searchRef}>
+                <div className="flex-[1_1_0%] basis-full sm:basis-0 order-2 sm:order-none mx-0 sm:mx-2 relative min-w-0" ref={searchRef}>
                     <div className={`flex items-center bg-white/95 dark:bg-[var(--surface)]/90 rounded-full px-3 py-2 border-2 border-white/30 dark:border-white/10 shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-white transition-all`}>
                         <Search className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                         <input
@@ -238,6 +238,7 @@ export default function TopBar() {
                             {available.map((l) => (
                                 <button key={l} onClick={() => { setLang(l); setOpenMenu(null); }} data-testid={`lang-opt-${l}`}
                                     className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${lang === l ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}>
+                                    {l === "auto" && "تلقائي / Auto"}
                                     {l === "ar" && "🇸🇦 العربية"}
                                     {l === "en" && "🇬🇧 English"}
                                     {l === "ur" && "🇵🇰 اردو"}
@@ -250,9 +251,18 @@ export default function TopBar() {
                     )}
                 </div>
 
-                <button data-testid="theme-toggle-btn" onClick={toggle} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/15 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center border border-white/25 dark:border-white/15 transition-all backdrop-blur">
-                    {isDark ? <Sun className="w-4 h-4 text-[var(--accent)]" /> : <Moon className="w-4 h-4 text-white" />}
-                </button>
+                <div className="relative">
+                    <button data-testid="theme-toggle-btn" onClick={() => setOpenMenu(openMenu === "theme" ? null : "theme")} aria-label="Theme" className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/15 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center border border-white/25 dark:border-white/15 transition-all backdrop-blur">
+                        {isDark ? <Sun className="w-4 h-4 text-[var(--accent)]" /> : <Moon className="w-4 h-4 text-white" />}
+                    </button>
+                    {openMenu === "theme" && (
+                        <div className="absolute top-12 end-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-2 min-w-[150px] z-50">
+                            {[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([mode, label]) => (
+                                <button key={mode} onClick={() => { setThemeMode(mode); setOpenMenu(null); }} className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${themeMode === mode ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}>{label}</button>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* User menu */}
                 {user ? (

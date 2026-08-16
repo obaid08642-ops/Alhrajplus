@@ -67,8 +67,9 @@ function AnalyticsRouteTracker() {
 }
 
 function Layout({ children, hideNav = false }) {
+    const { isRTL } = useI18n();
     return (
-        <div className="min-h-screen bg-[var(--bg)] pb-24" dir="rtl">
+        <div className="min-h-screen bg-[var(--bg)] pb-24" dir={isRTL ? "rtl" : "ltr"}>
             {!hideNav && <SmartAppBanner />}
             {!hideNav && <TopBar />}
             {children}

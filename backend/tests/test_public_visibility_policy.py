@@ -5,7 +5,7 @@ CI before integration credentials are available.
 """
 import re
 
-from search_engine import public_listing_filter
+from search_engine import public_listing_filter, public_listing_filter_for_country
 
 
 def _clauses():
@@ -31,3 +31,14 @@ def test_public_policy_hides_seeded_test_titles():
 def test_public_policy_preserves_extra_filters():
     query = public_listing_filter({"country_code": "SA"})
     assert {"country_code": "SA"} in query["$and"]
+
+
+def test_country_policy_defaults_to_sa_instead_of_global_feed():
+    query = public_listing_filter_for_country()
+    assert {"country_code": "SA"} in query["$and"]
+
+
+def test_country_policy_is_exact_and_case_normalized():
+    query = public_listing_filter_for_country("eg")
+    assert {"country_code": "EG"} in query["$and"]
+    assert {"country_code": "SA"} not in query["$and"]

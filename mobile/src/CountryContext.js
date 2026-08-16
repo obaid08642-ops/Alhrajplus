@@ -7,6 +7,7 @@ import * as Location from "expo-location";
 import api from "./api";
 
 const STORAGE_KEY = "hp_country";
+const FALLBACK_COUNTRY_CODES = ["SA", "AE", "KW", "QA", "BH", "OM", "EG"];
 const Ctx = createContext(null);
 
 // Try to resolve country from device GPS (no permission prompt forced — we use
@@ -43,13 +44,15 @@ export function CountryProvider({ children }) {
             const stored = await AsyncStorage.getItem(STORAGE_KEY).catch(() => null);
             // 2) Load country list.
             let list = [];
-            try { const r = await api.get("/meta/countries"); list = r?.data || []; } catch (_) {}
+            try { const r = await api.get("/meta/countries"); list = Array.isArray(r?.data) ? r.data : (Array.isArray(r?.data?.items) ? r.data.items : []); } catch (_) {}
             setCountries(list);
-            // 3) If we have a stored value, use it. The user's signup choice
-            //    (saved by AuthContext on login) is already here, so we DO NOT
-            //    fall back to IP detect in that case.
-            if (stored) {
-                setCountryState(stored);
+            // 3) If we have a stored value, use it only when it is a supported
+            //    marketplace country. Stale/unsupported ISO codes must never
+            //    reach discovery endpoints and produce a misleading empty feed.
+            const normalizedStored = (stored || "").toUpperCase();
+            const supportedCodes = list.length ? list.map((item) => String(item.code || "").toUpperCase()) : FALLBACK_COUNTRY_CODES;
+            if (normalizedStored && supportedCodes.includes(normalizedStored)) {
+                setCountryState(normalizedStored);
                 setHydrated(true);
                 return;
             }
@@ -88,7 +91,8 @@ export function CountryProvider({ children }) {
                     if (region && list.some((item) => item.code === region.toUpperCase())) cc = region.toUpperCase();
                 } catch (_) {}
             }
-            if (!cc) cc = list.find((item) => item.code === "SA")?.code || list?.[0]?.code || "SA";
+            cc = (cc || "").toUpperCase();
+            if (!supportedCodes.includes(cc)) cc = supportedCodes.includes("SA") ? "SA" : (supportedCodes[0] || "SA");
             setCountryState(cc);
             await AsyncStorage.setItem(STORAGE_KEY, cc).catch(() => {});
             setHydrated(true);
@@ -102,12 +106,14 @@ export function CountryProvider({ children }) {
     // setCountry(), which itself persists to both storage AND profile.
 
     const setCountry = useCallback(async (code) => {
-        const c = (code || "").toUpperCase();
+        const requested = (code || "").toUpperCase();
+        const supportedCodes = countries.length ? countries.map((item) => String(item.code || "").toUpperCase()) : FALLBACK_COUNTRY_CODES;
+        const c = supportedCodes.includes(requested) ? requested : "SA";
         setCountryState(c);
         setDataVersion((v) => v + 1);
         await AsyncStorage.setItem(STORAGE_KEY, c).catch(() => {});
         try { await api.put("/users/me", { country_code: c }); } catch (_) {}
-    }, []);
+    }, [countries]);
 
     const current = countries.find((c) => c.code === country) || null;
 
