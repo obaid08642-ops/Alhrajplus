@@ -148,7 +148,8 @@ export default function ChatScreen() {
       const {
         data
       } = await api.get("/chat/conversations");
-      setConvos(data || []);
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.conversations) ? data.conversations : (Array.isArray(data?.items) ? data.items : []));
+      setConvos(list);
     } catch (_) {} finally {
       setLoadingConvos(false);
       setRefreshing(false);
@@ -400,7 +401,8 @@ function ChatThread({
       const {
         data
       } = await api.get(`/chat/messages/${convoId}`);
-      setMessages(data || []);
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.messages) ? data.messages : (Array.isArray(data?.items) ? data.items : []));
+      setMessages(list);
       // Mark conversation as read
       wsSend({
         type: "read",
@@ -1016,7 +1018,8 @@ function ForwardPicker({ src, onClose, currentUser, onForwarded }) {
         (async () => {
             try {
                 const { data } = await api.get("/chat/conversations");
-                setList(data || []);
+                const list = Array.isArray(data) ? data : (Array.isArray(data?.conversations) ? data.conversations : (Array.isArray(data?.items) ? data.items : []));
+                setList(list);
             } catch (_) {} finally { setLoading(false); }
         })();
     }, []);
