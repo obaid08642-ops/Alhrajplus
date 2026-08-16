@@ -13,23 +13,25 @@ import { playNotificationSound } from "@/lib/notificationSound";
 import "@/styles/chat.css";
 
 /** Format a timestamp into "اليوم"، "أمس"، or "DD/MM/YYYY". */
-function dateLabel(iso) {
+function dateLabel(iso, lang = "ar") {
     const d = new Date(iso);
     const today = new Date();
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-    if (d.toDateString() === today.toDateString()) return "اليوم";
-    if (d.toDateString() === yesterday.toDateString()) return "أمس";
-    return d.toLocaleDateString("ar", { year: "numeric", month: "2-digit", day: "2-digit" });
+    const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+    if (d.toDateString() === today.toDateString()) return rtf.format(0, "day");
+    if (d.toDateString() === yesterday.toDateString()) return rtf.format(-1, "day");
+    return d.toLocaleDateString(lang, { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-function formatLastSeen(iso) {
+function formatLastSeen(iso, lang = "ar") {
     if (!iso) return "";
     const t = new Date(iso);
     const diff = (Date.now() - t.getTime()) / 60000;
-    if (diff < 1) return "قبل لحظات";
-    if (diff < 60) return `قبل ${Math.floor(diff)} د`;
-    if (diff < 1440) return `قبل ${Math.floor(diff / 60)} س`;
-    return t.toLocaleDateString("ar");
+    const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+    if (diff < 1) return rtf.format(0, "minute");
+    if (diff < 60) return rtf.format(-Math.floor(diff), "minute");
+    if (diff < 1440) return rtf.format(-Math.floor(diff / 60), "hour");
+    return t.toLocaleDateString(lang);
 }
 
 /**
@@ -612,7 +614,7 @@ export default function ChatPage() {
         let lastSender = null;
         let lastTs = 0;
         for (const m of messages) {
-            const dlabel = dateLabel(m.ts);
+            const dlabel = dateLabel(m.ts, lang);
             if (dlabel !== lastDate) {
                 out.push({ kind: "date", id: `d_${dlabel}_${m.id}`, label: dlabel });
                 lastDate = dlabel; lastSender = null;
@@ -623,7 +625,7 @@ export default function ChatPage() {
             lastSender = m.sender_id; lastTs = ts;
         }
         return out;
-    }, [messages]);
+    }, [messages, lang]);
 
     const peerPresence = activeOther ? presence[activeOther.id] : null;
 
@@ -687,7 +689,7 @@ export default function ChatPage() {
                                     <div className="text-[11px] text-[var(--text-muted)] font-arabic-body" data-testid="presence-status">
                                         {peerTyping ? <span className="text-emerald-500">{tr("يكتب الآن...")}</span>
                                           : peerPresence?.online ? <span className="text-emerald-500">● {tr("متصل الآن")}</span>
-                                          : peerPresence?.last_seen ? `${tr("آخر ظهور")} ${formatLastSeen(peerPresence.last_seen)}`
+                                          : peerPresence?.last_seen ? `${tr("آخر ظهور")} ${formatLastSeen(peerPresence.last_seen, lang)}`
                                           : ""}
                                     </div>
                                 </div>
