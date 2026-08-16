@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes, Video as VideoIcon, Play } from "lucide-react-native";
+import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes, Video as VideoIcon, Play, Package, Clapperboard, Gavel, BriefcaseBusiness, Wrench } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -829,9 +829,7 @@ function Step1({
           x: 1,
           y: 1
         }} />
-                    <View style={s.primaryEntryIcon}><Text style={{
-            fontSize: 28
-          }}>📦</Text></View>
+                    <View style={s.primaryEntryIcon}><Package size={28} color={colors.primary} strokeWidth={2.1} /></View>
                     <View style={{
           flex: 1
         }}>
@@ -843,20 +841,20 @@ function Step1({
 
                 {/* Row 1: Story + Auction */}
                 <View style={s.entryRow}>
-                    <EntryCard icon="🎬" label={t("نشر ستوري")} sub={t("فيديو قصير")} bg={["#FCE7F3", "#FDF2F8"]} accent="#EC4899" onPress={() => onPick("__story__")} />
-                    <EntryCard icon="🔨" label={t("إنشاء مزاد")} sub={t("مزايدة حية")} bg={["#FEF3C7", "#FEF9C3"]} accent="#F59E0B" onPress={() => onPick("auction")} />
+                    <EntryCard Icon={Clapperboard} label={t("نشر ستوري")} sub={t("فيديو قصير")} bg={["#FCE7F3", "#FDF2F8"]} accent="#EC4899" onPress={() => onPick("__story__")} />
+                    <EntryCard Icon={Gavel} label={t("إنشاء مزاد")} sub={t("مزايدة حية")} bg={["#FEF3C7", "#FEF9C3"]} accent="#F59E0B" onPress={() => onPick("auction")} />
                 </View>
 
                 {/* Row 2: Jobs + Services */}
                 <View style={s.entryRow}>
-                    {jobsCat && <EntryCard icon="💼" label={jobsCat.name || t("وظائف")} sub={t("ابحث أو وظّف")} bg={["#D1FAE5", "#ECFDF5"]} accent="#10B981" onPress={() => onPick("jobs")} />}
-                    {servicesCat && <EntryCard icon="🛠️" label={servicesCat.name || t("خدمات")} sub={t("اعرض خدمتك")} bg={["#FED7AA", "#FFEDD5"]} accent="#EA580C" onPress={() => onPick("services")} />}
+                    {jobsCat && <EntryCard Icon={BriefcaseBusiness} label={jobsCat.name || t("وظائف")} sub={t("ابحث أو وظّف")} bg={["#D1FAE5", "#ECFDF5"]} accent="#10B981" onPress={() => onPick("jobs")} />}
+                    {servicesCat && <EntryCard Icon={Wrench} label={servicesCat.name || t("خدمات")} sub={t("اعرض خدمتك")} bg={["#FED7AA", "#FFEDD5"]} accent="#EA580C" onPress={() => onPick("services")} />}
                 </View>
             </View>
         </>;
 }
 function EntryCard({
-  icon,
+  Icon,
   label,
   sub,
   bg,
@@ -871,9 +869,7 @@ function EntryCard({
       x: 1,
       y: 1
     }} />
-            <Text style={{
-      fontSize: 28
-    }}>{icon}</Text>
+            <Icon size={28} color={accent} strokeWidth={2.1} />
             <Text style={[s.entryLabel, {
       color: accent
     }]} numberOfLines={1}>{label}</Text>
