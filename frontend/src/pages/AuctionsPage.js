@@ -58,7 +58,7 @@ export default function AuctionsPage() {
                         <Sparkles className="w-3.5 h-3.5 text-[var(--accent)]" /> {tr("مزايدة فورية")}
                     </span>
                     <span className="inline-flex items-center gap-1.5 bg-[var(--surface)] rounded-full px-3 py-1.5 border border-[var(--primary)]/40 text-xs font-arabic font-bold text-[var(--text)]">
-                        <Users className="w-3.5 h-3.5 text-[var(--primary)]" /> {tr("مشاركة من جميع الدول")}
+                        <Users className="w-3.5 h-3.5 text-[var(--primary)]" /> {tr("مشاركة من الدولة المختارة")}
                     </span>
                 </div>
             </div>

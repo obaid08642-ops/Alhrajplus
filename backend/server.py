@@ -4004,10 +4004,38 @@ async def my_listings(user: dict = Depends(get_current_user)):
 class BidIn(BaseModel):
     amount: float = Field(gt=0)
 
+
+def _auction_end_datetime(listing: dict) -> Optional[datetime]:
+    """Read the legacy and current auction closing fields consistently."""
+    cf = listing.get("custom_fields") or {}
+    meta = listing.get("auction_meta") or {}
+    raw = (listing.get("auction_end_at") or listing.get("end_time")
+           or listing.get("closes_at") or cf.get("end_time")
+           or meta.get("end_time"))
+    if not raw:
+        return None
+    try:
+        value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    except (TypeError, ValueError):
+        return None
+
+
 @api.get("/auctions/active")
 async def active_auctions(country_code: Optional[str] = None, limit: int = 30):
+    limit = max(1, min(limit, 20))
     q: dict = public_listing_filter_for_country(country_code, {"category": "auctions"})
-    items = await db.listings.find(q, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+    candidates = await db.listings.find(q, {"_id": 0}).sort("created_at", -1).limit(min(60, limit * 3)).to_list(length=min(60, limit * 3))
+    items = []
+    now = datetime.now(timezone.utc)
+    for it in candidates:
+        end_dt = _auction_end_datetime(it)
+        if end_dt and end_dt <= now:
+            await db.listings.update_one({"id": it["id"], "status": "active"}, {"$set": {"status": "ended", "ended_at": now.isoformat()}})
+            continue
+        items.append(it)
+        if len(items) >= limit:
+            break
     # Attach top bid for each
     for it in items:
         top = await db.bids.find_one(
@@ -4020,7 +4048,11 @@ async def active_auctions(country_code: Optional[str] = None, limit: int = 30):
     return items
 
 @api.get("/auctions/{listing_id}/bids")
-async def auction_bids(listing_id: str, limit: int = 20):
+async def auction_bids(listing_id: str, country_code: Optional[str] = None, limit: int = 20):
+    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id, "category": "auctions"}), {"_id": 0})
+    if not listing:
+        raise HTTPException(404, "المزاد غير موجود")
+    limit = max(1, min(limit, 100))
     bids = await db.bids.find({"listing_id": listing_id}, {"_id": 0}).sort("amount", -1).limit(limit).to_list(length=limit)
     # Mask bidder names
     for b in bids:
@@ -4060,6 +4092,11 @@ async def auctions_ws(websocket: WebSocket, listing_id: str):
     bid placed via POST /auctions/{id}/bid is fanned out as:
       {type:"bid", amount, user_id, ts, count}
     Clients should treat dropped sockets as a signal to reconnect with backoff."""
+    country_code = websocket.query_params.get("country_code")
+    listing_guard = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id, "category": "auctions"}), {"_id": 0})
+    if not listing_guard:
+        await websocket.close(code=1008)
+        return
     await websocket.accept()
     conns = _AUCTION_WATCHERS.setdefault(listing_id, set())
     conns.add(websocket)
@@ -4100,14 +4137,16 @@ async def auctions_ws(websocket: WebSocket, listing_id: str):
 
 
 @api.post("/auctions/{listing_id}/bid")
-async def place_bid(listing_id: str, body: BidIn, user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+async def place_bid(listing_id: str, body: BidIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id, "category": "auctions"}), {"_id": 0})
     if not listing:
         raise HTTPException(404, "الإعلان غير موجود")
-    if listing.get("category") != "auctions":
-        raise HTTPException(400, "هذا الإعلان ليس مزاد")
     if listing.get("user_id") == user["id"]:
         raise HTTPException(400, "لا يمكنك المزايدة على إعلانك")
+    end_dt = _auction_end_datetime(listing)
+    if end_dt and end_dt <= datetime.now(timezone.utc):
+        await db.listings.update_one({"id": listing_id, "status": "active"}, {"$set": {"status": "ended", "ended_at": datetime.now(timezone.utc).isoformat()}})
+        raise HTTPException(409, "انتهى وقت المزاد")
     if listing.get("status") != "active":
         raise HTTPException(400, "المزاد منتهي")
     # Check current top bid
