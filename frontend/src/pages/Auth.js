@@ -231,11 +231,16 @@ export function RegisterPage() {
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
 
+    // Country metadata is requested once; tr is a stable translation helper for the fallback message.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
-        api.get("/meta/countries").then(({ data }) => setCountries(data));
+        api.get("/meta/countries")
+            .then(({ data }) => setCountries(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])))
+            .catch(() => { setCountries([]); setErr(tr("تعذر تحميل الدول، يمكنك المتابعة بالدولة الافتراضية السعودية")); });
     }, []);
 
-    const cur = countries.find((c) => c.code === form.country_code);
+    const safeCountries = Array.isArray(countries) ? countries : [];
+    const cur = safeCountries.find((c) => c.code === form.country_code) || { code: "SA", phone_code: "+966", phone_length: 9, cities: [] };
 
     const phoneHint = (() => {
         const map = {
@@ -290,7 +295,7 @@ export function RegisterPage() {
                     <div className="flex items-center bg-[var(--surface-elevated)] rounded-xl border border-[var(--border)] focus-within:border-[var(--primary)] px-3">
                         <Globe className="w-4 h-4 text-[var(--text-muted)]" />
                         <select data-testid="reg-country" value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value, city: "", phone: "" })} className="flex-1 bg-transparent outline-none px-3 py-3 text-sm text-[var(--text)] font-arabic-body">
-                            {countries.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name_ar} ({c.phone_code})</option>)}
+                            {safeCountries.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name_ar} ({c.phone_code})</option>)}
                         </select>
                     </div>
 
@@ -308,7 +313,7 @@ export function RegisterPage() {
                         <MapPin className="w-4 h-4 text-[var(--text-muted)]" />
                         <select data-testid="reg-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="flex-1 bg-transparent outline-none px-3 py-3 text-sm text-[var(--text)] font-arabic-body">
                             <option value="">{tr("اختر المدينة")}</option>
-                            {cur?.cities.map((ct) => <option key={ct.name_ar} value={ct.name_ar}>{ct.name_ar}</option>)}
+                            {(Array.isArray(cur?.cities) ? cur.cities : []).map((ct) => <option key={ct.name_ar} value={ct.name_ar}>{ct.name_ar}</option>)}
                         </select>
                     </div>
 

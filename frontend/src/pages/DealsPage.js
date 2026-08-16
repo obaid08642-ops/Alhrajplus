@@ -11,12 +11,15 @@ export default function DealsPage() {
     const { country } = useCountry();
     const [deals, setDeals] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
     useEffect(() => {
         const params = { limit: 30 };
         if (country) params.country_code = country;
+        setError("");
         api.get("/deals/today", { params })
-            .then(({ data }) => setDeals(data || []))
+            .then(({ data }) => setDeals(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])))
+            .catch(() => { setDeals([]); setError(tr("تعذر تحميل الصفقات الحالية")); })
             .finally(() => setLoading(false));
     }, [country]);
 
@@ -38,7 +41,9 @@ export default function DealsPage() {
                 </div>
             </div>
 
-            {loading ? (
+            {error ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 p-8 text-center font-arabic-body">{error}</div>
+            ) : loading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-[var(--surface-elevated)] animate-pulse"></div>)}
                 </div>
@@ -53,7 +58,7 @@ export default function DealsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {deals.map((d) => <DealCard key={d.id} deal={d} />)}
+                    {(Array.isArray(deals) ? deals : []).map((d) => <DealCard key={d.id} deal={d} />)}
                 </div>
             )}
         </div>

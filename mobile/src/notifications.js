@@ -72,6 +72,23 @@ function routeFromUrl(url) {
         _navigationRef.navigate("Chat", to ? { to } : {});
         return;
     }
+    // Reels / stories — Reels is a tab nested inside Main.
+    if (url === "/reels" || url.startsWith("/reels?") || url === "/stories" || url.startsWith("/stories?")) {
+        _navigationRef.navigate("Main", { screen: "ReelsTab" });
+        return;
+    }
+    // Auctions, map, offers, and today's deals.
+    const topLevelRoutes = [
+        ["/auctions", "Auctions"],
+        ["/map", "Map"],
+        ["/offers", "Offers"],
+        ["/deals", "Deals"],
+    ];
+    const topRoute = topLevelRoutes.find(([prefix]) => url === prefix || url.startsWith(`${prefix}?`));
+    if (topRoute) {
+        _navigationRef.navigate(topRoute[1]);
+        return;
+    }
     // Post listing (abandoned-draft reminder)
     if (url === "/post" || url.startsWith("/post?")) {
         if (_navigationRef?.navigate) { _navigationRef.navigate("Post"); return; }

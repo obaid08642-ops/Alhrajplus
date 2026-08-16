@@ -253,6 +253,8 @@ export function MapPage() {
     const { user } = useAuth();
     const { country } = useCountry();
     const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [myPos, setMyPos] = useState(null);
     const [categoryFilter, setCategoryFilter] = useState("");
     const center = [24.7136, 46.6753];
@@ -261,8 +263,16 @@ export function MapPage() {
         const params = { limit: 200 };
         if (country) params.country_code = country;
         if (categoryFilter) params.category = categoryFilter;
+        setLoading(true);
+        setLoadError("");
         api.get("/listings/map/nearby", { params })
-            .then(({ data }) => setItems(data));
+            .then(({ data }) => {
+                const next = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+                setItems(next);
+                if (!Array.isArray(data) && !Array.isArray(data?.items)) setLoadError(tr("تعذر قراءة بيانات الخريطة"));
+            })
+            .catch(() => { setItems([]); setLoadError(tr("تعذر تحميل الإعلانات على الخريطة")); })
+            .finally(() => setLoading(false));
     }, [country, categoryFilter]);
 
     const locate = () => {
@@ -290,15 +300,17 @@ export function MapPage() {
                         <option value="livestock">{tr("مواشي")}</option>
                     </select>
                     <button data-testid="map-locate-btn" onClick={locate} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-4 py-2 font-bold text-xs flex items-center gap-1.5 font-arabic">
-                        📍 {tr("موقعي الحالي")}
+                        {tr("موقعي الحالي")}
                     </button>
                 </div>
             </div>
             <div className="h-[70vh] rounded-3xl overflow-hidden border border-[var(--border)]">
+                {loading && <div className="absolute z-[1000] m-3 rounded-full bg-[var(--surface)]/90 px-3 py-2 text-xs font-arabic shadow">{tr("جاري تحميل الخريطة...")}</div>}
+                {loadError && <div className="absolute z-[1000] left-1/2 -translate-x-1/2 mt-3 rounded-xl bg-red-50 text-red-700 px-3 py-2 text-xs font-arabic shadow">{loadError}</div>}
                 <MapContainer center={myPos || (items[0] ? [items[0].lat, items[0].lng] : center)} zoom={myPos ? 13 : (items.length ? 10 : 6)} className="w-full h-full" key={myPos ? myPos.join(",") : "default"}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
                     {myPos && <Marker position={myPos} icon={buildMyLocationIcon()}><Popup>{tr("موقعك الحالي")}</Popup></Marker>}
-                    {items.map((it) => (
+                    {(Array.isArray(items) ? items : []).map((it) => (
                         <Marker key={it.id} position={[it.lat, it.lng]} icon={buildHologramIcon({ price: it.price, currency: it.currency, category: it.category })}>
                             <Popup>
                                 <div className="font-arabic">

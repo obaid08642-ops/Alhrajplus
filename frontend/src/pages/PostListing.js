@@ -53,15 +53,21 @@ export default function PostListing() {
     }, [loading, user, nav]);
 
     useEffect(() => {
-        api.get("/meta/categories", { params: { lang } }).then(({ data }) => setCategories(data));
-        api.get("/meta/countries").then(({ data }) => setCountries(data));
+        api.get("/meta/categories", { params: { lang } })
+            .then(({ data }) => setCategories(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])))
+            .catch(() => { setCategories([]); setErr(tr("تعذر تحميل الفئات")); });
+        api.get("/meta/countries")
+            .then(({ data }) => setCountries(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])))
+            .catch(() => { setCountries([]); setErr(tr("تعذر تحميل الدول")); });
     }, [lang]);
 
     // Derived values must be computed BEFORE any useEffect that depends on them
     // (otherwise we get a "Cannot access ... before initialization" TDZ error).
-    const cat = categories.find((c) => c.key === form.category);
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const safeCountries = Array.isArray(countries) ? countries : [];
+    const cat = safeCategories.find((c) => c.key === form.category);
     const activeCountryCode = (ctxCountryCode || user?.country_code || "").toUpperCase();
-    const country = countries.find((c) => c.code === activeCountryCode);
+    const country = safeCountries.find((c) => c.code === activeCountryCode);
 
     // Load existing listing for editing
     useEffect(() => {
@@ -95,7 +101,7 @@ export default function PostListing() {
     // When user switches active country, clear stale city/district from previous country.
     useEffect(() => {
         if (!activeCountryCode) return;
-        const c = countries.find((x) => x.code === activeCountryCode);
+        const c = safeCountries.find((x) => x.code === activeCountryCode);
         if (!c || !form.city) return;
         const stillValid = (c.cities || []).some((x) => x.name_ar === form.city);
         if (!stillValid) {
@@ -683,7 +689,7 @@ export default function PostListing() {
                                 className="w-full appearance-none bg-[var(--surface-elevated)] rounded-xl px-3 py-3 pr-10 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body cursor-pointer"
                             >
                                 <option value="">{tr("— اختر التصنيف —")}</option>
-                                {categories.map((c) => (
+                                {safeCategories.map((c) => (
                                     <option key={c.key} value={c.key}>{pickName(c)}</option>
                                 ))}
                             </select>

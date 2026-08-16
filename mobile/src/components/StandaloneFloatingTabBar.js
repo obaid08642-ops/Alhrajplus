@@ -35,7 +35,7 @@ function buildBarPath(W, totalH) {
 //            pass "Home" when on Map so the home icon stays the highlight).
 export default function StandaloneFloatingTabBar({ activeKey = null }) {
   const { t } = useI18n();
-  const { isDark } = useThemeMode();
+  const { isDark, palette } = useThemeMode();
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const pulse = useRef(new Animated.Value(0)).current;
@@ -83,9 +83,9 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
   const W = Dimensions.get("window").width;
   const barTotalH = BAR_HEIGHT + insets.bottom;
   const barPath = buildBarPath(W, barTotalH);
-  const surface = isDark ? colors.primaryDeep : colors.primary;
-  const activeColor = colors.primaryFg;
-  const inactiveColor = isDark ? "rgba(255,255,255,0.64)" : "rgba(255,255,255,0.80)";
+  const surface = palette.navBg || palette.primary;
+  const activeColor = isDark ? palette.text : palette.primaryFg;
+  const inactiveColor = isDark ? "rgba(231,238,248,0.72)" : "rgba(10,17,40,0.72)";
   const fabBottom = barTotalH - FAB_SUBMERGE;
 
   return (
@@ -97,12 +97,12 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
           <TouchableOpacity
             onPress={goToPost}
             activeOpacity={0.85}
-            style={styles.fab}
+            style={[styles.fab, { backgroundColor: palette.primary, borderColor: isDark ? palette.text : palette.primaryFg, shadowColor: palette.primary }]}
             testID="standalone-tab-fab"
             accessibilityLabel={t("أضف إعلان")}
           >
-            <Plus size={24} color={colors.primaryFg} strokeWidth={3.2} />
-            <Text style={styles.fabLabel} numberOfLines={1}>{t("أضف إعلان")}</Text>
+            <Plus size={24} color={isDark ? palette.text : palette.primaryFg} strokeWidth={3.2} />
+            <Text style={[styles.fabLabel, { color: isDark ? palette.text : palette.primaryFg }]} numberOfLines={1}>{t("أضف إعلان")}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -148,22 +148,22 @@ const styles = StyleSheet.create({
   fab: {
     width: FAB_W, height: FAB_H, borderRadius: 999,
     alignItems: "center", justifyContent: "center",
-    backgroundColor: colors.primary, borderWidth: 2, borderColor: "#FFFFFF",
+    backgroundColor: "transparent", borderWidth: 2, borderColor: "transparent",
     paddingHorizontal: 4, paddingVertical: 8, overflow: "hidden",
-    shadowColor: colors.primary, shadowOpacity: 0.45, shadowRadius: 18,
+    shadowOpacity: 0.45, shadowRadius: 18,
     shadowOffset: { width: 0, height: 4 }, elevation: 12,
   },
-  fabLabel: { color: colors.primaryFg, fontSize: 9.5, fontWeight: "900", marginTop: 2, textAlign: "center" },
+  fabLabel: { fontSize: 9.5, fontWeight: "900", marginTop: 2, textAlign: "center" },
   pulseRing: {
     position: "absolute", bottom: 0,
     width: FAB_W + 14, height: FAB_H + 14, borderRadius: 999,
-    borderWidth: 2, borderColor: `${colors.primary}73`,
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.45)",
     backgroundColor: "transparent",
   },
   burstRing: {
     position: "absolute", bottom: 6,
     width: FAB_W + 10, height: FAB_H + 10, borderRadius: 999,
-    borderWidth: 4, borderColor: colors.primary,
+    borderWidth: 4, borderColor: palette.primary,
     backgroundColor: "transparent",
   },
 });

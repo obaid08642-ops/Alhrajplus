@@ -61,13 +61,16 @@ export default function BottomNav() {
                 to={to}
                 data-testid={`nav-${k}`}
                 aria-label={label}
-                className={`relative flex flex-col items-center justify-center gap-0.5 px-3 sm:px-4 py-1.5 rounded-2xl transition-all duration-300 ${
-                    active ? "bg-[var(--primary-fg)]/18 dark:bg-[var(--primary-fg)]/24" : "hover:bg-[var(--primary-fg)]/10 dark:hover:bg-[var(--primary-fg)]/12"
-                }`}
+                className="relative flex flex-col items-center justify-center gap-0.5 px-3 sm:px-4 py-1.5 rounded-2xl transition-all duration-300"
+                style={{
+                    backgroundColor: active ? "var(--primary-fg)" : "transparent",
+                    opacity: active ? 0.2 : 1,
+                }}
             >
                 <div className="relative">
                     <Icon
-                        className={`w-6 h-6 transition-all ${active ? "text-[var(--primary-fg)] scale-110" : "text-[var(--primary-fg)]/75 dark:text-[var(--primary-fg)]/75"}`}
+                        className="w-6 h-6 transition-all"
+                            style={{ color: "var(--primary-fg)", opacity: active ? 1 : 0.75, transform: active ? "scale(1.1)" : "scale(1)" }}
                         strokeWidth={active ? 2.6 : 2}
                         fill={active ? "currentColor" : "none"}
                     />
@@ -77,7 +80,8 @@ export default function BottomNav() {
                         </span>
                     )}
                 </div>
-                <span className={`text-[10px] sm:text-[11px] font-arabic font-bold leading-tight ${active ? "text-[var(--primary-fg)]" : "text-[var(--primary-fg)]/75 dark:text-[var(--primary-fg)]/75"}`}>
+                <span className="text-[10px] sm:text-[11px] font-arabic font-bold leading-tight"
+                        style={{ color: "var(--primary-fg)", opacity: active ? 1 : 0.75 }}>
                     {label}
                 </span>
             </Link>
@@ -109,7 +113,10 @@ export default function BottomNav() {
             </Link>
 
             <nav data-testid="bottom-nav-pill" className="fixed left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1rem)] sm:w-auto" style={{ bottom: "env(safe-area-inset-bottom, 0px)" }} dir="rtl">
-                <div className="flex items-center justify-around bg-[var(--primary)]/95 dark:bg-[var(--primary)]/90 backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(15,27,58,0.35)] border border-[var(--primary-fg)]/25 dark:border-[var(--primary-fg)]/30 px-2 py-2">
+                <div
+                    className="flex items-center justify-around backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(15,27,58,0.35)] px-2 py-2"
+                    style={{ backgroundColor: "var(--primary)", border: "1px solid var(--primary-fg)", borderColor: "color-mix(in srgb, var(--primary-fg) 30%, transparent)" }}
+                >
                     <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
                     <SideItem to="/reels" icon={Film} label={tr("ستوري")} navKey="reels" />
 
