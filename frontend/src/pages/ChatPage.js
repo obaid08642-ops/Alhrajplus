@@ -375,11 +375,12 @@ export default function ChatPage() {
     useEffect(() => {
         if (!user) return;
         api.get("/chat/conversations").then(({ data }) => {
-            setConvos(data);
+            const list = Array.isArray(data) ? data : (Array.isArray(data?.conversations) ? data.conversations : (Array.isArray(data?.items) ? data.items : []));
+            setConvos(list);
             if (initialTo) {
                 const cid = [user.id, initialTo].sort().join("_");
                 setActiveConvoId(cid);
-                const found = data.find((c) => c.id === cid);
+                const found = list.find((c) => c.id === cid);
                 if (found) setActiveOther(found.other);
                 else setActiveOther({ id: initialTo, name: tr("البائع") });
             }
@@ -399,7 +400,8 @@ export default function ChatPage() {
         initialLoadRef.current = true;
         api.get(`/chat/messages/${activeConvoId}`).then(({ data }) => {
             if (cancelled) return;
-            setMessages(data);
+            const list = Array.isArray(data) ? data : (Array.isArray(data?.messages) ? data.messages : (Array.isArray(data?.items) ? data.items : []));
+            setMessages(list);
             // One-time jump to latest message when the thread first opens.
             // After this, the user controls the scroll completely — no more
             // forced scrolls from incoming messages, image loads, or keyboard.
@@ -422,7 +424,7 @@ export default function ChatPage() {
         setLoadingOlder(true);
         try {
             const { data } = await api.get(`/chat/messages/${activeConvoId}`, { params: { before: oldest, limit: 50 } });
-            const older = data?.messages || [];
+            const older = Array.isArray(data) ? data : (Array.isArray(data?.messages) ? data.messages : (Array.isArray(data?.items) ? data.items : []));
             if (older.length === 0) setHasMoreMessages(false);
             else setMessages((prev) => [...older, ...prev]);
             if (!data?.has_more) setHasMoreMessages(false);
