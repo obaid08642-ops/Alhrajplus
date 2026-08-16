@@ -170,3 +170,7 @@
 ### عزل الإعلانات حسب الدولة وإصلاح الشريط السفلي
 
 تمت إضافة `public_listing_filter_for_country` في backend مع fallback صارم إلى `SA` عند غياب الاختيار، وتطبيقه على feed الإعلانات، البحث، المقترحات، trending، deals، auctions، map، تفاصيل الإعلان بالـID/slug، وsimilar listings. أصبح كل query عامًا يشترط تطابق `country_code` الدقيق؛ الإعلان المصري لا يدخل feed السعودية والعكس. كما تم تعديل Web BottomNav ليستخدم `var(--primary-hover)` وخلفية/ظل صريحين للحالة النشطة بدل opacity شفافة، وتعديل Mobile StandaloneFloatingTabBar لإظهار active pill من `palette.primaryHover` مع border/shadow. الأدلة: `py_compile` نجح، `test_public_visibility_policy.py` نجح (4/4)، Web production build نجح، وExpo export نجح. اختبار staging الفعلي بين دولتين ما زال مطلوبًا بعد deployment.
+
+### النشر إلى GitHub
+
+تم رفع النسخة الأخيرة إلى `main` وإلى `production-readiness-premium`. التحقق عبر GitHub API أثبت تطابق commit المحلي والفرعين: `9ac86cfc04ae2649b6520f10546aa85e4211f16c`. لم تُحفظ بيانات حساب الاختبار أو أي token داخل الملفات أو Git. لم يُنفذ staging بعد لأن ذلك يتطلب أن يقوم المستخدم بعمل deployment للـbackend/frontend على السيرفر بعد هذا commit.
