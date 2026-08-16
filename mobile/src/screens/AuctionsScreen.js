@@ -4,7 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshCon
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { Gavel, Clock, TrendingUp, Users, X, Sparkles } from "lucide-react-native";
+import { Gavel, Clock, TrendingUp, Users, X, Sparkles, Plus, WifiOff } from "lucide-react-native";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useThemeMode } from "../ThemeContext";
@@ -22,12 +22,14 @@ export default function AuctionsScreen({ route }) {
   } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [active, setActive] = useState(null);
   // Auto-open the bid sheet when navigated here with `openBidFor` param
   // (used by the sticky CTA on the listing detail screen).
   const openBidFor = route?.params?.openBidFor;
   const load = useCallback(async () => {
+    setLoadError("");
     try {
       const {
         data
@@ -36,8 +38,8 @@ export default function AuctionsScreen({ route }) {
           limit: 30
         }
       });
-      setItems(data || []);
-    } catch (_) {} finally {
+      setItems(Array.isArray(data) ? data : []);
+    } catch (_) { setItems([]); setLoadError(t("تعذر تحميل المزادات. حاول مرة أخرى.")); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -97,13 +99,13 @@ export default function AuctionsScreen({ route }) {
                     <Text style={styles.listTitle}>{t("المزادات النشطة")} <Text style={styles.muted}>({items.length})</Text></Text>
                 </View>
                 <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.createBtn}>
-                    <Text style={styles.createBtnText}>{t("+ أنشئ مزاد")}</Text>
+                    <Plus size={14} color="#fff" strokeWidth={2.8} /><Text style={styles.createBtnText}>{t("أنشئ مزاد")}</Text>
                 </TouchableOpacity>
             </View>
 
-            {loading ? <ActivityIndicator color={colors.primary} style={{
+            {loading ? <ActivityIndicator color={palette.primary} style={{
       marginTop: 30
-    }} /> : items.length === 0 ? <View style={styles.empty}>
+    }} /> : loadError ? <View style={styles.empty}><WifiOff size={40} color={palette.danger || colors.danger} /><Text style={styles.emptyText}>{loadError}</Text><TouchableOpacity onPress={load} style={styles.createBtn}><Text style={styles.createBtnText}>{t("إعادة المحاولة")}</Text></TouchableOpacity></View> : items.length === 0 ? <View style={styles.empty}>
                     <Gavel size={40} color={colors.textMuted} />
                     <Text style={styles.emptyText}>{t("لا توجد مزادات نشطة الآن")}</Text>
                 </View> : items.map(l => <AuctionCard key={l.id} listing={l} onBid={() => setActive(l)} />)}

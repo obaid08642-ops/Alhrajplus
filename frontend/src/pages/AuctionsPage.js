@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import api, { formatApiError } from "@/lib/api";
-import { Gavel, Clock, TrendingUp, Users, X, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { Gavel, Clock, TrendingUp, Users, X, Sparkles, Wifi, WifiOff, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
@@ -14,6 +14,7 @@ export default function AuctionsPage() {
     const [searchParams] = useSearchParams();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [active, setActive] = useState(null); // listing being bid on
     const [refreshKey, setRefreshKey] = useState(0);
     // Deep-link: ?openBidFor=ID from the listing detail "مزايدة الآن" CTA.
@@ -22,8 +23,10 @@ export default function AuctionsPage() {
     useEffect(() => {
         const params = { limit: 30 };
         if (country) params.country_code = country;
+        setLoadError("");
         api.get("/auctions/active", { params })
-            .then(({ data }) => setItems(data || []))
+            .then(({ data }) => setItems(Array.isArray(data) ? data : []))
+            .catch(() => { setItems([]); setLoadError(tr("تعذر تحميل المزادات. حاول مرة أخرى.")); })
             .finally(() => setLoading(false));
     }, [country, refreshKey]);
 
@@ -66,13 +69,19 @@ export default function AuctionsPage() {
                     <h2 className="font-arabic font-bold text-base text-[var(--text)]">{tr("المزادات النشطة ")}<span className="text-[var(--text-muted)] text-xs">({items.length})</span></h2>
                 </div>
                 <Link to="/post" data-testid="auction-create-btn" className="bg-[var(--primary)] text-[var(--primary-fg)] hover:bg-[var(--primary-hover)] rounded-full px-4 py-1.5 text-xs font-bold font-arabic">
-                    + {tr("أنشئ مزاد")}
+                    <Plus className="w-3.5 h-3.5" /> {tr("أنشئ مزاد")}
                 </Link>
             </div>
 
             {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-64 rounded-2xl bg-[var(--surface-elevated)] animate-pulse"></div>)}
+                </div>
+            ) : loadError ? (
+                <div className="bg-[var(--surface)] rounded-2xl p-10 text-center border border-red-500/20">
+                    <WifiOff className="w-12 h-12 text-red-500 mx-auto mb-3" />
+                    <p className="text-[var(--text)] font-arabic-body mb-4">{loadError}</p>
+                    <button onClick={() => setRefreshKey((k) => k + 1)} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 rounded-full font-arabic font-bold text-sm">{tr("إعادة المحاولة")}</button>
                 </div>
             ) : items.length === 0 ? (
                 <div className="bg-[var(--surface)] rounded-2xl p-10 text-center border border-[var(--border)]">
@@ -180,7 +189,7 @@ function BidDialog({ listing, onClose, onPlaced }) {
         // error instantly without a roundtrip.
         const val = parseFloat(amount);
         if (!Number.isFinite(val) || val < minRequired) {
-            setErr(`الحد الأدنى للمزايدة: ${minRequired.toLocaleString()} (زيادة لا تقل عن ${minIncrement.toLocaleString()})`);
+            setErr(`${tr("الحد الأدنى للمزايدة")}: ${minRequired.toLocaleString()} (${tr("زيادة لا تقل عن")} ${minIncrement.toLocaleString()})`);
             return;
         }
         setErr(""); setBusy(true);
@@ -188,7 +197,7 @@ function BidDialog({ listing, onClose, onPlaced }) {
             await api.post(`/auctions/${listing.id}/bid`, { amount: val });
             onPlaced();
         } catch (e) {
-            setErr(formatApiError(e.response?.data?.detail) || "تعذر إيداع المزايدة");
+            setErr(formatApiError(e.response?.data?.detail) || tr("تعذر إيداع المزايدة"));
         } finally { setBusy(false); }
     };
 
@@ -196,7 +205,7 @@ function BidDialog({ listing, onClose, onPlaced }) {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3" onClick={onClose}>
             <div data-testid="bid-dialog" onClick={(e) => e.stopPropagation()} className="bg-[var(--surface)] rounded-t-3xl sm:rounded-3xl w-full max-w-md border border-[var(--border)] shadow-2xl overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
-                    <h3 className="font-arabic font-black text-lg text-[var(--text)] flex items-center gap-2"><Gavel className="w-5 h-5 text-[var(--primary)]" /> المزايدة على {listing.title}</h3>
+                    <h3 className="font-arabic font-black text-lg text-[var(--text)] flex items-center gap-2"><Gavel className="w-5 h-5 text-[var(--primary)]" /> {tr("المزايدة على")} {listing.title}</h3>
                     <div className="flex items-center gap-1.5">
                         <span data-testid="bid-live-status" title={live.connected ? "Live updates ON" : "Reconnecting..."} className={`inline-flex items-center gap-1 text-[10px] font-arabic font-bold px-2 py-1 rounded-full ${live.connected ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600"}`}>
                             {live.connected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
