@@ -16,8 +16,8 @@ self.addEventListener("push", (event) => {
     const richImage = payload.image || payload.data?.image || null;
     const options = {
         body: payload.body || "",
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
+        icon: "/favicon-192.png",
+        badge: "/favicon-192.png",
         dir: "rtl",
         lang: "ar",
         data: { url: payload.url || "/", image: richImage, ...(payload.data || {}) },
