@@ -64,7 +64,7 @@ function buildBarPath(W, totalH) {
 
 export default function FloatingTabBar({ state, descriptors, navigation }) {
   const { t } = useI18n();
-  const { isDark } = useThemeMode();
+  const { isDark, palette } = useThemeMode();
   const insets = useSafeAreaInsets();
 
   // Honour `tabBarStyle: { display: 'none' }` from useFocusEffect — used by
@@ -122,9 +122,9 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
   const barPath = buildBarPath(W, barTotalH);
 
   // The tab bar, header, and primary actions all consume the same theme token.
-  const surface = isDark ? colors.primaryDeep : colors.primary;
-  const activeColor = colors.primaryFg;
-  const inactiveColor = isDark ? "rgba(255,255,255,0.64)" : "rgba(255,255,255,0.80)";
+  const surface = palette.navBg || palette.primary;
+  const activeColor = isDark ? palette.text : palette.primaryFg;
+  const inactiveColor = isDark ? "rgba(231,238,248,0.72)" : "rgba(10,17,40,0.72)";
 
   // FAB vertical position — measured from the bottom of the wrap (screen bottom).
   // Wrap bottom = screen bottom = bar's true bottom. Bar's TOP edge is at
@@ -144,12 +144,12 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
           <TouchableOpacity
             onPress={goToPost}
             activeOpacity={0.85}
-            style={styles.fab}
+            style={[styles.fab, { backgroundColor: palette.primary, borderColor: isDark ? palette.text : palette.primaryFg }]}
             testID="tab-fab-post"
             accessibilityLabel={t("أضف إعلان")}
           >
-            <Plus size={24} color={colors.primaryFg} strokeWidth={3.2} />
-            <Text style={styles.fabLabel} numberOfLines={1}>{t("أضف إعلان")}</Text>
+            <Plus size={24} color={isDark ? palette.text : palette.primaryFg} strokeWidth={3.2} />
+            <Text style={[styles.fabLabel, { color: isDark ? palette.text : palette.primaryFg }]} numberOfLines={1}>{t("أضف إعلان")}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
