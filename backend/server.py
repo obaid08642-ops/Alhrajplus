@@ -32,6 +32,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 
 from seed_data import COUNTRIES, CATEGORIES, DEFAULT_THEME
 from i18n_data import localize_categories, t_option, t_category
@@ -4537,7 +4538,14 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         "read": False,
         "ts": datetime.now(timezone.utc).isoformat(),
     }
-    await db.messages.insert_one(msg)
+    try:
+        await db.messages.insert_one(msg)
+    except DuplicateKeyError:
+        if body.client_message_id:
+            existing = await db.messages.find_one({"sender_id": user["id"], "client_message_id": body.client_message_id}, {"_id": 0})
+            if existing:
+                return existing
+        raise
     # upsert convo doc
     await db.conversations.update_one(
         {"id": convo_id},
@@ -4579,7 +4587,7 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
             "type": "new_message",
             "title": f"رسالة جديدة من {user.get('name', 'مستخدم')}",
             "body": preview,
-            "data": {"convo_id": convo_id, "sender_id": user["id"]},
+            "data": {"convo_id": convo_id, "sender_id": user["id"], "listing_id": body.listing_id},
             "read": False,
             "created_at": msg["ts"],
         })
@@ -4587,8 +4595,8 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
             db, [body.receiver_id],
             title=f"💬 {user.get('name', 'رسالة جديدة')}",
             body=preview,
-            url=f"/chat?to={user['id']}",
-            data={"type": "new_message", "convo_id": convo_id, "sender_id": user["id"]},
+            url=f"/chat?to={user['id']}" + (f"&listing={body.listing_id}" if body.listing_id else ""),
+            data={"type": "new_message", "convo_id": convo_id, "sender_id": user["id"], "listing_id": body.listing_id},
             pref_key="messages",
         ))
     return msg_payload

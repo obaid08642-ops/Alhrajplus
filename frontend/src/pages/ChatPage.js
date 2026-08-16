@@ -452,7 +452,7 @@ export default function ChatPage() {
             if (m.convo_id === activeConvoId) {
                 setMessages((prev) => {
                     // Replace any optimistic tmp with the same text+ts within 5s
-                    const idx = prev.findIndex((x) => String(x.id).startsWith("tmp_") && x.sender_id === m.sender_id && x.text === m.text);
+                    const idx = prev.findIndex((x) => (x.client_message_id && x.client_message_id === m.client_message_id) || (String(x.id).startsWith("tmp_") && x.sender_id === m.sender_id && x.text === m.text));
                     if (idx >= 0) {
                         const next = prev.slice();
                         next[idx] = m;
@@ -531,8 +531,9 @@ export default function ChatPage() {
         setReplyTo(null);
 
         const tmpId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const clientMessageId = `${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
         const optimistic = {
-            id: tmpId, sender_id: user.id, receiver_id: activeOther.id,
+            id: tmpId, client_message_id: clientMessageId, sender_id: user.id, receiver_id: activeOther.id,
             text: text || null, image: extra.image || null, voice: extra.voice || null,
             location: extra.location || null, reply_to: replySnapshot,
             ts: new Date().toISOString(), pending: true,
@@ -546,6 +547,7 @@ export default function ChatPage() {
             const { data: msg } = await api.post("/chat/send", {
                 receiver_id: activeOther.id,
                 listing_id: initialListing || null,
+                client_message_id: clientMessageId,
                 text: text || null,
                 image: extra.image || null,
                 voice: extra.voice || null,

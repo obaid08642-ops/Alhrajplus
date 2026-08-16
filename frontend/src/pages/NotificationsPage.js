@@ -7,7 +7,16 @@ import { useI18n, tr } from "@/contexts/I18nContext";
 import { useChatSocket } from "@/lib/useChatSocket";
 
 const ICONS = { new_message: MessageCircle, listing_offer: Tag, listing_offer_update: CheckCircle2, listing_approved: CheckCircle2, listing_rejected: XCircle, price_drop: Tag, auction: Hammer, admin_broadcast: Megaphone };
-const urlFor = (n) => n?.data?.url || (n?.type === "new_message" ? (n.data?.sender_id ? `/chat?to=${n.data.sender_id}` : "/chat") : n?.data?.listing_id ? `/listing/${n.data.listing_id}` : "/");
+const urlFor = (n) => {
+    if (n?.data?.url) return n.data.url;
+    if (n?.type === "new_message") {
+        const sender = n.data?.sender_id;
+        const listing = n.data?.listing_id;
+        if (sender) return `/chat?to=${encodeURIComponent(sender)}${listing ? `&listing=${encodeURIComponent(listing)}` : ""}`;
+        return "/chat";
+    }
+    return n?.data?.listing_id ? `/listing/${encodeURIComponent(n.data.listing_id)}` : "/";
+};
 
 export default function NotificationsPage() {
     const { user } = useAuth();
