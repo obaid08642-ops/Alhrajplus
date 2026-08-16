@@ -150,3 +150,7 @@
 ### حماية Profile وOffers
 
 تم تطبيع `/listings/me/mine`, `/favorites`, و`/offers/mine` إلى arrays قبل tabs والعرض، مع empty state حقيقي بدل crash. نجح Web production build في إعادة المحاولة بعد أن علقت محاولة أولى بسبب عملية build transient وتم إيقافها؛ لا يوجد compile failure مثبت. تبقى صحة دورة accept/reject/counter والـnotifications بحاجة staging authenticated.
+
+### حماية Mobile Post
+
+تم تطبيع categories metadata وحماية edit listing من response غير object، مع تحويل images/videos/custom_fields إلى أنواع آمنة قبل دمجها في form. نجح Expo export بعد التعديل. يبقى اختبار upload/permission/Cloudinary/preview/publish على Android وiOS وHuawei بحاجة staging وأجهزة فعلية.
