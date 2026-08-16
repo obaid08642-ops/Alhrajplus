@@ -142,3 +142,7 @@
 ### حماية Mobile Chat
 
 تم توحيد تطبيع conversations/messages/history وForwardPicker في `mobile/src/screens/ChatScreen.js` إلى arrays قبل العرض، دون إزالة WebSocket أو outbox أو read receipts. نجح `npx expo export --platform web` بعد التعديل. لا يزال اختبار Android/iOS/Huawei الحقيقي، background push، cold-start، وإعادة الاتصال بحاجة أجهزة/حسابات staging فعلية.
+
+### حماية Web Auctions
+
+تم تطبيع قائمة المزادات النشطة وbid history إلى arrays مع error handling، وتطبيع `top_bid` قبل الحساب، مع بقاء تحديثات WebSocket الحية وفتح BidDialog من query param. نجح Web production build. لا يزال إثبات bid lifecycle، minimum increment، expiry، history، notifications، وحسابين فعليين ضمن اختبار staging المطلوب.
