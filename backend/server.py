@@ -2905,6 +2905,22 @@ async def list_listing_offers(listing_id: str, user: dict = Depends(get_current_
         raise HTTPException(403, "غير مصرح")
     return await db.listing_offers.find({"listing_id": listing_id}, {"_id": 0}).sort("updated_at", -1).to_list(length=200)
 
+@api.get("/offers/mine")
+async def my_listing_offers(role: str = "all", user: dict = Depends(get_current_user)):
+    if role not in ("all", "buyer", "seller"):
+        raise HTTPException(400, "role must be all, buyer, or seller")
+    match = {"buyer_id": user["id"]} if role == "buyer" else {"seller_id": user["id"]} if role == "seller" else {"$or": [{"buyer_id": user["id"]}, {"seller_id": user["id"]}]}
+    items = await db.listing_offers.find(match, {"_id": 0}).sort("updated_at", -1).limit(100).to_list(length=100)
+    listing_ids = list({x.get("listing_id") for x in items if x.get("listing_id")})
+    listings = {}
+    if listing_ids:
+        async for listing in db.listings.find({"id": {"$in": listing_ids}}, {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "images": {"$slice": 1}, "status": 1}):
+            listings[listing["id"]] = listing
+    for item in items:
+        item["listing"] = listings.get(item.get("listing_id"))
+        item["is_seller"] = item.get("seller_id") == user["id"]
+    return items
+
 @api.patch("/listing-offers/{offer_id}")
 async def decide_listing_offer(offer_id: str, body: OfferDecisionIn, user: dict = Depends(get_current_user)):
     offer = await db.listing_offers.find_one({"id": offer_id}, {"_id": 0})

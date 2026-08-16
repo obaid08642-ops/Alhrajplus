@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon, Tag } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import ListingCard from "@/components/listings/ListingCard";
 
@@ -64,6 +64,7 @@ export default function ProfilePage() {
     const [favorites, setFavorites] = useState([]);
     const [referral, setReferral] = useState(null);
     const [stats, setStats] = useState(null);
+    const [offers, setOffers] = useState([]);
 
     useEffect(() => {
         if (!loading && !user) nav("/login");
@@ -75,6 +76,7 @@ export default function ProfilePage() {
         api.get("/favorites").then(({ data }) => setFavorites(data));
         api.get("/referral/me").then(({ data }) => setReferral(data));
         api.get("/auth/me/stats").then(({ data }) => setStats(data)).catch(() => {});
+        api.get("/offers/mine").then(({ data }) => setOffers(data || [])).catch(() => {});
     }, [user]);
 
     const togglePhoneVisibility = async () => {
@@ -219,6 +221,9 @@ export default function ProfilePage() {
                 <button data-testid="tab-favorites" onClick={() => setTab("favorites")} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center justify-center gap-2 ${tab === "favorites" ? "bg-[var(--primary)] text-[var(--primary-fg)]" : "bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]"}`}>
                     <Heart className="w-4 h-4" /> {t("favorites")}
                 </button>
+                <button data-testid="tab-offers" onClick={() => setTab("offers")} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-full font-arabic font-bold text-sm flex items-center justify-center gap-2 ${tab === "offers" ? "bg-[var(--accent)] text-[var(--secondary)]" : "bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]"}`}>
+                    <Tag className="w-4 h-4" /> {tr("العروض")}
+                </button>
             </div>
 
             {tab === "listings" ? (
@@ -239,7 +244,7 @@ export default function ProfilePage() {
                         ))}
                     </div>
                 )
-            ) : (
+            ) : tab === "favorites" ? (
                 favorites.length === 0 ? (
                     <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)]">
                         <p className="text-[var(--text-muted)] font-arabic-body">{tr("لا توجد إعلانات في المفضلة")}</p>
@@ -247,6 +252,26 @@ export default function ProfilePage() {
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {favorites.map((l) => <ListingCard key={l.id} listing={l} compact />)}
+                    </div>
+                )
+            ) : (
+                offers.length === 0 ? (
+                    <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)]">
+                        <Tag className="w-8 h-8 mx-auto mb-2 text-[var(--text-muted)]" />
+                        <p className="text-[var(--text-muted)] font-arabic-body">{tr("لا توجد عروض أسعار بعد")}</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {offers.map((offer) => (
+                            <Link key={offer.id} to={`/listing/${offer.listing_id}`} className="flex items-center gap-3 bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] hover:border-[var(--primary)] transition-colors">
+                                {offer.listing?.images?.[0] ? <img src={offer.listing.images[0]} alt="" className="w-16 h-16 rounded-xl object-cover" /> : <div className="w-16 h-16 rounded-xl bg-[var(--surface-elevated)] flex items-center justify-center"><Tag className="w-5 h-5 text-[var(--primary)]" /></div>}
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{offer.listing?.title || tr("إعلان غير متاح")}</div>
+                                    <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{offer.is_seller ? tr("عرض وارد") : tr("عرضي")} · {Number(offer.amount).toLocaleString()} {offer.currency || ""}</div>
+                                </div>
+                                <span className={`text-[10px] font-arabic font-bold rounded-full px-2 py-1 ${offer.status === "accepted" ? "bg-emerald-100 text-emerald-700" : offer.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{offer.status === "accepted" ? tr("مقبول") : offer.status === "rejected" ? tr("مرفوض") : offer.status === "countered" ? tr("عرض مضاد") : tr("قيد المراجعة")}</span>
+                            </Link>
+                        ))}
                     </div>
                 )
             )}
