@@ -254,14 +254,16 @@ export function MapPage() {
     const { country } = useCountry();
     const [items, setItems] = useState([]);
     const [myPos, setMyPos] = useState(null);
+    const [categoryFilter, setCategoryFilter] = useState("");
     const center = [24.7136, 46.6753];
 
     useEffect(() => {
         const params = { limit: 200 };
         if (country) params.country_code = country;
+        if (categoryFilter) params.category = categoryFilter;
         api.get("/listings/map/nearby", { params })
             .then(({ data }) => setItems(data));
-    }, [country]);
+    }, [country, categoryFilter]);
 
     const locate = () => {
         if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }
@@ -275,9 +277,22 @@ export function MapPage() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 pb-24">
             <div className="flex items-center justify-between mb-3">
                 <h1 className="font-arabic font-black text-xl sm:text-2xl text-[var(--text)]">{tr("الإعلانات على الخريطة")}</h1>
-                <button data-testid="map-locate-btn" onClick={locate} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-4 py-2 font-bold text-xs flex items-center gap-1.5 font-arabic">
-                    📍 موقعي الحالي
-                </button>
+                <div className="flex items-center gap-2">
+                    <select data-testid="map-category-filter" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-full px-3 py-2 text-xs font-arabic">
+                        <option value="">{tr("كل الفئات")}</option>
+                        <option value="cars">{tr("سيارات")}</option>
+                        <option value="realestate">{tr("عقارات")}</option>
+                        <option value="phones">{tr("جوالات")}</option>
+                        <option value="electronics">{tr("إلكترونيات")}</option>
+                        <option value="jobs">{tr("وظائف")}</option>
+                        <option value="services">{tr("خدمات")}</option>
+                        <option value="furniture">{tr("أثاث")}</option>
+                        <option value="livestock">{tr("مواشي")}</option>
+                    </select>
+                    <button data-testid="map-locate-btn" onClick={locate} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-full px-4 py-2 font-bold text-xs flex items-center gap-1.5 font-arabic">
+                        📍 {tr("موقعي الحالي")}
+                    </button>
+                </div>
             </div>
             <div className="h-[70vh] rounded-3xl overflow-hidden border border-[var(--border)]">
                 <MapContainer center={myPos || (items[0] ? [items[0].lat, items[0].lng] : center)} zoom={myPos ? 13 : (items.length ? 10 : 6)} className="w-full h-full" key={myPos ? myPos.join(",") : "default"}>

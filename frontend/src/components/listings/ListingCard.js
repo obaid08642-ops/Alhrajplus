@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Heart, MapPin, TrendingUp, Star, Sparkles, Crown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
@@ -10,6 +10,16 @@ import ListingTypeBadge from "@/components/ListingTypeBadge";
 export default function ListingCard({ listing, compact = true }) {
     const { user } = useAuth();
     const [fav, setFav] = useState(false);
+    const [imageIndex, setImageIndex] = useState(0);
+    const images = (listing.images || []).filter(Boolean);
+
+    useEffect(() => {
+        if (images.length < 2) return undefined;
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        if (reduceMotion) return undefined;
+        const id = window.setInterval(() => setImageIndex((i) => (i + 1) % images.length), 2800);
+        return () => window.clearInterval(id);
+    }, [listing.id, images.length]);
 
     const toggleFav = async (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -30,11 +40,12 @@ export default function ListingCard({ listing, compact = true }) {
             className="group bg-[var(--surface)] rounded-2xl overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--primary)]/15 transition-all duration-300 cursor-pointer flex flex-col"
         >
             <div className={`relative overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-square"}`} style={listing.images?.[0] ? { backgroundImage: `url(${lqipUrl(listing.images[0])})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
-                {listing.images?.[0] ? (
-                    <img src={optimizeImage(listing.images[0], { w: 480 })} srcSet={buildSrcSet(listing.images[0], [240, 320, 480, 640])} sizes="(max-width: 640px) 50vw, 240px" alt={listing.title} loading="lazy" decoding="async" onLoad={(e) => { e.currentTarget.style.opacity = 1; }} style={{ opacity: 0, transition: "opacity 280ms ease-out" }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                {images[imageIndex] ? (
+                    <img key={images[imageIndex]} src={optimizeImage(images[imageIndex], { w: 480 })} srcSet={buildSrcSet(images[imageIndex], [240, 320, 480, 640])} sizes="(max-width: 640px) 50vw, 240px" alt={listing.title} loading="lazy" decoding="async" onLoad={(e) => { e.currentTarget.style.opacity = 1; }} style={{ opacity: 0, transition: "opacity 280ms ease-out" }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                     <div className="w-full h-full bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--text-muted)] text-xs font-arabic">{tr("لا توجد صورة")}</div>
                 )}
+                {images.length > 1 && <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1 pointer-events-none">{images.slice(0, 5).map((_, i) => <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === imageIndex % Math.min(images.length, 5) ? "bg-white" : "bg-white/45"}`} />)}</div>}
                 <button onClick={toggleFav} data-testid={`fav-btn-${listing.id}`} className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/85 hover:bg-white flex items-center justify-center shadow-md backdrop-blur">
                     <Heart className={`w-3.5 h-3.5 ${fav ? "fill-red-500 text-red-500" : "text-[var(--secondary)]"}`} />
                 </button>

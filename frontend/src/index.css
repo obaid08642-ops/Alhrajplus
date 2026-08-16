@@ -15,7 +15,8 @@ html {
 
 body {
     margin: 0;
-    font-family: 'Tajawal', 'Plus Jakarta Sans', system-ui, sans-serif;
+    /* iPhone-like system typography first; Arabic falls back to the platform UI font. */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Noto Sans Arabic", "Tajawal", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background: var(--bg);
@@ -116,10 +117,8 @@ code {
     }
 }
 
-.font-arabic-heading { font-family: 'Alexandria', 'Tajawal', sans-serif; }
-.font-arabic-body { font-family: 'Tajawal', sans-serif; }
-.font-latin-heading { font-family: 'Outfit', sans-serif; }
-.font-latin-body { font-family: 'Plus Jakarta Sans', sans-serif; }
+.font-arabic-heading, .font-arabic-body, .font-arabic { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Noto Sans Arabic", "Tajawal", system-ui, sans-serif; }
+.font-latin-heading, .font-latin-body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif; }
 
 /* Hide scrollbar for horizontal scroll */
 .no-scrollbar::-webkit-scrollbar { display: none; }

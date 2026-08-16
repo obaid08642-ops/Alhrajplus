@@ -19,6 +19,7 @@ export default function MapScreen() {
   const [myPos, setMyPos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
   const [err, setErr] = useState(null);
   const ref = useRef(null);
   // Reload map listings whenever the query changes (debounced).
@@ -27,6 +28,7 @@ export default function MapScreen() {
       try {
         const params = { limit: 200 };
         if (query.trim()) params.q = query.trim();
+        if (category) params.category = category;
         const { data } = await api.get("/listings/map/nearby", { params });
         setItems(Array.isArray(data) ? data : []);
       } catch (e) {
@@ -38,7 +40,7 @@ export default function MapScreen() {
       }
     }, 350);
     return () => clearTimeout(tid);
-  }, [query]);
+  }, [query, category]);
   useEffect(() => {
     (async () => {
       try {
@@ -85,8 +87,11 @@ export default function MapScreen() {
                         testID="map-search-input"
                         returnKeyType="search"
                     />
+                    </View>
+                    <View style={styles.chipsRow}>
+                      {[['', 'الكل'], ['cars', 'سيارات'], ['realestate', 'عقارات'], ['phones', 'جوالات'], ['jobs', 'وظائف'], ['services', 'خدمات']].map(([value, label]) => <TouchableOpacity key={value || 'all'} onPress={() => setCategory(value)} style={[styles.chip, category === value && styles.chipActive]}><Text style={[styles.chipText, category === value && styles.chipTextActive]}>{t(label)}</Text></TouchableOpacity>)}
+                    </View>
                 </View>
-            </View>
             <WebView ref={ref} originWhitelist={["*"]} source={{
       html
     }} onMessage={onMessage} style={{
@@ -283,5 +288,31 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: "right",
     paddingVertical: 0
+  },
+  chipsRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 8,
+    direction: "rtl"
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border
+  },
+  chipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  chipText: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+    fontWeight: "700"
+  },
+  chipTextActive: {
+    color: theme.colors.primaryFg
   }
 });

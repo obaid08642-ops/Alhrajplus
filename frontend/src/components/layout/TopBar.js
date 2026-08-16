@@ -132,7 +132,7 @@ export default function TopBar() {
     };
 
     return (
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-gradient-to-b from-[#4FB6E6] to-[#3AA9DD] dark:from-[#0F1B3A] dark:to-[#152244] border-b border-[#2196D9]/40 dark:border-white/10 shadow-md">
+        <header className="sticky top-0 z-40 backdrop-blur-xl bg-[var(--primary)] dark:bg-[var(--primary)] border-b border-[var(--primary-hover)]/45 dark:border-white/10 shadow-md">
             <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center gap-2 sm:gap-3" ref={ref}>
                 <Link to="/" className="flex items-baseline gap-1 sm:gap-1.5 select-none shrink-0" data-testid="logo-link">
                     <img src="/logo-haraj.png" alt="" className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow-md" />
@@ -152,10 +152,10 @@ export default function TopBar() {
                             onKeyDown={handleSearchKey}
                             className="bg-transparent flex-1 mx-2 outline-none text-xs sm:text-sm placeholder:text-[var(--text-muted)] text-[var(--text)] font-arabic-body min-w-0"
                         />
-                        <button data-testid="voice-search-btn" onClick={startVoice} title={tr("بحث صوتي")} className="text-[var(--text-muted)] hover:text-[var(--primary-hover)] transition-colors shrink-0">
+                        <button data-testid="voice-search-btn" onClick={startVoice} title={tr("بحث صوتي")} className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0">
                             <Mic className="w-4 h-4" />
                         </button>
-                        <label data-testid="image-search-btn" title={tr("بحث بالصورة")} className="text-[var(--text-muted)] hover:text-[var(--primary-hover)] transition-colors shrink-0 ms-1.5 cursor-pointer">
+                        <label data-testid="image-search-btn" title={tr("بحث بالصورة")} className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0 ms-1.5 cursor-pointer">
                             <Camera className="w-4 h-4" />
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => startImageSearch(e.target.files[0])} />
                         </label>
@@ -257,7 +257,7 @@ export default function TopBar() {
                 {/* User menu */}
                 {user ? (
                     <div className="relative">
-                        <button data-testid="user-menu-btn" onClick={() => setOpenMenu(openMenu === "user" ? null : "user")} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-[var(--primary-hover)] hover:bg-white/90 flex items-center justify-center transition-all shadow-md">
+                        <button data-testid="user-menu-btn" onClick={() => setOpenMenu(openMenu === "user" ? null : "user")} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-[var(--primary)] hover:bg-white/90 flex items-center justify-center transition-all shadow-md">
                             <span className="font-bold text-sm font-arabic">{user.name?.[0] || "U"}</span>
                         </button>
                         {openMenu === "user" && (

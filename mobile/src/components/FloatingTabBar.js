@@ -16,6 +16,7 @@ import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
+import { colors } from "../theme";
 
 // ---- Dimensions (revision 4 — owner spec Feb 2026) ----
 // • Slimmer bar (42 → 36 px) per "ارتفاعه كبير شوية فمحتاجين نقلل".
@@ -120,9 +121,10 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
   const barTotalH = BAR_HEIGHT + insets.bottom;
   const barPath = buildBarPath(W, barTotalH);
 
-  const surface = isDark ? "#0F1B3A" : "#4FB6E6";
-  const activeColor = "#FFFFFF";
-  const inactiveColor = isDark ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.78)";
+  // The tab bar, header, and primary actions all consume the same theme token.
+  const surface = isDark ? colors.primaryDeep : colors.primary;
+  const activeColor = colors.primaryFg;
+  const inactiveColor = isDark ? "rgba(255,255,255,0.64)" : "rgba(255,255,255,0.80)";
 
   // FAB vertical position — measured from the bottom of the wrap (screen bottom).
   // Wrap bottom = screen bottom = bar's true bottom. Bar's TOP edge is at
@@ -146,7 +148,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
             testID="tab-fab-post"
             accessibilityLabel={t("أضف إعلان")}
           >
-            <Plus size={24} color="#0F2A1B" strokeWidth={3.2} />
+            <Plus size={24} color={colors.primaryFg} strokeWidth={3.2} />
             <Text style={styles.fabLabel} numberOfLines={1}>{t("أضف إعلان")}</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -241,20 +243,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#B5E61D",
+    backgroundColor: colors.primary,
     borderWidth: 2,
     borderColor: "#FFFFFF",
     paddingHorizontal: 4,
     paddingVertical: 8,
     overflow: "hidden",
-    shadowColor: "#B5E61D",
+    shadowColor: colors.primary,
     shadowOpacity: 0.45,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 4 },
     elevation: 12,
   },
   fabLabel: {
-    color: "#0F2A1B",
+    color: colors.primaryFg,
     fontSize: 9.5,
     fontWeight: "900",
     marginTop: 2,
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
     height: FAB_H + 14,
     borderRadius: 999,
     borderWidth: 2,
-    borderColor: "rgba(181,230,29,0.45)",
+    borderColor: `${colors.primary}73`,
     backgroundColor: "transparent",
   },
   burstRing: {
@@ -277,7 +279,7 @@ const styles = StyleSheet.create({
     height: FAB_H + 10,
     borderRadius: 999,
     borderWidth: 4,
-    borderColor: "#B5E61D",
+    borderColor: colors.primary,
     backgroundColor: "transparent",
   },
 });

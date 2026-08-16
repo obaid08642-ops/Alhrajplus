@@ -62,12 +62,12 @@ export default function BottomNav() {
                 data-testid={`nav-${k}`}
                 aria-label={label}
                 className={`relative flex flex-col items-center justify-center gap-0.5 px-3 sm:px-4 py-1.5 rounded-2xl transition-all duration-300 ${
-                    active ? "bg-[#4FB6E6]/20 dark:bg-[#4FB6E6]/30" : "hover:bg-white/40 dark:hover:bg-white/5"
+                    active ? "bg-[var(--primary)]/20 dark:bg-[var(--primary)]/30" : "hover:bg-[var(--primary)]/10 dark:hover:bg-white/5"
                 }`}
             >
                 <div className="relative">
                     <Icon
-                        className={`w-6 h-6 transition-all ${active ? "text-[#1F7BBF] dark:text-[#6CC2EE] scale-110" : "text-[#88B8DC] dark:text-[#7AA9D4]"}`}
+                        className={`w-6 h-6 transition-all ${active ? "text-[var(--primary-hover)] dark:text-[var(--primary)] scale-110" : "text-[var(--primary)]/70 dark:text-[var(--primary)]/70"}`}
                         strokeWidth={active ? 2.6 : 2}
                         fill={active ? "currentColor" : "none"}
                     />
@@ -77,7 +77,7 @@ export default function BottomNav() {
                         </span>
                     )}
                 </div>
-                <span className={`text-[10px] sm:text-[11px] font-arabic font-bold leading-tight ${active ? "text-[#1F7BBF] dark:text-[#6CC2EE]" : "text-[#7A9CBA] dark:text-[#8AA9C8]"}`}>
+                <span className={`text-[10px] sm:text-[11px] font-arabic font-bold leading-tight ${active ? "text-[var(--primary-hover)] dark:text-[var(--primary)]" : "text-[var(--primary)]/75 dark:text-[var(--primary)]/70"}`}>
                     {label}
                 </span>
             </Link>
@@ -95,10 +95,10 @@ export default function BottomNav() {
                 style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
             >
                 {/* Hologram pulse rings */}
-                <span className="absolute inset-0 rounded-full bg-[#4FB6E6]/40 animate-ping pointer-events-none"></span>
-                <span className="absolute inset-0 rounded-full bg-[#4FB6E6]/20 animate-pulse pointer-events-none" style={{ animationDuration: "2s" }}></span>
+                <span className="absolute inset-0 rounded-full bg-[var(--primary)]/40 animate-ping pointer-events-none"></span>
+                <span className="absolute inset-0 rounded-full bg-[var(--primary)]/20 animate-pulse pointer-events-none" style={{ animationDuration: "2s" }}></span>
                 {/* Holographic gradient core */}
-                <span className="relative flex items-center justify-center w-14 h-14 rounded-full shadow-[0_8px_32px_-4px_rgba(79,182,230,0.7)] overflow-hidden bg-gradient-to-tr from-[#4FB6E6] via-[#7CCAEC] to-[#3AA9DD] group-hover:scale-110 group-active:scale-95 transition-all duration-300 border-2 border-white/60 dark:border-white/30">
+                <span className="relative flex items-center justify-center w-14 h-14 rounded-full shadow-[0_8px_32px_-4px_var(--primary)] overflow-hidden bg-gradient-to-tr from-[var(--primary)] via-[var(--primary-hover)] to-[var(--primary)] group-hover:scale-110 group-active:scale-95 transition-all duration-300 border-2 border-white/60 dark:border-white/30">
                     {/* Hologram shimmer overlay */}
                     <span className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent"></span>
                     <span className="absolute -top-2 -left-2 w-6 h-6 bg-white/50 blur-lg rounded-full"></span>
@@ -109,7 +109,7 @@ export default function BottomNav() {
             </Link>
 
             <nav data-testid="bottom-nav-pill" className="fixed left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1rem)] sm:w-auto" style={{ bottom: "env(safe-area-inset-bottom, 0px)" }} dir="rtl">
-                <div className="flex items-center justify-around bg-white/75 dark:bg-[#152244]/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(15,27,58,0.35)] border border-white/60 dark:border-white/10 px-2 py-2">
+                <div className="flex items-center justify-around bg-[var(--primary)]/95 dark:bg-[var(--primary)]/85 backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(15,27,58,0.35)] border border-[var(--primary-hover)]/35 dark:border-white/15 px-2 py-2">
                     <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
                     <SideItem to="/reels" icon={Film} label={tr("ستوري")} navKey="reels" />
 

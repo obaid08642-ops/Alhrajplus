@@ -18,6 +18,13 @@ export default function ListingCard({
     user
   } = useAuth();
   const [fav, setFav] = useState(false);
+  const [imageIndex, setImageIndex] = useState(0);
+  const images = (listing.images || []).filter(Boolean);
+  useEffect(() => {
+    if (images.length < 2) return undefined;
+    const id = setInterval(() => setImageIndex(i => (i + 1) % images.length), 2800);
+    return () => clearInterval(id);
+  }, [listing?.id, images.length]);
   const isOwner = user && user.id === listing.user_id;
   const status = listing.status;
   const boosted = !!listing.is_boosted;
@@ -51,7 +58,7 @@ export default function ListingCard({
     } catch (_) {}
   };
   const price = listing.price ? Number(listing.price).toLocaleString() : null;
-  const img = listing.images?.[0];
+  const img = images[imageIndex] || images[0];
   if (wide) {
     return <TouchableOpacity activeOpacity={0.9} onPress={() => nav.navigate("ListingDetail", {
       id: listing.id
@@ -78,9 +85,10 @@ export default function ListingCard({
     id: listing.id
   })} style={[styles.card, shadow.card]}>
             <View style={styles.imgBox}>
-                {img ? <Image source={{
-        uri: img
-      }} style={styles.img} /> : <View style={styles.imgPlaceholder} />}
+                {img ? <Image key={`${img}-${imageIndex}`} source={{
+          uri: img
+        }} style={styles.img} /> : <View style={styles.imgPlaceholder} />}
+                {images.length > 1 && <View style={styles.imageDots} pointerEvents="none">{images.slice(0, 5).map((_, i) => <View key={i} style={[styles.imageDot, i === imageIndex % Math.min(images.length, 5) && styles.imageDotActive]} />)}</View>}
                 <TouchableOpacity onPress={toggleFav} style={styles.favBtn} hitSlop={8} testID={`fav-btn-${listing.id}`}>
                     <Heart size={16} color={fav ? "#EF4444" : "#fff"} fill={fav ? "#EF4444" : "transparent"} strokeWidth={2.5} />
                 </TouchableOpacity>
@@ -140,6 +148,25 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     backgroundColor: colors.surfaceElevated
+  },
+  imageDots: {
+    position: "absolute",
+    bottom: 7,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 4,
+  },
+  imageDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.55)",
+  },
+  imageDotActive: {
+    backgroundColor: "#fff",
+    width: 7,
   },
   favBtn: {
     position: "absolute",
