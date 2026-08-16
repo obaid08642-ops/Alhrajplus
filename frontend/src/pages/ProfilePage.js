@@ -89,10 +89,15 @@ export default function ProfilePage() {
     };
 
     const decideOffer = async (offer, action) => {
+        let counter_amount;
+        if (action === "counter") {
+            counter_amount = Number(window.prompt(tr("أدخل قيمة العرض المضاد"), String(offer.amount || "")));
+            if (!Number.isFinite(counter_amount) || counter_amount <= 0) return;
+        }
         setOfferBusy(offer.id);
         try {
-            await api.patch(`/listing-offers/${offer.id}`, { action });
-            setOffers((items) => items.map((item) => item.id === offer.id ? { ...item, status: action === "accept" ? "accepted" : "rejected" } : item));
+            await api.patch(`/listing-offers/${offer.id}`, { action, counter_amount });
+            setOffers((items) => items.map((item) => item.id === offer.id ? { ...item, status: action === "accept" ? "accepted" : action === "reject" ? "rejected" : "countered", amount: counter_amount || item.amount } : item));
         } catch (e) { alert(e.response?.data?.detail || tr("تعذر تحديث العرض")); }
         finally { setOfferBusy(""); }
     };
@@ -278,12 +283,14 @@ export default function ProfilePage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{offer.listing?.title || tr("إعلان غير متاح")}</div>
                                     <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{offer.is_seller ? tr("عرض وارد") : tr("عرضي")} · {Number(offer.amount).toLocaleString()} {offer.currency || ""}</div>
+                                    {offer.expires_at && !["accepted", "rejected", "expired"].includes(offer.status) && <div className="text-[10px] text-amber-600 font-arabic-body">{tr("ينتهي")}: {new Date(offer.expires_at).toLocaleString()}</div>}
                                 </div>
                                 <div className="flex flex-col items-end gap-1.5">
-                                    <span className={`text-[10px] font-arabic font-bold rounded-full px-2 py-1 ${offer.status === "accepted" ? "bg-emerald-100 text-emerald-700" : offer.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{offer.status === "accepted" ? tr("مقبول") : offer.status === "rejected" ? tr("مرفوض") : offer.status === "countered" ? tr("عرض مضاد") : tr("قيد المراجعة")}</span>
+                                    <span className={`text-[10px] font-arabic font-bold rounded-full px-2 py-1 ${offer.status === "accepted" ? "bg-emerald-100 text-emerald-700" : offer.status === "rejected" || offer.status === "expired" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{offer.status === "accepted" ? tr("مقبول") : offer.status === "rejected" ? tr("مرفوض") : offer.status === "expired" ? tr("منتهي") : offer.status === "countered" ? tr("عرض مضاد") : tr("قيد المراجعة")}</span>
                                     {offer.is_seller && offer.status === "pending" && (
                                         <div className="flex gap-1">
                                             <button type="button" data-testid={`accept-offer-${offer.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); decideOffer(offer, "accept"); }} disabled={offerBusy === offer.id} className="text-[10px] bg-emerald-600 text-white rounded-lg px-2 py-1 font-arabic font-bold disabled:opacity-50">{tr("قبول")}</button>
+                                            <button type="button" data-testid={`counter-offer-${offer.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); decideOffer(offer, "counter"); }} disabled={offerBusy === offer.id} className="text-[10px] bg-amber-100 text-amber-700 rounded-lg px-2 py-1 font-arabic font-bold disabled:opacity-50">{tr("عرض مضاد")}</button>
                                             <button type="button" data-testid={`reject-offer-${offer.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); decideOffer(offer, "reject"); }} disabled={offerBusy === offer.id} className="text-[10px] bg-red-100 text-red-700 rounded-lg px-2 py-1 font-arabic font-bold disabled:opacity-50">{tr("رفض")}</button>
                                         </div>
                                     )}

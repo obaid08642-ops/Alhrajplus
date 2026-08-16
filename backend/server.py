@@ -956,6 +956,7 @@ class ReportIn(BaseModel):
 class OfferIn(BaseModel):
     amount: float = Field(gt=0, le=1_000_000_000)
     message: Optional[str] = Field(default="", max_length=1000)
+    expires_in_hours: int = Field(default=72, ge=1, le=720)
 
 class OfferDecisionIn(BaseModel):
     action: str = Field(pattern="^(accept|reject|counter)$")
@@ -2892,14 +2893,17 @@ async def create_listing_offer(listing_id: str, body: OfferIn, user: dict = Depe
     if listing.get("status") not in (None, "active"):
         raise HTTPException(400, "الإعلان غير متاح للعروض")
     existing = await db.listing_offers.find_one({"listing_id": listing_id, "buyer_id": user["id"], "status": {"$in": ["pending", "countered"]}})
-    now = datetime.now(timezone.utc).isoformat()
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
+    expires_at = (now_dt + timedelta(hours=body.expires_in_hours)).isoformat()
     offer = {
         "id": str(uuid.uuid4()), "listing_id": listing_id, "seller_id": listing["user_id"],
         "buyer_id": user["id"], "amount": float(body.amount), "currency": listing.get("currency"),
         "message": (body.message or "").strip(), "status": "pending", "created_at": now, "updated_at": now,
+        "expires_at": expires_at, "decision_at": None, "decision_by": None,
     }
     if existing:
-        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": {"amount": offer["amount"], "message": offer["message"], "status": "pending", "updated_at": now}})
+        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": {"amount": offer["amount"], "message": offer["message"], "status": "pending", "updated_at": now, "expires_at": expires_at, "decision_at": None, "decision_by": None}})
         offer["id"] = existing["id"]
     else:
         await db.listing_offers.insert_one(offer)
@@ -2942,18 +2946,28 @@ async def decide_listing_offer(offer_id: str, body: OfferDecisionIn, user: dict 
         raise HTTPException(404, "العرض غير موجود")
     if user["id"] not in (offer.get("seller_id"), offer.get("buyer_id")):
         raise HTTPException(403, "غير مصرح")
+    if offer.get("status") in ("accepted", "rejected", "expired"):
+        raise HTTPException(409, "لا يمكن تعديل عرض مغلق")
+    if offer.get("expires_at"):
+        try:
+            if datetime.fromisoformat(str(offer["expires_at"]).replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+                await db.listing_offers.update_one({"id": offer_id}, {"$set": {"status": "expired", "updated_at": datetime.now(timezone.utc).isoformat()}})
+                raise HTTPException(409, "انتهت صلاحية العرض")
+        except ValueError:
+            pass
     if body.action == "counter" and user["id"] != offer.get("seller_id"):
         raise HTTPException(403, "التعديل المضاد متاح للبائع فقط")
     if body.action == "counter" and body.counter_amount is None:
         raise HTTPException(400, "يجب تحديد قيمة العرض المضاد")
-    now = datetime.now(timezone.utc).isoformat()
-    update = {"updated_at": now, "decision_by": user["id"], "decision_message": (body.message or "").strip()}
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
+    update = {"updated_at": now, "decision_at": now, "decision_by": user["id"], "decision_message": (body.message or "").strip()}
     if body.action == "accept":
         update["status"] = "accepted"
     elif body.action == "reject":
         update["status"] = "rejected"
     else:
-        update.update({"status": "countered", "amount": float(body.counter_amount), "counter_amount": float(body.counter_amount)})
+        update.update({"status": "countered", "amount": float(body.counter_amount), "counter_amount": float(body.counter_amount), "expires_at": (now_dt + timedelta(hours=72)).isoformat()})
     await db.listing_offers.update_one({"id": offer_id}, {"$set": update})
     recipient = offer["buyer_id"] if user["id"] == offer.get("seller_id") else offer["seller_id"]
     title = "تم قبول عرضك" if body.action == "accept" else "تم رفض العرض" if body.action == "reject" else "عرض مضاد جديد"
