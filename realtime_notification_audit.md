@@ -924,3 +924,15 @@ mobile/src/useChatSocket.js:50:                if (ws.readyState === 1) { try { 
 mobile/src/useChatSocket.js:67:        const a = Math.min(reconnect.current + 1, 6);
 mobile/src/useChatSocket.js:68:        reconnect.current = a;
 mobile/src/useChatSocket.js:83:        if (!ws || ws.readyState !== 1) return false;
+
+
+## Responsive smoke checkpoint — 2026-08-16
+
+تم فتح Web build المحلي على `http://127.0.0.1:4173/`. نجح تركيب React وظهرت الصفحة الرئيسية والعناصر التفاعلية والـ navigation دون شاشة بيضاء أو runtime crash. ظهرت حالة `No results` لأن النسخة المحلية لا تتصل بقاعدة بيانات/backend staging، وليست نتيجة فشل في render. لم يُعتبر ذلك اختبارًا بديلًا عن أجهزة iOS/Android الفعلية أو viewport matrix كاملة.
+
+تم أيضًا التحقق من service worker الموجود في `frontend/public/sw.js` وإصلاح مسارات الأيقونات من ملفات غير موجودة إلى `/favicon-192.png` الموجودة فعليًا.
+
+
+## Web Push runtime checkpoint — 2026-08-16
+
+تم فتح `http://127.0.0.1:4173/sw.js` من Web build المحلي، وظهر service worker فعليًا من الجذر. يحتوي على `push` handler و`showNotification` و`notificationclick` مع focus/navigation أو فتح نافذة جديدة للرابط الموجود في payload. هذا يثبت وجود طبقة التنفيذ المحلية، ولا يثبت delivery الخارجي حتى يتم اختبار VAPID/Redis/worker من staging حقيقي.
