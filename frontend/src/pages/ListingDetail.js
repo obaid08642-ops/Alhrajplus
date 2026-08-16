@@ -17,6 +17,7 @@ import { ListingSEO } from "@/components/SEO";
 import Spin360Viewer from "@/components/Spin360Viewer";
 import PriceBadge from "@/components/PriceBadge";
 import { optimizeImage, buildSrcSet } from "@/lib/imageOptimizer";
+import { trackEvent } from "@/lib/analytics";
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -62,6 +63,7 @@ export default function ListingDetail() {
                     api.get("/meta/categories", { params: { lang } }),
                 ]);
                 setListing(l.data);
+                trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
                 setSimilar(s.data);
                 setCategories(c.data);
                 if (user && l.data.user_id !== user.id) {
@@ -101,6 +103,7 @@ export default function ListingDetail() {
 
     const startChat = () => {
         if (!user) return nav("/login");
+        trackEvent("chat_started", { listing_id: listing.id, category: listing.category, country_code: listing.country_code });
         nav(`/chat?to=${listing.user_id}&listing=${listing.id}`);
     };
 
