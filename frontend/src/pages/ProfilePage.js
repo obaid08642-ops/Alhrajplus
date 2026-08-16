@@ -65,6 +65,7 @@ export default function ProfilePage() {
     const [referral, setReferral] = useState(null);
     const [stats, setStats] = useState(null);
     const [offers, setOffers] = useState([]);
+    const [offerBusy, setOfferBusy] = useState("");
 
     useEffect(() => {
         if (!loading && !user) nav("/login");
@@ -85,6 +86,15 @@ export default function ProfilePage() {
             await api.put("/auth/me", { show_phone: next });
             updateUser?.({ show_phone: next });
         } catch (_) {}
+    };
+
+    const decideOffer = async (offer, action) => {
+        setOfferBusy(offer.id);
+        try {
+            await api.patch(`/listing-offers/${offer.id}`, { action });
+            setOffers((items) => items.map((item) => item.id === offer.id ? { ...item, status: action === "accept" ? "accepted" : "rejected" } : item));
+        } catch (e) { alert(e.response?.data?.detail || tr("تعذر تحديث العرض")); }
+        finally { setOfferBusy(""); }
     };
 
     const removeListing = async (id) => {
@@ -269,7 +279,15 @@ export default function ProfilePage() {
                                     <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{offer.listing?.title || tr("إعلان غير متاح")}</div>
                                     <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{offer.is_seller ? tr("عرض وارد") : tr("عرضي")} · {Number(offer.amount).toLocaleString()} {offer.currency || ""}</div>
                                 </div>
-                                <span className={`text-[10px] font-arabic font-bold rounded-full px-2 py-1 ${offer.status === "accepted" ? "bg-emerald-100 text-emerald-700" : offer.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{offer.status === "accepted" ? tr("مقبول") : offer.status === "rejected" ? tr("مرفوض") : offer.status === "countered" ? tr("عرض مضاد") : tr("قيد المراجعة")}</span>
+                                <div className="flex flex-col items-end gap-1.5">
+                                    <span className={`text-[10px] font-arabic font-bold rounded-full px-2 py-1 ${offer.status === "accepted" ? "bg-emerald-100 text-emerald-700" : offer.status === "rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{offer.status === "accepted" ? tr("مقبول") : offer.status === "rejected" ? tr("مرفوض") : offer.status === "countered" ? tr("عرض مضاد") : tr("قيد المراجعة")}</span>
+                                    {offer.is_seller && offer.status === "pending" && (
+                                        <div className="flex gap-1">
+                                            <button type="button" data-testid={`accept-offer-${offer.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); decideOffer(offer, "accept"); }} disabled={offerBusy === offer.id} className="text-[10px] bg-emerald-600 text-white rounded-lg px-2 py-1 font-arabic font-bold disabled:opacity-50">{tr("قبول")}</button>
+                                            <button type="button" data-testid={`reject-offer-${offer.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); decideOffer(offer, "reject"); }} disabled={offerBusy === offer.id} className="text-[10px] bg-red-100 text-red-700 rounded-lg px-2 py-1 font-arabic font-bold disabled:opacity-50">{tr("رفض")}</button>
+                                        </div>
+                                    )}
+                                </div>
                             </Link>
                         ))}
                     </div>
