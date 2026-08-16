@@ -4,10 +4,10 @@ import api from "@/lib/api";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCountry } from "@/contexts/CountryContext";
-import * as Icons from "lucide-react";
-import { Plus, Sparkles, ChevronDown, Briefcase, Wrench } from "lucide-react";
+import { Plus, Sparkles, ChevronDown } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
+import { PremiumCategoryIcon } from "@/lib/categoryIcons";
 
 export default function HomePage() {
     const { t, pickName, tr, lang } = useI18n();
@@ -184,13 +184,12 @@ function CategoriesStrip({ categories, t, pickName, expanded, onToggle }) {
             </div>
             <div className={`grid ${expanded ? "grid-cols-4 sm:grid-cols-6 lg:grid-cols-8" : "grid-cols-4 sm:grid-cols-6 lg:grid-cols-7"} gap-2 sm:gap-3`}>
                 {visible.map((c, i) => {
-                    const Icon = Icons[c.icon] || Icons.Shapes;
                     return (
                         <Link key={c.key} to={`/category/${c.key}`} data-testid={`cat-${c.key}`}
                             className="group flex flex-col items-center gap-1.5 p-2 sm:p-3 rounded-2xl bg-[var(--surface)] border border-[var(--border)] hover:border-[var(--primary)] hover:shadow-md hover:-translate-y-0.5 transition-all animate-fade-up"
                             style={{ animationDelay: `${i * 20}ms` }}>
                             <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[var(--primary)]/15 group-hover:bg-[var(--primary)]/25 flex items-center justify-center transition-all">
-                                <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--primary)]" strokeWidth={2.2} />
+                                <PremiumCategoryIcon categoryKey={c.key} size={24} className="text-[var(--primary)]" />
                             </div>
                             <span className="font-arabic font-bold text-[11px] sm:text-xs text-[var(--text)] text-center line-clamp-1">{pickName(c)}</span>
                         </Link>

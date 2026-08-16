@@ -355,3 +355,17 @@ body.chat-active [data-testid="nav-post-fab"] {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Premium semantic category vectors */
+.category-icon-premium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 0;
+  color: currentColor;
+  transition: transform 180ms ease, color 180ms ease;
+}
+.group:hover .category-icon-premium {
+  transform: translateY(-1px) scale(1.04);
+}

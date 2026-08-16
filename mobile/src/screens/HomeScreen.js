@@ -4,7 +4,6 @@ import { View, Text, ScrollView, TouchableOpacity, FlatList, Image, StyleSheet, 
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as LucideIcons from "lucide-react-native";
 import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot, Globe, Moon, Sun, Camera } from "lucide-react-native";
 import { Modal, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -19,6 +18,7 @@ import NotificationBell from "../components/NotificationBell";
 // NOTE: CountrySwitcher is intentionally NOT imported here — owner directive:
 // the country selector lives exclusively inside the Settings screen.
 import { SkeletonListingGrid } from "../components/Skeleton";
+import { resolveCategoryIcon } from "../categoryIcons";
 const {
   width: SCREEN_W
 } = Dimensions.get("window");
@@ -417,7 +417,7 @@ function CategoriesStrip({
             </View>
             <View style={styles.catsGrid}>
                 {cats.map(c => {
-        const Icon = LucideIcons[c.icon] || LucideIcons.Shapes;
+        const Icon = resolveCategoryIcon(c.key);
         const name = c.name || c.name_ar || c.name_en || c.key;
         return <TouchableOpacity key={c.key} onPress={() => nav.navigate("CategoryListings", {
           categoryKey: c.key,

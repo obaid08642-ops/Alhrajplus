@@ -147,3 +147,57 @@
 ## القرار النهائي
 
 **الحالة: Pre-production / staging candidate، وليست production-ready نهائيًا بعد.** التعديلات الحالية آمنة للرفع إلى branch المراجعة ثم إلى staging، وليست سببًا لعمل deploy مباشر على الإنتاج قبل تجهيز Redis وMongo staging واختبار workflows. بعد إغلاق القائمة السابقة وإعادة تشغيل load/E2E/device matrix يمكن إصدار قرار production رسمي بثقة.
+
+## جرد الكتالوج والأيقونات — تحديث 16 أغسطس 2026
+
+التحليل البرمجي المباشر لـ`backend/seed_data.py` وجد **23 فئة رئيسية، 118 subcategory، 140 field، منها 82 select و38 text/url**. كل الفئات الرئيسية الحالية تملك اسم icon قابلًا للحل في Lucide، لكن ذلك لا يعني أن التجربة كانت Premium: كان هناك تكرار دلالي، ولم تكن للـ subcategories registry مستقل أو vector خاص بها، كما أن الفئات الجديدة قد تعرض fallback عامًا.
+
+تمت إضافة `frontend/src/lib/categoryIcons.js` و`mobile/src/categoryIcons.js` مع semantic registry للفئات والـ subcategories، وربط HomePage وCategoryPage في الويب وHomeScreen في Expo. كل عنصر يملك fallback vector مضمونًا، وأضيفت قواعد CSS للحركة والمحاذاة. نجح `CI=true npm run build` و`npx expo export --platform web` بعد الإضافة.
+
+| المقياس | قبل الجولة | بعد الجولة |
+|---|---:|---:|
+| الفئات الرئيسية في seed | 23 | 23 |
+| subcategories في seed | 118 | 118 |
+| الأيقونات الرئيسية القابلة للحل | موجودة لكن generic/مكررة أحيانًا | registry دلالي Premium |
+| subcategory vectors | غير موحدة/غير موجودة | registry للويب، وأساس موحد للموبايل |
+| fallback عند category جديدة | غير مضمون بصريًا | `CircleDotDashed/CircleDot` مضمون |
+
+## متطلبات API وEnvironment وRedis
+
+### المتغيرات الأساسية المطلوبة للإنتاج
+
+| المتغير | الاستخدام | إلزامي؟ |
+|---|---|---|
+| `MONGO_URL` | اتصال MongoDB production | نعم |
+| `DB_NAME` | اسم قاعدة البيانات | نعم |
+| `JWT_SECRET` | توقيع الجلسات والتوكنات | نعم، قوي وفريد |
+| `ADMIN_EMAIL` و`ADMIN_PASSWORD` | إدارة أولية | نعم، كلمة قوية غير افتراضية |
+| `REDIS_URL` | cache مشترك، rate-limit المستقبلي، WebSocket Pub/Sub | نعم عند أكثر من instance |
+| `FRONTEND_URL` و`CORS_ORIGINS`/`CORS_ORIGIN_REGEX` | CORS والروابط | نعم |
+| `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET` | رفع وتحويل الصور والفيديو | نعم للوسائط |
+| `RESEND_API_KEY` و`RESEND_FROM` أو `SENDER_EMAIL` | البريد والتحقق والتنبيهات | مطلوب لتدفق البريد |
+| `CRON_SECRET` | حماية jobs والعمليات المجدولة | نعم إذا jobs مفعلة |
+| `VAPID_PUBLIC_KEY` و`VAPID_PRIVATE_KEY` و`VAPID_CLAIM_EMAIL` | Web Push | مطلوب للإشعارات الويب |
+| `GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI` | Google OAuth | اختياري حسب تفعيل الدخول |
+| `APPLE_*` | Apple Sign-In | اختياري حسب iOS OAuth |
+| `X_CLIENT_ID/SECRET` و`SNAPCHAT_CLIENT_ID/SECRET` | Social OAuth | اختياري |
+| `GEMINI_API_KEY` أو `EMERGENT_LLM_KEY` | AI features/SEO suggestions | مطلوب فقط عند تفعيل AI |
+| `GOOGLE_INDEXING_SA_JSON` أو مسار service account | Google Indexing API وفق الأهلية | اختياري، يحتاج مراجعة صلاحيات |
+| `BACKEND_PUBLIC_URL` | روابط server-side/webhooks/SEO | مطلوب للروابط الكاملة |
+| `REACT_APP_BACKEND_URL` | build-time web API | نعم للـ build إلا إذا استُخدم `public/config.js` |
+| `EXPO_PUBLIC_BACKEND_URL` | mobile API | نعم لتطبيق Expo |
+| `REACT_APP_PLAYSTORE_URL/APPSTORE_URL/APPGALLERY_URL` | روابط المتاجر | مطلوب قبل النشر العام |
+
+### أي Redis نحتاج؟
+
+المطلوب ليس Redis محليًا داخل نفس process أو container؛ المطلوب **Managed Redis** خارجي عالي التوافر، مثل Redis Cloud أو Upstash أو AWS ElastiCache/MemoryDB. يجب وضع URI في `REDIS_URL` مع TLS عند مزود الخدمة، وACL/password، وحدود اتصال، ومراقبة memory/evictions/latency. Render starter الحالي `0.5 CPU / 512 MB` مناسب للتجربة أو staging فقط، وليس وعدًا بملايين المستخدمين.
+
+يستخدم Redis حاليًا للكاش المشترك، وChatHub يستخدم Redis Pub/Sub للتوزيع بين instances. لكن Pub/Sub ليس message queue durable: الرسالة المنشورة أثناء انقطاع subscriber لا تُعاد تلقائيًا. لذلك يجب إضافة queue durable مثل Redis Streams أو خدمة jobs موثوقة لأعمال SEO، الإشعارات، media processing، وretry، مع idempotency وdead-letter.
+
+### ما ينقص API قبل deploy واسع
+
+ينقص توحيد API contracts بإصدارات واضحة، pagination cursor-based بدل الصفحات الثقيلة، rate limit موزع عبر Redis بدل ذاكرة العملية، idempotency للنشر والرفع والمزايدات، request correlation IDs، OpenTelemetry، timeouts وcircuit breakers للتكاملات الخارجية، background queue durable، endpoint metrics/SLO، وcontract tests بين web/mobile/backend. كما يجب ألا يُعلن readiness نجاحًا إذا كان Redis أو Mongo غير متاحين في وضع production.
+
+## التقييم الرقمي
+
+التقييم التفصيلي المحدث موجود في `competitor_scorecard.md`. المتوسط الواقعي الحالي: **Alhrajplus 5.6/10، Haraj 8.1/10، Dubizzle UAE 8.7/10، OpenSooq 8.4/10**. هذه ليست نتيجة شكلية؛ أكبر خصم لدينا في الثقة وحجم العرض والطلب وأدوات الشركات وSEO والتوسع المثبت. بعد تنفيذ semantic search وTrust Graph وPrice Passport وseller storefront وSEO server-side وload/device QA يمكن استهداف 7.5–8.2 في verticals محددة قبل محاولة منافسة الحجم العام.

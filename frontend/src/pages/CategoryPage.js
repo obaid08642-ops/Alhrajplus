@@ -7,6 +7,7 @@ import { Filter, ChevronLeft } from "lucide-react";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCountry } from "@/contexts/CountryContext";
+import { PremiumCategoryIcon } from "@/lib/categoryIcons";
 
 export default function CategoryPage() {
     const { categoryKey } = useParams();
@@ -103,7 +104,8 @@ export default function CategoryPage() {
                 <button data-testid="sub-all" onClick={() => updateFilter("subcategory", "")} className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-arabic font-bold border ${!filters.subcategory ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>{tr("الكل")}</button>
                 {category.subcategories?.map((s) => (
                     <button key={s.key} data-testid={`sub-${s.key}`} onClick={() => updateFilter("subcategory", s.key)} className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-arabic font-bold border ${filters.subcategory === s.key ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--text)] border-[var(--border)]"}`}>
-                        {pickName(s)}
+                        <PremiumCategoryIcon categoryKey={categoryKey} subcategoryKey={s.key} size={16} className="text-[var(--primary)]" />
+                        <span>{pickName(s)}</span>
                     </button>
                 ))}
             </div>
