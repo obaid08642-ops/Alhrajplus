@@ -1,6 +1,7 @@
 // ChatScreen — Premium WhatsApp-grade design with typing/presence/last-seen/read receipts.
 // Two views: conversations list  +  chat thread (selected by route.params.to or list tap).
 import { useEffect, useRef, useState, useCallback, useMemo, useLayoutEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useI18n } from "../I18nContext";
 import { View, Text, FlatList, TextInput, TouchableOpacity, Image, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, StatusBar, StyleSheet, RefreshControl, Modal, Linking, PanResponder, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -331,7 +332,8 @@ function ChatThread({
   const insets = useSafeAreaInsets();
   const {
     send: wsSend,
-    subscribe
+    subscribe,
+    connected
   } = useChatSocket();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -358,6 +360,38 @@ function ChatThread({
   const listRef = useRef(null);
   const typingTimerRef = useRef(null);
   const lastTypingSentRef = useRef(0);
+  const outboxKey = `hp_chat_outbox_${convoId}`;
+
+  const queueForRetry = useCallback(async (item) => {
+    try {
+      const existing = JSON.parse(await AsyncStorage.getItem(outboxKey) || "[]");
+      const next = [...existing.filter(x => x.client_message_id !== item.client_message_id), item].slice(-50);
+      await AsyncStorage.setItem(outboxKey, JSON.stringify(next));
+    } catch (_) {}
+  }, [outboxKey]);
+
+  const flushOutbox = useCallback(async () => {
+    if (!connected) return;
+    let queued = [];
+    try { queued = JSON.parse(await AsyncStorage.getItem(outboxKey) || "[]"); } catch (_) { queued = []; }
+    if (!queued.length) return;
+    const remaining = [];
+    for (const item of queued) {
+      try {
+        const { data } = await api.post("/chat/send", {
+          receiver_id: item.receiver_id,
+          listing_id: item.listing_id || null,
+          text: item.text,
+          reply_to: item.reply_to || null,
+          client_message_id: item.client_message_id,
+        });
+        setMessages(prev => prev.map(m => m.id === item.client_message_id ? { ...data, pending: false, failed: false } : m));
+      } catch (_) { remaining.push(item); }
+    }
+    try { await AsyncStorage.setItem(outboxKey, JSON.stringify(remaining)); } catch (_) {}
+  }, [connected, outboxKey]);
+
+  useEffect(() => { flushOutbox(); }, [flushOutbox]);
 
   // Load history
   const loadHistory = useCallback(async () => {
@@ -528,6 +562,7 @@ function ChatThread({
       created_at: new Date().toISOString(),
       reactions: {},
       pending: true,
+      client_message_id: tempId,
     };
     setMessages(m => [...m, optimistic]);
     try {
@@ -536,10 +571,13 @@ function ChatThread({
         listing_id: listing?.id || null,
         text,
         reply_to: optimistic.reply_to,
+        client_message_id: tempId,
       });
       setMessages(m => m.map(msg => msg.id === tempId ? { ...data, pending: false } : msg));
     } catch (e) {
-      setMessages(m => m.map(msg => msg.id === tempId ? { ...msg, failed: true, pending: false } : msg));
+      const retryItem = { client_message_id: tempId, receiver_id: other.id, listing_id: listing?.id || null, text, reply_to: optimistic.reply_to, created_at: optimistic.created_at };
+      await queueForRetry(retryItem);
+      setMessages(m => m.map(msg => msg.id === tempId ? { ...msg, failed: true, pending: false, queued: true } : msg));
     }
   };
   const sendImage = async () => {
