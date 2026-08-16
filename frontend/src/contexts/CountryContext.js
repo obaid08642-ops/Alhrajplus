@@ -93,8 +93,14 @@ export function CountryProvider({ children }) {
                 setCountryState(detected);
                 return;
             }
-            if (!cancelled && seen !== "1") {
-                setShowPicker(true);
+            if (!cancelled) {
+                // Product rule: Saudi Arabia is the deterministic default when
+                // location cannot be resolved. The user can still change it
+                // manually from profile/settings at any time.
+                try { localStorage.setItem(STORAGE_KEY, "SA"); } catch (_) {}
+                try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
+                setCountryState("SA");
+                setShowPicker(false);
             }
         })();
         return () => { cancelled = true; };

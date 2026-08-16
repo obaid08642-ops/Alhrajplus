@@ -88,7 +88,7 @@ export function CountryProvider({ children }) {
                     if (region && list.some((item) => item.code === region.toUpperCase())) cc = region.toUpperCase();
                 } catch (_) {}
             }
-            if (!cc) cc = list?.[0]?.code || "SA";
+            if (!cc) cc = list.find((item) => item.code === "SA")?.code || list?.[0]?.code || "SA";
             setCountryState(cc);
             await AsyncStorage.setItem(STORAGE_KEY, cc).catch(() => {});
             setHydrated(true);
