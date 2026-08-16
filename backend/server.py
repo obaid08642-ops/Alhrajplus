@@ -6702,6 +6702,41 @@ async def get_seller_profile(seller_id: str):
     return s
 
 
+@api.get("/sellers/{seller_id}/trust")
+async def seller_trust_graph(seller_id: str):
+    seller = await db.users.find_one({"id": seller_id}, {"_id": 0, "id": 1, "verified": 1, "email_verified": 1, "phone_verified": 1, "created_at": 1, "trust_score": 1})
+    if not seller:
+        raise HTTPException(404, "Seller not found")
+    ratings = await db.ratings.aggregate([{"$match": {"seller_id": seller_id}}, {"$group": {"_id": "$seller_id", "avg": {"$avg": "$stars"}, "count": {"$sum": 1}}}]).to_list(length=1)
+    rating_avg = float(ratings[0].get("avg") or 0) if ratings else 0
+    rating_count = int(ratings[0].get("count") or 0) if ratings else 0
+    sold = await db.listings.count_documents({"user_id": seller_id, "status": "sold"})
+    active = await db.listings.count_documents(public_listing_filter({"user_id": seller_id}))
+    reports = await db.reports.count_documents({"target_type": "user", "target_id": seller_id, "status": {"$ne": "closed"}})
+    score = 25
+    factors = []
+    if seller.get("verified"): score += 18; factors.append({"key": "identity_verified", "impact": 18})
+    if seller.get("email_verified"): score += 5; factors.append({"key": "email_verified", "impact": 5})
+    if seller.get("phone_verified") or seller.get("phone"): score += 7; factors.append({"key": "phone_verified", "impact": 7})
+    if seller.get("created_at"):
+        try:
+            age_days = max(0, (datetime.now(timezone.utc) - datetime.fromisoformat(str(seller["created_at"]).replace("Z", "+00:00"))).days)
+            age_impact = min(10, age_days // 180)
+            score += age_impact
+            if age_impact: factors.append({"key": "account_age", "impact": age_impact})
+        except Exception: pass
+    if rating_count:
+        rating_impact = min(25, round((rating_avg / 5) * 15 + min(rating_count, 20) / 20 * 10))
+        score += rating_impact; factors.append({"key": "ratings", "impact": rating_impact})
+    activity_impact = min(10, sold + active // 5)
+    score += activity_impact
+    if activity_impact: factors.append({"key": "market_activity", "impact": activity_impact})
+    penalty = min(35, reports * 8)
+    score = max(0, min(100, int(score - penalty)))
+    if penalty: factors.append({"key": "open_reports", "impact": -penalty})
+    tier = "trusted" if score >= 80 else "established" if score >= 60 else "new" if score >= 40 else "caution"
+    return {"seller_id": seller_id, "score": score, "tier": tier, "rating_avg": round(rating_avg, 1), "rating_count": rating_count, "sold_count": sold, "active_count": active, "open_reports": reports, "factors": factors}
+
 @api.get("/sellers/{seller_id}/listings")
 async def get_seller_listings(seller_id: str, limit: int = 20, skip: int = 0):
     limit = max(1, min(limit, 20))

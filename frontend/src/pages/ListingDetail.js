@@ -57,6 +57,7 @@ export default function ListingDetail() {
     const [offerAmount, setOfferAmount] = useState("");
     const [offerMessage, setOfferMessage] = useState("");
     const [offerSaving, setOfferSaving] = useState(false);
+    const [sellerTrust, setSellerTrust] = useState(null);
 
     useEffect(() => {
         const load = async () => {
@@ -70,6 +71,7 @@ export default function ListingDetail() {
                 trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
                 setSimilar(s.data);
                 setCategories(c.data);
+                api.get(`/sellers/${l.data.user_id}/trust`).then(({ data }) => setSellerTrust(data)).catch(() => {});
                 if (user && l.data.user_id !== user.id) {
                     api.get(`/sellers/${l.data.user_id}/follow-status`).then(({ data }) => setFollowing(!!data.following)).catch(() => {});
                     api.get(`/watches`).then(({ data }) => setWatching((data || []).some((w) => w.listing_id === l.data.id))).catch(() => {});
@@ -370,6 +372,7 @@ export default function ListingDetail() {
                                 <div className="font-arabic font-bold text-sm text-[var(--text)] flex items-center gap-1">
                                     {listing.seller?.name}
                                     {listing.seller?.verified && <Star className="w-3.5 h-3.5 fill-[var(--primary)] text-[var(--primary)]" />}
+                                    {sellerTrust && <span title={tr("درجة مبنية على التوثيق والتقييمات والنشاط والبلاغات")} className={`text-[10px] rounded-full px-1.5 py-0.5 font-latin ${sellerTrust.score >= 80 ? "bg-emerald-100 text-emerald-700" : sellerTrust.score >= 60 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{sellerTrust.score}/100</span>}
                                 </div>
                                 <div className="text-xs text-[var(--text-muted)] font-arabic-body">
                                     {t("joined")} {listing.seller?.created_at ? new Date(listing.seller.created_at).toLocaleDateString("ar") : ""}
@@ -449,6 +452,7 @@ export default function ListingDetail() {
                                 <div className="font-arabic font-bold text-sm text-[var(--text)] flex items-center gap-1">
                                     {listing.seller?.name}
                                     {listing.seller?.verified && <Star className="w-3.5 h-3.5 fill-[var(--primary)] text-[var(--primary)]" />}
+                                    {sellerTrust && <span title={tr("درجة مبنية على التوثيق والتقييمات والنشاط والبلاغات")} className={`text-[10px] rounded-full px-1.5 py-0.5 font-latin ${sellerTrust.score >= 80 ? "bg-emerald-100 text-emerald-700" : sellerTrust.score >= 60 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{sellerTrust.score}/100</span>}
                                 </div>
                                 <div className="text-xs text-[var(--text-muted)] font-arabic-body">
                                     {t("joined")} {listing.seller?.created_at ? new Date(listing.seller.created_at).toLocaleDateString("ar") : ""}
