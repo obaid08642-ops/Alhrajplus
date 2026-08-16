@@ -42,8 +42,10 @@ export default function HomePage() {
                     api.get("/meta/categories", { params: { lang } }),
                     api.get("/listings", { params })
                 ]);
-                setCategories(cats.data);
-                const items = lists.data.items || [];
+                // Misconfigured/offline backends can return an HTML fallback or an error object.
+                // Never let malformed categories crash the entire application tree.
+                setCategories(Array.isArray(cats.data) ? cats.data : []);
+                const items = Array.isArray(lists.data?.items) ? lists.data.items : [];
                 // eslint-disable-next-line no-console
                 console.info("[HomePage] /listings →", { total: lists.data.total, items: items.length, sample: items[0]?.title });
                 setListings(items);

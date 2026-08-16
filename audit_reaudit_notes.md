@@ -10,3 +10,21 @@
 ## حالـة branch
 
 `production-readiness-premium` — local ahead of `origin/main`; لم يتم الرفع أو الدمج.
+
+## Smoke test للويب بعد build
+
+بتاريخ 16 أغسطس 2026، تم تشغيل build الويب محليًا على منفذ 4173 وفتح الصفحة الرئيسية. العنوان موجود لكن viewport ظهر أبيض بلا عناصر تفاعلية حتى بعد الانتظار، ما يعني أن build الناجح لا يثبت أن التطبيق يعمل في runtime. يلزم فحص console/network وتحديد سبب الشاشة البيضاء قبل اعتماد E2E. هذا عيب حقيقي في مرحلة التحقق وليس نجاحًا.
+
+## تشخيص الشاشة البيضاء
+
+فحص console وDOM في 16 أغسطس 2026 أظهر أن `#root` فارغ تمامًا (`childCount=0`) بعد `readyState=complete`، مع عدم وجود خطأ ظاهر في console. server static أعاد ملفات JS/CSS وطلبات API كنُسخ HTML fallback، و`BACKEND_URL` ظهر فارغًا. هذا يشير إلى runtime bootstrap/serving configuration defect يجب إصلاحه، وليس مجرد غياب بيانات. لا ينبغي اعتبار responsive smoke test ناجحًا قبل جعل root يرسم الواجهة فعليًا.
+
+إعادة الاختبار مع `sessionStorage.hp_splash_shown=1` ثم reload أبقت الشاشة البيضاء و`root` بلا عناصر؛ سبب العطل ليس splash timeout.
+
+تمت إعادة تحميل build مع instrumentation لـ `window.onerror` و`unhandledrejection`. لم تُجمع أخطاء، وقياس root ظل صفر أبناء من 50ms حتى 2500ms. يلزم فحص serving ونسخة runtime configuration وربط backend؛ لا يكفي الاعتماد على console.
+
+فحص React الداخلي أكد أن `createRoot` موجود على العنصر، لكن لا توجد `fiber child` فعالة مع بقاء `childLanes` معلقة. هذا يثبت أن runtime بدأ لكنه عالق/فارغ أثناء دورة render أو Suspense، ويبرر إضافة error/loading boundary مرئي وفحص static serving؛ لا يمكن اعتماد الويب قبل معالجة ذلك.
+
+## إصلاح runtime واختبار الدولة
+
+تم تحديد السبب الفعلي للشاشة البيضاء: `HomePage` كان يستدعي `map` على استجابة categories غير المصفوفية عندما يكون backend URL فارغًا ويعيد static server صفحة HTML بدل JSON. تم تطبيع الاستجابة إلى مصفوفة آمنة، وإضافة Error Boundary مرئي. بعد إعادة build ظهرت الصفحة الرئيسية كاملة بدل الشاشة البيضاء، وعند عدم توفر API ظهرت حالة `No results` آمنة. تم اختيار السعودية وتطبيقها يدويًا، فأغلقت نافذة الدولة وظهرت الصفحة؛ هذا يثبت مسار التغيير اليدوي للدولة في smoke test.
