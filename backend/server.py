@@ -2630,6 +2630,18 @@ async def cloudinary_signature(
 # ============================================================
 # Listings
 # ============================================================
+def _validate_model_3d(custom_fields: Optional[dict]) -> None:
+    """Accept only an uploaded/hosted GLB or GLTF asset; no fake conversion."""
+    url = (custom_fields or {}).get("model_3d_url")
+    if not url:
+        return
+    if not isinstance(url, str) or len(url) > 2048:
+        raise HTTPException(400, "ملف 3D غير صالح")
+    normalized = url.split("?", 1)[0].lower()
+    if not (normalized.endswith(".glb") or normalized.endswith(".gltf") or "/raw/upload/" in normalized):
+        raise HTTPException(400, "يجب رفع ملف GLB أو GLTF فقط")
+
+
 @api.post("/listings")
 async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)):
     if not body.category:
@@ -2638,6 +2650,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     if not cat:
         raise HTTPException(400, "فئة غير صالحة")
     custom_fields = body.custom_fields or {}
+    _validate_model_3d(custom_fields)
     # The active country selected in the posting flow is authoritative. It must
     # be a supported marketplace country; otherwise a listing could be stored
     # under an unsupported code and disappear from every isolated feed.
@@ -5173,6 +5186,7 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     if not update_data:
         raise HTTPException(400, "لا يوجد بيانات للتعديل")
     merged_custom_fields = update_data.get("custom_fields", item.get("custom_fields") or {})
+    _validate_model_3d(merged_custom_fields)
     merged_images = update_data.get("images", item.get("images") or [])
     # Re-moderate if title/description changed
     if "title" in update_data or "description" in update_data:
@@ -7344,16 +7358,17 @@ async def _build_sitemap_xml() -> str:
     for l in listings:
         lastmod = (l.get("updated_at") or l.get("created_at") or "").split("T")[0] or ""
         img = (l.get("images") or [None])[0]
-        title_safe = (l.get("title", "") or "").replace("]]>", "")
-        img_part = f"<image:image><image:loc>{img}</image:loc><image:title><![CDATA[{title_safe}]]></image:title></image:image>" if img else ""
+        title_safe = html_escape(str(l.get("title", "") or "").replace("]]>", ""), quote=False)
+        loc = f"{site}/listing/{l.get('slug') or l['id']}"
+        loc_xml = html_escape(loc, quote=True)
+        img_safe = html_escape(str(img), quote=False) if img else ""
+        img_part = f"<image:image><image:loc>{img_safe}</image:loc><image:title><![CDATA[{title_safe}]]></image:title></image:image>" if img else ""
         # Prefer SEO slug; fall back to id for older listings
-        ref = l.get("slug") or l["id"]
-        loc = f"{site}/listing/{ref}"
         # hreflang alternates so Google can serve the right language version
-        alt = "".join(f'<xhtml:link rel="alternate" hreflang="{lng}" href="{loc}?lang={lng}"/>' for lng in LANGS)
-        alt += f'<xhtml:link rel="alternate" hreflang="x-default" href="{loc}"/>'
+        alt = "".join(f'<xhtml:link rel="alternate" hreflang="{lng}" href="{html_escape(loc + "?lang=" + lng, quote=True)}"/>' for lng in LANGS)
+        alt += f'<xhtml:link rel="alternate" hreflang="x-default" href="{loc_xml}"/>'
         parts.append(
-            f"<url><loc>{loc}</loc>"
+            f"<url><loc>{loc_xml}</loc>"
             + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
             + "<changefreq>weekly</changefreq><priority>0.7</priority>"
             + alt + img_part + "</url>"
@@ -7502,12 +7517,19 @@ async def seo_listing_html(listing_id: str):
     if not listing:
         return HTMLResponse("<h1>Listing not found</h1>", status_code=404)
     site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
-    title = (listing.get("title") or "")[:200]
-    desc = (listing.get("description") or listing.get("title") or "")[:300]
+    title = str(listing.get("title") or "")[:200]
+    desc = str(listing.get("description") or listing.get("title") or "")[:300]
+    title_html = html_escape(title, quote=True)
+    desc_html = html_escape(desc, quote=True)
     price = listing.get("price") or 0
     currency = listing.get("currency") or "ر.س"
-    image = (listing.get("images") or [f"{site}/og-image.png"])[0]
-    keywords = ", ".join({title, listing.get("category", ""), listing.get("city", ""), "حراج", "بيع", "شراء"})
+    image = str((listing.get("images") or [f"{site}/og-image.png"])[0])
+    image_html = html_escape(image, quote=True)
+    ref = str(listing.get("slug") or listing_id)
+    canonical = f"{site}/listing/{ref}"
+    canonical_html = html_escape(canonical, quote=True)
+    keywords = ", ".join({title, str(listing.get("category", "") or ""), str(listing.get("city", "") or ""), "حراج", "بيع", "شراء", "Haraj Plus", "buy", "sell"})
+    keywords_html = html_escape(keywords, quote=True)
     schema = {
         "@context": "https://schema.org",
         "@type": "Product",
@@ -7528,35 +7550,35 @@ async def seo_listing_html(listing_id: str):
         },
     }
     import json as _json
-    schema_json = _json.dumps(schema, ensure_ascii=False)
+    schema_json = _json.dumps(schema, ensure_ascii=False).replace("<", "\\u003c")
     html = f"""<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8" />
-<title>{title} - {price} {currency} - الحراج بلس</title>
-<meta name="description" content="{desc}" />
-<meta name="keywords" content="{keywords}" />
-<link rel="canonical" href="{site}/listing/{listing_id}" />
+<title>{title_html} - {html_escape(str(price), quote=True)} {html_escape(str(currency), quote=True)} - الحراج بلس</title>
+<meta name="description" content="{desc_html}" />
+<meta name="keywords" content="{keywords_html}" />
+<link rel="canonical" href="{canonical_html}" />
 <meta property="og:type" content="product" />
-<meta property="og:title" content="{title}" />
-<meta property="og:description" content="{desc}" />
-<meta property="og:image" content="{image}" />
-<meta property="og:url" content="{site}/listing/{listing_id}" />
+<meta property="og:title" content="{title_html}" />
+<meta property="og:description" content="{desc_html}" />
+<meta property="og:image" content="{image_html}" />
+<meta property="og:url" content="{canonical_html}" />
 <meta property="og:locale" content="ar_SA" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="{title}" />
-<meta name="twitter:description" content="{desc}" />
-<meta name="twitter:image" content="{image}" />
+<meta name="twitter:title" content="{title_html}" />
+<meta name="twitter:description" content="{desc_html}" />
+<meta name="twitter:image" content="{image_html}" />
 <script type="application/ld+json">{schema_json}</script>
 </head>
 <body>
-<h1>{title}</h1>
-<p><strong>السعر:</strong> {price} {currency}</p>
-<p><strong>المدينة:</strong> {listing.get("city", "")}</p>
-<p><strong>الفئة:</strong> {listing.get("category", "")}</p>
-<p>{desc}</p>
-{f'<img src="{image}" alt="{title}" loading="lazy" />' if image else ''}
-<p><a href="{site}/listing/{listing_id}">عرض الإعلان كاملاً على الحراج بلس</a></p>
+<h1>{title_html}</h1>
+<p><strong>السعر:</strong> {html_escape(str(price), quote=True)} {html_escape(str(currency), quote=True)}</p>
+<p><strong>المدينة:</strong> {html_escape(str(listing.get("city", "") or ""), quote=True)}</p>
+<p><strong>الفئة:</strong> {html_escape(str(listing.get("category", "") or ""), quote=True)}</p>
+<p>{desc_html}</p>
+{f'<img src="{image_html}" alt="{title_html}" loading="lazy" />' if image else ''}
+<p><a href="{canonical_html}">عرض الإعلان كاملاً على الحراج بلس</a></p>
 </body>
 </html>"""
     return HTMLResponse(html)
