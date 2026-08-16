@@ -71,17 +71,24 @@ export default function ListingDetail() {
                     api.get(`/listings/${id}/similar`),
                     api.get("/meta/categories", { params: { lang } }),
                 ]);
-                setListing(l.data);
-                trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
-                setSimilar(s.data);
-                setCategories(c.data);
-                setLikeCount(Number(l.data.like_count || 0));
-                api.get(`/listings/${l.data.id}/comments`).then(({ data }) => setComments(data?.items || [])).catch(() => {});
+                const normalizedListing = l.data && typeof l.data === "object" ? {
+                    ...l.data,
+                    images: Array.isArray(l.data.images) ? l.data.images : [],
+                    videos: Array.isArray(l.data.videos) ? l.data.videos : [],
+                    custom_fields: l.data.custom_fields && typeof l.data.custom_fields === "object" ? l.data.custom_fields : {},
+                } : null;
+                if (!normalizedListing) throw new Error("invalid_listing_response");
+                setListing(normalizedListing);
+                trackEvent("listing_view", { listing_id: normalizedListing.id, category: normalizedListing.category, country_code: normalizedListing.country_code });
+                setSimilar(Array.isArray(s.data) ? s.data : (Array.isArray(s.data?.items) ? s.data.items : []));
+                setCategories(Array.isArray(c.data) ? c.data : (Array.isArray(c.data?.items) ? c.data.items : []));
+                setLikeCount(Number(normalizedListing.like_count || 0));
+                api.get(`/listings/${normalizedListing.id}/comments`).then(({ data }) => setComments(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setComments([]));
                 api.get(`/sellers/${l.data.user_id}/trust`).then(({ data }) => setSellerTrust(data)).catch(() => {});
                 if (user) api.get(`/listings/${l.data.id}/like/check`).then(({ data }) => setLiked(!!data.liked)).catch(() => {});
                 if (user && l.data.user_id !== user.id) {
                     api.get(`/sellers/${l.data.user_id}/follow-status`).then(({ data }) => setFollowing(!!data.following)).catch(() => {});
-                    api.get(`/watches`).then(({ data }) => setWatching((data || []).some((w) => w.listing_id === l.data.id))).catch(() => {});
+                    api.get(`/watches`).then(({ data }) => { const watches = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []); setWatching(watches.some((w) => w.listing_id === normalizedListing.id)); }).catch(() => setWatching(false));
                 }
             } catch (_) { nav("/"); }
         };
@@ -111,7 +118,10 @@ export default function ListingDetail() {
 
     if (!listing) return <div className="p-10 text-center font-arabic">{t("loading")}</div>;
 
-    const cat = categories.find((c) => c.key === listing.category);
+    const images = Array.isArray(listing.images) ? listing.images : [];
+    const videos = Array.isArray(listing.videos) ? listing.videos : [];
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const cat = safeCategories.find((c) => c.key === listing.category);
     const ts = new Date(listing.created_at);
 
     const startChat = () => {
@@ -258,16 +268,16 @@ export default function ListingDetail() {
                 <div className="lg:col-span-2 space-y-4">
                     {/* Image gallery */}
                     <div className="bg-[var(--surface)] rounded-3xl overflow-hidden border border-[var(--border)]">
-                        <div className="relative aspect-[16/10] bg-[var(--surface-elevated)] cursor-zoom-in" onClick={() => listing.images?.length && setShowViewer(true)}>
-                            {listing.images?.length ? (
-                                <img src={optimizeImage(listing.images[activeImg], { w: 1024 })} srcSet={buildSrcSet(listing.images[activeImg], [480, 768, 1024, 1280])} sizes="(max-width: 1024px) 100vw, 1024px" alt={listing.title} className="w-full h-full object-cover" />
+                        <div className="relative aspect-[16/10] bg-[var(--surface-elevated)] cursor-zoom-in" onClick={() => images.length && setShowViewer(true)}>
+                            {images.length ? (
+                                <img src={optimizeImage(images[activeImg], { w: 1024 })} srcSet={buildSrcSet(images[activeImg], [480, 768, 1024, 1280])} sizes="(max-width: 1024px) 100vw, 1024px" alt={listing.title} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] font-arabic">{tr("لا توجد صور")}</div>
                             )}
                             <div className="absolute top-3 start-3 flex gap-2">
                                 <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{pickName(cat)}</span>
                             </div>
-                            {listing.images?.length > 0 && (
+                            {images.length > 0 && (
                                 <button data-testid="open-viewer-btn" onClick={(e) => { e.stopPropagation(); setShowViewer(true); }} className="absolute top-3 end-3 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur hover:bg-black/80">
                                     <Maximize2 className="w-3 h-3" /> عرض كامل
                                 </button>
@@ -276,11 +286,11 @@ export default function ListingDetail() {
                             {listing.custom_fields?.model_3d_url && (
                                 <button data-testid="open-model3d-btn" onClick={(e) => { e.stopPropagation(); setShow3D(true); }} className="absolute top-3 start-3 bg-cyan-500 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur shadow-lg"><Box className="w-3.5 h-3.5" /> {tr("عرض 3D")}</button>
                             )}
-                            <div className="absolute bottom-3 end-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{activeImg + 1} / {listing.images?.length || 0}</div>
+                            <div className="absolute bottom-3 end-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{activeImg + 1} / {images.length || 0}</div>
                         </div>
-                        {listing.images?.length > 1 && (
+                        {images.length > 1 && (
                             <div className="flex gap-2 p-3 overflow-x-auto no-scrollbar">
-                                {listing.images.map((img, i) => (
+                                {images.map((img, i) => (
                                     <button key={i} data-testid={`img-thumb-${i}`} onClick={() => setActiveImg(i)} className={`shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 ${activeImg === i ? "border-[var(--primary)]" : "border-transparent"}`}>
                                         <img src={optimizeImage(img, { w: 160 })} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                     </button>
@@ -370,11 +380,11 @@ export default function ListingDetail() {
                     )}
 
                     {/* Videos */}
-                    {listing.videos?.length > 0 && (
+                    {videos.length > 0 && (
                         <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
                             <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{tr("الفيديو")}</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {listing.videos.map((v, i) => (
+                                {videos.map((v, i) => (
                                     <video key={i} src={v} controls preload="metadata" className="w-full rounded-2xl bg-black aspect-video" />
                                 ))}
                             </div>
@@ -583,7 +593,7 @@ export default function ListingDetail() {
                     </form>
                 </div>
             )}
-            {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
+            {showViewer && <ImageViewer images={images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
             {show3D && <Model3DViewer src={listing.custom_fields?.model_3d_url} onClose={() => setShow3D(false)} />}
 
             {/* Sticky bottom CTA bar — fills the space left by the hidden
