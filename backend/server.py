@@ -4207,6 +4207,17 @@ async def get_presence(user_id: str, _: dict = Depends(get_current_user)):
 async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_user)):
     if body.receiver_id == user["id"]:
         raise HTTPException(400, "Cannot message yourself")
+    text = (body.text or "").strip()
+    if not text and not any([body.image, body.voice, body.location]):
+        raise HTTPException(400, "Message content required")
+    if len(text) > 4000:
+        raise HTTPException(413, "Message is too long")
+    blocked = await db.blocks.find_one({"$or": [
+        {"blocker_id": user["id"], "blocked_id": body.receiver_id},
+        {"blocker_id": body.receiver_id, "blocked_id": user["id"]},
+    ]}, {"_id": 0, "blocker_id": 1})
+    if blocked:
+        raise HTTPException(403, "Messaging is unavailable for this user")
     receiver = await db.users.find_one({"id": body.receiver_id}, {"_id": 0, "id": 1, "name": 1})
     if not receiver:
         raise HTTPException(404, "Receiver not found")
@@ -4217,7 +4228,7 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         "sender_id": user["id"],
         "receiver_id": body.receiver_id,
         "listing_id": body.listing_id,
-        "text": body.text,
+        "text": text or None,
         "image": body.image,
         "voice": body.voice,
         "voice_duration_ms": body.voice_duration_ms,

@@ -265,7 +265,13 @@ export function I18nProvider({ children }) {
         localStorage.setItem("hp_lang", lang);
         _currentLang = lang;
     }, [lang]);
-    const t = (key) => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.ar[key] || key;
+    const t = (key) => {
+        if (key == null) return key;
+        const direct = TRANSLATIONS[lang]?.[key];
+        if (direct) return direct;
+        const auto = typeof key === "string" ? AUTO_TRANSLATIONS[key.trim()]?.[lang] : null;
+        return auto || TRANSLATIONS.ar[key] || key;
+    };
     const isRTL = RTL_LANGS.includes(lang);
     // helper: pick best name from object {name, name_ar, name_en}
     // Backend now returns a pre-translated `name` field when ?lang= is passed
