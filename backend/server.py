@@ -6874,7 +6874,9 @@ async def get_seller_profile(seller_id: str):
     s = await db.users.find_one(
         {"id": seller_id},
         {"_id": 0, "id": 1, "name": 1, "avatar_url": 1, "bio": 1, "verified": 1,
-         "trust_score": 1, "city": 1, "country_code": 1, "created_at": 1}
+         "trust_score": 1, "city": 1, "country_code": 1, "created_at": 1,
+         "store_name": 1, "store_slug": 1, "store_description": 1, "store_logo": 1,
+         "store_cover": 1, "business_hours": 1, "response_rate": 1}
     )
     if not s:
         raise HTTPException(404, "Seller not found")
@@ -6893,6 +6895,29 @@ async def get_seller_profile(seller_id: str):
     s["followers"] = await db.follows.count_documents({"seller_id": seller_id})
     return s
 
+
+class StorefrontUpdateIn(BaseModel):
+    store_name: Optional[str] = None
+    store_description: Optional[str] = None
+    store_logo: Optional[str] = None
+    store_cover: Optional[str] = None
+    business_hours: Optional[dict] = None
+
+@api.put("/users/me/storefront")
+async def update_my_storefront(body: StorefrontUpdateIn, user: dict = Depends(get_current_user)):
+    name = (body.store_name or "").strip()[:100]
+    description = (body.store_description or "").strip()[:1000]
+    update = {
+        "store_name": name or user.get("name", "").strip()[:100],
+        "store_description": description,
+        "store_logo": (body.store_logo or "").strip()[:500] or None,
+        "store_cover": (body.store_cover or "").strip()[:500] or None,
+        "business_hours": body.business_hours if isinstance(body.business_hours, dict) else {},
+        "store_slug": _slugify(name or user.get("name", "user"))[:80] or f"store-{user['id'][:8]}",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.users.update_one({"id": user["id"]}, {"$set": update})
+    return {"success": True, **update}
 
 @api.get("/sellers/{seller_id}/trust")
 async def seller_trust_graph(seller_id: str):

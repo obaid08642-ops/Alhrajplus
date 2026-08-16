@@ -19,6 +19,7 @@ import CategoryPage from "@/pages/CategoryPage";
 
 // Heavy pages — lazy loaded for faster initial bundle (saves ~300KB from main chunk)
 const ListingDetail = lazy(() => import("@/pages/ListingDetail"));
+const SellerStorefrontPage = lazy(() => import("@/pages/SellerStorefrontPage"));
 const PostListing = lazy(() => import("@/pages/PostListing"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
@@ -101,6 +102,7 @@ function AppRouter() {
             <Route path="/" element={<Layout><HomePage /></Layout>} />
             <Route path="/category/:categoryKey" element={<Layout><CategoryPage /></Layout>} />
             <Route path="/listing/:id" element={<Layout><ListingDetail /></Layout>} />
+            <Route path="/seller/:sellerId" element={<Layout><SellerStorefrontPage /></Layout>} />
             <Route path="/post" element={<Layout><PostListing /></Layout>} />
             <Route path="/chat" element={<Layout><ChatPage /></Layout>} />
             <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
