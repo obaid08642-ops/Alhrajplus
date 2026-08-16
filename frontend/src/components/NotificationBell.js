@@ -18,6 +18,8 @@ import { playNotificationSound } from "@/lib/notificationSound";
 
 const TYPE_ICONS = {
     new_message: { Icon: MessageCircle, color: "text-blue-500" },
+    listing_offer: { Icon: Tag, color: "text-amber-500" },
+    listing_offer_update: { Icon: CheckCircle2, color: "text-emerald-500" },
     listing_approved: { Icon: CheckCircle2, color: "text-emerald-500" },
     listing_rejected: { Icon: XCircle, color: "text-red-500" },
     price_drop: { Icon: Tag, color: "text-orange-500" },
@@ -31,7 +33,9 @@ function urlFor(n) {
         case "new_message": return n.data?.sender_id ? `/chat?to=${n.data.sender_id}` : "/chat";
         case "listing_approved":
         case "listing_rejected":
-        case "price_drop": return n.data?.listing_id ? `/listing/${n.data.listing_id}` : "/";
+        case "price_drop":
+        case "listing_offer":
+        case "listing_offer_update": return n.data?.listing_id ? `/listing/${n.data.listing_id}` : "/";
         default: return "/";
     }
 }
@@ -76,12 +80,11 @@ export default function NotificationBell() {
     // Real-time refresh on WS message events
     useEffect(() => {
         if (!user) return;
-        const off = subscribe("message", () => {
-            // If the user isn't already on the chat page, treat as unread bump
-            // and refetch list lightly. We refresh full list to keep things simple.
-            fetchList();
-        });
-        return off;
+        const refresh = () => fetchList();
+        const offMessage = subscribe("message", refresh);
+        const offOffer = subscribe("listing_offer", refresh);
+        const offOfferUpdate = subscribe("listing_offer_update", refresh);
+        return () => { offMessage?.(); offOffer?.(); offOfferUpdate?.(); };
     }, [user, subscribe, fetchList]);
 
     // Click outside to close
