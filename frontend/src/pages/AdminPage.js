@@ -593,10 +593,16 @@ function ListingLifecyclePanel() {
 // Data Integrity tool — shows orphan records and one-click fix.
 function DataIntegrityPanel() {
     const [data, setData] = useState(null);
+    const [loadError, setLoadError] = useState("");
     const [busy, setBusy] = useState(false);
     const [defaultCC, setDefaultCC] = useState("SA");
 
-    const load = () => api.get("/admin/data-integrity").then(({ data }) => setData(data)).catch(() => setData({ listings_without_country: 0, users_without_country: 0, sample_offending_listings: [] }));
+    const load = () => {
+        setLoadError("");
+        return api.get("/admin/data-integrity")
+            .then(({ data: next }) => setData(next && typeof next === "object" ? next : null))
+            .catch(() => { setData(null); setLoadError(tr("تعذر قراءة سلامة البيانات من الخادم")); });
+    };
     useEffect(() => { load(); }, []);
 
     const fix = async () => {
@@ -610,7 +616,7 @@ function DataIntegrityPanel() {
         finally { setBusy(false); }
     };
 
-    if (!data) return <div className="p-6 text-center font-arabic">{tr("جاري التحميل...")}</div>;
+    if (!data) return <div className="p-6 text-center font-arabic">{loadError || tr("جاري التحميل...")}</div>;
     const clean = data.listings_without_country === 0 && data.users_without_country === 0;
     return (
         <div className="space-y-4" data-testid="data-integrity-panel">

@@ -237,7 +237,7 @@ export function RegisterPage() {
         api.get("/meta/countries")
             .then(({ data }) => setCountries(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])))
             .catch(() => { setCountries([]); setErr(tr("تعذر تحميل الدول، يمكنك المتابعة بالدولة الافتراضية السعودية")); });
-    }, []);
+    }, [tr]);
 
     const safeCountries = Array.isArray(countries) ? countries : [];
     const cur = safeCountries.find((c) => c.code === form.country_code) || { code: "SA", phone_code: "+966", phone_length: 9, cities: [] };
