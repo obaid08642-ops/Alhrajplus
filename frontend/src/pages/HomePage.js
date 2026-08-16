@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Plus, Sparkles, ChevronDown } from "lucide-react";
+import { Plus, Sparkles, ChevronDown, Flame, Gavel, Clapperboard, Plane, MapPinned } from "lucide-react";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import { PremiumCategoryIcon } from "@/lib/categoryIcons";
@@ -120,18 +120,18 @@ export default function HomePage() {
 
 function QuickActions() {
     const items = [
-        { to: "/deals", icon: "🔥", label: tr("صفقات اليوم"), color: "from-emerald-100 to-red-50 dark:from-emerald-900/20 dark:to-red-900/10" },
-        { to: "/auctions", icon: "🔨", label: tr("مزادات"), color: "from-amber-100 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/10" },
-        { to: "/reels", icon: "🎬", label: tr("قصص فيديو"), color: "from-pink-100 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/10" },
-        { to: "/flights", icon: "✈️", label: tr("حجز طيران"), color: "from-blue-100 to-sky-50 dark:from-blue-900/20 dark:to-sky-900/10" },
-        { to: "/map", icon: "🗺️", label: tr("خريطة"), color: "from-emerald-100 to-green-50 dark:from-emerald-900/20 dark:to-green-900/10" },
+        { to: "/deals", Icon: Flame, label: tr("صفقات اليوم"), color: "from-emerald-100 to-red-50 dark:from-emerald-900/20 dark:to-red-900/10" },
+        { to: "/auctions", Icon: Gavel, label: tr("مزادات"), color: "from-amber-100 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/10" },
+        { to: "/reels", Icon: Clapperboard, label: tr("قصص فيديو"), color: "from-pink-100 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/10" },
+        { to: "/flights", Icon: Plane, label: tr("حجز طيران"), color: "from-blue-100 to-sky-50 dark:from-blue-900/20 dark:to-sky-900/10" },
+        { to: "/map", Icon: MapPinned, label: tr("خريطة"), color: "from-emerald-100 to-green-50 dark:from-emerald-900/20 dark:to-green-900/10" },
     ];
     return (
         <section className="max-w-7xl mx-auto px-3 sm:px-6">
             <div className="grid grid-cols-5 gap-2 sm:gap-3">
                 {items.map((it) => (
                     <Link key={it.label} to={it.to} data-testid={`quick-${it.label}`} className={`relative bg-gradient-to-br ${it.color} rounded-2xl p-3 sm:p-4 border border-[var(--border)] hover:border-[var(--primary)] hover:-translate-y-0.5 transition-all flex flex-col items-center gap-1.5`}>
-                        <span className="text-2xl sm:text-3xl">{it.icon}</span>
+                        <span className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center"><it.Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.2} /></span>
                         <span className="font-arabic font-bold text-[10px] sm:text-sm text-[var(--text)] text-center">{it.label}</span>
                     </Link>
                 ))}
@@ -161,7 +161,7 @@ function Hero({ t }) {
                                 <Plus className="w-4 h-4" /> {tr("أنشر مجاناً")}
                             </Link>
                             <Link to="/map" data-testid="hero-map-btn" className="bg-white/10 backdrop-blur border border-white/30 text-white rounded-full px-4 sm:px-5 py-2 sm:py-2.5 font-bold text-xs sm:text-sm hover:bg-white/20 transition-all font-arabic">
-                                🗺️ {tr("خريطة قريبة منك")}
+                                <MapPinned className="w-4 h-4" /> {tr("خريطة قريبة منك")}
                             </Link>
                         </div>
                     </div>

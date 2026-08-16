@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft, Clapperboard, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
 
@@ -62,8 +62,8 @@ export default function ReelsPage() {
     if (reels.length === 0) return (
         <div className="min-h-[60vh] flex items-center justify-center">
             <div className="text-center max-w-md px-4">
-                <div className="text-6xl mb-3">🎬</div>
-                <h2 className="font-arabic font-black text-2xl text-[var(--text)] mb-2">{tr("القصص قريباً")}</h2>
+                <Clapperboard className="w-16 h-16 text-[var(--primary)] mx-auto mb-3" strokeWidth={1.7} />
+                <h2 className="font-arabic font-black text-2xl text-[var(--text)] mb-2">{tr("لا توجد فيديوهات متاحة الآن")}</h2>
                 <p className="text-sm text-[var(--text-muted)] font-arabic-body mb-4">{tr("لا توجد فيديوهات بعد. كن أول من يرفع فيديو لمنتجاته!")}</p>
                 <Link to="/post" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-arabic font-bold text-sm">{tr("أنشر إعلان بفيديو")}</Link>
             </div>
@@ -73,11 +73,11 @@ export default function ReelsPage() {
     return (
         <div className="fixed inset-x-0 top-16 bottom-16 sm:relative sm:inset-auto sm:h-[calc(100vh-160px)] sm:max-w-md sm:mx-auto sm:rounded-3xl sm:overflow-hidden bg-black">
             {/* Back + Upload buttons */}
-            <button data-testid="reels-back-btn" onClick={() => nav(-1)} aria-label="رجوع" className="absolute top-3 start-3 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur flex items-center justify-center text-white">
+            <button data-testid="reels-back-btn" onClick={() => nav(-1)} aria-label={tr("رجوع")} className="absolute top-3 start-3 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur flex items-center justify-center text-white">
                 <ArrowLeft className="w-5 h-5" />
             </button>
-            <Link to="/post?video=1" data-testid="reels-upload-btn" aria-label={tr("ارفع ستوري فيديو")} className="absolute top-3 end-3 z-30 flex items-center gap-1.5 bg-gradient-to-r from-[#4FB6E6] to-[#3AA9DD] text-white px-3 py-2 rounded-full shadow-lg hover:scale-105 transition-transform">
-                <span className="text-lg leading-none">+</span>
+            <Link to="/post?video=1" data-testid="reels-upload-btn" aria-label={tr("ارفع ستوري فيديو")} className="absolute top-3 end-3 z-30 flex items-center gap-1.5 bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-2 rounded-full shadow-lg hover:scale-105 transition-transform">
+                <Plus className="w-4 h-4" strokeWidth={2.8} />
                 <span className="text-xs font-arabic font-bold">{tr("ارفع ستوري")}</span>
             </Link>
 

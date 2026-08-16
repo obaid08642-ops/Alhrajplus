@@ -1,4 +1,4 @@
-import { Plane, MapPin, Calendar, Users, Search, ExternalLink, Globe } from "lucide-react";
+import { Plane, MapPin, Calendar, Users, Search, ExternalLink, Globe, BadgeCheck } from "lucide-react";
 import { useState, useMemo } from "react";
 import { tr } from "@/contexts/I18nContext";
 
@@ -207,11 +207,11 @@ export default function FlightsPage() {
     };
 
     const PROVIDERS = [
-        { key: "trip", name: "Trip.com", color: "from-[#287DFA] to-[#0F58D6]", icon: "🌐" },
-        { key: "skyscanner", name: "Skyscanner", color: "from-sky-500 to-sky-700", icon: "✈️" },
-        { key: "wego", name: "Wego", color: "from-emerald-500 to-emerald-700", icon: "🌍" },
-        { key: "kayak", name: "Kayak", color: "from-orange-500 to-orange-700", icon: "🛫" },
-        { key: "googleFlights", name: "Google Flights", color: "from-blue-500 to-blue-700", icon: "🔍" },
+        { key: "trip", name: "Trip.com", color: "from-[#287DFA] to-[#0F58D6]", Icon: Globe },
+        { key: "skyscanner", name: "Skyscanner", color: "from-sky-500 to-sky-700", Icon: Plane },
+        { key: "wego", name: "Wego", color: "from-emerald-500 to-emerald-700", Icon: MapPin },
+        { key: "kayak", name: "Kayak", color: "from-orange-500 to-orange-700", Icon: Plane },
+        { key: "googleFlights", name: "Google Flights", color: "from-blue-500 to-blue-700", Icon: Search },
     ];
 
     // Trip.com affiliate link (replace from your dashboard if needed)
@@ -297,8 +297,8 @@ export default function FlightsPage() {
                                 onClick={() => searchTrip(p.key)}
                                 className={`bg-gradient-to-r ${p.color} text-white py-3 rounded-xl font-arabic font-bold text-sm flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-shadow ${p.key === "trip" ? "col-span-2 ring-2 ring-[#287DFA]/40" : ""}`}
                             >
-                                <span>{p.icon}</span> {p.name}
-                                {p.key === "trip" && <span className="bg-white/20 text-[10px] px-1.5 py-0.5 rounded-full">⭐ موصى به</span>}
+                                <p.Icon className="w-5 h-5" strokeWidth={2.2} /> {p.name}
+                                {p.key === "trip" && <span className="bg-white/20 text-[10px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"><BadgeCheck className="w-3 h-3" /> {tr("موصى به")}</span>}
                                 <ExternalLink className="w-3.5 h-3.5 opacity-70" />
                             </button>
                         ))}
@@ -326,7 +326,7 @@ export default function FlightsPage() {
                 </div>
 
                 <p className="text-[10px] text-[var(--text-muted)] font-arabic-body text-center pt-2 border-t border-[var(--border)]">
-                    🤝 الحراج بلس وسيط فقط • النتائج والأسعار من المحركات أعلاه مباشرة • أكثر من 1,200 شركة طيران
+                    {tr("الحراج بلس وسيط فقط • النتائج والأسعار من المحركات أعلاه مباشرة • أكثر من 1,200 شركة طيران")}
                 </p>
             </div>
         </div>

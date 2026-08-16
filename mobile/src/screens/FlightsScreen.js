@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Modal, FlatList, Linking, Alert, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Plane, MapPin, Calendar, Users, Search, ExternalLink, Globe, X } from "lucide-react-native";
+import { Plane, MapPin, Calendar, Users, Search, ExternalLink, Globe, X, BadgeCheck } from "lucide-react-native";
 import { colors, radius, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
@@ -257,28 +257,28 @@ const AIRPORTS = [{
 const PROVIDERS = [{
   key: "trip",
   name: "Trip.com",
-  icon: "🌐",
+  Icon: Globe,
   bg: ["#287DFA", "#0F58D6"],
   full: true
 }, {
   key: "skyscanner",
   name: "Skyscanner",
-  icon: "✈️",
+  Icon: Plane,
   bg: ["#0EA5E9", "#0369A1"]
 }, {
   key: "wego",
   name: "Wego",
-  icon: "🌍",
+  Icon: MapPin,
   bg: ["#10B981", "#047857"]
 }, {
   key: "kayak",
   name: "Kayak",
-  icon: "🛫",
+  Icon: Plane,
   bg: ["#F97316", "#C2410C"]
 }, {
   key: "googleFlights",
   name: "Google Flights",
-  icon: "🔍",
+  Icon: Search,
   bg: ["#3B82F6", "#1D4ED8"]
 }];
 function fmtYYMMDD(d) {
@@ -538,14 +538,14 @@ export default function FlightsScreen() {
             x: 1,
             y: 0
           }} />
-                            <Text style={styles.providerIcon}>{p.icon}</Text>
+                            <p.Icon size={18} color="#fff" strokeWidth={2.2} />
                             <Text style={styles.providerName}>{p.name}</Text>
-                            {p.full && <View style={styles.recommend}><Text style={styles.recommendText}>⭐ {t("موصى به")}</Text></View>}
+                            {p.full && <View style={styles.recommend}><BadgeCheck size={12} color="#fff" /><Text style={styles.recommendText}>{t("موصى به")}</Text></View>}
                             <ExternalLink size={13} color="rgba(255,255,255,0.7)" />
                         </TouchableOpacity>)}
                 </View>
 
-                <Text style={styles.disclaimer}>🤝 {t("الحراج بلس وسيط فقط • النتائج من المحركات أعلاه")}</Text>
+                <Text style={styles.disclaimer}>{t("الحراج بلس وسيط فقط • النتائج من المحركات أعلاه")}</Text>
             </View>
 
             <AirportPickerModal visible={pickerFor !== null} current={pickerFor === "from" ? from : to} onPick={c => {

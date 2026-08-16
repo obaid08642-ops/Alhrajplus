@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { telLink, whatsappLink, normalizePhone } from "@/lib/phone";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, Edit3, RefreshCw, CheckCircle2, Trash2, Bell, Tag } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, Edit3, RefreshCw, CheckCircle2, Trash2, Bell, Tag, Box } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -272,10 +272,9 @@ export default function ListingDetail() {
                                     <Maximize2 className="w-3 h-3" /> عرض كامل
                                 </button>
                             )}
-                            {/* Show 360 button when EITHER the seller flagged
-                                this listing as 360 OR there are >= 8 images. */}
+                            {/* Show the real 3D viewer only when the listing has a GLB/GLTF URL. */}
                             {listing.custom_fields?.model_3d_url && (
-                                <button data-testid="open-model3d-btn" onClick={(e) => { e.stopPropagation(); setShow3D(true); }} className="absolute top-3 start-3 bg-cyan-500 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur shadow-lg">🧊 {tr("عرض 3D")}</button>
+                                <button data-testid="open-model3d-btn" onClick={(e) => { e.stopPropagation(); setShow3D(true); }} className="absolute top-3 start-3 bg-cyan-500 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur shadow-lg"><Box className="w-3.5 h-3.5" /> {tr("عرض 3D")}</button>
                             )}
                             <div className="absolute bottom-3 end-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{activeImg + 1} / {listing.images?.length || 0}</div>
                         </div>

@@ -12,6 +12,7 @@ import { useCountry } from "../CountryContext";
 import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import { SkeletonListingGrid, SkeletonCategoryGrid } from "../components/Skeleton";
+import { MessageCircle, Bell, FileText, Megaphone, Sparkles, Settings, Globe, Flag, Search, Users, Moon, Sun } from "lucide-react-native";
 
 // FlatList perf defaults — defined once at module scope.
 const FLAT_PERF = {
@@ -196,12 +197,12 @@ export function NotificationsScreen({
   const iconFor = type => {
     switch (type) {
       case "message":
-      case "chat": return { emoji: "💬", tint: theme.colors.primary };
-      case "price_alert": return { emoji: "🔔", tint: "#F59E0B" };
-      case "listing": return { emoji: "📝", tint: theme.colors.success };
+      case "chat": return { Icon: MessageCircle, tint: theme.colors.primary };
+      case "price_alert": return { Icon: Bell, tint: "#F59E0B" };
+      case "listing": return { Icon: FileText, tint: theme.colors.success };
       case "promo":
-      case "broadcast": return { emoji: "📢", tint: theme.colors.accent };
-      default: return { emoji: "✨", tint: theme.colors.primary };
+      case "broadcast": return { Icon: Megaphone, tint: theme.colors.accent };
+      default: return { Icon: Sparkles, tint: theme.colors.primary };
     }
   };
   if (!user) return <View style={s.center}><Text style={s.muted}>{t("يجب تسجيل الدخول أولاً")}</Text></View>;
@@ -213,10 +214,10 @@ export function NotificationsScreen({
               keyExtractor={n => n.id || String(Math.random())}
               contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 130 }}
               renderItem={({ item }) => {
-                const { emoji, tint } = iconFor(item.type);
+                const { Icon, tint } = iconFor(item.type);
                 return <TouchableOpacity onPress={() => open(item)} style={[s.notifCard, !item.read && s.notifCardUnread]} testID={`notif-${item.id}`}>
                   <View style={[s.notifIconWrap, { backgroundColor: `${tint}22` }]}>
-                    <Text style={s.notifEmoji}>{emoji}</Text>
+                    <Icon size={21} color={tint} strokeWidth={2.2} />
                   </View>
                   <View style={{ flex: 1, gap: 3 }}>
                     <Text style={s.notifTitle} numberOfLines={1}>{item.title}</Text>
@@ -255,25 +256,25 @@ export function SettingsScreen({
             <Text style={s.pageTitle}>{t("الإعدادات")}</Text>
             <View style={s.menu}>
                 <TouchableOpacity style={s.menuItem} onPress={toggleDark} testID="settings-dark-toggle">
-                    <Text style={s.menuLabel}>{isDark ? "🌙" : "☀️"} {t("الوضع الداكن")}: {isDark ? t("مفعل") : t("معطل")}</Text>
+                    {isDark ? <Moon size={17} color={theme.colors.primary} /> : <Sun size={17} color={theme.colors.primary} />}<Text style={s.menuLabel}>{t("الوضع الداكن")}: {isDark ? t("مفعل") : t("معطل")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[s.menuItem, themeMode === "system" && s.menuItemActive]} onPress={() => setThemeMode("system")} testID="settings-system-theme">
-                    <Text style={s.menuLabel}>⚙️ {t("تلقائي حسب إعدادات الجهاز")}{themeMode === "system" ? ` — ${t("مفعل")}` : ""}</Text>
+                    <Settings size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("تلقائي حسب إعدادات الجهاز")}{themeMode === "system" ? ` — ${t("مفعل")}` : ""}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => setLangOpen(true)} testID="mobile-lang-switcher">
-                    <Text style={s.menuLabel}>🌐 {t("اللغة")}: {LANG_LABELS[lang]}</Text>
+                    <Globe size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("اللغة")}: {LANG_LABELS[lang]}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => setCountryOpen(true)} testID="mobile-country-switcher-settings">
-                    <Text style={s.menuLabel}>🏳️ {t("الدولة")}: {country?.flag || ""} {country?.name_ar || country?.name || t("غير محددة")}</Text>
+                    <Flag size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("الدولة")}: {country?.flag || ""} {country?.name_ar || country?.name || t("غير محددة")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("SavedSearches")}>
-                    <Text style={s.menuLabel}>🔍 {t("الأبحاث المحفوظة")}</Text>
+                    <Search size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("الأبحاث المحفوظة")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Following")}>
-                    <Text style={s.menuLabel}>👥 {t("متابعاتي")}</Text>
+                    <Users size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("متابعاتي")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("NotifSettings")}>
-                    <Text style={s.menuLabel}>🔔 {t("إعدادات الإشعارات")}</Text>
+                    <Bell size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("إعدادات الإشعارات")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Notifications")}>
                     <Text style={s.menuLabel}>{t("الإشعارات")}</Text>
@@ -549,7 +550,10 @@ const s = StyleSheet.create({
   menuItem: {
     padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border
+    borderBottomColor: theme.colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
   },
   menuItemActive: {
     backgroundColor: `${theme.colors.primary}14`

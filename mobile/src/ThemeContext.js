@@ -3,6 +3,7 @@ import { Appearance } from "react-native";
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors as lightColors } from "./theme";
+import api from "./api";
 
 const darkColors = {
   ...lightColors,
@@ -22,6 +23,13 @@ const Ctx = createContext({ isDark: false, themeMode: "system", palette: lightCo
 export function ThemeModeProvider({ children }) {
   const [themeMode, setThemeModeState] = useState("system");
   const [systemScheme, setSystemScheme] = useState(() => Appearance.getColorScheme() || "light");
+  const [remoteTheme, setRemoteTheme] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    api.get("/meta/theme").then(({ data }) => { if (alive && data) setRemoteTheme(data); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem("hp_dark_mode").then(v => {
@@ -36,14 +44,20 @@ export function ThemeModeProvider({ children }) {
   }, []);
 
   const isDark = themeMode === "dark" || (themeMode === "system" && systemScheme === "dark");
+  const palette = useMemo(() => {
+    const primary = remoteTheme?.primary_color || lightColors.primary;
+    const primaryHover = remoteTheme?.primary_hover || lightColors.primaryHover;
+    const accent = remoteTheme?.accent_color || lightColors.accent;
+    const base = isDark ? darkColors : lightColors;
+    return { ...base, primary, primaryHover, accent, navBg: primary, secondary: remoteTheme?.secondary_color || base.secondary };
+  }, [isDark, remoteTheme]);
   const setThemeMode = useCallback(async (mode) => {
     if (!["system", "light", "dark"].includes(mode)) return;
     setThemeModeState(mode);
     try { await AsyncStorage.setItem("hp_dark_mode", mode === "dark" ? "1" : mode === "light" ? "0" : "system"); } catch (_) {}
   }, []);
   const toggle = useCallback(() => setThemeMode(isDark ? "light" : "dark"), [isDark, setThemeMode]);
-  const palette = isDark ? darkColors : lightColors;
-  const value = useMemo(() => ({ isDark, themeMode, palette, toggle, setThemeMode }), [isDark, themeMode, palette, toggle, setThemeMode]);
+  const value = useMemo(() => ({ isDark, themeMode, palette, remoteTheme, toggle, setThemeMode }), [isDark, themeMode, palette, remoteTheme, toggle, setThemeMode]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

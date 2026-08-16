@@ -4,7 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity, FlatList, Image, StyleSheet, 
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, Bot, Globe, Moon, Sun, Camera } from "lucide-react-native";
+import { Plus, Sparkles, ChevronDown, Search as SearchIcon, Flame, Gavel, Film, Plane, MapPin, MapPinned, Bot, Globe, Moon, Sun, Camera } from "lucide-react-native";
 import { Modal, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import api from "../api";
@@ -313,7 +313,7 @@ function Hero({
                         <Text style={styles.aiBadgeText}>{t("مدعوم بالذكاء الاصطناعي")}</Text>
                     </View>
                     <Text style={styles.heroTitle}>
-                        بيع، اشترِ، استأجر،{" "}
+                        {t("بيع، اشترِ، استأجر،")} {" "}
                         <Text style={{
             color: colors.primary
           }}>{t("وظّف")}</Text>
@@ -329,7 +329,8 @@ function Hero({
                             <Text style={styles.heroPrimaryText}>{t("أنشر مجاناً")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => nav.navigate("Map")} style={styles.heroSecondaryBtn}>
-                            <Text style={styles.heroSecondaryText}>{t("🗺️ خريطة قريبة")}</Text>
+                            <MapPinned size={15} color={colors.primary} strokeWidth={2.5} />
+                            <Text style={styles.heroSecondaryText}>{t("خريطة قريبة")}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

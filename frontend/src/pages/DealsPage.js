@@ -32,7 +32,7 @@ export default function DealsPage() {
                     <div>
                         <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)]">{tr("صفقات اليوم الذهبية")}</h1>
                         <p className="text-xs sm:text-sm text-[var(--text-muted)] font-arabic-body">
-                            <Sparkles className="inline w-3 h-3 text-[var(--primary)]" /> أفضل الأسعار تحت متوسط السوق — مختارة بذكاء اصطناعي
+                            <Sparkles className="inline w-3 h-3 text-[var(--primary)]" /> {tr("أفضل الأسعار تحت متوسط السوق — مختارة بذكاء اصطناعي")}
                         </p>
                     </div>
                 </div>
@@ -48,7 +48,7 @@ export default function DealsPage() {
                     <p className="text-[var(--text-muted)] font-arabic-body mb-2">{tr("لا توجد صفقات بارزة الآن")}</p>
                     <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-4">{tr("نحتاج المزيد من الإعلانات لمقارنة الأسعار")}</p>
                     <Link to="/" className="inline-block bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 rounded-full font-arabic font-bold text-sm">
-                        <ArrowLeft className="inline w-4 h-4" /> العودة للرئيسية
+                        <ArrowLeft className="inline w-4 h-4" /> {tr("العودة للرئيسية")}
                     </Link>
                 </div>
             ) : (
@@ -67,7 +67,7 @@ function DealCard({ deal }) {
                 <TrendingDown className="w-3 h-3" /> -{deal.discount_pct}%
             </div>
             <div className="absolute top-2 end-2 z-10 bg-emerald-500 text-white rounded-full px-2 py-0.5 text-[9px] font-black font-arabic flex items-center gap-1">
-                🔥 صفقة
+                <Flame className="w-3 h-3" /> {tr("صفقة")}
             </div>
             <div className="aspect-[4/3] overflow-hidden bg-[var(--surface-elevated)]">
                 {deal.images?.[0] ? (
