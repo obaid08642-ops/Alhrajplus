@@ -952,6 +952,15 @@ class ReportIn(BaseModel):
     target_id: str
     reason: str
 
+class OfferIn(BaseModel):
+    amount: float = Field(gt=0, le=1_000_000_000)
+    message: Optional[str] = Field(default="", max_length=1000)
+
+class OfferDecisionIn(BaseModel):
+    action: str = Field(pattern="^(accept|reject|counter)$")
+    counter_amount: Optional[float] = Field(default=None, gt=0, le=1_000_000_000)
+    message: Optional[str] = Field(default="", max_length=1000)
+
 class AdIn(BaseModel):
     title: str
     image_url: Optional[str] = ""  # not required for iframe ads
@@ -2855,6 +2864,76 @@ async def ai_moderate_listing(listing_id: str, title: str, description: str) -> 
                 logger.warning(f"[ai-mod] admin notify failed: {_ae}")
     except Exception as e:
         logger.warning(f"[ai-mod] {e}")
+
+# ============================================================
+# Make Offer — structured negotiation without leaving the listing
+# ============================================================
+@api.post("/listings/{listing_id}/offers")
+async def create_listing_offer(listing_id: str, body: OfferIn, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one({"id": listing_id, **public_listing_filter({})}, {"_id": 0, "id": 1, "user_id": 1, "title": 1, "price": 1, "currency": 1, "status": 1})
+    if not listing:
+        raise HTTPException(404, "الإعلان غير موجود أو غير متاح")
+    if listing.get("user_id") == user["id"]:
+        raise HTTPException(400, "لا يمكنك تقديم عرض على إعلانك")
+    if listing.get("status") not in (None, "active"):
+        raise HTTPException(400, "الإعلان غير متاح للعروض")
+    existing = await db.listing_offers.find_one({"listing_id": listing_id, "buyer_id": user["id"], "status": {"$in": ["pending", "countered"]}})
+    now = datetime.now(timezone.utc).isoformat()
+    offer = {
+        "id": str(uuid.uuid4()), "listing_id": listing_id, "seller_id": listing["user_id"],
+        "buyer_id": user["id"], "amount": float(body.amount), "currency": listing.get("currency"),
+        "message": (body.message or "").strip(), "status": "pending", "created_at": now, "updated_at": now,
+    }
+    if existing:
+        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": {"amount": offer["amount"], "message": offer["message"], "status": "pending", "updated_at": now}})
+        offer["id"] = existing["id"]
+    else:
+        await db.listing_offers.insert_one(offer)
+    payload = {k: v for k, v in offer.items() if k != "_id"}
+    try:
+        asyncio.create_task(_send_user_notification(listing["user_id"], "عرض سعر جديد", f"تم تقديم عرض بقيمة {offer['amount']:,.0f} {listing.get('currency') or ''} على إعلانك", "listing_offer", f"/listing/{listing_id}", {"listing_id": listing_id, "offer_id": offer["id"]}))
+        if "_chat_hub" in globals():
+            asyncio.create_task(_chat_hub.send_to_user(listing["user_id"], {"type": "listing_offer", "data": payload}))
+    except Exception:
+        logger.debug("offer notification scheduling failed", exc_info=True)
+    return payload
+
+@api.get("/listings/{listing_id}/offers")
+async def list_listing_offers(listing_id: str, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1})
+    if not listing or listing.get("user_id") != user["id"]:
+        raise HTTPException(403, "غير مصرح")
+    return await db.listing_offers.find({"listing_id": listing_id}, {"_id": 0}).sort("updated_at", -1).to_list(length=200)
+
+@api.patch("/listing-offers/{offer_id}")
+async def decide_listing_offer(offer_id: str, body: OfferDecisionIn, user: dict = Depends(get_current_user)):
+    offer = await db.listing_offers.find_one({"id": offer_id}, {"_id": 0})
+    if not offer:
+        raise HTTPException(404, "العرض غير موجود")
+    if user["id"] not in (offer.get("seller_id"), offer.get("buyer_id")):
+        raise HTTPException(403, "غير مصرح")
+    if body.action == "counter" and user["id"] != offer.get("seller_id"):
+        raise HTTPException(403, "التعديل المضاد متاح للبائع فقط")
+    if body.action == "counter" and body.counter_amount is None:
+        raise HTTPException(400, "يجب تحديد قيمة العرض المضاد")
+    now = datetime.now(timezone.utc).isoformat()
+    update = {"updated_at": now, "decision_by": user["id"], "decision_message": (body.message or "").strip()}
+    if body.action == "accept":
+        update["status"] = "accepted"
+    elif body.action == "reject":
+        update["status"] = "rejected"
+    else:
+        update.update({"status": "countered", "amount": float(body.counter_amount), "counter_amount": float(body.counter_amount)})
+    await db.listing_offers.update_one({"id": offer_id}, {"$set": update})
+    recipient = offer["buyer_id"] if user["id"] == offer.get("seller_id") else offer["seller_id"]
+    title = "تم قبول عرضك" if body.action == "accept" else "تم رفض العرض" if body.action == "reject" else "عرض مضاد جديد"
+    try:
+        asyncio.create_task(_send_user_notification(recipient, title, body.message or title, "listing_offer_update", f"/listing/{offer['listing_id']}", {"listing_id": offer["listing_id"], "offer_id": offer_id, "status": update["status"]}))
+        if "_chat_hub" in globals():
+            asyncio.create_task(_chat_hub.send_to_user(recipient, {"type": "listing_offer_update", "data": {"offer_id": offer_id, **update}}))
+    except Exception:
+        logger.debug("offer decision notification scheduling failed", exc_info=True)
+    return {"success": True, "offer_id": offer_id, **update}
 
 @api.get("/listings")
 async def list_listings(
@@ -7981,6 +8060,9 @@ async def startup():
     await _safe_index(db.recently_viewed, [("user_id", 1), ("ts", -1)])
     await _safe_index(db.recently_viewed, [("user_id", 1), ("listing_id", 1)], unique=True)
     await _safe_index(db.saved_searches, [("user_id", 1), ("q_lower", 1)], unique=True)
+    await _safe_index(db.listing_offers, [("listing_id", 1), ("updated_at", -1)])
+    await _safe_index(db.listing_offers, [("buyer_id", 1), ("updated_at", -1)])
+    await _safe_index(db.listing_offers, [("seller_id", 1), ("status", 1), ("updated_at", -1)])
     await _safe_index(db.saved_searches, [("user_id", 1), ("created_at", -1)])
     # Category follow + boosted listings
     await _safe_index(db.category_follows, [("user_id", 1), ("category", 1)], unique=True)

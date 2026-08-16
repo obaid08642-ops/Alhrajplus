@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { telLink, whatsappLink, normalizePhone } from "@/lib/phone";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw, Edit3, RefreshCw, CheckCircle2, Trash2, Bell } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw, Edit3, RefreshCw, CheckCircle2, Trash2, Bell, Tag } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -53,6 +53,10 @@ export default function ListingDetail() {
     const [categories, setCategories] = useState([]);
     const [following, setFollowing] = useState(false);
     const [watching, setWatching] = useState(false);
+    const [showOffer, setShowOffer] = useState(false);
+    const [offerAmount, setOfferAmount] = useState("");
+    const [offerMessage, setOfferMessage] = useState("");
+    const [offerSaving, setOfferSaving] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -108,6 +112,23 @@ export default function ListingDetail() {
     };
 
     const isOwner = user && user.id === listing.user_id;
+
+    const submitOffer = async (e) => {
+        e.preventDefault();
+        if (!user) return nav("/login");
+        const amount = Number(offerAmount);
+        if (!Number.isFinite(amount) || amount <= 0) return alert(tr("أدخل قيمة عرض صحيحة"));
+        setOfferSaving(true);
+        try {
+            await api.post(`/listings/${listing.id}/offers`, { amount, message: offerMessage });
+            setShowOffer(false);
+            setOfferAmount("");
+            setOfferMessage("");
+            alert(tr("تم إرسال عرضك للبائع بنجاح"));
+        } catch (e) {
+            alert(e.response?.data?.detail || tr("تعذر إرسال العرض"));
+        } finally { setOfferSaving(false); }
+    };
 
     const handleRepublish = async () => {
         if (!confirm(tr("سيتم إعادة نشر الإعلان في أعلى القائمة. متابعة؟"))) return;
@@ -382,6 +403,11 @@ export default function ListingDetail() {
                                     </>
                                 );
                             })()}
+                            {!listing.is_demo && !isOwner && (
+                                <button data-testid="make-offer-btn-mobile" onClick={() => { if (!user) return nav("/login"); setOfferAmount(listing.price ? String(listing.price) : ""); setShowOffer(true); }} className="w-full bg-[var(--accent)] hover:opacity-90 text-[var(--secondary)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                    <Tag className="w-4 h-4" /> {tr("قدم عرض سعر")}
+                                </button>
+                            )}
                             {!listing.is_demo && (
                                 <button onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                     <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
@@ -468,6 +494,11 @@ export default function ListingDetail() {
                                     })()}
                                 </>
                             ) : null}
+                            {!isOwner && !listing.is_demo && (
+                                <button data-testid="make-offer-btn-desktop" onClick={() => { if (!user) return nav("/login"); setOfferAmount(listing.price ? String(listing.price) : ""); setShowOffer(true); }} className="w-full bg-[var(--accent)] hover:opacity-90 text-[var(--secondary)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                                    <Tag className="w-4 h-4" /> {tr("قدم عرض سعر")}
+                                </button>
+                            )}
                             <button data-testid="chat-with-seller-btn" onClick={startChat} disabled={!!listing.is_demo} style={listing.is_demo ? { display: "none" } : undefined} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                 <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
                             </button>
@@ -490,6 +521,21 @@ export default function ListingDetail() {
                 </div>
             </div>
 
+            {showOffer && (
+                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr("قدم عرض سعر")}>
+                    <form onSubmit={submitOffer} className="w-full max-w-md bg-[var(--surface)] rounded-3xl border border-[var(--border)] shadow-2xl p-5 font-arabic">
+                        <div className="flex items-center justify-between mb-4">
+                            <div><h2 className="font-black text-lg text-[var(--text)]">{tr("قدم عرض سعر")}</h2><p className="text-xs text-[var(--text-muted)] mt-1">{listing.title}</p></div>
+                            <button type="button" onClick={() => setShowOffer(false)} className="text-[var(--text-muted)] text-xl" aria-label={tr("إغلاق")}>×</button>
+                        </div>
+                        <label className="block text-xs font-bold text-[var(--text)] mb-1">{tr("قيمة العرض")}</label>
+                        <input autoFocus required type="number" min="1" step="0.01" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-3 border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] mb-3" placeholder={listing.price ? String(listing.price) : "0"} />
+                        <label className="block text-xs font-bold text-[var(--text)] mb-1">{tr("رسالة اختيارية")}</label>
+                        <textarea rows={3} value={offerMessage} onChange={(e) => setOfferMessage(e.target.value)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-3 border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] mb-4" placeholder={tr("اكتب رسالة للبائع...")} />
+                        <button disabled={offerSaving} className="w-full bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl py-3 font-black disabled:opacity-60">{offerSaving ? tr("جارٍ الإرسال...") : tr("إرسال العرض")}</button>
+                    </form>
+                </div>
+            )}
             {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
             {show360 && <Viewer360 images={listing.images} onClose={() => setShow360(false)} />}
 
