@@ -53,6 +53,11 @@ function _emitReceived(notif) {
 
 function routeFromUrl(url) {
     if (!url) return;
+    // Backend normally sends a relative path; tolerate absolute frontend URLs too.
+    try {
+        if (/^https?:\/\//i.test(url)) url = new URL(url).pathname + new URL(url).search;
+    } catch (_) {}
+    if (!url.startsWith("/")) url = `/${url}`;
     // A terminated-app notification may be processed before onReady. Keep the
     // route instead of falling back to Linking.openURL and losing navigation.
     if (!_navigationRef?.navigate) {
@@ -70,6 +75,10 @@ function routeFromUrl(url) {
     if (m && _navigationRef?.navigate) {
         const to = m[2];
         _navigationRef.navigate("Chat", to ? { to } : {});
+        return;
+    }
+    if (url === "/notifications" || url.startsWith("/notifications?")) {
+        _navigationRef.navigate("Notifications");
         return;
     }
     // Reels / stories — Reels is a tab nested inside Main.
