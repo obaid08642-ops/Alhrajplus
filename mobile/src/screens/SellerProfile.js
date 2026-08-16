@@ -25,6 +25,7 @@ export default function SellerProfileScreen({
   } = useAuth();
   const [seller, setSeller] = useState(null);
   const [listings, setListings] = useState([]);
+  const [listingTotal, setListingTotal] = useState(0);
   const [ratings, setRatings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
@@ -46,6 +47,7 @@ export default function SellerProfileScreen({
         })]);
         setSeller(sRes.data);
         setListings(lRes.data?.items || []);
+        setListingTotal(Number(lRes.data?.total || 0));
         setRatings(rRes.data || []);
         if (user) {
           try {
@@ -86,6 +88,8 @@ export default function SellerProfileScreen({
         }
       });
       setRatings(r.data || []);
+      const latestSeller = await api.get(`/sellers/${sellerId}`);
+      setSeller(latestSeller.data);
     } catch (e) {
       Alert.alert(t("خطأ"), e.response?.data?.detail || t("حدث خطأ. حاول مرة أخرى."));
     }
@@ -103,7 +107,7 @@ export default function SellerProfileScreen({
                     <View style={s.stat}><Text style={s.statNum}>{seller.rating_avg || "—"}</Text><Text style={s.statLbl}>⭐ {t("التقييم")}</Text></View>
                     <View style={s.stat}><Text style={s.statNum}>{seller.rating_count || 0}</Text><Text style={s.statLbl}>{t("تقييمات")}</Text></View>
                     <View style={s.stat}><Text style={s.statNum}>{seller.followers || 0}</Text><Text style={s.statLbl}>{t("متابعون")}</Text></View>
-                    <View style={s.stat}><Text style={s.statNum}>{listings.length}</Text><Text style={s.statLbl}>{t("إعلانات")}</Text></View>
+                    <View style={s.stat}><Text style={s.statNum}>{listingTotal || listings.length}</Text><Text style={s.statLbl}>{t("إعلانات")}</Text></View>
                 </View>
                 {user && user.id !== sellerId && <View style={s.actionRow}>
                         <TouchableOpacity onPress={toggleFollow} style={[s.actionBtn, following && s.actionBtnActive]} testID="mobile-follow-btn">
@@ -113,7 +117,9 @@ export default function SellerProfileScreen({
                             <Text style={s.actionText}>⭐ {t("تقييم")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => navigation.navigate("Chat", {
-          to: sellerId
+          to: sellerId,
+          seller_id: sellerId,
+          seller_name: seller.name,
         })} style={[s.actionBtn, {
           backgroundColor: theme.colors.primary
         }]} testID="mobile-chat-seller-btn">

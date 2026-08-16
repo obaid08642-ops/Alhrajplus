@@ -6612,10 +6612,10 @@ async def rate_seller(seller_id: str, body: RatingIn, user: dict = Depends(get_c
     if not seller:
         raise HTTPException(404, "Seller not found")
     # Requires at least one chat or one completed listing interaction (basic anti-spam).
-    has_chat = await db.chat_messages.find_one({"$or": [
-        {"from_user": user["id"], "to_user": seller_id},
-        {"from_user": seller_id, "to_user": user["id"]},
-    ]})
+    has_chat = await db.messages.find_one({"$or": [
+        {"sender_id": user["id"], "receiver_id": seller_id},
+        {"sender_id": seller_id, "receiver_id": user["id"]},
+    ]}, {"_id": 1})
     if not has_chat:
         raise HTTPException(403, "يجب التعامل مع البائع أولاً قبل التقييم")
     now = datetime.now(timezone.utc).isoformat()
@@ -6764,7 +6764,7 @@ async def _build_sitemap_xml() -> str:
     ]
     cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
     listings = await db.listings.find(
-        {"status": "active", "created_at": {"$gte": cutoff}},
+        public_listing_filter({"created_at": {"$gte": cutoff}}),
         {"_id": 0, "id": 1, "slug": 1, "title": 1, "updated_at": 1, "created_at": 1, "images": 1}
     ).sort("created_at", -1).limit(50000).to_list(length=50000)
 

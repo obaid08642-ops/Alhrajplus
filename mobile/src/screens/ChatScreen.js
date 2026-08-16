@@ -474,7 +474,7 @@ function ChatThread({
     );
     if (alreadyMentioned) { autoSentRef.current = true; return; }
     autoSentRef.current = true;
-    const url = `https://alhrajplus.com/listing/${listing.id}`;
+    const url = `https://www.alhraj.online/listing/${listing.slug || listing.id}`;
     const priceLine = listing.price ? ` (${Number(listing.price).toLocaleString()} ${listing.currency || ""})` : "";
     const text = `${t("مرحباً، أنا مهتم بإعلانك")}: ${listing.title}${priceLine}\n${url}`;
     (async () => {
