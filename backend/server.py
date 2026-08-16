@@ -967,6 +967,9 @@ class OfferDecisionIn(BaseModel):
 class ListingCommentIn(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
     parent_id: Optional[str] = None
+    # Stable client key lets retries reconcile a successful write instead of
+    # creating a duplicate comment or surfacing a false failure.
+    client_comment_id: Optional[str] = Field(default=None, min_length=8, max_length=100)
 
 class AdIn(BaseModel):
     title: str
@@ -3641,7 +3644,15 @@ async def create_listing_comment(listing_id: str, body: ListingCommentIn, user: 
     if await db.listing_comments.count_documents({"user_id": user["id"], "created_at": {"$gte": cutoff}}) >= 10:
         raise HTTPException(429, "محاولات التعليق كثيرة، حاول لاحقًا")
     now = datetime.now(timezone.utc).isoformat()
-    comment = {"id": uuid.uuid4().hex, "listing_id": listing_id, "user_id": user["id"], "text": body.text.strip(), "parent_id": body.parent_id, "created_at": now, "updated_at": now, "deleted": False}
+    if body.client_comment_id:
+        existing = await db.listing_comments.find_one(
+            {"listing_id": listing_id, "user_id": user["id"], "client_comment_id": body.client_comment_id, "deleted": {"$ne": True}},
+            {"_id": 0},
+        )
+        if existing:
+            existing["author"] = {"id": user["id"], "name": user.get("name") or "مستخدم", "avatar_url": user.get("avatar_url"), "verified": bool(user.get("verified"))}
+            return existing
+    comment = {"id": uuid.uuid4().hex, "listing_id": listing_id, "user_id": user["id"], "text": body.text.strip(), "parent_id": body.parent_id, "client_comment_id": body.client_comment_id, "created_at": now, "updated_at": now, "deleted": False}
     await db.listing_comments.insert_one(comment)
     comment["author"] = {"id": user["id"], "name": user.get("name") or "مستخدم", "avatar_url": user.get("avatar_url"), "verified": bool(user.get("verified"))}
     return comment
@@ -8419,6 +8430,7 @@ async def startup():
     await _safe_index(db.listing_likes, [("listing_id", 1), ("created_at", -1)])
     await _safe_index(db.listing_comments, [("listing_id", 1), ("created_at", -1)])
     await _safe_index(db.listing_comments, [("user_id", 1), ("created_at", -1)])
+    await _safe_index(db.listing_comments, [("listing_id", 1), ("user_id", 1), ("client_comment_id", 1)], unique=True, partialFilterExpression={"client_comment_id": {"$type": "string"}})
     await _safe_index(db.saved_searches, [("user_id", 1), ("created_at", -1)])
     # Category follow + boosted listings
     await _safe_index(db.category_follows, [("user_id", 1), ("category", 1)], unique=True)
@@ -8618,39 +8630,9 @@ async def startup():
     # Backfill search_blob on existing listings (one-time, idempotent)
     async for l in db.listings.find({"search_blob": {"$exists": False}}, {"_id": 0}):
         await db.listings.update_one({"id": l["id"]}, {"$set": {"search_blob": build_search_blob(l)}})
-    # Seed sample ad
-    if await db.ads.count_documents({}) == 0:
-        await db.ads.insert_one({
-            "id": str(uuid.uuid4()),
-            "title": "مرحباً بكم في الحراج بلس",
-            "image_url": "https://images.unsplash.com/photo-1709626011483-5bb4b5470ac9?w=1200&q=80",
-            "link_url": "",
-            "placement": "home_middle",
-            "active": True,
-            "country_code": None,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-
-
-    # Seed Trip.com affiliate banner (idempotent: only if no Trip.com ad exists yet)
-    if await db.ads.count_documents({"link_url": {"$regex": "trip.com", "$options": "i"}}) == 0:
-        now_iso = datetime.now(timezone.utc).isoformat()
-        TRIP_BANNER = "https://customer-assets.emergentagent.com/job_platform-inspect/artifacts/qxdi93hp_IMG_2109.jpeg"
-        TRIP_LINK = "https://www.trip.com/t/AYKu00NZbU2"
-        for placement in ["home_middle", "listing_top", "listing_bottom"]:
-            await db.ads.insert_one({
-                "id": str(uuid.uuid4()),
-                "title": "Trip.com — احجز الآن وادفع لاحقاً",
-                "image_url": TRIP_BANNER,
-                "link_url": TRIP_LINK,
-                "placement": placement,
-                "active": True,
-                "country_code": None,
-                "ad_type": "image",
-                "created_at": now_iso,
-            })
-
-
+    # Advertising records are created and managed by Admin or an approved
+    # campaign integration. Do not seed sample or affiliate ads at startup:
+    # an empty ads collection must render an honest empty state, not fake data.
 
 
 @app.on_event("shutdown")

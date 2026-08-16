@@ -61,6 +61,7 @@ export default function ListingDetail() {
     const [likeCount, setLikeCount] = useState(0);
     const [comments, setComments] = useState([]);
     const [commentText, setCommentText] = useState("");
+    const [commentClientId, setCommentClientId] = useState("");
     const [commentBusy, setCommentBusy] = useState(false);
     const [loadError, setLoadError] = useState("");
 
@@ -196,10 +197,13 @@ export default function ListingDetail() {
         const text = commentText.trim();
         if (!text) return;
         setCommentBusy(true);
+        const requestId = commentClientId || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        if (!commentClientId) setCommentClientId(requestId);
         try {
-            const { data } = await api.post(`/listings/${listing.id}/comments`, { text });
-            setComments((items) => [data, ...items]);
+            const { data } = await api.post(`/listings/${listing.id}/comments`, { text, client_comment_id: requestId });
+            if (data?.id) setComments((items) => [data, ...items.filter((item) => item?.id !== data.id)]);
             setCommentText("");
+            setCommentClientId("");
         } catch (e) { alert(e.response?.data?.detail || tr("تعذر نشر التعليق")); }
         finally { setCommentBusy(false); }
     };
