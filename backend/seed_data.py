@@ -206,6 +206,12 @@ CATEGORIES = [
             {"key": "service_history", "label_ar": "سجل الصيانة", "label_en": "Service History", "type": "select", "options": ["موثق", "جزئي", "غير متوفر"], "required": False},
             {"key": "accident_history", "label_ar": "سجل الحوادث", "label_en": "Accident History", "type": "select", "options": ["بدون حوادث", "حوادث بسيطة", "غير معروف"], "required": False},
             {"key": "warranty_expiry", "label_ar": "انتهاء الضمان", "label_en": "Warranty Expiry", "type": "date", "required": False},
+            {"key": "vin", "label_ar": "رقم الهيكل VIN", "label_en": "VIN", "type": "text", "required": False, "placeholder": "17 characters"},
+            {"key": "regional_specs", "label_ar": "المواصفات الإقليمية", "label_en": "Regional Specs", "type": "select", "options": ["خليجي", "سعودي", "إماراتي", "أمريكي", "ياباني", "كندي", "أوروبي", "أخرى"], "required": False},
+            {"key": "engine_size", "label_ar": "سعة المحرك", "label_en": "Engine Size", "type": "select", "options": ["أقل من 1.5L", "1.5L-2.0L", "2.1L-3.0L", "3.1L-4.0L", "أكثر من 4.0L", "كهربائي"], "required": False},
+            {"key": "cylinders", "label_ar": "عدد السلندرات", "label_en": "Cylinders", "type": "select", "options": ["3", "4", "5", "6", "8", "10", "12", "كهربائي"], "required": False},
+            {"key": "finance_available", "label_ar": "تمويل متاح", "label_en": "Finance Available", "type": "select", "options": ["نعم", "لا", "غير محدد"], "required": False},
+            {"key": "inspection_report_url", "label_ar": "رابط تقرير الفحص", "label_en": "Inspection Report URL", "type": "url", "required": False},
         ]
     },
     {
@@ -236,6 +242,13 @@ CATEGORIES = [
             {"key": "air_conditioning", "label_ar": "التكييف", "label_en": "Air Conditioning", "type": "select", "options": ["مركزي", "سبليت", "شباك", "غير متوفر"], "required": False},
             {"key": "ownership_document", "label_ar": "وثيقة الملكية", "label_en": "Ownership Document", "type": "select", "options": ["متوفرة", "غير متوفرة", "للمراجعة"], "required": False},
             {"key": "virtual_tour_url", "label_ar": "رابط الجولة الافتراضية", "label_en": "Virtual Tour URL", "type": "url", "required": False},
+            {"key": "ownership_type", "label_ar": "نوع الملكية", "label_en": "Ownership Type", "type": "select", "options": ["صك إلكتروني", "عقد", "منحة", "على الخارطة", "غير محدد"], "required": False},
+            {"key": "amenities", "label_ar": "المرافق", "label_en": "Amenities", "type": "select", "options": ["مسبح", "حديقة", "غرفة خادمة", "غرفة سائق", "سطح", "موقف خاص", "مصعد", "أمن وحراسة", "نادي رياضي", "غير محدد"], "required": False},
+            {"key": "utilities", "label_ar": "الخدمات المتوفرة", "label_en": "Utilities", "type": "select", "options": ["كهرباء", "ماء", "صرف صحي", "ألياف بصرية", "غاز", "غير محدد"], "required": False},
+            {"key": "installment_available", "label_ar": "تقسيط متاح", "label_en": "Installment Available", "type": "select", "options": ["نعم", "لا", "غير محدد"], "required": False},
+            {"key": "down_payment", "label_ar": "الدفعة المقدمة", "label_en": "Down Payment", "type": "number", "required": False},
+            {"key": "available_from", "label_ar": "متاح من تاريخ", "label_en": "Available From", "type": "date", "required": False},
+            {"key": "agent_license", "label_ar": "رقم ترخيص الوسيط", "label_en": "Agent License", "type": "text", "required": False},
         ]
     },
     {
@@ -285,6 +298,12 @@ CATEGORIES = [
             {"key": "remote_allowed", "label_ar": "العمل عن بُعد", "label_en": "Remote Allowed", "type": "select", "options": ["نعم", "هجين", "لا"], "required": False},
             {"key": "application_method", "label_ar": "طريقة التقديم", "label_en": "Application Method", "type": "select", "options": ["رسائل المنصة", "البريد الإلكتروني", "رابط خارجي", "اتصال"], "required": False},
             {"key": "application_url", "label_ar": "رابط التقديم", "label_en": "Application URL", "type": "url", "required": False},
+            {"key": "company_size", "label_ar": "حجم الشركة", "label_en": "Company Size", "type": "select", "options": ["1-10", "11-50", "51-200", "201-500", "500+", "فرد/مستقل"], "required": False},
+            {"key": "application_deadline", "label_ar": "آخر موعد للتقديم", "label_en": "Application Deadline", "type": "date", "required": False},
+            {"key": "workplace_city", "label_ar": "مدينة العمل", "label_en": "Workplace City", "type": "text", "required": False},
+            {"key": "visa_status", "label_ar": "حالة التأشيرة", "label_en": "Visa Status", "type": "select", "options": ["تأشيرة متوفرة", "نقل كفالة", "لا تتطلب", "غير محدد"], "required": False},
+            {"key": "portfolio_url", "label_ar": "رابط الأعمال/السيرة", "label_en": "Portfolio URL", "type": "url", "required": False},
+            {"key": "cv_required", "label_ar": "السيرة الذاتية مطلوبة", "label_en": "CV Required", "type": "select", "options": ["نعم", "لا"], "required": False},
         ]
     },
     {
