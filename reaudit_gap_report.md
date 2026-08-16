@@ -166,3 +166,7 @@
 ### حماية قوائم الإدارة
 
 تم تطبيع قوائم المستخدمين والبلاغات والبنرات الإعلانية في AdminPage إلى arrays قبل العرض، مع fallback فارغ حقيقي عند فشل endpoint بدل تمرير object إلى map. نجح Web production build بلا تحذيرات. صحة الصلاحيات، pagination، bulk actions، Cloudinary cleanup، وسجلات analytics ما زالت تحتاج اختبار staging بحساب admin فعلي.
+
+### عزل الإعلانات حسب الدولة وإصلاح الشريط السفلي
+
+تمت إضافة `public_listing_filter_for_country` في backend مع fallback صارم إلى `SA` عند غياب الاختيار، وتطبيقه على feed الإعلانات، البحث، المقترحات، trending، deals، auctions، map، تفاصيل الإعلان بالـID/slug، وsimilar listings. أصبح كل query عامًا يشترط تطابق `country_code` الدقيق؛ الإعلان المصري لا يدخل feed السعودية والعكس. كما تم تعديل Web BottomNav ليستخدم `var(--primary-hover)` وخلفية/ظل صريحين للحالة النشطة بدل opacity شفافة، وتعديل Mobile StandaloneFloatingTabBar لإظهار active pill من `palette.primaryHover` مع border/shadow. الأدلة: `py_compile` نجح، `test_public_visibility_policy.py` نجح (4/4)، Web production build نجح، وExpo export نجح. اختبار staging الفعلي بين دولتين ما زال مطلوبًا بعد deployment.
