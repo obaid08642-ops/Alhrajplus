@@ -5704,14 +5704,33 @@ async def admin_user_details(uid: str):
         last_message = await db.messages.find_one({"$or": [{"sender_id": uid}, {"receiver_id": uid}]}, {"_id": 0, "ts": 1}, sort=[("ts", -1)])
     except Exception:
         pass
+    offers_received = await db.listing_offers.count_documents({"seller_id": uid})
+    offers_sent = await db.listing_offers.count_documents({"buyer_id": uid})
+    referrals_count = await db.referral_events.count_documents({"inviter_code": u.get("referral_code")}) if u.get("referral_code") else 0
+    referrals_qualified = await db.referral_events.count_documents({"inviter_code": u.get("referral_code"), "status": {"$in": ["qualified", "rewarded"]}}) if u.get("referral_code") else 0
+    session_ids = await db.analytics_events.distinct("session_id", {"user_id": uid, "session_id": {"$nin": [None, ""]}})
+    session_rows = await db.analytics_events.aggregate([
+        {"$match": {"user_id": uid, "session_id": {"$nin": [None, ""]}}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {"_id": "$session_id", "last_seen": {"$first": "$created_at"}, "device_type": {"$first": "$device_type"}, "os": {"$first": "$os"}, "browser": {"$first": "$browser"}, "last_path": {"$first": "$path"}, "duration_ms": {"$max": "$duration_ms"}}},
+        {"$sort": {"last_seen": -1}},
+        {"$limit": 10},
+    ]).to_list(length=10)
     return {
         "user": u,
         "stats": {
             "listings_total": listings_total,
             "favorites_total": favorites_total,
             "reports_against": reports_against,
+            "offers_received": offers_received,
+            "offers_sent": offers_sent,
+            "referrals_count": referrals_count,
+            "referrals_qualified": referrals_qualified,
+            "referral_points": int(u.get("referral_points") or 0),
+            "sessions_total": len(session_ids),
             "last_message_at": (last_message or {}).get("ts"),
         },
+        "recent_sessions": [{"session_id": x.get("_id"), **{k: v for k, v in x.items() if k != "_id"}} for x in session_rows],
         "listings": listings,
     }
 

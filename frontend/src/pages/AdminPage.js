@@ -763,10 +763,19 @@ function UserDetailsDrawer({ userId, onClose, onChanged }) {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                             <Stat label={tr("الإعلانات")} value={data.stats?.listings_total || 0} />
+                            <Stat label={tr("العروض المرسلة/المستلمة")} value={`${data.stats?.offers_sent || 0}/${data.stats?.offers_received || 0}`} />
+                            <Stat label={tr("الإحالات المؤهلة")} value={`${data.stats?.referrals_qualified || 0}/${data.stats?.referrals_count || 0}`} />
+                            <Stat label={tr("نقاط الإحالة")} value={data.stats?.referral_points || 0} />
+                            <Stat label={tr("الجلسات")} value={data.stats?.sessions_total || 0} />
                             <Stat label={tr("بلاغات ضدّه")} value={data.stats?.reports_against || 0} />
                             <Stat label={tr("آخر رسالة")} value={(data.stats?.last_message_at || "—").slice(0, 10)} />
+                        </div>
+
+                        <div>
+                            <h4 className="font-arabic font-bold text-sm text-[var(--text)] mb-2">{tr("آخر الأجهزة والجلسات")}</h4>
+                            <div className="space-y-2">{(data.recent_sessions || []).map((s) => <div key={s.session_id} className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 text-xs flex flex-wrap items-center gap-2"><span className="font-bold">{s.device_type || "—"}</span><span className="text-[var(--text-muted)]">{[s.os, s.browser].filter(Boolean).join(" / ") || "—"}</span><span className="text-[var(--text-muted)] font-mono truncate">{s.last_path || "—"}</span><span className="ms-auto font-latin">{s.last_seen ? new Date(s.last_seen).toLocaleString() : "—"}</span></div>)}{(data.recent_sessions || []).length === 0 && <div className="text-xs text-[var(--text-muted)] bg-[var(--surface)] rounded-xl p-4 border border-[var(--border)]">{tr("لا توجد جلسات مسجلة بعد")}</div>}</div>
                         </div>
 
                         <div>
