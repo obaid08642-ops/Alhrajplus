@@ -116,3 +116,9 @@
 ## قواعد الإغلاق الحالية
 
 لا يُعتبر أي feature مكتملًا لمجرد وجود component أو endpoint. الإغلاق يحتاج مسارًا قابلًا للفتح، API حقيقيًا أو empty state واضحًا، حالات loading/error، ترجمة، guest/authenticated behavior، deep-link، واختبار Web/Mobile مناسب. لا توجد بيانات demo جديدة في الإصلاحات الحالية.
+
+### نتيجة الجولة الثانية
+
+أُضيف handler صريح لمسار `/notifications` في Mobile، مع دعم الروابط المطلقة التي يرسلها backend وتطبيعها إلى path داخلي، ثم أُعيد تشغيل Expo export بنجاح. كما تم التأكد من أن backend يملك endpoints فعلية لـ`/notifications`, `/push/register`, `/auctions`, و`/listing-offers`، وأن تسجيل Expo token يعتمد على user authentication.
+
+اختبارات `pytest` الخاصة بالbackend لم تستطع تنفيذ integration لأنها مبرمجة افتراضيًا على `127.0.0.1:8000` والخادم المحلي غير مشغّل في البيئة الحالية؛ هذا **ليس فشلًا مثبتًا في الكود** ولا يجوز اعتباره نجاح staging. يلزم تشغيل backend أو استخدام URL staging صالح مع حسابات اختبار قبل إغلاق chat/push/admin/Cloudinary/Redis.
