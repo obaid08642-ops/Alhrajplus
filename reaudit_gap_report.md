@@ -134,3 +134,7 @@
 ### حماية صفحة الإعلان
 
 تم تطبيع response صفحة الإعلان قبل عرضه: `listing.images`, `listing.videos`, `custom_fields`, `similar`, `categories`, `comments`, و`watches` أصبحت تمر عبر guards حقيقية. كما تمت حماية Leaflet/search سابقًا من malformed data. نجح Web production build بعد ذلك. هذا يغلق crash class على مستوى الكود، لكنه لا يغلق اختبار المسار authenticated أو Cloudinary/3D أو تزامن التعليقات دون staging حقيقي.
+
+### حماية Web Chat
+
+تم تطبيع responses الخاصة بالمحادثات والرسائل والتحميل الأقدم إلى arrays قبل استخدام `find`, `map`, أو تحديث state. هذا يمنع crash عند اختلاف envelope بين backend والإصدارات القديمة، مع الإبقاء على WebSocket/typing/read flow كما هو. نجح Web production build بعد التعديل؛ اختبار حسابين فعليين وإعادة الاتصال وpush ما زال يحتاج staging authenticated.
