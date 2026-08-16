@@ -1099,11 +1099,11 @@
     "fr": "Vendez, achetez, louez,"
   },
   "تعذر إيداع المزايدة": {
-    "en": "Failed to deposit bid",
-    "ur": "بولی جمع نہیں کی جا سکی",
+    "en": "Could not place the bid",
+    "ur": "بولی جمع نہیں ہو سکی",
     "hi": "बोली जमा नहीं हो सकी",
     "bn": "বিড জমা দেওয়া যায়নি",
-    "fr": "Impossible de déposer l'enchère"
+    "fr": "Impossible de placer l'enchère"
   },
   "صفقات اليوم الذهبية": {
     "en": "Golden Deals of the Day",
@@ -1190,11 +1190,11 @@
     "fr": "Impossible d'accéder à la localisation"
   },
   "تعذر تحميل الإعلان": {
-    "en": "Failed to load ad",
+    "en": "Unable to load listing",
     "ur": "اشتہار لوڈ نہیں ہو سکا",
     "hi": "विज्ञापन लोड नहीं हो सका",
     "bn": "বিজ্ঞাপন লোড করা যায়নি",
-    "fr": "Impossible de charger l'annonce"
+    "fr": "Impossible de charger l’annonce"
   },
   "صفحة المنتج - أسفل": {
     "en": "Product page - bottom",
@@ -1456,11 +1456,11 @@
     "fr": "Conditions générales"
   },
   "العودة للرئيسية": {
-    "en": "Back to Home",
+    "en": "Back to home",
     "ur": "ہوم پر واپس جائیں",
-    "hi": "मुख्य पृष्ठ पर वापस जाएं",
+    "hi": "होम पर वापस जाएँ",
     "bn": "হোমে ফিরে যান",
-    "fr": "Retour à l'accueil"
+    "fr": "Retour à l’accueil"
   },
   "المدينة المنورة": {
     "en": "Madinah",
@@ -3859,9 +3859,9 @@
   "صفقة": {
     "en": "Deal",
     "ur": "ڈیل",
-    "hi": "सौदा",
-    "bn": "চুক্তি",
-    "fr": "Offre"
+    "hi": "डील",
+    "bn": "ডিল",
+    "fr": "Bon plan"
   },
   "صورة": {
     "en": "Image",
@@ -4298,7 +4298,7 @@
   },
   "ستوري": {
     "en": "Story",
-    "ur": "سٹوری",
+    "ur": "اسٹوری",
     "hi": "स्टोरी",
     "bn": "স্টোরি",
     "fr": "Story"
@@ -4367,10 +4367,10 @@
     "fr": "Toutes les catégories — Voitures • Immobilier • Électronique • Meubles • Mode ..."
   },
   "نشر ستوري": {
-    "en": "Post a Story",
-    "ur": "اسٹوری پوسٹ کریں",
-    "hi": "स्टोरी पोस्ट करें",
-    "bn": "স্টোরি পোস্ট করুন",
+    "en": "Publish Story",
+    "ur": "اسٹوری شائع کریں",
+    "hi": "स्टोरी प्रकाशित करें",
+    "bn": "স্টোরি প্রকাশ করুন",
     "fr": "Publier une story"
   },
   "فيديو قصير": {
@@ -4507,11 +4507,11 @@
     "fr": "⚠️ Impossible d'accéder à votre position. Vérifiez que le GPS est activé."
   },
   "وضع الستوري — فيديو قصير مطلوب": {
-    "en": "Story mode — short video required",
-    "ur": "اسٹوری موڈ — مختصر ویڈیو ضروری ہے",
-    "hi": "स्टोरी मोड — लघु वीडियो आवश्यक",
+    "en": "Story mode — a short video is required",
+    "ur": "اسٹوری موڈ — مختصر ویڈیو درکار ہے",
+    "hi": "स्टोरी मोड — छोटी वीडियो आवश्यक है",
     "bn": "স্টোরি মোড — ছোট ভিডিও প্রয়োজন",
-    "fr": "Mode story — courte vidéo requise"
+    "fr": "Mode story — une courte vidéo est requise"
   },
   "ارفع فيديو + عنوان + سعر + مدينة. لا حاجة لتفاصيل كثيرة.": {
     "en": "Upload a video + title + price + city. No need for many details.",
@@ -4604,26 +4604,12 @@
     "bn": "এই মুহূর্তে কোনো ভিডিও উপলব্ধ নেই",
     "fr": "Aucune vidéo n'est disponible pour le moment"
   },
-  "صفقة": {
-    "en": "Deal",
-    "ur": "ڈیل",
-    "hi": "डील",
-    "bn": "ডিল",
-    "fr": "Bon plan"
-  },
   "موصى به": {
     "en": "Recommended",
     "ur": "تجویز کردہ",
     "hi": "सिफारिश की गई",
     "bn": "প্রস্তাবিত",
     "fr": "Recommandé"
-  },
-  "العودة للرئيسية": {
-    "en": "Back to home",
-    "ur": "ہوم پر واپس جائیں",
-    "hi": "होम पर वापस जाएँ",
-    "bn": "হোমে ফিরে যান",
-    "fr": "Retour à l'accueil"
   },
   "ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً": {
     "en": "Invite friends and earn verified badges for free",
@@ -4638,13 +4624,6 @@
     "hi": "इस पर बोली लगाएँ",
     "bn": "এতে বিড করুন",
     "fr": "Enchérir sur"
-  },
-  "تعذر إيداع المزايدة": {
-    "en": "Could not place the bid",
-    "ur": "بولی جمع نہیں ہو سکی",
-    "hi": "बोली जमा नहीं हो सकी",
-    "bn": "বিড জমা দেওয়া যায়নি",
-    "fr": "Impossible de placer l'enchère"
   },
   "إعادة المحاولة": {
     "en": "Try again",
@@ -4687,5 +4666,47 @@
     "hi": "वापस",
     "bn": "ফিরে যান",
     "fr": "Retour"
+  },
+  "تواصل مع البائع": {
+    "en": "Contact seller",
+    "ur": "فروخت کنندہ سے رابطہ",
+    "hi": "विक्रेता से संपर्क करें",
+    "bn": "বিক্রেতার সাথে যোগাযোগ করুন",
+    "fr": "Contacter le vendeur"
+  },
+  "إظهار المساعد الذكي": {
+    "en": "Show AI Assistant",
+    "ur": "AI اسسٹنٹ دکھائیں",
+    "hi": "AI सहायक दिखाएँ",
+    "bn": "AI সহকারী দেখান",
+    "fr": "Afficher l’assistant IA"
+  },
+  "ارفع ستوري": {
+    "en": "Upload Story",
+    "ur": "اسٹوری اپ لوڈ کریں",
+    "hi": "स्टोरी अपलोड करें",
+    "bn": "স্টোরি আপলোড করুন",
+    "fr": "Télécharger une story"
+  },
+  "ارفع ستوري فيديو": {
+    "en": "Upload Video Story",
+    "ur": "ویڈیو اسٹوری اپ لوڈ کریں",
+    "hi": "वीडियो स्टोरी अपलोड करें",
+    "bn": "ভিডিও স্টোরি আপলোড করুন",
+    "fr": "Télécharger une story vidéo"
+  },
+  "الإعلان غير موجود": {
+    "en": "Listing not found",
+    "ur": "اشتہار نہیں ملا",
+    "hi": "विज्ञापन नहीं मिला",
+    "bn": "বিজ্ঞাপন পাওয়া যায়নি",
+    "fr": "Annonce introuvable"
+  },
+  "تواصل مع المتجر": {
+    "en": "Contact store",
+    "ur": "اسٹور سے رابطہ",
+    "hi": "स्टोर से संपर्क करें",
+    "bn": "স্টোরে যোগাযোগ করুন",
+    "fr": "Contacter la boutique"
   }
 }

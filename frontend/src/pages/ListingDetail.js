@@ -62,38 +62,76 @@ export default function ListingDetail() {
     const [comments, setComments] = useState([]);
     const [commentText, setCommentText] = useState("");
     const [commentBusy, setCommentBusy] = useState(false);
+    const [loadError, setLoadError] = useState("");
 
     useEffect(() => {
+        let cancelled = false;
         const load = async () => {
+            setLoadError("");
+            setListing(null);
             try {
-                const [l, s, c] = await Promise.all([
-                    api.get(`/listings/${id}`),
-                    api.get(`/listings/${id}/similar`),
-                    api.get("/meta/categories", { params: { lang } }),
-                ]);
-                const normalizedListing = l.data && typeof l.data === "object" ? {
-                    ...l.data,
-                    images: Array.isArray(l.data.images) ? l.data.images : [],
-                    videos: Array.isArray(l.data.videos) ? l.data.videos : [],
-                    custom_fields: l.data.custom_fields && typeof l.data.custom_fields === "object" ? l.data.custom_fields : {},
+                // The listing itself is required. Optional metadata must never
+                // be able to redirect a valid detail page to the home screen.
+                const { data: rawListing } = await api.get(`/listings/${id}`);
+                const normalizedListing = rawListing && typeof rawListing === "object" ? {
+                    ...rawListing,
+                    images: Array.isArray(rawListing.images) ? rawListing.images : [],
+                    videos: Array.isArray(rawListing.videos) ? rawListing.videos : [],
+                    custom_fields: rawListing.custom_fields && typeof rawListing.custom_fields === "object" ? rawListing.custom_fields : {},
                 } : null;
                 if (!normalizedListing) throw new Error("invalid_listing_response");
+                if (cancelled) return;
                 setListing(normalizedListing);
                 trackEvent("listing_view", { listing_id: normalizedListing.id, category: normalizedListing.category, country_code: normalizedListing.country_code });
-                setSimilar(Array.isArray(s.data) ? s.data : (Array.isArray(s.data?.items) ? s.data.items : []));
-                setCategories(Array.isArray(c.data) ? c.data : (Array.isArray(c.data?.items) ? c.data.items : []));
                 setLikeCount(Number(normalizedListing.like_count || 0));
-                api.get(`/listings/${normalizedListing.id}/comments`).then(({ data }) => setComments(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setComments([]));
-                api.get(`/sellers/${l.data.user_id}/trust`).then(({ data }) => setSellerTrust(data)).catch(() => {});
-                if (user) api.get(`/listings/${l.data.id}/like/check`).then(({ data }) => setLiked(!!data.liked)).catch(() => {});
-                if (user && l.data.user_id !== user.id) {
-                    api.get(`/sellers/${l.data.user_id}/follow-status`).then(({ data }) => setFollowing(!!data.following)).catch(() => {});
-                    api.get(`/watches`).then(({ data }) => { const watches = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []); setWatching(watches.some((w) => w.listing_id === normalizedListing.id)); }).catch(() => setWatching(false));
+
+                const [similarResult, categoriesResult] = await Promise.allSettled([
+                    api.get(`/listings/${normalizedListing.id}/similar`),
+                    api.get("/meta/categories", { params: { lang } }),
+                ]);
+                if (cancelled) return;
+                if (similarResult.status === "fulfilled") {
+                    const data = similarResult.value?.data;
+                    setSimilar(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
+                } else {
+                    setSimilar([]);
                 }
-            } catch (_) { nav("/"); }
+                if (categoriesResult.status === "fulfilled") {
+                    const data = categoriesResult.value?.data;
+                    setCategories(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
+                } else {
+                    setCategories([]);
+                }
+
+                api.get(`/listings/${normalizedListing.id}/comments`).then(({ data }) => {
+                    if (!cancelled) setComments(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
+                }).catch(() => { if (!cancelled) setComments([]); });
+                api.get(`/sellers/${normalizedListing.user_id}/trust`).then(({ data }) => {
+                    if (!cancelled) setSellerTrust(data);
+                }).catch(() => {});
+                if (user) api.get(`/listings/${normalizedListing.id}/like/check`).then(({ data }) => {
+                    if (!cancelled) setLiked(!!data.liked);
+                }).catch(() => {});
+                if (user && normalizedListing.user_id !== user.id) {
+                    api.get(`/sellers/${normalizedListing.user_id}/follow-status`).then(({ data }) => {
+                        if (!cancelled) setFollowing(!!data.following);
+                    }).catch(() => {});
+                    api.get(`/watches`).then(({ data }) => {
+                        if (cancelled) return;
+                        const watches = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+                        setWatching(watches.some((w) => w.listing_id === normalizedListing.id));
+                    }).catch(() => { if (!cancelled) setWatching(false); });
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setListing(null);
+                    setLoadError(error?.response?.status === 404 ? tr("الإعلان غير موجود") : tr("تعذر تحميل الإعلان"));
+                }
+            }
         };
         load();
-    }, [id, nav, user, lang]);
+        return () => { cancelled = true; };
+    }, [id, user, lang, tr]);
 
     const toggleFollow = async () => {
         if (!user) return nav("/login");
@@ -116,7 +154,12 @@ export default function ListingDetail() {
         } catch (_) { alert(tr("تعذر تنفيذ الإجراء")); }
     };
 
-    if (!listing) return <div className="p-10 text-center font-arabic">{t("loading")}</div>;
+    if (!listing) return (
+        <div className="max-w-xl mx-auto p-10 text-center font-arabic">
+            <p className="text-[var(--text)] mb-4">{loadError || t("loading")}</p>
+            {loadError && <Link to="/" className="inline-flex rounded-full bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2 font-bold">{tr("العودة للرئيسية")}</Link>}
+        </div>
+    );
 
     const images = Array.isArray(listing.images) ? listing.images : [];
     const videos = Array.isArray(listing.videos) ? listing.videos : [];
