@@ -86,16 +86,20 @@ export default function PostScreen({
       }
     }).then(({
       data
-    }) => setCategories(data || []));
+    }) => setCategories(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setCategories([]));
   }, [lang]);
   useEffect(() => {
     if (!editId) return;
     api.get(`/listings/${editId}`).then(({
       data
     }) => {
+      if (!data || typeof data !== "object") return;
       setForm(f => ({
         ...f,
         ...data,
+        images: Array.isArray(data.images) ? data.images : [],
+        videos: Array.isArray(data.videos) ? data.videos : [],
+        custom_fields: data.custom_fields && typeof data.custom_fields === "object" ? data.custom_fields : {},
         price: data.price?.toString() || ""
       }));
       setStep(2);
