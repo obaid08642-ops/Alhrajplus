@@ -94,7 +94,7 @@ export default function AuctionsScreen({ route }) {
         gap: 6
       }}>
                     <TrendingUp size={14} color={colors.primary} />
-                    <Text style={styles.listTitle}>المزادات النشطة <Text style={styles.muted}>({items.length})</Text></Text>
+                    <Text style={styles.listTitle}>{t("المزادات النشطة")} <Text style={styles.muted}>({items.length})</Text></Text>
                 </View>
                 <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.createBtn}>
                     <Text style={styles.createBtnText}>{t("+ أنشئ مزاد")}</Text>
@@ -143,7 +143,7 @@ function AuctionCard({
                     </View>
                     <View style={styles.bidsBadge}>
                         <Clock size={10} color="#fff" />
-                        <Text style={styles.bidsText}>{listing.bid_count} مزايدة</Text>
+                        <Text style={styles.bidsText}>{listing.bid_count} {t("مزايدة")}</Text>
                     </View>
                 </View>
             </TouchableOpacity>
@@ -178,9 +178,13 @@ function BidModal({
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    api.get(`/auctions/${listing.id}/bids`).then(({
-      data
-    }) => setBids(data || []));
+    let alive = true;
+    const loadBids = () => api.get(`/auctions/${listing.id}/bids`).then(({ data }) => {
+      if (alive) setBids(data || []);
+    }).catch(() => {});
+    loadBids();
+    const timer = setInterval(loadBids, 4000);
+    return () => { alive = false; clearInterval(timer); };
   }, [listing.id]);
   const top = bids[0];
   // Owner-defined min increment per bid (saved as `custom_fields.bid_increment`).
@@ -231,7 +235,7 @@ function BidModal({
             flex: 1
           }}>
                             <Gavel size={18} color={colors.primary} />
-                            <Text style={styles.modalTitle} numberOfLines={1}>المزايدة على {listing.title}</Text>
+                            <Text style={styles.modalTitle} numberOfLines={1}>{t("المزايدة على")} {listing.title}</Text>
                         </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeBtn}><X size={16} color={colors.textMuted} /></TouchableOpacity>
                     </View>
@@ -251,7 +255,7 @@ function BidModal({
                                 <Text style={styles.modalBidsCount}>{bids.length}</Text>
                             </View>
                         </View>
-                        <Text style={styles.label}>مبلغ المزايدة <Text style={styles.muted}>(الحد الأدنى: {minRequired.toLocaleString()})</Text></Text>
+                        <Text style={styles.label}>{t("مبلغ المزايدة")} <Text style={styles.muted}>(الحد الأدنى: {minRequired.toLocaleString()})</Text></Text>
                         <TextInput value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder={String(minRequired)} placeholderTextColor={colors.textMuted} style={styles.bidInput} />
                         <TouchableOpacity onPress={submit} disabled={busy || !amount} style={[styles.submitBtn, (busy || !amount) && {
             opacity: 0.5
