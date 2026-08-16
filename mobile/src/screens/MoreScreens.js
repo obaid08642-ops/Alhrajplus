@@ -12,7 +12,7 @@ import { useCountry } from "../CountryContext";
 import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import { SkeletonListingGrid, SkeletonCategoryGrid } from "../components/Skeleton";
-import { MessageCircle, Bell, FileText, Megaphone, Sparkles, Settings, Globe, Flag, Search, Users, Moon, Sun } from "lucide-react-native";
+import { MessageCircle, Bell, FileText, Megaphone, Sparkles, Settings, Globe, Flag, Search, Users, Moon, Sun, Trash2, FolderOpen, User } from "lucide-react-native";
 
 // FlatList perf defaults — defined once at module scope.
 const FLAT_PERF = {
@@ -632,7 +632,7 @@ export function SavedSearchesScreen({
       })} style={{
         flex: 1
       }}>
-                            <Text style={s.menuLabel}>🔍 {item.q}</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Search size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{item.q}</Text></View>
                             {item.category ? <Text style={{
           color: theme.colors.textMuted,
           fontSize: 11,
@@ -640,10 +640,7 @@ export function SavedSearchesScreen({
         }}>{item.category}</Text> : null}
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => del(item.id)} testID={`saved-del-${item.id}`}>
-                            <Text style={{
-          color: theme.colors.danger,
-          padding: 6
-        }}>🗑️</Text>
+                            <Trash2 size={18} color={theme.colors.danger} style={{ margin: 6 }} />
                         </TouchableOpacity>
                     </View>} ListEmptyComponent={<View style={{
       padding: 40,
@@ -722,7 +719,7 @@ export function FollowingScreen({
       })} style={{
         flex: 1
       }}>
-                            <Text style={s.menuLabel}>📂 {c.category}</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><FolderOpen size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{c.category}</Text></View>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={async () => {
         await api.delete(`/follow/category/${c.category}`);
@@ -731,10 +728,7 @@ export function FollowingScreen({
           categories: d.categories.filter(x => x.category !== c.category)
         }));
       }}>
-                            <Text style={{
-          color: theme.colors.danger,
-          padding: 6
-        }}>🗑️</Text>
+                            <Trash2 size={18} color={theme.colors.danger} style={{ margin: 6 }} />
                         </TouchableOpacity>
                     </View>)}
             <Text style={{
@@ -755,7 +749,7 @@ export function FollowingScreen({
       return <TouchableOpacity key={s2.seller_id} style={s.menuItem} onPress={() => navigation.navigate("SellerProfile", {
         sellerId: s2.seller_id
       })} testID={`following-seller-${s2.seller_id}`}>
-                            <Text style={s.menuLabel}>👤 {displayName}</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><User size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{displayName}</Text></View>
                         </TouchableOpacity>;
     })}
         </ScrollView>;
