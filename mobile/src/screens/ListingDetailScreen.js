@@ -10,6 +10,7 @@ import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import Viewer360Mobile from "../components/Viewer360Mobile";
+import Model3DViewerMobile from "../components/Model3DViewerMobile";
 import { trackEvent } from "../analytics";
 export default function ListingDetailScreen({
   route,
@@ -45,6 +46,7 @@ export default function ListingDetailScreen({
   const [activeImg, setActiveImg] = useState(0);
   const [zoomImg, setZoomImg] = useState(null);
   const [show360, setShow360] = useState(false);
+  const [show3D, setShow3D] = useState(false);
   const [following, setFollowing] = useState(false);
   const [watching, setWatching] = useState(false);
   const [priceAlertOpen, setPriceAlertOpen] = useState(false);
@@ -290,6 +292,9 @@ export default function ListingDetailScreen({
                 {(listing.custom_fields?.is_360 || (listing.images?.length || 0) >= 8) && <TouchableOpacity onPress={() => setShow360(true)} style={styles.spin360Btn} testID="mobile-open-360-btn" activeOpacity={0.85}>
                         <Text style={styles.spin360Text}>🔄 360°</Text>
                     </TouchableOpacity>}
+                {listing.custom_fields?.model_3d_url && <TouchableOpacity onPress={() => setShow3D(true)} style={[styles.spin360Btn, { top: 54, backgroundColor: "#7C3AED" }]} testID="mobile-open-3d-btn" activeOpacity={0.85}>
+                        <Text style={styles.spin360Text}>◇ 3D</Text>
+                    </TouchableOpacity>}
             </View>
 
             {listing.images?.length > 1 && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbs} contentContainerStyle={{
@@ -529,6 +534,9 @@ export default function ListingDetailScreen({
 
             <Modal visible={show360} transparent animationType="fade" onRequestClose={() => setShow360(false)}>
                 <Viewer360Mobile images={listing.images || []} onClose={() => setShow360(false)} />
+            </Modal>
+            <Modal visible={show3D} transparent animationType="slide" onRequestClose={() => setShow3D(false)}>
+                <Model3DViewerMobile url={listing.custom_fields?.model_3d_url} onClose={() => setShow3D(false)} />
             </Modal>
         </ScrollView>
 

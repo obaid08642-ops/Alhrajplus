@@ -33,3 +33,5 @@
 ### آخر تحديث
 
 أضيف تفعيل 360 والتحقق من 8–24 صورة داخل `mobile/src/screens/PostScreen.js` أيضًا، فأصبح مسار إنشاء الإعلان على الويب والموبايل يرفض sequence غير الصالح قبل الإرسال، مع توصية 12–24 صورة.
+
+أضيف الآن عارض GLB/GLTF للموبايل عبر `react-native-webview` مع camera-controls وauto-rotate وAR modes عند دعم الجهاز، ويظهر زر 3D في ListingDetail عند وجود `model_3d_url`. يعتمد التشغيل على تحميل model-viewer CDN، لذلك يحتاج اختبار جهاز فعلي واتصال شبكة قبل اعتماد AR/3D النهائي.
