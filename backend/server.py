@@ -5164,6 +5164,25 @@ async def admin_analytics_overview(days: int = 7):
             funnel[row["_id"]] = int(row.get("count") or 0)
     visitors = await db.analytics_events.distinct("visitor_id", {**match, "visitor_id": {"$ne": None}})
     sessions = await db.analytics_events.distinct("session_id", {**match, "session_id": {"$ne": None}})
+    top_categories = await db.analytics_events.aggregate([
+        {"$match": {**match, "event": "listing_view", "category": {"$nin": [None, ""]}}},
+        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}, {"$limit": 10},
+    ]).to_list(length=10)
+    top_countries = await db.analytics_events.aggregate([
+        {"$match": {**match, "country_code": {"$nin": [None, ""]}}},
+        {"$group": {"_id": "$country_code", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}, {"$limit": 10},
+    ]).to_list(length=10)
+    top_listings = await db.analytics_events.aggregate([
+        {"$match": {**match, "event": "listing_view", "listing_id": {"$nin": [None, ""]}}},
+        {"$group": {"_id": "$listing_id", "views": {"$sum": 1}}},
+        {"$sort": {"views": -1}}, {"$limit": 10},
+    ]).to_list(length=10)
+    listing_ids = [x.get("_id") for x in top_listings if x.get("_id")]
+    listing_docs = {}
+    if listing_ids:
+        listing_docs = {x["id"]: x async for x in db.listings.find({"id": {"$in": listing_ids}}, {"_id": 0, "id": 1, "title": 1, "category": 1, "user_id": 1})}
     return {
         "days": days,
         "since": since,
@@ -5173,6 +5192,9 @@ async def admin_analytics_overview(days: int = 7):
         "event_counts": [{"event": x.get("_id"), "count": int(x.get("count") or 0)} for x in event_counts],
         "daily": [{"date": x.get("_id", {}).get("date"), "event": x.get("_id", {}).get("event"), "count": int(x.get("count") or 0)} for x in daily],
         "funnel": funnel,
+        "top_categories": [{"key": x.get("_id"), "count": int(x.get("count") or 0)} for x in top_categories],
+        "top_countries": [{"key": x.get("_id"), "count": int(x.get("count") or 0)} for x in top_countries],
+        "top_listings": [{"id": x.get("_id"), "views": int(x.get("views") or 0), **({"title": listing_docs[x["_id"]].get("title"), "category": listing_docs[x["_id"]].get("category"), "user_id": listing_docs[x["_id"]].get("user_id")} if x.get("_id") in listing_docs else {})} for x in top_listings],
     }
 
 @admin_router.get("/stats")

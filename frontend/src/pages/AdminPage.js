@@ -122,6 +122,20 @@ function AnalyticsPanel() {
                 <h3 className="font-arabic font-bold text-sm mb-3">{tr("الأحداث الأكثر تكرارًا")}</h3>
                 <div className="space-y-2">{(report.event_counts || []).slice(0, 10).map((row) => <div key={row.event} className="flex items-center gap-2 text-xs"><span className="w-32 truncate font-mono">{row.event}</span><div className="flex-1 h-2 rounded-full bg-[var(--surface-elevated)] overflow-hidden"><div className="h-full bg-[var(--accent)] rounded-full" style={{ width: `${(row.count / maxEvent) * 100}%` }} /></div><span className="font-latin font-bold w-12 text-end">{row.count}</span></div>)}</div>
             </div>
+            <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                    <h3 className="font-arabic font-bold text-sm mb-3">{tr("الفئات الأكثر مشاهدة")}</h3>
+                    <div className="space-y-2">{(report.top_categories || []).map((row) => <div key={row.key} className="flex justify-between text-sm"><span className="font-arabic-body">{row.key}</span><b className="font-latin">{row.count}</b></div>)}</div>
+                </div>
+                <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                    <h3 className="font-arabic font-bold text-sm mb-3">{tr("الدول ومصادر التفاعل")}</h3>
+                    <div className="space-y-2">{(report.top_countries || []).map((row) => <div key={row.key} className="flex justify-between text-sm"><span className="font-latin">{row.key}</span><b className="font-latin">{row.count}</b></div>)}</div>
+                </div>
+            </div>
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <h3 className="font-arabic font-bold text-sm mb-3">{tr("الإعلانات الأعلى جذبًا")}</h3>
+                <div className="space-y-2">{(report.top_listings || []).map((row) => <div key={row.id} className="flex items-center justify-between gap-3 text-sm"><span className="truncate font-arabic-body">{row.title || row.id}</span><span className="font-latin font-bold shrink-0">{row.views} {tr("مشاهدة")}</span></div>)}</div>
+            </div>
         </div>
     );
 }
