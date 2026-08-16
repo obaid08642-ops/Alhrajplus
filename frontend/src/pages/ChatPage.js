@@ -663,7 +663,7 @@ export default function ChatPage() {
                         <div className="flex items-center gap-2">
                             <h2 className="font-arabic font-bold text-lg text-[var(--text)] flex-1">{tr("المحادثات")}</h2>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${connected ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600"}`}>
-                                {connected ? "● live" : "○ متصل عبر..."}
+                                {connected ? `● ${tr("مباشر")}` : `○ ${tr("جاري إعادة الاتصال...")}`}
                             </span>
                         </div>
                     </div>
@@ -677,7 +677,7 @@ export default function ChatPage() {
                                     {presence[c.other?.id]?.online && <span className="absolute -bottom-0.5 -end-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[var(--surface)]"></span>}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{c.other?.name || "محادثة"}</div>
+                                    <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{c.other?.name || tr("محادثة")}</div>
                                     <div className="text-xs text-[var(--text-muted)] font-arabic-body truncate">{c.last_message}</div>
                                 </div>
                                 {c.unread > 0 && <span className="bg-[var(--danger)] text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold">{c.unread}</span>}
@@ -699,7 +699,7 @@ export default function ChatPage() {
                         <div className="hp-chat-shell">
                             {/* Header */}
                             <div className="flex items-center gap-3 p-3 border-b border-[var(--border)] bg-[var(--surface)]" data-testid="chat-header">
-                                <button onClick={() => { setActiveConvoId(null); setActiveOther(null); }} className="text-[var(--text-muted)] hover:text-[var(--primary)] md:hidden" aria-label="رجوع"><ChevronRight className="w-5 h-5 rtl:rotate-180" /></button>
+                                <button onClick={() => { setActiveConvoId(null); setActiveOther(null); }} className="text-[var(--text-muted)] hover:text-[var(--primary)] md:hidden" aria-label={tr("رجوع")}><ChevronRight className="w-5 h-5 rtl:rotate-180" /></button>
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-hover)] text-[var(--primary-fg)] flex items-center justify-center font-bold font-arabic text-sm shadow">{activeOther.name?.[0]}</div>
                                 <div className="flex-1 min-w-0">
                                     <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{activeOther.name}</div>
