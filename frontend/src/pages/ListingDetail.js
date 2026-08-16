@@ -598,7 +598,7 @@ export default function ListingDetail() {
                                 onClick={() => nav(`/auctions?openBidFor=${listing.id}`)}
                                 className="w-full flex items-center justify-center gap-2 bg-[var(--accent)] hover:opacity-95 text-white py-4 rounded-2xl font-arabic font-black text-base shadow-lg shadow-[var(--accent)]/40 active:scale-[0.98] transition-all"
                             >
-                                <span className="text-xl">🔨</span> {tr("مزايدة الآن")}
+                                <Gavel className="w-5 h-5" /> {tr("مزايدة الآن")}
                             </button>
                         ) : (
                             <button
