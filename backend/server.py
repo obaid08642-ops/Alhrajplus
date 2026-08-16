@@ -3945,6 +3945,9 @@ async def _delete_listing_related_records(listing_id: str) -> dict:
         "watches": {"listing_id": listing_id},
         "recently_viewed": {"listing_id": listing_id},
         "reports": {"target_type": "listing", "target_id": listing_id},
+        "bids": {"listing_id": listing_id},
+        "price_alerts": {"listing_id": listing_id},
+        "messages": {"listing_id": listing_id},
     }
     for collection_name, query in targets.items():
         try:
@@ -5782,6 +5785,7 @@ async def admin_reject(lid: str, user: dict = Depends(require_admin)):
 @admin_router.get("/users")
 async def admin_users(limit: int = 100, q: Optional[str] = None, country_code: Optional[str] = None, banned: Optional[bool] = None, verified: Optional[bool] = None):
     """List users with simple filters."""
+    limit = max(1, min(int(limit or 100), 500))
     query: dict = {}
     if country_code: query["country_code"] = country_code.upper()
     if banned is True: query["banned"] = True
@@ -6045,7 +6049,10 @@ async def admin_data_integrity_fix(default_country: str = "SA"):
     """One-off cleanup: copy the user's country onto their orphan listings.
     Listings whose owner ALSO has no country get `default_country` so they stop
     leaking into every feed. Returns the counts touched."""
-    default_country = (default_country or "SA").upper()
+    default_country = (default_country or "SA").upper().strip()
+    supported_cc = {str(item.get("code") or "").upper() for item in COUNTRIES}
+    if default_country not in supported_cc:
+        raise HTTPException(400, "الدولة الافتراضية غير مدعومة")
     # 1) Patch users with no country to the default.
     users_fixed = await db.users.update_many(
         {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]},
