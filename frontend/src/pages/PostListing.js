@@ -361,7 +361,7 @@ export default function PostListing() {
                 // 1) Try Geonames cascading reverse-geocode.
                 try {
                     const { data } = await api.get("/locations/locate", {
-                        params: { lat, lng, country: country?.code || "EG", lang },
+                        params: { lat, lng, country: activeCountryCode || "SA", lang },
                     });
                     const sel = data?.selection || {};
                     const leaf = sel.city || sel.adm3 || sel.adm2 || sel.adm1;
@@ -868,7 +868,7 @@ export default function PostListing() {
                             </div>
                         )}
                         <LocationPicker
-                            country={country?.code || "EG"}
+                            country={activeCountryCode || "SA"}
                             value={form.location || {}}
                             onChange={(next) => {
                                 // Mirror the legacy `city`/`district` string fields so the

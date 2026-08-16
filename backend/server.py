@@ -924,9 +924,9 @@ class ListingIn(BaseModel):
     currency: Optional[str] = None
     category: str
     subcategory: Optional[str] = None
-    custom_fields: dict = {}
-    images: List[str] = []
-    videos: List[str] = []
+    custom_fields: dict = Field(default_factory=dict)
+    images: List[str] = Field(default_factory=list, max_length=30)
+    videos: List[str] = Field(default_factory=list, max_length=5)
     country_code: Optional[str] = None  # active country at time of post (overrides profile default)
     city: str
     district: Optional[str] = None
@@ -2637,12 +2637,15 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     if not cat:
         raise HTTPException(400, "فئة غير صالحة")
     custom_fields = body.custom_fields or {}
-    # Hard country-isolation guard. The user MUST have a country on file or
-    # we refuse to publish — otherwise the listing leaks into every country's
-    # feed (because the listings endpoint only filters when country_code is set).
-    user_cc = (user.get("country_code") or "").upper().strip()
-    if not user_cc:
-        raise HTTPException(400, "يرجى اختيار بلدك من الإعدادات قبل النشر")
+    # The active country selected in the posting flow is authoritative. It must
+    # be a supported marketplace country; otherwise a listing could be stored
+    # under an unsupported code and disappear from every isolated feed.
+    profile_cc = (user.get("country_code") or "").upper().strip()
+    requested_cc = (body.country_code or "").upper().strip()
+    supported_cc = {str(item.get("code") or "").upper() for item in COUNTRIES}
+    effective_cc = requested_cc or profile_cc
+    if effective_cc not in supported_cc:
+        raise HTTPException(400, "يرجى اختيار دولة مدعومة قبل النشر")
     listing_id = str(uuid.uuid4())
     mod_flags = detect_moderation_flags(f"{body.title} {body.description}")
     is_banned = bool(mod_flags)
@@ -2659,7 +2662,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "custom_fields": custom_fields,
         "images": body.images,
         "videos": body.videos,
-        "country_code": user_cc,
+        "country_code": effective_cc,
         "city": body.city,
         "district": body.district,
         "lat": body.lat,
@@ -5092,6 +5095,7 @@ class ListingUpdateIn(BaseModel):
     lng: Optional[float] = None
     show_phone: Optional[bool] = None
     contact_phone: Optional[str] = None
+    contact_phone_source: Optional[str] = Field(default=None, pattern="^(account|custom)$")
 
 @api.put("/listings/{listing_id}")
 async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = Depends(get_current_user)):

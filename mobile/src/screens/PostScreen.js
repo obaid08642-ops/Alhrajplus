@@ -383,7 +383,7 @@ export default function PostScreen({
       // the FULL cascading path (adm1/adm2/adm3/city). Auto-falls back to EG
       // server-side if the user's country has no data yet.
       try {
-        const { data } = await api.get("/locations/locate", { params: { lat, lng, country: country?.code || "EG", lang } });
+        const { data } = await api.get("/locations/locate", { params: { lat, lng, country: country?.code || "SA", lang } });
         const sel = data?.selection || {};
         const leaf = sel.city || sel.adm3 || sel.adm2 || sel.adm1;
         setForm(f => ({
@@ -477,7 +477,7 @@ export default function PostScreen({
       const payload = {
         ...form,
         price: form.price ? parseFloat(form.price) : null,
-        country_code: country?.code,
+        country_code: country?.code || "SA",
         // Server-side reads these to decide which phone to expose on the listing.
         contact_phone_source: form.phone_source,
         contact_phone: form.phone_source === "custom" ? customFull : ""
@@ -1202,7 +1202,7 @@ function Step2({
             {/* City / District — Geonames cascading picker (محافظة → مركز → حي → قرية for EG) */}
             <Field label={t("الموقع") + " *"}>
                 <LocationPicker
-                    country={country?.code || "EG"}
+                    country={country?.code || "SA"}
                     value={form.location || {}}
                     onChange={(next) => {
                         // Mirror to legacy city/district string fields so the existing
@@ -1407,7 +1407,7 @@ function MarketPriceHint({ form, country, onPick }) {
           category: form.category,
           subcategory: form.subcategory || null,
           custom_fields: cf,
-          country_code: country?.code || null,
+          country_code: country?.code || "SA",
           title: form.title || null,
         });
         if (!cancelled) setData(out);
