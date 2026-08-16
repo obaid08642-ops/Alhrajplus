@@ -10,6 +10,7 @@ import * as Haptics from "expo-haptics";
 import { useNavigation } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
+import { colors } from "../theme";
 
 // ---- Dimensions (revision 3 — owner spec Feb 2026) ----
 const BAR_HEIGHT = 36;
@@ -82,9 +83,9 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
   const W = Dimensions.get("window").width;
   const barTotalH = BAR_HEIGHT + insets.bottom;
   const barPath = buildBarPath(W, barTotalH);
-  const surface = isDark ? "#0F1B3A" : "#4FB6E6";
-  const activeColor = "#FFFFFF";
-  const inactiveColor = isDark ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.78)";
+  const surface = isDark ? colors.primaryDeep : colors.primary;
+  const activeColor = colors.primaryFg;
+  const inactiveColor = isDark ? "rgba(255,255,255,0.64)" : "rgba(255,255,255,0.80)";
   const fabBottom = barTotalH - FAB_SUBMERGE;
 
   return (
@@ -100,7 +101,7 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
             testID="standalone-tab-fab"
             accessibilityLabel={t("أضف إعلان")}
           >
-            <Plus size={24} color="#0F2A1B" strokeWidth={3.2} />
+            <Plus size={24} color={colors.primaryFg} strokeWidth={3.2} />
             <Text style={styles.fabLabel} numberOfLines={1}>{t("أضف إعلان")}</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -147,22 +148,22 @@ const styles = StyleSheet.create({
   fab: {
     width: FAB_W, height: FAB_H, borderRadius: 999,
     alignItems: "center", justifyContent: "center",
-    backgroundColor: "#B5E61D", borderWidth: 2, borderColor: "#FFFFFF",
+    backgroundColor: colors.primary, borderWidth: 2, borderColor: "#FFFFFF",
     paddingHorizontal: 4, paddingVertical: 8, overflow: "hidden",
-    shadowColor: "#B5E61D", shadowOpacity: 0.45, shadowRadius: 18,
+    shadowColor: colors.primary, shadowOpacity: 0.45, shadowRadius: 18,
     shadowOffset: { width: 0, height: 4 }, elevation: 12,
   },
-  fabLabel: { color: "#0F2A1B", fontSize: 9.5, fontWeight: "900", marginTop: 2, textAlign: "center" },
+  fabLabel: { color: colors.primaryFg, fontSize: 9.5, fontWeight: "900", marginTop: 2, textAlign: "center" },
   pulseRing: {
     position: "absolute", bottom: 0,
     width: FAB_W + 14, height: FAB_H + 14, borderRadius: 999,
-    borderWidth: 2, borderColor: "rgba(181,230,29,0.45)",
+    borderWidth: 2, borderColor: `${colors.primary}73`,
     backgroundColor: "transparent",
   },
   burstRing: {
     position: "absolute", bottom: 6,
     width: FAB_W + 10, height: FAB_H + 10, borderRadius: 999,
-    borderWidth: 4, borderColor: "#B5E61D",
+    borderWidth: 4, borderColor: colors.primary,
     backgroundColor: "transparent",
   },
 });

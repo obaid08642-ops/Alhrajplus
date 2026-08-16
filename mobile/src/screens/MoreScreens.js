@@ -239,7 +239,7 @@ export function SettingsScreen({
 }) {
   const { t, lang, setLang, supported } = useI18n();
   const { current: country, countries, setCountry } = useCountry();
-  const { palette, isDark, toggle: toggleDark } = useThemeMode();
+  const { palette, isDark, themeMode, toggle: toggleDark, setThemeMode } = useThemeMode();
   const [langOpen, setLangOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
 
@@ -256,6 +256,9 @@ export function SettingsScreen({
             <View style={s.menu}>
                 <TouchableOpacity style={s.menuItem} onPress={toggleDark} testID="settings-dark-toggle">
                     <Text style={s.menuLabel}>{isDark ? "🌙" : "☀️"} {t("الوضع الداكن")}: {isDark ? t("مفعل") : t("معطل")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.menuItem, themeMode === "system" && s.menuItemActive]} onPress={() => setThemeMode("system")} testID="settings-system-theme">
+                    <Text style={s.menuLabel}>⚙️ {t("تلقائي حسب إعدادات الجهاز")}{themeMode === "system" ? ` — ${t("مفعل")}` : ""}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => setLangOpen(true)} testID="mobile-lang-switcher">
                     <Text style={s.menuLabel}>🌐 {t("اللغة")}: {LANG_LABELS[lang]}</Text>
@@ -547,6 +550,9 @@ const s = StyleSheet.create({
     padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border
+  },
+  menuItemActive: {
+    backgroundColor: `${theme.colors.primary}14`
   },
   menuLabel: {
     color: theme.colors.text,

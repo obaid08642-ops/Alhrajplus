@@ -1,9 +1,9 @@
 // Reusable ListingCard for mobile — mirrors web /app/frontend/src/components/listings/ListingCard.js
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, PanResponder } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Heart, MapPin, BadgeCheck, Flame } from "lucide-react-native";
 import { colors, radius, shadow } from "../theme";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../api";
 import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
@@ -59,6 +59,13 @@ export default function ListingCard({
   };
   const price = listing.price ? Number(listing.price).toLocaleString() : null;
   const img = images[imageIndex] || images[0];
+  const imagePanResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => images.length > 1 && Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
+    onPanResponderRelease: (_, g) => {
+      if (Math.abs(g.dx) < 24 || images.length < 2) return;
+      setImageIndex(i => (i + (g.dx < 0 ? 1 : -1) + images.length) % images.length);
+    },
+  })).current;
   if (wide) {
     return <TouchableOpacity activeOpacity={0.9} onPress={() => nav.navigate("ListingDetail", {
       id: listing.id
@@ -84,7 +91,7 @@ export default function ListingCard({
   return <TouchableOpacity activeOpacity={0.85} onPress={() => nav.navigate("ListingDetail", {
     id: listing.id
   })} style={[styles.card, shadow.card]}>
-            <View style={styles.imgBox}>
+            <View style={styles.imgBox} {...imagePanResponder.panHandlers}>
                 {img ? <Image key={`${img}-${imageIndex}`} source={{
           uri: img
         }} style={styles.img} /> : <View style={styles.imgPlaceholder} />}

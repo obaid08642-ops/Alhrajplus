@@ -2222,6 +2222,7 @@ const STRINGS = {
 };
 
 const KEY = "hp_lang";
+const MANUAL_KEY = "hp_lang_manual";
 const SUPPORTED = ["ar", "en", "hi", "ur", "bn", "fr"];
 let _currentLang = "ar";
 export function currentLang() { return _currentLang; }
@@ -2240,7 +2241,8 @@ export function I18nProvider({ children }) {
     useEffect(() => {
         (async () => {
             const saved = await AsyncStorage.getItem(KEY);
-            const initial = saved && SUPPORTED.includes(saved) ? saved : detectDeviceLanguage();
+            const manual = (await AsyncStorage.getItem(MANUAL_KEY)) === "1";
+            const initial = manual && saved && SUPPORTED.includes(saved) ? saved : detectDeviceLanguage();
             setLangState(initial);
             _currentLang = initial;
             if (initial !== saved) await AsyncStorage.setItem(KEY, initial).catch(() => {});
@@ -2263,6 +2265,7 @@ export function I18nProvider({ children }) {
         setLangState(l);
         _currentLang = l;
         await AsyncStorage.setItem(KEY, l);
+        await AsyncStorage.setItem(MANUAL_KEY, "1");
         try {
             const wantRTL = (l === "ar" || l === "ur");
             if (I18nManager.isRTL !== wantRTL) {

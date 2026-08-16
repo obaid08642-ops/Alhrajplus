@@ -4,15 +4,15 @@
 // the central "create listing" CTA pops against the primary blue surface.
 export const colors = {
     // PRIMARY — medium sky blue (matches web's --primary).
-    primary: "#4FB6E6",
-    primaryHover: "#2196D9",   // deeper hover state — used by gradient & pressed.
+    primary: "#01c9ff",
+    primaryHover: "#6DAEE0",   // deeper hover state — used by gradient & pressed.
     primaryDeep: "#0F1B3A",    // navy text/icon on light surfaces (AAA contrast).
     primaryFg: "#FFFFFF",      // text/icons sitting ON the primary surface.
 
     // ACCENT — vibrant orange. RESERVED for the central "create listing" FAB
     // in the tab bar and tiny attention dots. Do NOT use anywhere else.
-    accent: "#FF8C00",
-    accentHover: "#E67A00",
+    accent: "#D4AF37",
+    accentHover: "#B8941F",
     accentFg: "#FFFFFF",
 
     // Surfaces — pure white background + soft off-white card surface.
@@ -39,7 +39,7 @@ export const colors = {
     // (high-contrast pill highlight) and inactive=white at 70% opacity.
     navActive: "#FFFFFF",
     navInactive: "rgba(255,255,255,0.72)",
-    navBg: "#4FB6E6",
+    navBg: "#01c9ff",
 
     // Legacy alias kept so older screens compile until migration finishes.
     secondary: "#0F1A35",
@@ -62,7 +62,7 @@ export const font = {
 export const shadow = {
     card: {
         // Owner-mandated card shadow — soft, diffused, primary-blue tinted.
-        shadowColor: "#4FB6E6",
+        shadowColor: "#01c9ff",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
@@ -77,7 +77,7 @@ export const shadow = {
     },
     fab: {
         // Orange-tinted glow for the central create-listing FAB.
-        shadowColor: "#FF8C00",
+        shadowColor: "#D4AF37",
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.40,
         shadowRadius: 24,

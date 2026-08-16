@@ -251,7 +251,8 @@ function detectDeviceLanguage() {
 }
 
 const _storedLang = typeof window !== "undefined" ? localStorage.getItem("hp_lang") : null;
-let _currentLang = _storedLang || detectDeviceLanguage();
+const _manualLang = typeof window !== "undefined" ? localStorage.getItem("hp_lang_manual") === "1" : false;
+let _currentLang = (_manualLang && _storedLang) || detectDeviceLanguage();
 
 export function tr(text) {
     if (text == null) return text;
@@ -269,16 +270,30 @@ export function tr(text) {
 }
 
 export function I18nProvider({ children }) {
-    const [lang, setLang] = useState(() => localStorage.getItem("hp_lang") || detectDeviceLanguage());
-    _currentLang = lang; // sync module-level state on every render
+    const [lang, setLang] = useState(() => {
+        const manual = localStorage.getItem("hp_lang_manual") === "1";
+        return manual ? (localStorage.getItem("hp_lang") || detectDeviceLanguage()) : detectDeviceLanguage();
+    });
+    _currentLang = lang;
     useEffect(() => {
         document.documentElement.lang = lang;
         document.documentElement.dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
-        // The first visit follows the device; after the user changes language,
-        // the explicit choice is persisted and wins on later visits.
         localStorage.setItem("hp_lang", lang);
         _currentLang = lang;
     }, [lang]);
+    useEffect(() => {
+        const syncDeviceLanguage = () => {
+            if (localStorage.getItem("hp_lang_manual") === "1") return;
+            const next = detectDeviceLanguage();
+            setLang((current) => current === next ? current : next);
+        };
+        window.addEventListener("focus", syncDeviceLanguage);
+        document.addEventListener("visibilitychange", syncDeviceLanguage);
+        return () => {
+            window.removeEventListener("focus", syncDeviceLanguage);
+            document.removeEventListener("visibilitychange", syncDeviceLanguage);
+        };
+    }, []);
     const t = (key) => {
         if (key == null) return key;
         const direct = TRANSLATIONS[lang]?.[key];
@@ -301,8 +316,13 @@ export function I18nProvider({ children }) {
         if (lang === "ar") return field.label_ar || field.label_en || field.key;
         return field.label_en || field.label_ar || field.key;
     };
+    const chooseLanguage = (next) => {
+        if (!next || !TRANSLATIONS[next]) return;
+        localStorage.setItem("hp_lang_manual", "1");
+        setLang(next);
+    };
     return (
-        <I18nCtx.Provider value={{ lang, setLang, t, tr, isRTL, pickName, pickLabel, available: ["ar", "en", "ur", "hi", "bn", "fr"] }}>
+        <I18nCtx.Provider value={{ lang, setLang: chooseLanguage, t, tr, isRTL, pickName, pickLabel, available: ["ar", "en", "ur", "hi", "bn", "fr"] }}>
             {children}
         </I18nCtx.Provider>
     );

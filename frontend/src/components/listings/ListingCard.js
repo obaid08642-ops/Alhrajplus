@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Heart, MapPin, TrendingUp, Star, Sparkles, Crown } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
@@ -11,6 +11,7 @@ export default function ListingCard({ listing, compact = true }) {
     const { user } = useAuth();
     const [fav, setFav] = useState(false);
     const [imageIndex, setImageIndex] = useState(0);
+    const swipeStartX = useRef(null);
     const images = (listing.images || []).filter(Boolean);
 
     useEffect(() => {
@@ -39,7 +40,7 @@ export default function ListingCard({ listing, compact = true }) {
             data-testid={`listing-card-${listing.id}`}
             className="group bg-[var(--surface)] rounded-2xl overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] hover:-translate-y-1 hover:shadow-xl hover:shadow-[var(--primary)]/15 transition-all duration-300 cursor-pointer flex flex-col"
         >
-            <div className={`relative overflow-hidden ${compact ? "aspect-[4/3]" : "aspect-square"}`} style={listing.images?.[0] ? { backgroundImage: `url(${lqipUrl(listing.images[0])})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+            <div className={`relative overflow-hidden select-none ${compact ? "aspect-[4/3]" : "aspect-square"}`} onPointerDown={(e) => { swipeStartX.current = e.clientX; }} onPointerUp={(e) => { if (swipeStartX.current == null || images.length < 2) return; const dx = e.clientX - swipeStartX.current; swipeStartX.current = null; if (Math.abs(dx) < 24) return; setImageIndex((i) => (i + (dx < 0 ? 1 : -1) + images.length) % images.length); }} style={listing.images?.[0] ? { backgroundImage: `url(${lqipUrl(listing.images[0])})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
                 {images[imageIndex] ? (
                     <img key={images[imageIndex]} src={optimizeImage(images[imageIndex], { w: 480 })} srcSet={buildSrcSet(images[imageIndex], [240, 320, 480, 640])} sizes="(max-width: 640px) 50vw, 240px" alt={listing.title} loading="lazy" decoding="async" onLoad={(e) => { e.currentTarget.style.opacity = 1; }} style={{ opacity: 0, transition: "opacity 280ms ease-out" }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
