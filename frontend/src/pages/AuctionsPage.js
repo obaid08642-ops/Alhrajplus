@@ -25,7 +25,7 @@ export default function AuctionsPage() {
         if (country) params.country_code = country;
         setLoadError("");
         api.get("/auctions/active", { params })
-            .then(({ data }) => setItems(Array.isArray(data) ? data : []))
+            .then(({ data }) => setItems(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])))
             .catch(() => { setItems([]); setLoadError(tr("تعذر تحميل المزادات. حاول مرة أخرى.")); })
             .finally(() => setLoading(false));
     }, [country, refreshKey]);
@@ -101,7 +101,7 @@ export default function AuctionsPage() {
 }
 
 function AuctionCard({ listing, onBid }) {
-    const top = listing.top_bid;
+    const top = listing?.top_bid && typeof listing.top_bid === "object" ? listing.top_bid : null;
     const startPrice = listing.price || 0;
     const currentPrice = top?.amount || startPrice;
     return (
@@ -170,7 +170,7 @@ function BidDialog({ listing, onClose, onPlaced }) {
     }, []);
 
     useEffect(() => {
-        api.get(`/auctions/${listing.id}/bids`).then(({ data }) => setBids(data || []));
+        api.get(`/auctions/${listing.id}/bids`).then(({ data }) => setBids(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setBids([]));
     }, [listing.id]);
 
     // Whenever a new live event arrives, refresh the history list so names appear.
