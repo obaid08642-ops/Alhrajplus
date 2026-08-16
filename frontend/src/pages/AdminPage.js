@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles, DollarSign, Search as SearchIcon } from "lucide-react";
+import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles, DollarSign, Search as SearchIcon, Monitor, Gift, RefreshCw, Download } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
 
 export default function AdminPage() {
@@ -20,6 +20,8 @@ export default function AdminPage() {
     const tabs = [
         { key: "stats", label: tr("الإحصائيات"), icon: BarChart3 },
         { key: "analytics", label: tr("تحليلات CRM"), icon: BarChart3 },
+        { key: "visitors", label: tr("الزوار المباشرون"), icon: Monitor },
+        { key: "referrals", label: tr("الإحالات والنمو"), icon: Gift },
         { key: "moderation", label: tr("مراجعة الإعلانات"), icon: Shield },
         { key: "banned_words", label: tr("الكلمات المحظورة"), icon: Flag },
         { key: "listings", label: tr("جميع الإعلانات"), icon: FileText },
@@ -52,6 +54,8 @@ export default function AdminPage() {
 
             {tab === "stats" && <StatsPanel />}
             {tab === "analytics" && <AnalyticsPanel />}
+            {tab === "visitors" && <VisitorsPanel />}
+            {tab === "referrals" && <ReferralsPanel />}
             {tab === "moderation" && <ModerationPanel />}
             {tab === "banned_words" && <BannedWordsPanel />}
             {tab === "listings" && <ListingsPanel />}
@@ -65,6 +69,64 @@ export default function AdminPage() {
             {tab === "geo" && <GeoPanel />}
             {tab === "logs" && <LogsPanel />}
             {tab === "theme" && <ThemePanel />}
+        </div>
+    );
+}
+
+function VisitorsPanel() {
+    const [days, setDays] = useState(7);
+    const [device, setDevice] = useState("");
+    const [country, setCountry] = useState("");
+    const [sessions, setSessions] = useState([]);
+    const [breakdown, setBreakdown] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [visitors, devices] = await Promise.all([
+                api.get("/admin/analytics/visitors", { params: { days, limit: 200, device_type: device, country_code: country } }),
+                api.get("/admin/analytics/breakdown", { params: { days, dimension: "device_type" } }),
+            ]);
+            setSessions(visitors.data?.sessions || []);
+            setBreakdown(devices.data?.rows || []);
+        } catch (_) {
+            setSessions([]); setBreakdown([]);
+        } finally { setLoading(false); }
+    }, [days, device, country]);
+    useEffect(() => { load(); }, [load]);
+    const active = sessions.filter((s) => Date.now() - new Date(s.last_seen || 0).getTime() < 120000).length;
+    const avgDuration = sessions.length ? Math.round(sessions.reduce((sum, s) => sum + Number(s.duration_ms || 0), 0) / sessions.length / 1000) : 0;
+    return (
+        <div className="space-y-4" data-testid="admin-visitors-panel">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("الزوار والجلسات المباشرة")}</h2><p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("بيانات مجمعة، بدون تخزين IP أو محتوى خاص")}</p></div>
+                <div className="flex gap-2 items-center"><select value={days} onChange={(e) => setDays(Number(e.target.value))} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value={1}>24 ساعة</option><option value={7}>7 أيام</option><option value={30}>30 يومًا</option><option value={90}>90 يومًا</option></select><button onClick={load} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]" title={tr("تحديث")}><RefreshCw className="w-4 h-4" /></button></div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><FinanceCard label={tr("الجلسات المعروضة")} value={sessions.length} /><FinanceCard label={tr("نشطون آخر دقيقتين")} value={active} /><FinanceCard label={tr("متوسط مدة الجلسة")} value={avgDuration} suffix={tr("ثانية")} /><FinanceCard label={tr("الأجهزة المسجلة")} value={breakdown.length} /></div>
+            <div className="flex flex-wrap gap-2"><select value={device} onChange={(e) => setDevice(e.target.value)} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value="">كل الأجهزة</option><option value="mobile">Mobile</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={3} placeholder={tr("الدولة مثل SA")} className="w-36 bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-latin" /></div>
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"><div className="p-4 border-b border-[var(--border)] flex items-center justify-between"><h3 className="font-arabic font-bold">{tr("آخر الجلسات")}</h3><span className="text-xs text-[var(--text-muted)]">{loading ? tr("جاري التحميل...") : `${sessions.length} ${tr("جلسة")}`}</span></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-start text-[var(--text-muted)] border-b border-[var(--border)]"><th className="p-3 text-start">{tr("آخر ظهور")}</th><th className="p-3 text-start">{tr("المسار")}</th><th className="p-3 text-start">{tr("الجهاز")}</th><th className="p-3 text-start">{tr("النظام/المتصفح")}</th><th className="p-3 text-start">{tr("الدولة/المصدر")}</th><th className="p-3 text-start">{tr("المدة")}</th></tr></thead><tbody>{sessions.slice(0, 100).map((s) => <tr key={s.session_id} className="border-b border-[var(--border)]/50"><td className="p-3 font-latin whitespace-nowrap">{s.last_seen ? new Date(s.last_seen).toLocaleString() : "—"}</td><td className="p-3 max-w-48 truncate font-mono">{s.last_path || "—"}</td><td className="p-3">{s.device_type || "—"}</td><td className="p-3">{[s.os, s.browser].filter(Boolean).join(" / ") || "—"}</td><td className="p-3 font-latin">{[s.country_code, s.source].filter(Boolean).join(" / ") || "—"}</td><td className="p-3 font-latin">{Math.round(Number(s.duration_ms || 0) / 1000)}s</td></tr>)}{!loading && sessions.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-[var(--text-muted)]">{tr("لا توجد بيانات بعد")}</td></tr>}</tbody></table></div></div>
+        </div>
+    );
+}
+
+function ReferralsPanel() {
+    const [rows, setRows] = useState([]);
+    const [config, setConfig] = useState({ reward_points: 100, enabled: true });
+    const [status, setStatus] = useState("");
+    const [busy, setBusy] = useState(false);
+    const load = useCallback(async () => {
+        try { const [r, c] = await Promise.all([api.get("/admin/referrals", { params: { status, limit: 300 } }), api.get("/admin/referrals/config")]); setRows(r.data || []); setConfig(c.data || { reward_points: 100, enabled: true }); } catch (_) { setRows([]); }
+    }, [status]);
+    useEffect(() => { load(); }, [load]);
+    const save = async () => { setBusy(true); try { await api.put("/admin/referrals/config", { reward_points: Number(config.reward_points), enabled: !!config.enabled }); await load(); } finally { setBusy(false); } };
+    const qualified = rows.filter((r) => ["qualified", "rewarded"].includes(r.status)).length;
+    return (
+        <div className="space-y-4" data-testid="admin-referrals-panel">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("الإحالات والنمو")}</h2><p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("المكافأة لا تُحتسب إلا بعد التحقق بالبريد، مع سجل قابل للتدقيق")}</p></div><button onClick={load} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]"><RefreshCw className="w-4 h-4" /></button></div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><FinanceCard label={tr("السجلات") } value={rows.length} /><FinanceCard label={tr("إحالات مؤهلة")} value={qualified} /><FinanceCard label={tr("النقاط في العرض")} value={rows.reduce((n, r) => n + Number(r.reward_points || 0), 0)} /><FinanceCard label={tr("الحالة")} value={config.enabled ? tr("مفعلة") : tr("متوقفة")} /></div>
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex flex-wrap items-end gap-3"><label className="text-sm font-arabic font-bold">{tr("نقاط الدعوة المؤهلة")}<input type="number" min="0" max="100000" value={config.reward_points} onChange={(e) => setConfig({ ...config, reward_points: e.target.value })} className="block mt-1 w-40 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 font-latin" /></label><label className="flex items-center gap-2 text-sm font-arabic"><input type="checkbox" checked={!!config.enabled} onChange={(e) => setConfig({ ...config, enabled: e.target.checked })} /> {tr("تفعيل البرنامج")}</label><button onClick={save} disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-xl font-arabic font-bold disabled:opacity-50">{busy ? tr("حفظ...") : tr("حفظ الإعدادات")}</button></div>
+            <div className="flex gap-2"><select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value="">كل الحالات</option><option value="pending">معلق</option><option value="qualified">مؤهل</option><option value="rewarded">مكافأ</option><option value="rejected">مرفوض</option></select><button onClick={() => { const csv = ["id,inviter_code,invitee_id,status,reward_points,created_at", ...rows.map((r) => [r.id, r.inviter_code, r.invitee_id, r.status, r.reward_points, r.created_at].map((x) => `"${String(x ?? "").replaceAll('"', '""')}"`).join(","))].join("\n"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "referrals.csv"; a.click(); URL.revokeObjectURL(a.href); }} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm font-arabic"><Download className="w-4 h-4" />{tr("تصدير CSV")}</button></div>
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-[var(--text-muted)] border-b border-[var(--border)]"><th className="p-3 text-start">ID</th><th className="p-3 text-start">{tr("كود الداعي")}</th><th className="p-3 text-start">{tr("المدعو")}</th><th className="p-3 text-start">{tr("الحالة")}</th><th className="p-3 text-start">{tr("النقاط")}</th><th className="p-3 text-start">{tr("التاريخ")}</th></tr></thead><tbody>{rows.map((r) => <tr key={r.id} className="border-b border-[var(--border)]/50"><td className="p-3 font-mono">{String(r.id).slice(0, 8)}</td><td className="p-3 font-mono">{r.inviter_code}</td><td className="p-3 font-mono">{String(r.invitee_id).slice(0, 8)}</td><td className="p-3">{r.status}</td><td className="p-3 font-latin">{r.reward_points || 0}</td><td className="p-3 font-latin">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</td></tr>)}{rows.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-[var(--text-muted)]">{tr("لا توجد إحالات بعد")}</td></tr>}</tbody></table></div></div>
         </div>
     );
 }

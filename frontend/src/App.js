@@ -5,7 +5,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider } from "@/contexts/I18nContext";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackSessionHeartbeat } from "@/lib/analytics";
 import { CountryProvider } from "@/contexts/CountryContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
@@ -56,6 +56,11 @@ function AnalyticsRouteTracker() {
     useEffect(() => {
         trackEvent("page_view");
     }, [location.pathname, location.search]);
+    useEffect(() => {
+        trackSessionHeartbeat();
+        const timer = window.setInterval(trackSessionHeartbeat, 30000);
+        return () => window.clearInterval(timer);
+    }, []);
     return null;
 }
 

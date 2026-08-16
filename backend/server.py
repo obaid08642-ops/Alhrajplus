@@ -1173,7 +1173,14 @@ async def register(body: RegisterIn, request: Request, response: Response):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(user)
-
+    if referred_by:
+        cfg = await db.referral_config.find_one({"id": "default"}, {"_id": 0}) or {"reward_points": 100, "enabled": True}
+        if cfg.get("enabled", True):
+            await db.referral_events.update_one(
+                {"invitee_id": uid},
+                {"$setOnInsert": {"id": str(uuid.uuid4()), "inviter_code": referred_by, "invitee_id": uid, "status": "pending", "reward_points": int(cfg.get("reward_points", 100)), "created_at": datetime.now(timezone.utc).isoformat()}},
+                upsert=True,
+            )
     # Send verification email (non-blocking failure)
     try:
         verify_token = secrets.token_urlsafe(32)
@@ -2558,6 +2565,8 @@ async def get_my_referral(user: dict = Depends(get_current_user)):
         code = gen_referral_code(user["name"])
         await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": code}})
     invited = await db.users.count_documents({"referred_by": code})
+    referral_events = await db.referral_events.find({"inviter_code": code}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(length=100)
+    reward_points = sum(int(x.get("reward_points") or 0) for x in referral_events if x.get("status") in {"qualified", "rewarded"})
     badge = None
     if invited >= 25:
         badge = "موثّق ذهبي ⭐"
@@ -2566,7 +2575,7 @@ async def get_my_referral(user: dict = Depends(get_current_user)):
     elif invited >= 5:
         badge = "موثّق برونزي 🥉"
     next_m = 5 if invited < 5 else (10 if invited < 10 else (25 if invited < 25 else None))
-    return {"code": code, "invited_count": invited, "badge": badge, "next_milestone": next_m}
+    return {"code": code, "invited_count": invited, "badge": badge, "next_milestone": next_m, "reward_points": reward_points, "qualified_count": sum(1 for x in referral_events if x.get("status") in {"qualified", "rewarded"}), "events": referral_events}
 
 @api.get("/referral/leaderboard")
 async def referral_leaderboard():
@@ -5329,6 +5338,7 @@ _ANALYTICS_EVENTS = {
     "page_view", "search", "listing_view", "contact_seller", "chat_started",
     "listing_created", "listing_published", "favorite_added", "report_submitted",
     "signup_started", "signup_completed", "login_completed", "auction_bid",
+    "session_start", "session_heartbeat", "session_end", "screen_view",
 }
 
 
@@ -5342,6 +5352,21 @@ async def record_analytics_event(request: Request, body: dict):
     if not visitor_id and not session_id:
         raise HTTPException(400, "visitor_id or session_id required")
     user = await _get_user_from_cookie(request)
+    def _safe_text(key, limit):
+        value = str(body.get(key) or "").strip()
+        return value[:limit] or None
+    referrer = _safe_text("referrer", 240)
+    if referrer:
+        referrer = re.sub(r"^https?://([^/]+).*$", r"\1", referrer).lower()[:120]
+    try:
+        duration_ms = max(0, min(int(body.get("duration_ms") or 0), 86_400_000))
+    except (TypeError, ValueError):
+        duration_ms = 0
+    try:
+        screen_width = max(0, min(int(body.get("screen_width") or 0), 10000))
+        screen_height = max(0, min(int(body.get("screen_height") or 0), 10000))
+    except (TypeError, ValueError):
+        screen_width, screen_height = 0, 0
     doc = {
         "event": event,
         "visitor_id": visitor_id or None,
@@ -5351,6 +5376,15 @@ async def record_analytics_event(request: Request, body: dict):
         "category": str(body.get("category") or "")[:80] or None,
         "country_code": str(body.get("country_code") or "").upper()[:3] or None,
         "listing_id": str(body.get("listing_id") or "")[:80] or None,
+        "device_type": _safe_text("device_type", 24),
+        "os": _safe_text("os", 40),
+        "browser": _safe_text("browser", 40),
+        "source": _safe_text("source", 80),
+        "campaign": _safe_text("campaign", 120),
+        "referrer_host": referrer,
+        "duration_ms": duration_ms,
+        "screen_width": screen_width or None,
+        "screen_height": screen_height or None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.analytics_events.insert_one(doc)
@@ -5418,6 +5452,64 @@ async def admin_analytics_overview(days: int = 7):
         "top_countries": [{"key": x.get("_id"), "count": int(x.get("count") or 0)} for x in top_countries],
         "top_listings": [{"id": x.get("_id"), "views": int(x.get("views") or 0), **({"title": listing_docs[x["_id"]].get("title"), "category": listing_docs[x["_id"]].get("category"), "user_id": listing_docs[x["_id"]].get("user_id")} if x.get("_id") in listing_docs else {})} for x in top_listings],
     }
+
+@admin_router.get("/analytics/visitors")
+async def admin_analytics_visitors(days: int = 7, limit: int = 100, device_type: str = "", country_code: str = ""):
+    """Return privacy-conscious session summaries for the admin visitor view."""
+    days = max(1, min(days, 90))
+    limit = max(1, min(limit, 500))
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    match = {"created_at": {"$gte": since}, "session_id": {"$nin": [None, ""]}}
+    if device_type:
+        match["device_type"] = device_type[:24]
+    if country_code:
+        match["country_code"] = country_code.upper()[:3]
+    rows = await db.analytics_events.aggregate([
+        {"$match": match},
+        {"$sort": {"created_at": -1}},
+        {"$group": {"_id": "$session_id", "visitor_id": {"$first": "$visitor_id"}, "user_id": {"$first": "$user_id"}, "last_seen": {"$first": "$created_at"}, "first_seen": {"$last": "$created_at"}, "last_path": {"$first": "$path"}, "country_code": {"$first": "$country_code"}, "device_type": {"$first": "$device_type"}, "os": {"$first": "$os"}, "browser": {"$first": "$browser"}, "source": {"$first": "$source"}, "event_count": {"$sum": 1}, "duration_ms": {"$max": "$duration_ms"}}},
+        {"$sort": {"last_seen": -1}},
+        {"$limit": limit},
+    ]).to_list(length=limit)
+    return {"days": days, "sessions": [{"session_id": r.get("_id"), **{k: v for k, v in r.items() if k != "_id"}} for r in rows]}
+
+@admin_router.get("/analytics/breakdown")
+async def admin_analytics_breakdown(days: int = 30, dimension: str = "device_type"):
+    """Aggregate supported dimensions without exposing raw identifiers."""
+    days = max(1, min(days, 90))
+    allowed = {"device_type", "os", "browser", "country_code", "source", "referrer_host", "path"}
+    if dimension not in allowed:
+        raise HTTPException(400, "Unsupported analytics dimension")
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = await db.analytics_events.aggregate([
+        {"$match": {"created_at": {"$gte": since}, dimension: {"$nin": [None, ""]}}},
+        {"$group": {"_id": f"${dimension}", "events": {"$sum": 1}, "sessions": {"$addToSet": "$session_id"}, "visitors": {"$addToSet": "$visitor_id"}}},
+        {"$project": {"_id": 0, "key": "$_id", "events": 1, "sessions": {"$size": "$sessions"}, "visitors": {"$size": "$visitors"}}},
+        {"$sort": {"events": -1}}, {"$limit": 50},
+    ]).to_list(length=50)
+    return {"days": days, "dimension": dimension, "rows": rows}
+
+@admin_router.get("/referrals")
+async def admin_referrals(status: str = "", limit: int = 200):
+    limit = max(1, min(limit, 500))
+    query = {"status": status} if status in {"pending", "qualified", "rewarded", "rejected"} else {}
+    return await db.referral_events.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+
+@admin_router.get("/referrals/config")
+async def admin_referral_config():
+    cfg = await db.referral_config.find_one({"id": "default"}, {"_id": 0})
+    return cfg or {"id": "default", "reward_points": 100, "qualification": "email_verified", "enabled": True}
+
+@admin_router.put("/referrals/config")
+async def update_admin_referral_config(body: dict, user: dict = Depends(require_admin)):
+    try:
+        reward_points = max(0, min(int(body.get("reward_points", 100)), 100000))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Invalid reward_points")
+    doc = {"id": "default", "reward_points": reward_points, "qualification": "email_verified", "enabled": bool(body.get("enabled", True)), "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user["id"]}
+    await db.referral_config.update_one({"id": "default"}, {"$set": doc}, upsert=True)
+    await _admin_log(user["id"], "referral_config_update", "default")
+    return {k: v for k, v in doc.items() if k != "updated_by"}
 
 @admin_router.get("/stats")
 async def admin_stats():
@@ -6655,6 +6747,11 @@ async def verify_email(token: str, request: Request):
     if not expires_at or expires_at < datetime.now(timezone.utc):
         raise HTTPException(400, "انتهت صلاحية الرابط")
     await db.users.update_one({"id": rec["user_id"]}, {"$set": {"email_verified": True}})
+    referral = await db.referral_events.find_one({"invitee_id": rec["user_id"], "status": "pending"}, {"_id": 0})
+    if referral:
+        changed = await db.referral_events.update_one({"id": referral["id"], "status": "pending"}, {"$set": {"status": "qualified", "qualified_at": datetime.now(timezone.utc).isoformat()}})
+        if changed.modified_count:
+            await db.users.update_one({"referral_code": referral["inviter_code"]}, {"$inc": {"referral_points": int(referral.get("reward_points") or 0)}})
     await db.email_verify_tokens.delete_one({"token": token})
     return {"success": True, "message": "تم تأكيد البريد بنجاح"}
 
