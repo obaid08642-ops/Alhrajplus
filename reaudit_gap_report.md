@@ -138,3 +138,7 @@
 ### حماية Web Chat
 
 تم تطبيع responses الخاصة بالمحادثات والرسائل والتحميل الأقدم إلى arrays قبل استخدام `find`, `map`, أو تحديث state. هذا يمنع crash عند اختلاف envelope بين backend والإصدارات القديمة، مع الإبقاء على WebSocket/typing/read flow كما هو. نجح Web production build بعد التعديل؛ اختبار حسابين فعليين وإعادة الاتصال وpush ما زال يحتاج staging authenticated.
+
+### حماية Mobile Chat
+
+تم توحيد تطبيع conversations/messages/history وForwardPicker في `mobile/src/screens/ChatScreen.js` إلى arrays قبل العرض، دون إزالة WebSocket أو outbox أو read receipts. نجح `npx expo export --platform web` بعد التعديل. لا يزال اختبار Android/iOS/Huawei الحقيقي، background push، cold-start، وإعادة الاتصال بحاجة أجهزة/حسابات staging فعلية.
