@@ -146,3 +146,7 @@
 ### حماية Web Auctions
 
 تم تطبيع قائمة المزادات النشطة وbid history إلى arrays مع error handling، وتطبيع `top_bid` قبل الحساب، مع بقاء تحديثات WebSocket الحية وفتح BidDialog من query param. نجح Web production build. لا يزال إثبات bid lifecycle، minimum increment، expiry، history، notifications، وحسابين فعليين ضمن اختبار staging المطلوب.
+
+### حماية Profile وOffers
+
+تم تطبيع `/listings/me/mine`, `/favorites`, و`/offers/mine` إلى arrays قبل tabs والعرض، مع empty state حقيقي بدل crash. نجح Web production build في إعادة المحاولة بعد أن علقت محاولة أولى بسبب عملية build transient وتم إيقافها؛ لا يوجد compile failure مثبت. تبقى صحة دورة accept/reject/counter والـnotifications بحاجة staging authenticated.
