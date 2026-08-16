@@ -9,7 +9,6 @@ import { useAuth } from "../AuthContext";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
-import Viewer360Mobile from "../components/Viewer360Mobile";
 import Model3DViewerMobile from "../components/Model3DViewerMobile";
 import { trackEvent } from "../analytics";
 export default function ListingDetailScreen({
@@ -45,7 +44,6 @@ export default function ListingDetailScreen({
   const [badge, setBadge] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
   const [zoomImg, setZoomImg] = useState(null);
-  const [show360, setShow360] = useState(false);
   const [show3D, setShow3D] = useState(false);
   const [following, setFollowing] = useState(false);
   const [watching, setWatching] = useState(false);
@@ -289,11 +287,8 @@ export default function ListingDetailScreen({
                 {listing.images?.length > 1 && <View style={styles.dotsRow} pointerEvents="none">
                         {listing.images.map((_, i) => <View key={i} style={[styles.dot, i === activeImg && styles.dotActive]} />)}
                     </View>}
-                {(listing.custom_fields?.is_360 || (listing.images?.length || 0) >= 8) && <TouchableOpacity onPress={() => setShow360(true)} style={styles.spin360Btn} testID="mobile-open-360-btn" activeOpacity={0.85}>
-                        <Text style={styles.spin360Text}>🔄 360°</Text>
-                    </TouchableOpacity>}
-                {listing.custom_fields?.model_3d_url && <TouchableOpacity onPress={() => setShow3D(true)} style={[styles.spin360Btn, { top: 54, backgroundColor: "#7C3AED" }]} testID="mobile-open-3d-btn" activeOpacity={0.85}>
-                        <Text style={styles.spin360Text}>◇ 3D</Text>
+                {listing.custom_fields?.model_3d_url && <TouchableOpacity onPress={() => setShow3D(true)} style={[styles.model3dBtn, { top: 54, backgroundColor: "#7C3AED" }]} testID="mobile-open-3d-btn" activeOpacity={0.85}>
+                        <Text style={styles.model3dText}>◇ 3D</Text>
                     </TouchableOpacity>}
             </View>
 
@@ -446,7 +441,7 @@ export default function ListingDetailScreen({
                     <Text style={styles.contactSellerText}>{t("تواصل مع البائع")}</Text>
                 </TouchableOpacity>}
 
-                {listing.show_phone !== false && listing.seller?.phone_full && !listing.is_demo && <View style={{
+                {listing.show_phone !== false && listing.seller?.phone_full && <View style={{
         marginTop: 12
       }}>
                         <TouchableOpacity onPress={call} style={[styles.cta, {
@@ -459,10 +454,6 @@ export default function ListingDetailScreen({
         }]} testID="mobile-wa-btn">
                             <Text style={styles.ctaText}>{t("💬 واتساب")}</Text>
                         </TouchableOpacity>
-                    </View>}
-
-                {listing.is_demo && <View style={styles.demoBadge}>
-                        <Text style={styles.demoBadgeText}>{listing.demo_label || t("إعلان تجريبي")}</Text>
                     </View>}
 
                 <TouchableOpacity onPress={shareAd} style={styles.shareBtn} testID="mobile-share-btn">
@@ -490,7 +481,7 @@ export default function ListingDetailScreen({
                         <Text style={styles.openMapsText}>📍 {t("افتح في خرائط Google")}</Text>
                     </TouchableOpacity>}
 
-                {!isOwner && !listing.is_demo && user && <TouchableOpacity onPress={() => {
+                {!isOwner && user && <TouchableOpacity onPress={() => {
         Alert.alert(t("الإبلاغ عن الإعلان"), t("اختر سبب الإبلاغ"), [{
           text: t("احتيال"),
           onPress: () => submitReport("fraud")
@@ -532,9 +523,6 @@ export default function ListingDetailScreen({
                 </TouchableOpacity>
             </Modal>
 
-            <Modal visible={show360} transparent animationType="fade" onRequestClose={() => setShow360(false)}>
-                <Viewer360Mobile images={listing.images || []} onClose={() => setShow360(false)} />
-            </Modal>
             <Modal visible={show3D} transparent animationType="slide" onRequestClose={() => setShow3D(false)}>
                 <Model3DViewerMobile url={listing.custom_fields?.model_3d_url} onClose={() => setShow3D(false)} />
             </Modal>
@@ -976,6 +964,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     lineHeight: 28
   },
+  /* demoBadge removed: production listings use real moderation/status data. */
   demoBadge: {
     marginTop: 12,
     padding: 10,
@@ -990,11 +979,11 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 13
   },
-  spin360Btn: {
+  model3dBtn: {
     position: "absolute",
-    top: 12,
+    top: 54,
     right: 12,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: "#7C3AED",
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: theme.radius.full,
@@ -1007,7 +996,7 @@ const styles = StyleSheet.create({
     },
     elevation: 4
   },
-  spin360Text: {
+  model3dText: {
     color: "#fff",
     fontWeight: "900",
     fontSize: 12

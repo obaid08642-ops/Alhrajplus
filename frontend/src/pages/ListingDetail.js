@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { telLink, whatsappLink, normalizePhone } from "@/lib/phone";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, RotateCw, Edit3, RefreshCw, CheckCircle2, Trash2, Bell, Tag } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, Edit3, RefreshCw, CheckCircle2, Trash2, Bell, Tag } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -12,10 +12,8 @@ import ListingTypeBadge from "@/components/ListingTypeBadge";
 import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
-import Viewer360 from "@/components/Viewer360";
 import Model3DViewer from "@/components/Model3DViewer";
 import { ListingSEO } from "@/components/SEO";
-import Spin360Viewer from "@/components/Spin360Viewer";
 import PriceBadge from "@/components/PriceBadge";
 import { optimizeImage, buildSrcSet } from "@/lib/imageOptimizer";
 import { trackEvent } from "@/lib/analytics";
@@ -49,7 +47,6 @@ export default function ListingDetail() {
     const [similar, setSimilar] = useState([]);
     const [activeImg, setActiveImg] = useState(0);
     const [showViewer, setShowViewer] = useState(false);
-    const [show360, setShow360] = useState(false);
     const [show3D, setShow3D] = useState(false);
     const [showPhone, setShowPhone] = useState(false);
     const [categories, setCategories] = useState([]);
@@ -280,11 +277,6 @@ export default function ListingDetail() {
                             {listing.custom_fields?.model_3d_url && (
                                 <button data-testid="open-model3d-btn" onClick={(e) => { e.stopPropagation(); setShow3D(true); }} className="absolute top-3 start-3 bg-cyan-500 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur shadow-lg">🧊 {tr("عرض 3D")}</button>
                             )}
-                            {(listing.custom_fields?.is_360 || (listing.images?.length || 0) >= 8) && (
-                                <button data-testid="open-spin360-btn" onClick={(e) => { e.stopPropagation(); setShow360(true); }} className="absolute top-3 end-28 bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur hover:opacity-90 shadow-lg">
-                                    <RotateCw className="w-3 h-3" /> 🔄 360°
-                                </button>
-                            )}
                             <div className="absolute bottom-3 end-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full font-arabic backdrop-blur">{activeImg + 1} / {listing.images?.length || 0}</div>
                         </div>
                         {listing.images?.length > 1 && (
@@ -447,7 +439,7 @@ export default function ListingDetail() {
                             </button>
                         )}
                         <div className="space-y-2.5">
-                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && !listing.is_demo && (() => {
+                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && (() => {
                                 const ph = listing.contact_phone || listing.seller.phone_full;
                                 const cc = listing.country_code || listing.seller?.country_code || "";
                                 const norm = normalizePhone(ph, cc);
@@ -463,21 +455,16 @@ export default function ListingDetail() {
                                     </>
                                 );
                             })()}
-                            {!listing.is_demo && !isOwner && (
+                            {!isOwner && (
                                 <button data-testid="make-offer-btn-mobile" onClick={() => { if (!user) return nav("/login"); setOfferAmount(listing.price ? String(listing.price) : ""); setShowOffer(true); }} className="w-full bg-[var(--accent)] hover:opacity-90 text-[var(--secondary)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                     <Tag className="w-4 h-4" /> {tr("قدم عرض سعر")}
                                 </button>
                             )}
-                            {!listing.is_demo && (
+                            <>
                                 <button onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                     <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
                                 </button>
-                            )}
-                            {listing.is_demo && (
-                                <div className="w-full px-4 py-3 rounded-xl border border-amber-400 bg-amber-50 text-amber-800 font-arabic font-black text-sm text-center">
-                                    ⚠️ {listing.demo_label || tr("إعلان تجريبي")}
-                                </div>
-                            )}
+                            </>
                         </div>
                     </div>
 
@@ -530,7 +517,7 @@ export default function ListingDetail() {
 
                         {/* Contact actions */}
                         <div className="space-y-2.5">
-                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) && !listing.is_demo ? (
+                            {listing.show_phone !== false && (listing.contact_phone || listing.seller?.phone_full) ? (
                                 <>
                                     {(() => {
                                         const ph = listing.contact_phone || listing.seller.phone_full;
@@ -555,12 +542,12 @@ export default function ListingDetail() {
                                     })()}
                                 </>
                             ) : null}
-                            {!isOwner && !listing.is_demo && (
+                            {!isOwner && (
                                 <button data-testid="make-offer-btn-desktop" onClick={() => { if (!user) return nav("/login"); setOfferAmount(listing.price ? String(listing.price) : ""); setShowOffer(true); }} className="w-full bg-[var(--accent)] hover:opacity-90 text-[var(--secondary)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                     <Tag className="w-4 h-4" /> {tr("قدم عرض سعر")}
                                 </button>
                             )}
-                            <button data-testid="chat-with-seller-btn" onClick={startChat} disabled={!!listing.is_demo} style={listing.is_demo ? { display: "none" } : undefined} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
+                            <button data-testid="chat-with-seller-btn" onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                 <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
                             </button>
                             <button data-testid="report-btn" className="w-full bg-[var(--surface-elevated)] hover:bg-red-50 dark:hover:bg-red-900/20 text-[var(--text-muted)] hover:text-red-600 rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic transition-colors">
@@ -598,7 +585,6 @@ export default function ListingDetail() {
                 </div>
             )}
             {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
-            {show360 && <Viewer360 images={listing.images} onClose={() => setShow360(false)} />}
             {show3D && <Model3DViewer src={listing.custom_fields?.model_3d_url} onClose={() => setShow3D(false)} />}
 
             {/* Sticky bottom CTA bar — fills the space left by the hidden

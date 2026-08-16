@@ -5,8 +5,9 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes, Video as VideoIcon, Play, RotateCw } from "lucide-react-native";
+import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes, Video as VideoIcon, Play } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { VideoView, useVideoPlayer } from "expo-video";
 import * as Location from "expo-location";
 import * as LucideIcons from "lucide-react-native";
@@ -40,6 +41,7 @@ export default function PostScreen({
   const [categories, setCategories] = useState([]);
   const [busy, setBusy] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [uploadingModel, setUploadingModel] = useState(false);
   const [uploadingVid, setUploadingVid] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(null); // 'city' | 'district' | null
@@ -284,6 +286,24 @@ export default function PostScreen({
       { text: t("إلغاء"), style: "cancel" },
     ]);
   };
+  const pickModel3D = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: ["model/gltf-binary", "model/gltf+json", "application/octet-stream"], copyToCacheDirectory: true });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    if (asset.size && asset.size > 80 * 1024 * 1024) { Alert.alert(t("خطأ"), t("ملف 3D أكبر من 80 ميجابايت")); return; }
+    setUploadingModel(true);
+    try {
+      const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "raw", folder: "listings" } });
+      const fd = new FormData();
+      fd.append("file", { uri: asset.uri, type: asset.mimeType || "model/gltf-binary", name: asset.name || `model_${Date.now()}.glb` });
+      fd.append("api_key", sig.api_key); fd.append("timestamp", String(sig.timestamp)); fd.append("signature", sig.signature); fd.append("folder", sig.folder);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/raw/upload`, { method: "POST", body: fd });
+      const out = await res.json();
+      if (!out.secure_url) throw new Error("upload_failed");
+      setForm(f => ({ ...f, custom_fields: { ...f.custom_fields, model_3d_url: out.secure_url } }));
+    } catch (_) { Alert.alert(t("خطأ"), t("فشل رفع نموذج 3D")); }
+    finally { setUploadingModel(false); }
+  };
   const pickVideo = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -411,10 +431,6 @@ export default function PostScreen({
     const isStory = form.subcategory === "story" || form.custom_fields?.is_story;
     if (isStory && (!form.videos || form.videos.length === 0)) {
       return t("الستوري يتطلب رفع فيديو قصير");
-    }
-    if (form.custom_fields?.is_360) {
-      const frameCount = (form.images || []).length;
-      if (frameCount < 8 || frameCount > 24) return t("عرض 360 يحتاج من 8 إلى 24 صورة مرتبة؛ الأفضل 12–24 صورة");
     }
     // Generic field validation ONLY for categories without a custom Details Box.
     if (!CATEGORIES_WITH_CUSTOM_BOX.has(form.category)) {
@@ -556,7 +572,7 @@ export default function PostScreen({
           });
           setStep(2);
         }
-      }} /> : <Step2 form={form} setForm={setForm} cat={cat} categories={categories} onPickerOpen={setPickerOpen} country={country} user={user} onPickImage={pickImage} onTakePhoto={takePhoto} uploadingImg={uploadingImg} onPickVideo={pickVideo} onRemoveVideo={removeVideo} uploadingVid={uploadingVid} onUseLocation={useMyLocation} />}
+      }} /> : <Step2 form={form} setForm={setForm} cat={cat} categories={categories} onPickerOpen={setPickerOpen} country={country} user={user} onPickImage={pickImage} onTakePhoto={takePhoto} uploadingImg={uploadingImg} onPickVideo={pickVideo} onRemoveVideo={removeVideo} uploadingVid={uploadingVid} uploadingModel={uploadingModel} onPickModel3D={pickModel3D} onUseLocation={useMyLocation} />}
             </ScrollView>
 
             {/* Bottom CTA */}
@@ -880,6 +896,8 @@ function Step2({
   onPickVideo,
   onRemoveVideo,
   uploadingVid,
+  uploadingModel,
+  onPickModel3D,
   onUseLocation
 }) {
   const { t } = useI18n();
@@ -1223,12 +1241,16 @@ function Step2({
                     </Field>;
     })()}
 
-            {/* Images */}
-            <Field label={t("الصور") + (form.custom_fields?.is_360 ? " — 360" : "")}>
-                <TouchableOpacity onPress={() => setForm(f => ({ ...f, custom_fields: { ...f.custom_fields, is_360: !f.custom_fields?.is_360 } }))} style={[s.viewerToggle, form.custom_fields?.is_360 && s.viewerToggleActive]} testID="post-360-toggle">
-                    <RotateCw size={18} color={form.custom_fields?.is_360 ? "#fff" : colors.primary} />
-                    <View style={{ flex: 1 }}><Text style={[s.viewerToggleTitle, form.custom_fields?.is_360 && { color: "#fff" }]}>{t("عرض المنتج 360°")}</Text><Text style={[s.viewerToggleSub, form.custom_fields?.is_360 && { color: "rgba(255,255,255,.8)" }]}>{form.custom_fields?.is_360 ? t("ارفع 8–24 صورة؛ الأفضل 12–24 من كل الجهات") : t("اختياري للسيارات والمنتجات التي تحتاج دورانًا")}</Text></View><View style={[s.toggleBox, form.custom_fields?.is_360 && s.toggleBoxActive]}>{form.custom_fields?.is_360 && <Check size={13} color="#fff" />}</View>
+            <Field label={t("نموذج 3D") + (form.custom_fields?.model_3d_url ? " ✓" : "")}>
+                <TouchableOpacity onPress={onPickModel3D} style={[s.imgBtn, { borderColor: "#7C3AED", borderWidth: 1.5 }]} testID="post-pick-model-3d-btn">
+                    <Text style={[s.imgBtnText, { color: "#7C3AED" }]}>{form.custom_fields?.model_3d_url ? t("تم رفع نموذج 3D") : t("رفع ملف GLB أو GLTF")}</Text>
                 </TouchableOpacity>
+                {uploadingModel && <ActivityIndicator color="#7C3AED" style={{ marginTop: 8 }} />}
+                <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 6 }}>{t("يمكن إنشاء الملف خارجيًا من الصور أو الفيديو ثم رفعه هنا")}</Text>
+            </Field>
+
+            {/* Images */}
+            <Field label={t("الصور")}>
                 <View style={{
         flexDirection: "row",
         gap: 10
@@ -1805,31 +1827,6 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     color: colors.text
-  },
-  viewerToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 12,
-    marginBottom: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface
-  },
-  viewerToggleActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  viewerToggleTitle: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "900"
-  },
-  viewerToggleSub: {
-    color: colors.textMuted,
-    fontSize: 10,
-    marginTop: 2
   },
   thumbWrap: {
     position: "relative",

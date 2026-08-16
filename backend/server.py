@@ -2635,10 +2635,6 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     if not cat:
         raise HTTPException(400, "فئة غير صالحة")
     custom_fields = body.custom_fields or {}
-    if custom_fields.get("is_360"):
-        frame_count = len(body.images or [])
-        if frame_count < 8 or frame_count > 24:
-            raise HTTPException(400, "عرض 360 يحتاج من 8 إلى 24 صورة مرتبة من جميع الزوايا")
     # Hard country-isolation guard. The user MUST have a country on file or
     # we refuse to publish — otherwise the listing leaks into every country's
     # feed (because the listings endpoint only filters when country_code is set).
@@ -5112,10 +5108,6 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         raise HTTPException(400, "لا يوجد بيانات للتعديل")
     merged_custom_fields = update_data.get("custom_fields", item.get("custom_fields") or {})
     merged_images = update_data.get("images", item.get("images") or [])
-    if merged_custom_fields.get("is_360"):
-        frame_count = len(merged_images or [])
-        if frame_count < 8 or frame_count > 24:
-            raise HTTPException(400, "عرض 360 يحتاج من 8 إلى 24 صورة مرتبة من جميع الزوايا")
     # Re-moderate if title/description changed
     if "title" in update_data or "description" in update_data:
         text_check = f"{update_data.get('title', item['title'])} {update_data.get('description', item['description'])}"

@@ -279,11 +279,6 @@ export default function PostListing() {
 
     const submit = async () => {
         setErr("");
-        if (form.custom_fields?.is_360 && (form.images.length < 8 || form.images.length > 24)) {
-            setErr(tr("عرض 360 يحتاج من 8 إلى 24 صورة. الحد الأنسب لعرض سلس هو 12 إلى 24 صورة."));
-            setStep(3);
-            return;
-        }
         setBusy(true);
         try {
             const payload = {
@@ -912,37 +907,13 @@ export default function PostListing() {
                             <input data-testid="upload-model-3d" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" className="hidden" onChange={(e) => onFiles(e.target.files, "model")} disabled={busy} />
                         </label>
                     </div>
-                    {/* 360° optional mode toggle. When ON, the listing is
-                        flagged via custom_fields.is_360 so the detail page
-                        can show the rotation viewer (requires ≥ 8 images). */}
-                    <div className={`rounded-2xl p-3 border-2 ${form.custom_fields?.is_360 ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-dashed border-[var(--border)] bg-[var(--surface-elevated)]"}`}>
-                        <button
-                            type="button"
-                            data-testid="enable-360-btn"
-                            onClick={() => { if (!form.custom_fields?.is_360 && form.images.length > 24) { setErr(tr("الحد الأقصى لصور 360 هو 24 صورة")); return; } setForm({ ...form, custom_fields: { ...form.custom_fields, is_360: !form.custom_fields?.is_360 } }); }}
-                            className="w-full flex items-center gap-3 text-start"
-                        >
-                            <span className="text-2xl">📦</span>
-                            <div className="flex-1">
-                                <div className="font-arabic font-black text-sm text-[var(--text)]">
-                                    {form.custom_fields?.is_360 ? tr("وضع 360° مُفعّل ✓") : tr("📦 إضافة عرض 360°")}
-                                </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-0.5">
-                                    {tr("ارفع 8 إلى 24 صورة من جميع الزوايا؛ 12 إلى 24 صورة تعطي دورانًا أكثر سلاسة")}
-                                </div>
-                            </div>
-                            <div className={`w-10 h-5 rounded-full relative ${form.custom_fields?.is_360 ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
-                                <span className={`absolute top-0.5 ${form.custom_fields?.is_360 ? "right-0.5" : "left-0.5"} w-4 h-4 rounded-full bg-white transition-all`}></span>
-                            </div>
-                        </button>
-                        {form.custom_fields?.is_360 && (
-                            <div className="mt-2 text-[11px] font-arabic-body text-[var(--text)] bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 leading-relaxed">
-                                📸 {tr("صوّر المنتج وأنت تلف حوله من نفس الارتفاع للحصول على أفضل نتيجة")} <br />
-                                <span className="font-bold">
-                                    {tr("الصور الحالية:")} <span className={form.images.length >= 8 ? "text-emerald-600" : "text-amber-600"}>{form.images.length}</span> / 24
-                                </span>
-                            </div>
-                        )}
+                    <div className="mt-3 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs font-arabic-body text-[var(--text-muted)]">
+                        <div className="font-arabic font-black text-[var(--text)] mb-1">{tr("لا تملك ملف GLB أو GLTF؟")}</div>
+                        <p>{tr("حوّل صور المنتج أو الفيديو إلى نموذج 3D في خدمة خارجية، نزّل الملف بصيغة GLB ثم ارفعه هنا. جودة النموذج تعتمد على الصور؛ راجع شروط الخدمة والخصوصية قبل رفع الصور.")}</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            <a href="https://www.meshy.ai/features/image-to-3d" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--primary)] font-arabic font-bold">Meshy — Image to 3D</a>
+                            <a href="https://poly.cam/tools/photogrammetry" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--primary)] font-arabic font-bold">Polycam — Photogrammetry</a>
+                        </div>
                     </div>
                     {/* Per-file upload progress — replaces the generic busy spinner.
                         Shows live percentage from XHR upload events, including failed rows. */}
