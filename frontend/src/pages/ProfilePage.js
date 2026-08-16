@@ -73,11 +73,11 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (!user) return;
-        api.get("/listings/me/mine").then(({ data }) => setMyListings(data));
-        api.get("/favorites").then(({ data }) => setFavorites(data));
+        api.get("/listings/me/mine").then(({ data }) => setMyListings(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setMyListings([]));
+        api.get("/favorites").then(({ data }) => setFavorites(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setFavorites([]));
         api.get("/referral/me").then(({ data }) => setReferral(data));
         api.get("/auth/me/stats").then(({ data }) => setStats(data)).catch(() => {});
-        api.get("/offers/mine").then(({ data }) => setOffers(data || [])).catch(() => {});
+        api.get("/offers/mine").then(({ data }) => setOffers(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setOffers([]));
     }, [user]);
 
     const togglePhoneVisibility = async () => {
