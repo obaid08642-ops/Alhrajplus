@@ -29,3 +29,7 @@
 ## التحقق المنفذ
 
 تمت إضافة `OffersScreen` في React Native مع قبول ورفض وcounter-offer وexpiry، وإضافة `NotificationsPage` كاملة على الويب مع mark-one/read-all وdeep links والتحديث من realtime events. نجح Expo export بعد إضافة شاشة العروض، ونجح Web production build بعد إضافة صفحة الإشعارات.
+
+### آخر تحديث
+
+أضيف تفعيل 360 والتحقق من 8–24 صورة داخل `mobile/src/screens/PostScreen.js` أيضًا، فأصبح مسار إنشاء الإعلان على الويب والموبايل يرفض sequence غير الصالح قبل الإرسال، مع توصية 12–24 صورة.

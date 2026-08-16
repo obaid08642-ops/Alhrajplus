@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Image, Alert, ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes, Video as VideoIcon, Play } from "lucide-react-native";
+import { Sparkles, Camera, ImageIcon, MapPin, X, Check, ChevronLeft, Search, Shapes, Video as VideoIcon, Play, RotateCw } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import { VideoView, useVideoPlayer } from "expo-video";
 import * as Location from "expo-location";
@@ -411,6 +411,10 @@ export default function PostScreen({
     const isStory = form.subcategory === "story" || form.custom_fields?.is_story;
     if (isStory && (!form.videos || form.videos.length === 0)) {
       return t("الستوري يتطلب رفع فيديو قصير");
+    }
+    if (form.custom_fields?.is_360) {
+      const frameCount = (form.images || []).length;
+      if (frameCount < 8 || frameCount > 24) return t("عرض 360 يحتاج من 8 إلى 24 صورة مرتبة؛ الأفضل 12–24 صورة");
     }
     // Generic field validation ONLY for categories without a custom Details Box.
     if (!CATEGORIES_WITH_CUSTOM_BOX.has(form.category)) {
@@ -1220,7 +1224,11 @@ function Step2({
     })()}
 
             {/* Images */}
-            <Field label={t("الصور")}>
+            <Field label={t("الصور") + (form.custom_fields?.is_360 ? " — 360" : "")}>
+                <TouchableOpacity onPress={() => setForm(f => ({ ...f, custom_fields: { ...f.custom_fields, is_360: !f.custom_fields?.is_360 } }))} style={[s.viewerToggle, form.custom_fields?.is_360 && s.viewerToggleActive]} testID="post-360-toggle">
+                    <RotateCw size={18} color={form.custom_fields?.is_360 ? "#fff" : colors.primary} />
+                    <View style={{ flex: 1 }}><Text style={[s.viewerToggleTitle, form.custom_fields?.is_360 && { color: "#fff" }]}>{t("عرض المنتج 360°")}</Text><Text style={[s.viewerToggleSub, form.custom_fields?.is_360 && { color: "rgba(255,255,255,.8)" }]}>{form.custom_fields?.is_360 ? t("ارفع 8–24 صورة؛ الأفضل 12–24 من كل الجهات") : t("اختياري للسيارات والمنتجات التي تحتاج دورانًا")}</Text></View><View style={[s.toggleBox, form.custom_fields?.is_360 && s.toggleBoxActive]}>{form.custom_fields?.is_360 && <Check size={13} color="#fff" />}</View>
+                </TouchableOpacity>
                 <View style={{
         flexDirection: "row",
         gap: 10
@@ -1797,6 +1805,31 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     color: colors.text
+  },
+  viewerToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface
+  },
+  viewerToggleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  viewerToggleTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  viewerToggleSub: {
+    color: colors.textMuted,
+    fontSize: 10,
+    marginTop: 2
   },
   thumbWrap: {
     position: "relative",
