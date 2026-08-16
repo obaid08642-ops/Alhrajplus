@@ -55,7 +55,7 @@ export default function NotificationBell() {
         setLoading(true);
         try {
             const { data } = await api.get("/notifications", { params: { limit: 20 } });
-            const list = Array.isArray(data) ? data : (data?.items || []);
+            const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
             const nextUnread = list.filter((n) => !n.read).length;
             // Ping the user when unread count goes UP — never on initial load
             // or when the user just marked some read.

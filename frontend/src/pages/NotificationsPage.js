@@ -14,7 +14,7 @@ export default function NotificationsPage() {
     const { subscribe } = useChatSocket();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const load = useCallback(async () => { if (!user) return; setLoading(true); try { const { data } = await api.get("/notifications", { params: { limit: 100 } }); setItems(Array.isArray(data) ? data : data?.items || []); } catch (_) { setItems([]); } finally { setLoading(false); } }, [user]);
+    const load = useCallback(async () => { if (!user) return; setLoading(true); try { const { data } = await api.get("/notifications", { params: { limit: 100 } }); setItems(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : [])); } catch (_) { setItems([]); } finally { setLoading(false); } }, [user]);
     useEffect(() => { load(); const off = subscribe("message", load); const offOffer = subscribe("listing_offer", load); return () => { off?.(); offOffer?.(); }; }, [load, subscribe]);
     const markOne = async (id) => { setItems((xs) => xs.map((n) => n.id === id ? { ...n, read: true } : n)); try { await api.post(`/notifications/${id}/read`); } catch (_) {} };
     const markAll = async () => { try { await api.post("/notifications/read-all"); setItems((xs) => xs.map((n) => ({ ...n, read: true }))); } catch (_) {} };
