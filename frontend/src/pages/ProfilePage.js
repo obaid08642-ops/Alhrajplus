@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import ListingCard from "@/components/listings/ListingCard";
 
@@ -126,16 +126,16 @@ export default function ProfilePage() {
                         <PhoneEditor user={user} />
                         {stats && (
                             <div className="flex flex-wrap gap-3 mt-2 text-[11px] font-latin" data-testid="profile-stats">
-                                <span className="text-[var(--text-muted)]">📦 {stats.total_listings} {tr("إعلان")}</span>
-                                <span className="text-[var(--text-muted)]">✓ {stats.active_listings} {tr("نشط")}</span>
-                                <span className="text-[var(--text-muted)]">❤ {stats.favorites_count}</span>
+                                <span className="text-[var(--text-muted)] inline-flex items-center gap-1"><Package className="w-3.5 h-3.5" /> {stats.total_listings} {tr("إعلان")}</span>
+                                <span className="text-[var(--text-muted)] inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> {stats.active_listings} {tr("نشط")}</span>
+                                <span className="text-[var(--text-muted)] inline-flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {stats.favorites_count}</span>
                                 {stats.joined_at && (
-                                    <span className="text-[var(--text-muted)]">📅 {tr("انضم في")} {new Date(stats.joined_at).toLocaleDateString()}</span>
+                                    <span className="text-[var(--text-muted)] inline-flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> {tr("انضم في")} {new Date(stats.joined_at).toLocaleDateString()}</span>
                                 )}
                             </div>
                         )}
                         <button onClick={togglePhoneVisibility} className="mt-2 text-[11px] font-arabic-body text-[var(--primary)] hover:underline" data-testid="toggle-phone-visibility">
-                            {user.show_phone === false ? tr("📵 الجوال مخفي - إظهار") : tr("📞 الجوال ظاهر - إخفاء")}
+                            <span className="inline-flex items-center gap-1">{user.show_phone === false ? <><PhoneOff className="w-3.5 h-3.5" /> {tr("الجوال مخفي - إظهار")}</> : <><Smartphone className="w-3.5 h-3.5" /> {tr("الجوال ظاهر - إخفاء")}</>}</span>
                         </button>
                     </div>
                     <button data-testid="profile-logout" onClick={async () => { await logout(); nav("/"); }} className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 font-bold text-sm font-arabic">
@@ -157,7 +157,7 @@ export default function ProfilePage() {
                         <h3 className="font-arabic font-black text-base text-[var(--text)]">{t("referral_program")}</h3>
                         {referral.badge && <span className="ms-auto text-xs font-bold text-[var(--accent)] font-arabic">{referral.badge}</span>}
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-3">{tr("ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً (5 = 🥉 برونزي، 10 = 🥈 فضي، 25 = ⭐ ذهبي)")}</p>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-3">{tr("ادعُ أصدقاءك واحصل على شارات موثّقة مجاناً")}</p>
                     <div className="flex items-center gap-2">
                         <div className="flex-1 bg-[var(--surface)] rounded-xl px-3 py-2 border border-[var(--border)] flex items-center justify-between">
                             <span className="font-mono font-black text-sm text-[var(--primary)]">{referral.code}</span>
