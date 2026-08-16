@@ -25,6 +25,7 @@ export default function AdminPage() {
         { key: "moderation", label: tr("مراجعة الإعلانات"), icon: Shield },
         { key: "banned_words", label: tr("الكلمات المحظورة"), icon: Flag },
         { key: "listings", label: tr("جميع الإعلانات"), icon: FileText },
+        { key: "lifecycle", label: tr("عمر وتنظيف الإعلانات"), icon: Trash2 },
         { key: "data_integrity", label: tr("سلامة البيانات"), icon: Shield },
         { key: "users", label: tr("المستخدمون"), icon: Users },
         { key: "reports", label: tr("البلاغات"), icon: Flag },
@@ -59,6 +60,7 @@ export default function AdminPage() {
             {tab === "moderation" && <ModerationPanel />}
             {tab === "banned_words" && <BannedWordsPanel />}
             {tab === "listings" && <ListingsPanel />}
+            {tab === "lifecycle" && <ListingLifecyclePanel />}
             {tab === "data_integrity" && <DataIntegrityPanel />}
             {tab === "users" && <UsersPanel />}
             {tab === "reports" && <ReportsPanel />}
@@ -557,6 +559,35 @@ function ListingsPanel() {
             )}
         </div>
     );
+}
+
+function ListingLifecyclePanel() {
+    const [ageDays, setAgeDays] = useState(180);
+    const [status, setStatus] = useState("");
+    const [items, setItems] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [selected, setSelected] = useState(new Set());
+    const [loading, setLoading] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const load = useCallback(async () => {
+        setLoading(true);
+        try { const { data } = await api.get("/admin/listings/lifecycle", { params: { age_days: ageDays, status, limit: 500 } }); setItems(data?.items || []); setTotal(data?.total || 0); setSelected(new Set()); } catch (_) { setItems([]); setTotal(0); } finally { setLoading(false); }
+    }, [ageDays, status]);
+    useEffect(() => { load(); }, [load]);
+    const toggle = (id) => setSelected((old) => { const next = new Set(old); next.has(id) ? next.delete(id) : next.add(id); return next; });
+    const remove = async () => {
+        const explicit = Array.from(selected);
+        const label = explicit.length ? `${explicit.length} ${tr("إعلان محدد")}` : `${tr("كل الإعلانات الأقدم من")} ${ageDays} ${tr("يومًا")}`;
+        if (!window.confirm(`${tr("سيتم حذف")} ${label} ${tr("نهائيًا من قاعدة البيانات وجدولة حذف الصور والفيديوهات من Cloudinary. هل أنت متأكد؟")}`)) return;
+        setBusy(true);
+        try { const { data } = await api.post("/admin/listings/bulk-delete", explicit.length ? { ids: explicit } : { older_than_days: ageDays, status }); alert(`${tr("تم حذف")} ${data.deleted} ${tr("إعلان")}. ${tr("تمت جدولة")} ${data.media_queued} ${tr("وسيط")}.`); await load(); } catch (e) { alert(e.response?.data?.detail || tr("تعذر الحذف الجماعي")); } finally { setBusy(false); }
+    };
+    const preview = async () => { try { const { data } = await api.post("/admin/listings/bulk-delete", { older_than_days: ageDays, status, dry_run: true }); alert(`${tr("عدد الإعلانات المطابقة")}: ${data.matched}`); } catch (e) { alert(e.response?.data?.detail || tr("تعذر المعاينة")); } };
+    return <div className="space-y-4" data-testid="listing-lifecycle-panel">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4"><h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("عمر الإعلانات وتنظيف التخزين")}</h2><p className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{tr("الإعلان لا تنتهي صلاحيته تلقائيًا؛ هذه أدوات مراجعة وحذف يدوية تحت تحكم الإدارة.")}</p><div className="flex flex-wrap gap-2 mt-4"><select value={ageDays} onChange={(e) => setAgeDays(Number(e.target.value))} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value={30}>أقدم من شهر</option><option value={60}>أقدم من شهرين</option><option value={180}>أقدم من 6 أشهر</option><option value={365}>أقدم من سنة</option><option value={1825}>أقدم من 5 سنوات</option></select><select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value="">كل الحالات</option><option value="active">نشط</option><option value="sold">مباع</option><option value="paused">موقوف</option></select><button onClick={preview} className="px-3 py-2 rounded-xl border border-[var(--border)] text-sm font-arabic">{tr("معاينة المطابق")}</button><button onClick={remove} disabled={busy || (!items.length && !selected.size)} className="px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-arabic font-bold disabled:opacity-50">{busy ? tr("جاري الحذف...") : tr("حذف جماعي")}</button></div></div>
+        <div className="flex items-center justify-between text-xs text-[var(--text-muted)] font-arabic-body"><span>{loading ? tr("جاري التحميل...") : `${total} ${tr("إعلان مطابق")}`}</span><button onClick={() => setSelected(new Set(items.map((x) => x.id)))} className="underline">{tr("تحديد الصفحة")}</button></div>
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-[var(--border)] text-[var(--text-muted)]"><th className="p-3 text-start">#</th><th className="p-3 text-start">{tr("الإعلان")}</th><th className="p-3 text-start">{tr("الحالة")}</th><th className="p-3 text-start">{tr("تاريخ الإنشاء")}</th><th className="p-3 text-start">{tr("الوسائط")}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id} className="border-b border-[var(--border)]/50"><td className="p-3"><input type="checkbox" checked={selected.has(item.id)} onChange={() => toggle(item.id)} /></td><td className="p-3"><Link to={`/listing/${item.id}`} target="_blank" rel="noreferrer" className="font-bold hover:text-[var(--primary)]">{item.title || item.id}</Link></td><td className="p-3">{item.status || "—"}</td><td className="p-3 font-latin">{item.created_at ? new Date(item.created_at).toLocaleDateString() : "—"}</td><td className="p-3 font-latin">{(item.images?.length || 0) + (item.videos?.length || 0)}</td></tr>)}{!loading && items.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-[var(--text-muted)]">{tr("لا توجد إعلانات مطابقة")}</td></tr>}</tbody></table></div></div>
+    </div>;
 }
 
 // Data Integrity tool — shows orphan records and one-click fix.

@@ -13,6 +13,7 @@ import ListingCard from "@/components/listings/ListingCard";
 import AdSlot from "@/components/listings/AdSlot";
 import ImageViewer from "@/components/ImageViewer";
 import Viewer360 from "@/components/Viewer360";
+import Model3DViewer from "@/components/Model3DViewer";
 import { ListingSEO } from "@/components/SEO";
 import Spin360Viewer from "@/components/Spin360Viewer";
 import PriceBadge from "@/components/PriceBadge";
@@ -49,6 +50,7 @@ export default function ListingDetail() {
     const [activeImg, setActiveImg] = useState(0);
     const [showViewer, setShowViewer] = useState(false);
     const [show360, setShow360] = useState(false);
+    const [show3D, setShow3D] = useState(false);
     const [showPhone, setShowPhone] = useState(false);
     const [categories, setCategories] = useState([]);
     const [following, setFollowing] = useState(false);
@@ -275,6 +277,9 @@ export default function ListingDetail() {
                             )}
                             {/* Show 360 button when EITHER the seller flagged
                                 this listing as 360 OR there are >= 8 images. */}
+                            {listing.custom_fields?.model_3d_url && (
+                                <button data-testid="open-model3d-btn" onClick={(e) => { e.stopPropagation(); setShow3D(true); }} className="absolute top-3 start-3 bg-cyan-500 text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur shadow-lg">🧊 {tr("عرض 3D")}</button>
+                            )}
                             {(listing.custom_fields?.is_360 || (listing.images?.length || 0) >= 8) && (
                                 <button data-testid="open-spin360-btn" onClick={(e) => { e.stopPropagation(); setShow360(true); }} className="absolute top-3 end-28 bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] text-white px-3 py-1.5 rounded-full text-xs font-arabic font-bold flex items-center gap-1 backdrop-blur hover:opacity-90 shadow-lg">
                                     <RotateCw className="w-3 h-3" /> 🔄 360°
@@ -594,6 +599,7 @@ export default function ListingDetail() {
             )}
             {showViewer && <ImageViewer images={listing.images} initialIndex={activeImg} onClose={() => setShowViewer(false)} />}
             {show360 && <Viewer360 images={listing.images} onClose={() => setShow360(false)} />}
+            {show3D && <Model3DViewer src={listing.custom_fields?.model_3d_url} onClose={() => setShow3D(false)} />}
 
             {/* Sticky bottom CTA bar — fills the space left by the hidden
                 BottomNav. Auctions show "مزايدة الآن", regular listings show

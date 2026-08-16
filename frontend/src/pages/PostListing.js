@@ -165,6 +165,7 @@ export default function PostListing() {
     //   • video: ≤ 60 MB raw, max 60s recommended
     const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
     const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
+    const MAX_MODEL_BYTES = 80 * 1024 * 1024;
     const [uploads, setUploads] = useState([]); // [{ id, name, type, progress, status, url, error }]
 
     const xhrUpload = (url, formData, onProgress) =>
@@ -220,6 +221,14 @@ export default function PostListing() {
         return out.secure_url;
     };
 
+    const uploadModel3D = async (file, onProgress) => {
+        if (file.size > MAX_MODEL_BYTES) throw new Error(tr("ملف 3D أكبر من 80 ميجابايت"));
+        const { data: sig } = await api.get("/cloudinary/signature", { params: { resource_type: "raw", folder: "listings" } });
+        const fd = new FormData(); fd.append("file", file); fd.append("api_key", sig.api_key); fd.append("timestamp", sig.timestamp); fd.append("signature", sig.signature); fd.append("folder", sig.folder);
+        const out = await xhrUpload(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/raw/upload`, fd, onProgress);
+        return out.secure_url;
+    };
+
     const onFiles = async (files, type = "image") => {
         setErr("");
         const arr = Array.from(files);
@@ -243,7 +252,7 @@ export default function PostListing() {
             try {
                 const url = type === "image"
                     ? await uploadImage(file, setProg)
-                    : await uploadVideo(file, setProg);
+                    : type === "video" ? await uploadVideo(file, setProg) : await uploadModel3D(file, setProg);
                 setUploads((u) => u.map((it) => it.id === seed.id ? { ...it, progress: 100, status: "done", url } : it));
                 return url;
             } catch (e) {
@@ -253,10 +262,9 @@ export default function PostListing() {
         }));
         const okUrls = results.filter(Boolean);
         if (okUrls.length) {
-            setForm((f) => ({
-                ...f,
-                [type === "image" ? "images" : "videos"]: [...f[type === "image" ? "images" : "videos"], ...okUrls],
-            }));
+            setForm((f) => type === "model"
+                ? { ...f, custom_fields: { ...f.custom_fields, model_3d_url: okUrls[0] } }
+                : { ...f, [type === "image" ? "images" : "videos"]: [...f[type === "image" ? "images" : "videos"], ...okUrls] });
         }
         if (okUrls.length !== arr.length) {
             setErr(tr("بعض الملفات فشل رفعها"));
@@ -270,7 +278,13 @@ export default function PostListing() {
 
 
     const submit = async () => {
-        setErr(""); setBusy(true);
+        setErr("");
+        if (form.custom_fields?.is_360 && (form.images.length < 8 || form.images.length > 24)) {
+            setErr(tr("عرض 360 يحتاج من 8 إلى 24 صورة. الحد الأنسب لعرض سلس هو 12 إلى 24 صورة."));
+            setStep(3);
+            return;
+        }
+        setBusy(true);
         try {
             const payload = {
                 ...form,
@@ -892,6 +906,11 @@ export default function PostListing() {
                             <span className="font-arabic font-bold text-xs text-[var(--text)]">{tr("فيديو")}</span>
                             <input data-testid="upload-videos" type="file" accept="video/*" className="hidden" onChange={(e) => onFiles(e.target.files, "video")} disabled={busy} />
                         </label>
+                        <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-cyan-500/10 rounded-2xl border-2 border-dashed border-cyan-500/40 hover:border-cyan-500 py-6 flex flex-col items-center justify-center gap-2 transition-all">
+                            <Icons.Box className="w-6 h-6 text-cyan-500" />
+                            <span className="font-arabic font-bold text-xs text-[var(--text)]">{tr("نموذج 3D")}</span>
+                            <input data-testid="upload-model-3d" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" className="hidden" onChange={(e) => onFiles(e.target.files, "model")} disabled={busy} />
+                        </label>
                     </div>
                     {/* 360° optional mode toggle. When ON, the listing is
                         flagged via custom_fields.is_360 so the detail page
@@ -900,7 +919,7 @@ export default function PostListing() {
                         <button
                             type="button"
                             data-testid="enable-360-btn"
-                            onClick={() => setForm({ ...form, custom_fields: { ...form.custom_fields, is_360: !form.custom_fields?.is_360 } })}
+                            onClick={() => { if (!form.custom_fields?.is_360 && form.images.length > 24) { setErr(tr("الحد الأقصى لصور 360 هو 24 صورة")); return; } setForm({ ...form, custom_fields: { ...form.custom_fields, is_360: !form.custom_fields?.is_360 } }); }}
                             className="w-full flex items-center gap-3 text-start"
                         >
                             <span className="text-2xl">📦</span>
@@ -909,7 +928,7 @@ export default function PostListing() {
                                     {form.custom_fields?.is_360 ? tr("وضع 360° مُفعّل ✓") : tr("📦 إضافة عرض 360°")}
                                 </div>
                                 <div className="text-[10px] text-[var(--text-muted)] font-arabic-body mt-0.5">
-                                    {tr("ارفع 8 إلى 24 صورة للمنتج من جميع الزوايا")}
+                                    {tr("ارفع 8 إلى 24 صورة من جميع الزوايا؛ 12 إلى 24 صورة تعطي دورانًا أكثر سلاسة")}
                                 </div>
                             </div>
                             <div className={`w-10 h-5 rounded-full relative ${form.custom_fields?.is_360 ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>

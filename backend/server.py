@@ -2604,7 +2604,7 @@ async def cloudinary_signature(
     folder: str = Query("listings"),
     user: dict = Depends(get_current_user),
 ):
-    if resource_type not in ("image", "video"):
+    if resource_type not in ("image", "video", "raw"):
         raise HTTPException(400, "Invalid resource_type")
     allowed = ("listings/", "stories/", "avatars/", "ads/", "chat/")
     folder_with_user = f"{folder}/{user['id']}"
@@ -2634,6 +2634,11 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     cat = next((c for c in CATEGORIES if c["key"] == body.category), None)
     if not cat:
         raise HTTPException(400, "فئة غير صالحة")
+    custom_fields = body.custom_fields or {}
+    if custom_fields.get("is_360"):
+        frame_count = len(body.images or [])
+        if frame_count < 8 or frame_count > 24:
+            raise HTTPException(400, "عرض 360 يحتاج من 8 إلى 24 صورة مرتبة من جميع الزوايا")
     # Hard country-isolation guard. The user MUST have a country on file or
     # we refuse to publish — otherwise the listing leaks into every country's
     # feed (because the listings endpoint only filters when country_code is set).
@@ -2653,7 +2658,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "category": body.category,
         "subcategory": body.subcategory,
         "post_type": body.post_type,
-        "custom_fields": body.custom_fields,
+        "custom_fields": custom_fields,
         "images": body.images,
         "videos": body.videos,
         "country_code": user_cc,
@@ -3776,8 +3781,10 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
     media_to_clean = {
         "images": list(item.get("images") or []),
         "videos": list(item.get("videos") or []),
+        "models": [((item.get("custom_fields") or {}).get("model_3d_url"))] if (item.get("custom_fields") or {}).get("model_3d_url") else [],
     }
     await db.listings.delete_one({"id": listing_id})
+    related_deleted = await _delete_listing_related_records(listing_id)
     _cache_invalidate()
     # Fire-and-forget Cloudinary cleanup so the API response stays fast.
     asyncio.create_task(_cleanup_listing_media(listing_id, media_to_clean))
@@ -3790,7 +3797,7 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
         _google_idx_deleted(f"{fe}/listing/{listing_id}")
     except Exception as _e:
         logger.warning(f"[google_indexing] delete enqueue failed: {_e}")
-    return {"success": True, "media_queued": len(media_to_clean["images"]) + len(media_to_clean["videos"])}
+    return {"success": True, "media_queued": len(media_to_clean["images"]) + len(media_to_clean["videos"]), "related_deleted": related_deleted}
 
 
 def _cloudinary_extract_public_id(url: str) -> Optional[tuple]:
@@ -3838,10 +3845,11 @@ async def _cleanup_listing_media(listing_id: str, media: dict) -> dict:
     permanently-failed items are stored in db.media_cleanup_failed for the
     background retry worker to pick up later.
     """
-    summary = {"images_deleted": 0, "videos_deleted": 0, "failed": 0, "details": []}
+    summary = {        "images_deleted": 0, "videos_deleted": 0, "models_deleted": 0, "failed": 0, "details": []}
     images = media.get("images") or []
     videos = media.get("videos") or []
-    for url in images + videos:
+    models = media.get("models") or []
+    for url in images + videos + models:
         info = _cloudinary_extract_public_id(url)
         if not info:
             continue
@@ -3870,6 +3878,8 @@ async def _cleanup_listing_media(listing_id: str, media: dict) -> dict:
         if last_status == "ok":
             if rtype == "video":
                 summary["videos_deleted"] += 1
+            elif url in models:
+                summary["models_deleted"] += 1
             else:
                 summary["images_deleted"] += 1
         elif last_status == "not found":
@@ -3910,6 +3920,30 @@ async def _cleanup_listing_media(listing_id: str, media: dict) -> dict:
         logger.warning(f"[media-cleanup] audit log failed: {_e}")
     logger.info(f"[media-cleanup] listing={listing_id} img={summary['images_deleted']} vid={summary['videos_deleted']} fail={summary['failed']}")
     return summary
+
+
+async def _delete_listing_related_records(listing_id: str) -> dict:
+    """Remove dependent marketplace records after a listing is deleted.
+    Media is handled separately by the Cloudinary cleanup queue.
+    """
+    deleted = {}
+    targets = {
+        "listing_offers": {"listing_id": listing_id},
+        "listing_comments": {"listing_id": listing_id},
+        "listing_likes": {"listing_id": listing_id},
+        "favorites": {"listing_id": listing_id},
+        "watches": {"listing_id": listing_id},
+        "recently_viewed": {"listing_id": listing_id},
+        "reports": {"target_type": "listing", "target_id": listing_id},
+    }
+    for collection_name, query in targets.items():
+        try:
+            result = await getattr(db, collection_name).delete_many(query)
+            deleted[collection_name] = int(result.deleted_count or 0)
+        except Exception as exc:
+            logger.warning(f"[listing-delete] dependent cleanup failed collection={collection_name}: {exc}")
+            deleted[collection_name] = 0
+    return deleted
 
 
 async def _media_cleanup_retry_worker():
@@ -5076,6 +5110,12 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     update_data = body.model_dump(exclude_unset=True, exclude_none=True)
     if not update_data:
         raise HTTPException(400, "لا يوجد بيانات للتعديل")
+    merged_custom_fields = update_data.get("custom_fields", item.get("custom_fields") or {})
+    merged_images = update_data.get("images", item.get("images") or [])
+    if merged_custom_fields.get("is_360"):
+        frame_count = len(merged_images or [])
+        if frame_count < 8 or frame_count > 24:
+            raise HTTPException(400, "عرض 360 يحتاج من 8 إلى 24 صورة مرتبة من جميع الزوايا")
     # Re-moderate if title/description changed
     if "title" in update_data or "description" in update_data:
         text_check = f"{update_data.get('title', item['title'])} {update_data.get('description', item['description'])}"
@@ -5780,19 +5820,71 @@ async def admin_close_report(rid: str, user: dict = Depends(require_admin)):
         await _admin_log(user["id"], "report_close", rid)
     return {"updated": r.modified_count}
 
+@admin_router.get("/listings/lifecycle")
+async def admin_listing_lifecycle(age_days: int = 0, status: str = "", limit: int = 200, skip: int = 0):
+    """List listings by age for retention review. No automatic expiry is applied."""
+    limit = max(1, min(limit, 500)); skip = max(0, skip)
+    query = {}
+    if status:
+        query["status"] = status
+    if age_days > 0:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=min(age_days, 3650))).isoformat()
+        query["created_at"] = {"$lte": cutoff}
+    total = await db.listings.count_documents(query)
+    items = await db.listings.find(query, {"_id": 0, "id": 1, "title": 1, "user_id": 1, "status": 1, "moderation": 1, "created_at": 1, "updated_at": 1, "images": {"$slice": 1}, "videos": {"$slice": 1}, "country_code": 1}).sort("created_at", 1).skip(skip).limit(limit).to_list(length=limit)
+    return {"items": items, "total": total, "age_days": age_days, "status": status}
+
+
+@admin_router.post("/listings/bulk-delete")
+async def admin_bulk_delete_listings(body: dict, user: dict = Depends(require_admin)):
+    """Preview or delete up to 500 listings by explicit IDs or age.
+    Age-based deletion is never automatic and requires `older_than_days`.
+    """
+    ids = [str(x) for x in (body.get("ids") or []) if x][:500]
+    older_than_days = int(body.get("older_than_days") or 0)
+    status = str(body.get("status") or "").strip()
+    if not ids and older_than_days <= 0:
+        raise HTTPException(400, "حدد ids أو older_than_days")
+    query = {"id": {"$in": ids}} if ids else {}
+    if status:
+        query["status"] = status
+    if older_than_days:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=min(older_than_days, 3650))).isoformat()
+        query["created_at"] = {"$lte": cutoff}
+    items = await db.listings.find(query, {"_id": 0, "id": 1, "images": 1, "videos": 1, "custom_fields.model_3d_url": 1}).limit(500).to_list(length=500)
+    if body.get("dry_run", False):
+        return {"dry_run": True, "matched": len(items), "ids": [x["id"] for x in items]}
+    deleted = 0; media_queued = 0; related_deleted = 0
+    for item in items:
+        result = await db.listings.delete_one({"id": item["id"]})
+        if not result.deleted_count:
+            continue
+        deleted += 1
+        related = await _delete_listing_related_records(item["id"])
+        related_deleted += sum(related.values())
+        media = {"images": list(item.get("images") or []), "videos": list(item.get("videos") or []), "models": [item.get("custom_fields", {}).get("model_3d_url")] if item.get("custom_fields", {}).get("model_3d_url") else []}
+        media_queued += len(media["images"]) + len(media["videos"]) + len(media["models"])
+        asyncio.create_task(_cleanup_listing_media(item["id"], media))
+        await _admin_log(user["id"], "listing_bulk_delete", item["id"])
+    _cache_invalidate()
+    return {"deleted": deleted, "media_queued": media_queued, "related_deleted": related_deleted, "matched": len(items)}
+
+
 @admin_router.delete("/listings/{lid}")
 async def admin_delete_listing(lid: str, user: dict = Depends(require_admin)):
-    item = await db.listings.find_one({"id": lid}, {"_id": 0, "images": 1, "videos": 1})
+    item = await db.listings.find_one({"id": lid}, {"_id": 0, "images": 1, "videos": 1, "custom_fields.model_3d_url": 1})
     r = await db.listings.delete_one({"id": lid})
     media_queued = 0
+    related_deleted = {}
     if r.deleted_count:
+        related_deleted = await _delete_listing_related_records(lid)
         await _admin_log(user["id"], "listing_delete", lid)
         _cache_invalidate()
         if item:
-            media = {"images": list(item.get("images") or []), "videos": list(item.get("videos") or [])}
-            media_queued = len(media["images"]) + len(media["videos"])
+            media = {"images": list(item.get("images") or []), "videos": list(item.get("videos") or []), "models": [item.get("custom_fields", {}).get("model_3d_url")] if item.get("custom_fields", {}).get("model_3d_url") else []}
+            media_queued = len(media["images"]) + len(media["videos"]) + len(media["models"])
             asyncio.create_task(_cleanup_listing_media(lid, media))
-    return {"deleted": r.deleted_count, "media_queued": media_queued}
+    return {"deleted": r.deleted_count, "media_queued": media_queued, "related_deleted": related_deleted}
 
 
 @admin_router.get("/media-cleanup/log")
@@ -5815,11 +5907,11 @@ async def admin_media_cleanup_scan(folder: str = "listings", max_resources: int 
     resources = res.get("resources", []) or []
     # Collect all media URLs currently referenced by any listing
     pipeline = [
-        {"$project": {"_id": 0, "images": 1, "videos": 1}},
+        {"$project": {"_id": 0, "images": 1, "videos": 1, "custom_fields.model_3d_url": 1}},
     ]
     referenced: set = set()
     async for d in db.listings.aggregate(pipeline):
-        for url in (d.get("images") or []) + (d.get("videos") or []):
+        for url in (d.get("images") or []) + (d.get("videos") or []) + ([((d.get("custom_fields") or {}).get("model_3d_url"))] if ((d.get("custom_fields") or {}).get("model_3d_url")) else []):
             info = _cloudinary_extract_public_id(url)
             if info:
                 referenced.add(info[0])
