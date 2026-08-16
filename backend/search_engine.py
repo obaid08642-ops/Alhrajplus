@@ -45,6 +45,20 @@ def public_listing_filter(extra: Optional[dict] = None) -> dict:
     return {"$and": clauses}
 
 
+def public_listing_filter_for_country(country_code: Optional[str] = None, extra: Optional[dict] = None) -> dict:
+    """Return the public policy plus an exact country boundary.
+
+    Public discovery is never global: missing/invalid client selection falls
+    back to Saudi Arabia, matching the product default. A caller may still
+    explicitly request another ISO-2 country, in which case Mongo returns only
+    records whose stored country_code is exactly that value.
+    """
+    cc = str(country_code or "SA").strip().upper()
+    merged = dict(extra or {})
+    merged["country_code"] = cc
+    return public_listing_filter(merged)
+
+
 # ---------- Arabic normalization ----------
 
 _TASHKEEL_RE = re.compile(r"[\u064B-\u0652\u0670\u0640]")  # diacritics + tatweel

@@ -63,8 +63,9 @@ export default function BottomNav() {
                 aria-label={label}
                 className="relative flex flex-col items-center justify-center gap-0.5 px-3 sm:px-4 py-1.5 rounded-2xl transition-all duration-300"
                 style={{
-                    backgroundColor: active ? "var(--primary-fg)" : "transparent",
-                    opacity: active ? 0.2 : 1,
+                    backgroundColor: active ? "var(--primary-hover)" : "transparent",
+                    boxShadow: active ? "0 4px 14px rgba(0,0,0,0.18)" : "none",
+                    opacity: 1,
                 }}
             >
                 <div className="relative">

@@ -121,7 +121,7 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
                 key={tab.key}
                 onPress={() => goToTab(tab.key)}
                 activeOpacity={0.7}
-                style={styles.tabBtn}
+                style={[styles.tabBtn, focused && { backgroundColor: palette.primaryHover || palette.primary, borderColor: palette.primaryFg, borderWidth: 1, shadowColor: palette.primary, shadowOpacity: 0.24, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 }]}
                 testID={`standalone-tab-${tab.key}`}
               >
                 <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   wrap: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center" },
   barOuter: { position: "relative" },
   tabsRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6 },
-  tabBtn: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
+  tabBtn: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, minHeight: BAR_HEIGHT - 8, borderRadius: 14, paddingHorizontal: 4 },
   spacer: { width: HOLE_RADIUS * 2 + 8 },
   tabLabel: { fontSize: 9.5, textAlign: "center", includeFontPadding: false },
   fabAnchor: { position: "absolute", left: 0, right: 0, alignItems: "center", zIndex: 10, height: FAB_H, justifyContent: "flex-end" },

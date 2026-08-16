@@ -41,6 +41,7 @@ from search_engine import (
     search_listings as _search_listings_engine,
     suggest as _search_suggest_engine,
     public_listing_filter,
+    public_listing_filter_for_country,
 )
 from seo_submitter import (
     submit_in_background as _seo_submit_bg,
@@ -2511,9 +2512,7 @@ async def price_badge(listing_id: str):
 async def todays_deals(country_code: Optional[str] = None, limit: int = 20):
     """Returns today's best deals: listings priced significantly below their category median."""
     # Get all active listings (small subset for performance)
-    q: dict = {"status": "active", "moderation": "approved", "price": {"$gt": 0}}
-    if country_code:
-        q["country_code"] = country_code
+    q: dict = public_listing_filter_for_country(country_code, {"price": {"$gt": 0}})
     cursor = db.listings.find(q, {"_id": 0}).limit(500)
     all_items = await cursor.to_list(length=500)
 
@@ -3243,13 +3242,7 @@ async def search_listings(q: str = "", limit: int = 20, country_code: Optional[s
     limit = max(1, min(limit, 20))
     if not q or not q.strip():
         return {"items": [], "total": 0, "q": ""}
-    query: dict = {
-        "status": "active",
-        "moderation": "approved",
-        "$text": {"$search": q.strip()},
-    }
-    if country_code:
-        query["country_code"] = country_code
+    query: dict = public_listing_filter_for_country(country_code, {"$text": {"$search": q.strip()}})
     SLIM = {
         "_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
         "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
@@ -3300,9 +3293,7 @@ async def recommended_listings(category: Optional[str] = None, country_code: Opt
         "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
         "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
     }
-    base_query: dict = public_listing_filter()
-    if country_code:
-        base_query["country_code"] = country_code
+    base_query: dict = public_listing_filter_for_country(country_code)
     cat_split = max(1, int(limit * 0.6))
     trend_split = limit - cat_split
     cat_items = []
@@ -3546,9 +3537,7 @@ async def trending_listings(limit: int = 20, country_code: Optional[str] = None,
     """Most-viewed active listings in the past `days`. Hard cap 20."""
     limit = max(1, min(limit, 20))
     cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).isoformat()
-    query: dict = public_listing_filter({"created_at": {"$gte": cutoff}})
-    if country_code:
-        query["country_code"] = country_code
+    query: dict = public_listing_filter_for_country(country_code, {"created_at": {"$gte": cutoff}})
     SLIM = {
         "_id": 0, "id": 1, "slug": 1, "title": 1, "price": 1, "currency": 1,
         "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
@@ -3566,10 +3555,10 @@ async def trending_listings(limit: int = 20, country_code: Optional[str] = None,
     )
 
 @api.get("/listings/by-slug/{slug}")
-async def get_listing_by_slug(slug: str, request: Request):
+async def get_listing_by_slug(slug: str, request: Request, country_code: Optional[str] = None):
     """Resolve a listing by its SEO slug. Used by /listing/:slug URLs."""
     item = await db.listings.find_one(
-        public_listing_filter({"slug": slug}),
+        public_listing_filter_for_country(country_code, {"slug": slug}),
         {"_id": 0},
     )
     if not item:
@@ -3588,10 +3577,10 @@ async def get_listing_by_slug(slug: str, request: Request):
 
 
 @api.get("/listings/{listing_id}")
-async def get_listing(listing_id: str, request: Request):
+async def get_listing(listing_id: str, request: Request, country_code: Optional[str] = None):
     # Accept either UUID or slug for legacy/SEO URL compatibility
     item = await db.listings.find_one(
-        public_listing_filter({"$or": [{"id": listing_id}, {"slug": listing_id}]}),
+        public_listing_filter_for_country(country_code, {"$or": [{"id": listing_id}, {"slug": listing_id}]}),
         {"_id": 0},
     )
     if not item:
@@ -3668,9 +3657,9 @@ async def delete_listing_comment(comment_id: str, user: dict = Depends(get_curre
     return {"ok": True}
 
 @api.get("/listings/{listing_id}/similar")
-async def similar_listings(listing_id: str, limit: int = 12):
+async def similar_listings(listing_id: str, limit: int = 12, country_code: Optional[str] = None):
     base = await db.listings.find_one(
-        public_listing_filter({"id": listing_id}),
+        public_listing_filter_for_country(country_code, {"id": listing_id}),
         {"_id": 0},
     )
     if not base:
@@ -3694,12 +3683,12 @@ async def similar_listings(listing_id: str, limit: int = 12):
     if not base_tokens:
         # Fallback: original behavior (category + city)
         same_city = await db.listings.find(
-            public_listing_filter({"category": base_category, "city": base_city, "id": {"$ne": listing_id}}),
+            public_listing_filter_for_country(country_code, {"category": base_category, "city": base_city, "id": {"$ne": listing_id}}),
             {"_id": 0}
         ).limit(limit).to_list(length=limit)
         if len(same_city) < limit:
             more = await db.listings.find(
-                public_listing_filter({"category": base_category, "city": {"$ne": base_city}, "id": {"$ne": listing_id}}),
+                public_listing_filter_for_country(country_code, {"category": base_category, "city": {"$ne": base_city}, "id": {"$ne": listing_id}}),
                 {"_id": 0}
             ).limit(limit - len(same_city)).to_list(length=limit)
             same_city.extend(more)
@@ -3709,7 +3698,7 @@ async def similar_listings(listing_id: str, limit: int = 12):
     # OR whose description contains any base token, plus same category as a soft filter.
     title_re = "|".join(re.escape(t) for t in base_tokens)
     candidates = await db.listings.find(
-        public_listing_filter({
+        public_listing_filter_for_country(country_code, {
             "id": {"$ne": listing_id},
             "$or": [
                 {"title": {"$regex": title_re, "$options": "i"}},
@@ -3993,9 +3982,7 @@ class BidIn(BaseModel):
 
 @api.get("/auctions/active")
 async def active_auctions(country_code: Optional[str] = None, limit: int = 30):
-    q: dict = {"category": "auctions", "status": "active", "moderation": "approved"}
-    if country_code:
-        q["country_code"] = country_code
+    q: dict = public_listing_filter_for_country(country_code, {"category": "auctions"})
     items = await db.listings.find(q, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
     # Attach top bid for each
     for it in items:
@@ -4201,9 +4188,7 @@ async def listings_map(
     category: Optional[str] = None,
     limit: int = 200,
 ):
-    q: dict = public_listing_filter({"lat": {"$ne": None}, "lng": {"$ne": None}})
-    if country_code:
-        q["country_code"] = country_code
+    q: dict = public_listing_filter_for_country(country_code, {"lat": {"$ne": None}, "lng": {"$ne": None}})
     if category:
         q["category"] = category
     items = await db.listings.find(q, {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "category": 1, "city": 1, "lat": 1, "lng": 1, "images": 1}).limit(limit).to_list(length=limit)
