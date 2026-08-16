@@ -154,3 +154,7 @@
 ### حماية Mobile Post
 
 تم تطبيع categories metadata وحماية edit listing من response غير object، مع تحويل images/videos/custom_fields إلى أنواع آمنة قبل دمجها في form. نجح Expo export بعد التعديل. يبقى اختبار upload/permission/Cloudinary/preview/publish على Android وiOS وHuawei بحاجة staging وأجهزة فعلية.
+
+### حماية Mobile Offers/Auctions
+
+تم تطبيع `/offers/mine` و`/auctions/active` وbid history في Mobile إلى arrays قبل العرض، مع الحفاظ على accept/reject/counter وpolling/live refresh. نجح Expo export بعد التعديل. تبقى اختبارات lifecycle الحقيقية والإشعارات والـbackground على staging والأجهزة الفعلية.
