@@ -6443,6 +6443,7 @@ class SearchEventIn(BaseModel):
     query: str = Field(default="", max_length=200)
     category: Optional[str] = ""
     city: Optional[str] = ""
+    country_code: Optional[str] = None
     results_count: Optional[int] = 0
 
 
@@ -6462,6 +6463,7 @@ async def save_search_event(body: SearchEventIn, user: dict = Depends(get_curren
             "query": body.query.strip()[:200],
             "category": body.category or "",
             "city": body.city or "",
+            "country_code": (body.country_code or user.get("country_code") or "SA").upper().strip(),
             "results_count": int(body.results_count or 0),
             "updated_at": now,
             "reminded": False,
@@ -6600,20 +6602,24 @@ async def cancel_scheduled_broadcast(sid: str):
 
 
 async def _send_user_notification(user_id: str, title: str, body: str, ntype: str, url: str, extra_data: Optional[dict] = None, pref_key: Optional[str] = None):
-    """Internal helper: persist to db.notifications + push to devices.
-    Used by the smart-notifications worker.
-    """
+    """Persist and push one notification; optional dedupe_key makes worker retries safe."""
     now = datetime.now(timezone.utc).isoformat()
-    await db.notifications.insert_one({
+    data = dict(extra_data or {})
+    dedupe_key = data.get("dedupe_key")
+    doc = {
         "id": str(uuid.uuid4()), "user_id": user_id,
         "title": title, "body": body, "type": ntype,
-        "url": url, "data": extra_data or {},
+        "url": url, "data": data, "dedupe_key": dedupe_key,
         "read": False, "ts": now, "created_at": now,
-    })
+    }
+    try:
+        await db.notifications.insert_one(doc)
+    except DuplicateKeyError:
+        return False
     try:
         await _send_push(
             db, [user_id], title=title, body=body, url=url,
-            data={"type": ntype, **(extra_data or {})},
+            data={"type": ntype, **data},
             pref_key=pref_key,
         )
     except Exception as e:
@@ -6653,7 +6659,7 @@ async def _process_abandoned_drafts(now_iso: str, cutoff_iso: str) -> int:
             body=body_text,
             ntype="abandoned_draft",
             url="/post",
-            extra_data={"deep_link": "post", "draft_title": title_hint},
+            extra_data={"deep_link": "post", "draft_title": title_hint, "dedupe_key": f"abandoned_draft:{uid}:{d.get('_id')}"},
             pref_key="broadcasts",
         )
         await db.draft_listings.update_one(
@@ -6699,7 +6705,7 @@ async def _process_abandoned_searches(now_iso: str, cutoff_iso: str) -> int:
         await _send_user_notification(
             user_id=uid, title=title, body=body_text,
             ntype="abandoned_search", url=deep_url,
-            extra_data={"deep_link": "search", "query": q, "category": cat},
+            extra_data={"deep_link": "search", "query": q, "category": cat, "country_code": s.get("country_code") or "SA", "dedupe_key": f"abandoned_search:{uid}:{s.get('_id')}"},
             pref_key="broadcasts",
         )
         await db.search_events.update_one(
@@ -6718,6 +6724,13 @@ async def _process_due_schedules(now_iso: str) -> int:
         "send_at": {"$lte": now_iso},
     })
     async for sch in cursor:
+        # Claim before fan-out so two workers cannot send the same broadcast.
+        claim = await db.scheduled_broadcasts.update_one(
+            {"_id": sch["_id"], "status": "pending"},
+            {"$set": {"status": "processing", "processing_at": now_iso}},
+        )
+        if not claim.modified_count:
+            continue
         # Build the audience using same rules as the live broadcast endpoint.
         target = sch.get("target") or "all"
         q: dict = {"banned": {"$ne": True}}
@@ -6792,7 +6805,7 @@ async def _process_viewed_no_action(now_iso: str, cutoff_iso: str) -> int:
                 await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
                 continue
             # Skip if user already messaged about this listing or favorited it.
-            already = await db.messages.find_one({"from_user": uid, "listing_id": lid})
+            already = await db.messages.find_one({"sender_id": uid, "listing_id": lid})
             if not already:
                 already = await db.favorites.find_one({"user_id": uid, "listing_id": lid})
             if already:
@@ -6808,7 +6821,7 @@ async def _process_viewed_no_action(now_iso: str, cutoff_iso: str) -> int:
                 body=f"إعلان «{(listing.get('title') or '')[:50]}» ينتظرك — اضغط لإعادة فتحه.",
                 ntype="viewed_no_action",
                 url=f"/listing/{lid}",
-                extra_data={"deep_link": f"listing/{lid}", "listing_id": lid},
+                extra_data={"deep_link": f"listing/{lid}", "listing_id": lid, "dedupe_key": f"viewed_no_action:{uid}:{lid}"},
                 pref_key="broadcasts",
             )
             await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
@@ -6835,7 +6848,7 @@ async def _process_inactive_users(now_iso: str, cutoff_iso: str) -> int:
                 body="إعلانات جديدة وصفقات في بلدك بانتظارك — افتح الحراج بلس الآن.",
                 ntype="reengage",
                 url="/",
-                extra_data={"deep_link": ""},
+                extra_data={"deep_link": "", "dedupe_key": f"reengage:{uid}:{now_iso[:10]}"},
                 pref_key="broadcasts",
             )
             await db.users.update_one({"id": uid}, {"$set": {"reengaged_at": now_iso}})
@@ -8451,6 +8464,7 @@ async def startup():
     await db.location_shares.create_index("expires_at", expireAfterSeconds=0)
     await db.translation_cache.create_index("key", unique=True)
     await db.notifications.create_index([("user_id", 1), ("ts", -1)])
+    await _safe_index(db.notifications, [ ("user_id", 1), ("dedupe_key", 1) ], unique=True, partialFilterExpression={"dedupe_key": {"$type": "string"}})
     await db.x_oauth_states.create_index("expires_at", expireAfterSeconds=0)
     await db.snap_oauth_states.create_index("expires_at", expireAfterSeconds=0)
     # Push tokens — older deployments used a plain unique index on expo_token
