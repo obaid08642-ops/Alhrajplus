@@ -26,7 +26,17 @@ Notifications.setNotificationHandler({
  * handlers inside the app pick it up.
  */
 let _navigationRef = null;
-export function setNotificationNavigationRef(ref) { _navigationRef = ref; }
+let _pendingNotificationUrl = null;
+export function setNotificationNavigationRef(ref) {
+    _navigationRef = ref;
+    // Cold-start responses can arrive before NavigationContainer.onReady.
+    // Replay the last pending route once the navigator is able to navigate.
+    if (_navigationRef?.navigate && _pendingNotificationUrl) {
+        const pending = _pendingNotificationUrl;
+        _pendingNotificationUrl = null;
+        routeFromUrl(pending);
+    }
+}
 
 // Lightweight pub/sub so UI badges can refresh on every incoming push without
 // each consumer setting up its own Notifications.addNotificationReceivedListener.
@@ -43,6 +53,12 @@ function _emitReceived(notif) {
 
 function routeFromUrl(url) {
     if (!url) return;
+    // A terminated-app notification may be processed before onReady. Keep the
+    // route instead of falling back to Linking.openURL and losing navigation.
+    if (!_navigationRef?.navigate) {
+        _pendingNotificationUrl = url;
+        return;
+    }
     // Listing detail
     let m = url.match(/^\/listing\/([^/?#]+)/);
     if (m && _navigationRef?.navigate) { _navigationRef.navigate("ListingDetail", { id: m[1] }); return; }
