@@ -158,3 +158,7 @@
 ### حماية Mobile Offers/Auctions
 
 تم تطبيع `/offers/mine` و`/auctions/active` وbid history في Mobile إلى arrays قبل العرض، مع الحفاظ على accept/reject/counter وpolling/live refresh. نجح Expo export بعد التعديل. تبقى اختبارات lifecycle الحقيقية والإشعارات والـbackground على staging والأجهزة الفعلية.
+
+### حماية Web Notifications
+
+تم تصحيح fallback قائمة الإشعارات في `NotificationsPage` و`NotificationBell` بحيث لا يتم قبول object كقائمة، مع الحفاظ على unread count وmark-read وWebSocket subscription. نجح Web production build بلا تحذيرات بعد التعديل. يلزم staging authenticated لإثبات push خارج الصفحة، background/cold-start، والـdeep-link من payload حقيقي.
