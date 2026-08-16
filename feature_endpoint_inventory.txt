@@ -1,0 +1,3 @@
+تم تشغيل جرد backend routes وfrontend/mobile API calls في `/tmp/feature_endpoint_inventory.txt`. الخرج الكامل محفوظ هناك، ويتضمن على الأقل مسارات: favorites، comments/engagement بحسب الملفات، following، saved search، notifications، deals، listings CRUD/draft/delete، cloudinary signature، geo، auctions، offers، seller ratings/follow، chat، search، referrals، boosts، map، وReels.
+
+يجب استخدام هذا الملف في المرحلة التالية لمقارنة كل feature في master_requirements_traceability.md مع endpoint backend ومكوّن Web ومكوّن Mobile واختبار فعلي. لا تعتبر كثرة endpoints دليلًا على اكتمال feature؛ يلزم التحقق من response shape والصلاحيات وحالات الفشل والـempty.
