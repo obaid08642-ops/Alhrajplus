@@ -37,7 +37,10 @@ const Ctx = createContext(null);
 export function CountryProvider({ children }) {
     const { user } = useAuth();
     const [country, setCountryState] = useState(() => {
-        try { return localStorage.getItem(STORAGE_KEY) || ""; } catch { return ""; }
+        try {
+            const stored = (localStorage.getItem(STORAGE_KEY) || "").toUpperCase();
+            return COUNTRIES.some((item) => item.code === stored) ? stored : "";
+        } catch { return ""; }
     });
     const [showPicker, setShowPicker] = useState(false);
 
@@ -87,12 +90,17 @@ export function CountryProvider({ children }) {
                 if (COUNTRIES.some((item) => item.code === region)) detected = region;
             }
             if (cancelled) return;
-            if (detected) {
+            // Only persist countries that the user can actually select. An IP
+            // provider may return a valid ISO code (for example UA) that is not
+            // configured in this marketplace; that must fall back to SA instead
+            // of producing an empty feed for every anonymous visitor.
+            if (detected && COUNTRIES.some((item) => item.code === detected)) {
                 try { localStorage.setItem(STORAGE_KEY, detected); } catch (_) {}
                 try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
                 setCountryState(detected);
                 return;
             }
+            detected = "";
             if (!cancelled) {
                 // Product rule: Saudi Arabia is the deterministic default when
                 // location cannot be resolved. The user can still change it
@@ -107,7 +115,8 @@ export function CountryProvider({ children }) {
     }, [country]);
 
     const setCountry = useCallback(async (code, opts = {}) => {
-        const c = (code || "").toUpperCase();
+        const requested = (code || "").toUpperCase();
+        const c = COUNTRIES.some((item) => item.code === requested) ? requested : "SA";
         try { localStorage.setItem(STORAGE_KEY, c); } catch (_) {}
         setCountryState(c);
         try { localStorage.setItem(SEEN_PICKER_KEY, "1"); } catch (_) {}
