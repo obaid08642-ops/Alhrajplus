@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput } from "react-native";
-import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel } from "lucide-react-native";
+import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2 } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "../api";
@@ -49,6 +49,11 @@ export default function ListingDetailScreen({
   const [watching, setWatching] = useState(false);
   const [priceAlertOpen, setPriceAlertOpen] = useState(false);
   const [priceAlertVal, setPriceAlertVal] = useState("");
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentBusy, setCommentBusy] = useState(false);
   const carouselRef = useRef(null);
   const SCREEN_W = Dimensions.get("window").width;
   useEffect(() => {
@@ -61,6 +66,9 @@ export default function ListingDetailScreen({
         trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
         setSimilar(s.data);
         setBadge(b.data);
+        setLikeCount(Number(l.data.like_count || 0));
+        api.get(`/listings/${id}/comments`).then(({ data }) => setComments(data?.items || [])).catch(() => {});
+        if (user) api.get(`/listings/${id}/like/check`).then(({ data }) => setLiked(!!data?.liked)).catch(() => {});
         // Fire-and-forget: log to "recently viewed" so /listings/recent works.
         api.post(`/listings/${id}/view`).catch(() => {});
       } catch {
@@ -118,6 +126,32 @@ export default function ListingDetailScreen({
         url
       });
     } catch (_) {}
+  };
+  const toggleLike = async () => {
+    if (!user) { navigation.navigate("Login"); return; }
+    const previous = liked;
+    setLiked(!previous);
+    setLikeCount(count => Math.max(0, count + (previous ? -1 : 1)));
+    try {
+      const { data } = await api.post(`/listings/${id}/like`);
+      setLiked(!!data?.liked);
+      setLikeCount(Number(data?.like_count || 0));
+    } catch (_) {
+      setLiked(previous);
+      setLikeCount(count => Math.max(0, count + (previous ? 1 : -1)));
+    }
+  };
+  const submitComment = async () => {
+    if (!user) { navigation.navigate("Login"); return; }
+    const text = commentText.trim();
+    if (!text) return;
+    setCommentBusy(true);
+    try {
+      const { data } = await api.post(`/listings/${id}/comments`, { text });
+      setComments(items => [data, ...items]);
+      setCommentText("");
+    } catch (e) { Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر نشر التعليق")); }
+    finally { setCommentBusy(false); }
   };
   const submitReport = async reason => {
     try {
@@ -331,6 +365,14 @@ export default function ListingDetailScreen({
                 <View style={styles.priceRow}>
                     {listing.price ? <Text style={styles.price}>{Number(listing.price).toLocaleString()} <Text style={styles.currency}>{listing.currency}</Text></Text> : <Text style={styles.priceMuted}>{t("على السوم")}</Text>}
                 </View>
+                <View style={styles.engagementRow}>
+                    <TouchableOpacity onPress={toggleLike} style={[styles.engagementBtn, liked && styles.engagementBtnActive]} testID="mobile-like-btn">
+                        <Heart size={17} color={liked ? "#E11D48" : theme.colors.textMuted} fill={liked ? "#E11D48" : "transparent"} />
+                        <Text style={[styles.engagementText, liked && { color: "#E11D48" }]}>{likeCount}</Text>
+                    </TouchableOpacity>
+                    <View style={styles.engagementBtn}><Text style={styles.engagementText}>👁 {Number(listing.views || 0)}</Text></View>
+                    <View style={styles.engagementBtn}><Text style={styles.engagementText}>💬 {comments.length}</Text></View>
+                </View>
                 {badge?.badge && <View style={[styles.badge, {
         borderColor: theme.colors.primary
       }]}>
@@ -345,6 +387,13 @@ export default function ListingDetailScreen({
 
                 <Text style={styles.sectionTitle}>{t("الوصف")}</Text>
                 <Text style={styles.desc}>{listing.description}</Text>
+
+                <Text style={styles.sectionTitle}>{t("التعليقات")}</Text>
+                {user ? <View style={styles.commentComposer}>
+                    <TextInput value={commentText} onChangeText={setCommentText} maxLength={1000} placeholder={t("اكتب تعليقًا عامًا...")} placeholderTextColor={theme.colors.textMuted} style={styles.commentInput} multiline />
+                    <TouchableOpacity onPress={submitComment} disabled={commentBusy || !commentText.trim()} style={[styles.commentSubmit, (commentBusy || !commentText.trim()) && { opacity: 0.5 }]} testID="mobile-comment-submit"><Text style={styles.commentSubmitText}>{commentBusy ? t("جارٍ النشر...") : t("نشر")}</Text></TouchableOpacity>
+                </View> : <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.commentLogin}><Text style={styles.commentLoginText}>{t("سجل الدخول لكتابة تعليق")}</Text></TouchableOpacity>}
+                {comments.length === 0 ? <Text style={styles.emptyComments}>{t("لا توجد تعليقات بعد")}</Text> : comments.map(comment => <View key={comment.id} style={styles.commentCard}><View style={styles.commentMeta}><Text style={styles.commentAuthor}>{comment.author?.name || t("مستخدم")}</Text>{comment.author?.verified && <CheckCircle2 size={13} color={theme.colors.primary} />}<Text style={styles.commentDate}>{new Date(comment.created_at).toLocaleDateString()}</Text></View><Text style={styles.commentBody}>{comment.text}</Text></View>)}
 
                 <Text style={styles.sectionTitle}>{t("معلومات البائع")}</Text>
                 <TouchableOpacity onPress={() => listing.seller?.id && navigation.navigate("SellerProfile", {
@@ -706,6 +755,36 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     textAlign: "right"
   },
+  engagementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 4
+  },
+  engagementBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: 14,
+    paddingHorizontal: 11,
+    paddingVertical: 8
+  },
+  engagementBtnActive: { backgroundColor: "#FEE2E2" },
+  engagementText: { color: theme.colors.textMuted, fontWeight: "800", fontSize: 12 },
+  commentComposer: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginBottom: 12 },
+  commentInput: { flex: 1, minHeight: 44, maxHeight: 110, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: theme.colors.surfaceElevated, color: theme.colors.text, textAlign: "right" },
+  commentSubmit: { backgroundColor: theme.colors.primary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  commentSubmitText: { color: theme.colors.primaryFg, fontWeight: "900", fontSize: 12 },
+  commentLogin: { backgroundColor: theme.colors.surfaceElevated, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 12 },
+  commentLoginText: { color: theme.colors.primary, fontWeight: "800", fontSize: 13 },
+  emptyComments: { color: theme.colors.textMuted, fontSize: 13, marginBottom: 14, textAlign: "right" },
+  commentCard: { backgroundColor: theme.colors.surfaceElevated, borderRadius: 14, padding: 12, marginBottom: 8 },
+  commentMeta: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 5 },
+  commentAuthor: { color: theme.colors.text, fontWeight: "900", fontSize: 12 },
+  commentDate: { color: theme.colors.textMuted, fontSize: 10, marginStart: "auto" },
+  commentBody: { color: theme.colors.text, fontSize: 13, lineHeight: 20, textAlign: "right" },
   priceRow: {
     flexDirection: "row",
     alignItems: "center",
