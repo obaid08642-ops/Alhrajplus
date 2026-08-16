@@ -681,7 +681,7 @@ function UsersPanel() {
             if (filters.banned !== "") params.banned = filters.banned;
             if (filters.verified !== "") params.verified = filters.verified;
             const { data } = await api.get("/admin/users", { params });
-            setUsers(data || []);
+            setUsers(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
         } catch (_) { setUsers([]); }
         finally { setLoading(false); }
     }, [filters]);
@@ -855,7 +855,7 @@ function Stat({ label, value }) {
 function ReportsPanel() {
     const [reports, setReports] = useState([]);
     const [expanded, setExpanded] = useState(null);
-    const reload = () => api.get("/admin/reports").then(({ data }) => setReports(data));
+    const reload = () => api.get("/admin/reports").then(({ data }) => setReports(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setReports([]));
     useEffect(() => { reload(); }, []);
     return (
         <div className="space-y-2">
@@ -1126,7 +1126,7 @@ function AdsPanel() {
     const [showForm, setShowForm] = useState(false);
     const initForm = { title: "", image_url: "", link_url: "", placement: "home_top", active: true, country_code: "", ad_type: "image", iframe_url: "", iframe_width: 300, iframe_height: 250 };
     const [form, setForm] = useState(initForm);
-    const reload = () => api.get("/admin/ads").then(({ data }) => setAds(data));
+    const reload = () => api.get("/admin/ads").then(({ data }) => setAds(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setAds([]));
     useEffect(() => { reload(); }, []);
     const create = async (e) => {
         e.preventDefault();
