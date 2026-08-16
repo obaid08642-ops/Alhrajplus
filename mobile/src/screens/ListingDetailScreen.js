@@ -160,7 +160,7 @@ export default function ListingDetailScreen({
         target_id: id,
         reason
       });
-      Alert.alert("✅", t("تم استلام بلاغك"));
+      Alert.alert(t("تم"), t("تم استلام بلاغك"));
     } catch (_) {
       Alert.alert(t("خطأ"), t("تعذر إرسال البلاغ"));
     }
@@ -184,7 +184,7 @@ export default function ListingDetailScreen({
       onPress: async () => {
         try {
           await api.post(`/listings/${id}/mark-sold`);
-          Alert.alert("✅", t("شكراً لك! نتمنى لك بيعاً موفقاً دائماً"));
+          Alert.alert(t("تم"), t("شكراً لك! نتمنى لك بيعاً موفقاً دائماً"));
           navigation.goBack();
         } catch (e) {
           Alert.alert(t("خطأ"), t("تعذر التحديث"));
@@ -234,7 +234,7 @@ export default function ListingDetailScreen({
       setWatching(true);
       setPriceAlertOpen(false);
       setPriceAlertVal("");
-      Alert.alert("✅", t("تم تفعيل التنبيه"));
+      Alert.alert(t("تم"), t("تم تفعيل التنبيه"));
     } catch (e) {
       Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر التفعيل"));
     }
@@ -243,7 +243,7 @@ export default function ListingDetailScreen({
     try {
       await api.delete(`/watches/${id}`);
       setWatching(false);
-      Alert.alert("✅", t("تم إلغاء التنبيه"));
+      Alert.alert(t("تم"), t("تم إلغاء التنبيه"));
     } catch (_) {}
   };
   const openInMaps = () => {
