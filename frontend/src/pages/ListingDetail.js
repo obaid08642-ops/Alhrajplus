@@ -58,6 +58,11 @@ export default function ListingDetail() {
     const [offerMessage, setOfferMessage] = useState("");
     const [offerSaving, setOfferSaving] = useState(false);
     const [sellerTrust, setSellerTrust] = useState(null);
+    const [liked, setLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(0);
+    const [comments, setComments] = useState([]);
+    const [commentText, setCommentText] = useState("");
+    const [commentBusy, setCommentBusy] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -71,7 +76,10 @@ export default function ListingDetail() {
                 trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
                 setSimilar(s.data);
                 setCategories(c.data);
+                setLikeCount(Number(l.data.like_count || 0));
+                api.get(`/listings/${l.data.id}/comments`).then(({ data }) => setComments(data?.items || [])).catch(() => {});
                 api.get(`/sellers/${l.data.user_id}/trust`).then(({ data }) => setSellerTrust(data)).catch(() => {});
+                if (user) api.get(`/listings/${l.data.id}/like/check`).then(({ data }) => setLiked(!!data.liked)).catch(() => {});
                 if (user && l.data.user_id !== user.id) {
                     api.get(`/sellers/${l.data.user_id}/follow-status`).then(({ data }) => setFollowing(!!data.following)).catch(() => {});
                     api.get(`/watches`).then(({ data }) => setWatching((data || []).some((w) => w.listing_id === l.data.id))).catch(() => {});
@@ -114,6 +122,35 @@ export default function ListingDetail() {
     };
 
     const isOwner = user && user.id === listing.user_id;
+
+    const toggleLike = async () => {
+        if (!user) return nav("/login");
+        const previous = liked;
+        setLiked(!previous);
+        setLikeCount((count) => Math.max(0, count + (previous ? -1 : 1)));
+        try {
+            const { data } = await api.post(`/listings/${listing.id}/like`);
+            setLiked(!!data.liked);
+            setLikeCount(Number(data.like_count || 0));
+        } catch (_) {
+            setLiked(previous);
+            setLikeCount((count) => Math.max(0, count + (previous ? 1 : -1)));
+        }
+    };
+
+    const submitComment = async (e) => {
+        e.preventDefault();
+        if (!user) return nav("/login");
+        const text = commentText.trim();
+        if (!text) return;
+        setCommentBusy(true);
+        try {
+            const { data } = await api.post(`/listings/${listing.id}/comments`, { text });
+            setComments((items) => [data, ...items]);
+            setCommentText("");
+        } catch (e) { alert(e.response?.data?.detail || tr("تعذر نشر التعليق")); }
+        finally { setCommentBusy(false); }
+    };
 
     const submitOffer = async (e) => {
         e.preventDefault();
@@ -261,6 +298,8 @@ export default function ListingDetail() {
                         <div className="mb-2"><ListingTypeBadge listing={listing} size="lg" /></div>
                         <div className="flex items-start justify-between gap-3 mb-3">
                             <h1 className="font-arabic font-black text-xl sm:text-3xl text-[var(--text)] flex-1">{listing.title}</h1>
+                            <div className="flex items-center gap-2 shrink-0">
+                            <button data-testid="like-btn" onClick={toggleLike} className={`px-3 h-10 rounded-full flex items-center justify-center gap-1.5 font-arabic-body text-sm font-bold transition-colors ${liked ? "bg-red-500/10 text-red-600" : "bg-[var(--surface-elevated)] text-[var(--text-muted)] hover:text-red-600"}`} title={tr("إعجاب بالإعلان")}><Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} /> <span>{likeCount}</span></button>
                             <button data-testid="share-btn" onClick={async () => {
                                 const url = window.location.href;
                                 const shareData = { title: listing.title, text: `${listing.title} - الحراج بلس`, url };
@@ -273,6 +312,7 @@ export default function ListingDetail() {
                                     }
                                 } catch (_) {}
                             }} className="px-3 h-10 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center gap-2 text-[var(--text-muted)] hover:text-[var(--primary)] font-arabic-body text-sm font-bold whitespace-nowrap" title={tr("مشاركة الإعلان")}><Share2 className="w-4 h-4" /><span>{tr("مشاركة الإعلان")}</span></button>
+                            </div>
                         </div>
                         <div className="flex items-baseline gap-2 mb-4 flex-wrap">
                             {listing.price ? (
@@ -296,6 +336,18 @@ export default function ListingDetail() {
                     <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
                         <h2 className="font-arabic font-bold text-lg text-[var(--text)] mb-3">{tr("الوصف")}</h2>
                         <p className="text-sm sm:text-base text-[var(--text)] font-arabic-body whitespace-pre-wrap leading-relaxed">{listing.description}</p>
+                    </div>
+
+                    {/* Public comments */}
+                    <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
+                        <div className="flex items-center justify-between mb-4"><h2 className="font-arabic font-bold text-lg text-[var(--text)]">{tr("التعليقات")}</h2><span className="text-xs text-[var(--text-muted)] font-latin">{comments.length}</span></div>
+                        {user ? (
+                            <form onSubmit={submitComment} className="flex gap-2 mb-4">
+                                <input data-testid="listing-comment-input" value={commentText} onChange={(e) => setCommentText(e.target.value)} maxLength={1000} placeholder={tr("اكتب تعليقًا عامًا...")} className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+                                <button data-testid="listing-comment-submit" disabled={commentBusy || !commentText.trim()} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl px-4 py-2 font-arabic font-bold text-xs disabled:opacity-50">{commentBusy ? tr("جارٍ النشر...") : tr("نشر")}</button>
+                            </form>
+                        ) : <button onClick={() => nav("/login")} className="w-full mb-4 rounded-xl py-2.5 bg-[var(--surface-elevated)] text-[var(--primary)] font-arabic font-bold text-sm">{tr("سجل الدخول لكتابة تعليق")}</button>}
+                        {comments.length === 0 ? <p className="text-sm text-[var(--text-muted)] font-arabic-body">{tr("لا توجد تعليقات بعد")}</p> : <div className="space-y-3">{comments.map((comment) => <div key={comment.id} className="rounded-2xl bg-[var(--surface-elevated)] p-3"><div className="flex items-center gap-2 mb-1"><span className="font-arabic font-bold text-xs text-[var(--text)]">{comment.author?.name || tr("مستخدم")}</span>{comment.author?.verified && <CheckCircle2 className="w-3 h-3 text-[var(--primary)]" />}<span className="text-[10px] text-[var(--text-muted)] font-latin ms-auto">{new Date(comment.created_at).toLocaleDateString(lang === "ar" ? "ar" : "en")}</span></div><p className="text-sm text-[var(--text)] font-arabic-body whitespace-pre-wrap">{comment.text}</p></div>)}</div>}
                     </div>
 
                     {/* Custom fields */}

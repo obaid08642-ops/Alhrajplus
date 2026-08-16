@@ -961,6 +961,10 @@ class OfferDecisionIn(BaseModel):
     counter_amount: Optional[float] = Field(default=None, gt=0, le=1_000_000_000)
     message: Optional[str] = Field(default="", max_length=1000)
 
+class ListingCommentIn(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+    parent_id: Optional[str] = None
+
 class AdIn(BaseModel):
     title: str
     image_url: Optional[str] = ""  # not required for iframe ads
@@ -3576,7 +3580,67 @@ async def get_listing(listing_id: str, request: Request):
         elif (item.get("contact_phone_source") == "custom") and item.get("contact_phone"):
             seller["phone_full"] = item["contact_phone"]
     item["seller"] = seller
+    item["like_count"] = await db.listing_likes.count_documents({"listing_id": item["id"]})
+    item["comment_count"] = await db.listing_comments.count_documents({"listing_id": item["id"], "deleted": {"$ne": True}})
     return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600", "Vary": "Accept-Encoding", "X-Cache-Ready": "true"})
+
+@api.get("/listings/{listing_id}/like/check")
+async def check_listing_like(listing_id: str, user: dict = Depends(get_current_user)):
+    return {"liked": bool(await db.listing_likes.find_one({"listing_id": listing_id, "user_id": user["id"]}, {"_id": 1}))}
+
+@api.post("/listings/{listing_id}/like")
+async def toggle_listing_like(listing_id: str, user: dict = Depends(get_current_user)):
+    if not await db.listings.find_one(public_listing_filter({"id": listing_id}), {"_id": 1}):
+        raise HTTPException(404, "الإعلان غير موجود")
+    existing = await db.listing_likes.find_one({"listing_id": listing_id, "user_id": user["id"]})
+    if existing:
+        await db.listing_likes.delete_one({"listing_id": listing_id, "user_id": user["id"]})
+        liked = False
+    else:
+        await db.listing_likes.insert_one({"id": uuid.uuid4().hex, "listing_id": listing_id, "user_id": user["id"], "created_at": datetime.now(timezone.utc).isoformat()})
+        liked = True
+    return {"liked": liked, "like_count": await db.listing_likes.count_documents({"listing_id": listing_id})}
+
+@api.get("/listings/{listing_id}/comments")
+async def list_listing_comments(listing_id: str, limit: int = 50, before: Optional[str] = None):
+    if not await db.listings.find_one(public_listing_filter({"id": listing_id}), {"_id": 1}):
+        raise HTTPException(404, "الإعلان غير موجود")
+    limit = max(1, min(limit, 100))
+    query = {"listing_id": listing_id, "deleted": {"$ne": True}}
+    if before:
+        query["created_at"] = {"$lt": before}
+    comments = await db.listing_comments.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+    author_ids = list({c.get("user_id") for c in comments if c.get("user_id")})
+    authors = {}
+    if author_ids:
+        async for author in db.users.find({"id": {"$in": author_ids}}, {"_id": 0, "id": 1, "name": 1, "avatar_url": 1, "verified": 1}):
+            authors[author["id"]] = author
+    for comment in comments:
+        comment["author"] = authors.get(comment.get("user_id"), {"name": "مستخدم"})
+    return {"items": comments, "total": await db.listing_comments.count_documents({"listing_id": listing_id, "deleted": {"$ne": True}})}
+
+@api.post("/listings/{listing_id}/comments")
+async def create_listing_comment(listing_id: str, body: ListingCommentIn, user: dict = Depends(get_current_user)):
+    if not await db.listings.find_one(public_listing_filter({"id": listing_id}), {"_id": 0, "user_id": 1, "title": 1}):
+        raise HTTPException(404, "الإعلان غير موجود")
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    if await db.listing_comments.count_documents({"user_id": user["id"], "created_at": {"$gte": cutoff}}) >= 10:
+        raise HTTPException(429, "محاولات التعليق كثيرة، حاول لاحقًا")
+    now = datetime.now(timezone.utc).isoformat()
+    comment = {"id": uuid.uuid4().hex, "listing_id": listing_id, "user_id": user["id"], "text": body.text.strip(), "parent_id": body.parent_id, "created_at": now, "updated_at": now, "deleted": False}
+    await db.listing_comments.insert_one(comment)
+    comment["author"] = {"id": user["id"], "name": user.get("name") or "مستخدم", "avatar_url": user.get("avatar_url"), "verified": bool(user.get("verified"))}
+    return comment
+
+@api.delete("/listing-comments/{comment_id}")
+async def delete_listing_comment(comment_id: str, user: dict = Depends(get_current_user)):
+    comment = await db.listing_comments.find_one({"id": comment_id}, {"_id": 0, "user_id": 1})
+    if not comment:
+        raise HTTPException(404, "التعليق غير موجود")
+    if comment.get("user_id") != user["id"] and user.get("role") != "admin":
+        raise HTTPException(403, "غير مصرح")
+    await db.listing_comments.update_one({"id": comment_id}, {"$set": {"deleted": True, "deleted_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True}
 
 @api.get("/listings/{listing_id}/similar")
 async def similar_listings(listing_id: str, limit: int = 12):
@@ -8114,6 +8178,10 @@ async def startup():
     await _safe_index(db.listing_offers, [("listing_id", 1), ("updated_at", -1)])
     await _safe_index(db.listing_offers, [("buyer_id", 1), ("updated_at", -1)])
     await _safe_index(db.listing_offers, [("seller_id", 1), ("status", 1), ("updated_at", -1)])
+    await _safe_index(db.listing_likes, [("listing_id", 1), ("user_id", 1)], unique=True)
+    await _safe_index(db.listing_likes, [("listing_id", 1), ("created_at", -1)])
+    await _safe_index(db.listing_comments, [("listing_id", 1), ("created_at", -1)])
+    await _safe_index(db.listing_comments, [("user_id", 1), ("created_at", -1)])
     await _safe_index(db.saved_searches, [("user_id", 1), ("created_at", -1)])
     # Category follow + boosted listings
     await _safe_index(db.category_follows, [("user_id", 1), ("category", 1)], unique=True)
