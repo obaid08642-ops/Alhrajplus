@@ -4337,6 +4337,25 @@ async def get_messages(convo_id: str, before: Optional[str] = None, limit: int =
     return msgs
 
 
+@api.delete("/chat/messages/{message_id}")
+async def delete_chat_message(message_id: str, user: dict = Depends(get_current_user)):
+    msg = await db.messages.find_one({"id": message_id}, {"_id": 0})
+    if not msg:
+        raise HTTPException(404, "الرسالة غير موجودة")
+    if msg.get("sender_id") != user["id"]:
+        raise HTTPException(403, "يمكن حذف رسائلك فقط")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.messages.update_one(
+        {"id": message_id, "sender_id": user["id"]},
+        {"$set": {"deleted": True, "deleted_at": now, "text": None, "image": None, "voice": None, "location": None, "reply_to": None, "reactions": {}}},
+    )
+    parts = (msg.get("convo_id") or "").split("_")
+    for pid in parts:
+        if pid:
+            await _chat_hub.send_to_user(pid, {"type": "message_deleted", "convo_id": msg.get("convo_id"), "message_id": message_id, "deleted_at": now})
+    return {"success": True, "message_id": message_id, "deleted_at": now}
+
+
 # ---------------------------------------------------------------------------
 # Message reactions — WhatsApp-style emoji reactions on chat messages.
 # Each (user_id, message_id) pair can hold at most one reaction. Sending the

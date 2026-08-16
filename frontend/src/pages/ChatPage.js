@@ -73,7 +73,7 @@ function linkify(text) {
 
 
 /** Single message bubble — memoised so list updates don't rerender history. */
-const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact }) => {
+const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact, onDelete }) => {
     const liveShare = m.location?.live_share_id;
     // Swipe-to-reply touch handler — simple horizontal drag detection
     const startX = useRef(null);
@@ -114,7 +114,14 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
             {/* Reactions picker strip — long-press / right-click to open */}
             {showReactStrip && (
                 <div className="absolute -top-10 start-1/2 -translate-x-1/2 z-10 flex gap-1 bg-white rounded-full shadow-lg px-2 py-1 border border-gray-200" data-testid={`react-strip-${m.id}`}>
-                    {["❤️", "👍", "😂", "😮", "😢", "🙏"].map(em => (
+                            {mine && !m.deleted && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onDelete?.(m); setShowReactStrip(false); }}
+                                    className="text-[11px] text-red-600 hover:underline px-1.5"
+                                    data-testid={`delete-${m.id}`}
+                                >{tr("حذف")}</button>
+                            )}
+                            {["❤️", "👍", "😂", "😮", "😢", "🙏"].map(em => (
                         <button
                             key={em}
                             onClick={(e) => { e.stopPropagation(); onReact?.(m, em); setShowReactStrip(false); }}
@@ -137,6 +144,9 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
                     }</div>
                 </div>
             )}
+            {m.deleted ? (
+                <span className="italic opacity-70" data-testid="deleted-message">{tr("تم حذف هذه الرسالة")}</span>
+            ) : (<>
             {m.image && <img src={m.image} alt="" onClick={() => onImageClick(m.image)} className="rounded-lg max-w-full max-h-64 object-cover cursor-zoom-in" />}
             {m.voice && <audio controls src={m.voice} className="max-w-full mt-1" />}
             {m.location && !liveShare && (
@@ -195,7 +205,8 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
                 )}
             </span>
             {/* Reactions chips — WhatsApp-style under the bubble */}
-            {m.reactions && Object.keys(m.reactions).length > 0 && (
+            </>)}
+            {m.reactions && !m.deleted && Object.keys(m.reactions).length > 0 && (
                 <div className="absolute -bottom-3 end-2 flex gap-0.5" data-testid={`bubble-reactions-${m.id}`}>
                     {Object.entries(m.reactions).map(([em, users]) => (
                         <span key={em} className="bg-white shadow-sm border border-gray-200 rounded-full px-1.5 py-0.5 text-[11px] flex items-center gap-0.5">
@@ -494,6 +505,12 @@ export default function ChatPage() {
             setMessages((prev) => prev.map((m) => m.id === ev.message_id ? { ...m, reactions: ev.reactions } : m));
         }));
 
+        offs.push(subscribe("message_deleted", (ev) => {
+            setMessages((prev) => prev.map((m) => m.id === ev.message_id ? {
+                ...m, deleted: true, deleted_at: ev.deleted_at, text: null, image: null, voice: null, location: null, reply_to: null, reactions: {}, pending: false,
+            } : m));
+        }));
+
         return () => offs.forEach((off) => off());
     }, [user, subscribe, activeConvoId, activeOther, scrollToBottom, wsSend, tr]);
 
@@ -723,6 +740,12 @@ export default function ChatPage() {
                                         key={row.id} m={row.m} mine={row.m.sender_id === user.id} firstOfRun={row.firstOfRun}
                                         onReply={setReplyTo} onImageClick={setImgPreview}
                                         onTranslate={translateMsg} translation={translations[row.m.id]} isTranslating={translating === row.m.id}
+                                        onDelete={async (msg) => {
+                                            try {
+                                                await api.delete(`/chat/messages/${msg.id}`);
+                                                setMessages(prev => prev.map(x => x.id === msg.id ? { ...x, deleted: true, deleted_at: new Date().toISOString(), text: null, image: null, voice: null, location: null, reply_to: null, reactions: {} } : x));
+                                            } catch (_) {}
+                                        }}
                                         onReact={async (msg, emoji) => {
                                             try {
                                                 const { data } = await api.post(`/chat/messages/${msg.id}/react`, { emoji });
