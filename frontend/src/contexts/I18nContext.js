@@ -239,7 +239,19 @@ const RTL_LANGS = ["ar", "ur"];
 // Module-level mutable language state. Updated by I18nProvider on every render.
 // Allows `tr()` to be imported and called from any component (even those that don't call useI18n()).
 // React re-renders consumers when language changes, so tr() will see the latest lang.
-let _currentLang = (typeof window !== "undefined" && localStorage.getItem("hp_lang")) || "ar";
+const DEVICE_LANG_MAP = { ar: "ar", en: "en", ur: "ur", hi: "hi", bn: "bn", fr: "fr" };
+function detectDeviceLanguage() {
+    if (typeof navigator === "undefined") return "ar";
+    const candidates = [...(navigator.languages || []), navigator.language || ""];
+    for (const raw of candidates) {
+        const base = String(raw).toLowerCase().split("-")[0].split("_")[0];
+        if (DEVICE_LANG_MAP[base]) return DEVICE_LANG_MAP[base];
+    }
+    return "ar";
+}
+
+const _storedLang = typeof window !== "undefined" ? localStorage.getItem("hp_lang") : null;
+let _currentLang = _storedLang || detectDeviceLanguage();
 
 export function tr(text) {
     if (text == null) return text;
@@ -257,11 +269,13 @@ export function tr(text) {
 }
 
 export function I18nProvider({ children }) {
-    const [lang, setLang] = useState(() => localStorage.getItem("hp_lang") || "ar");
+    const [lang, setLang] = useState(() => localStorage.getItem("hp_lang") || detectDeviceLanguage());
     _currentLang = lang; // sync module-level state on every render
     useEffect(() => {
         document.documentElement.lang = lang;
         document.documentElement.dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
+        // The first visit follows the device; after the user changes language,
+        // the explicit choice is persisted and wins on later visits.
         localStorage.setItem("hp_lang", lang);
         _currentLang = lang;
     }, [lang]);

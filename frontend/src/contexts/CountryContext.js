@@ -24,6 +24,13 @@ const COUNTRIES = [
 
 const STORAGE_KEY = "hp_country";
 const SEEN_PICKER_KEY = "hp_country_picker_seen";
+function deviceRegion() {
+    try {
+        const locale = navigator?.language || "";
+        const region = typeof Intl?.Locale === "function" ? new Intl.Locale(locale).region : locale.match(/[-_]([A-Za-z]{2})$/)?.[1];
+        return (region || "").toUpperCase();
+    } catch (_) { return ""; }
+}
 
 const Ctx = createContext(null);
 
@@ -73,7 +80,11 @@ export function CountryProvider({ children }) {
                 try {
                     const { data } = await api.get("/geo/detect-country");
                     detected = (data?.country || "").toUpperCase();
-                } catch (_) { /* fall through to manual picker */ }
+                } catch (_) { /* use device locale below */ }
+            }
+            if (!detected) {
+                const region = deviceRegion();
+                if (COUNTRIES.some((item) => item.code === region)) detected = region;
             }
             if (cancelled) return;
             if (detected) {

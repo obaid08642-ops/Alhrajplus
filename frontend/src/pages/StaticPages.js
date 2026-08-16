@@ -9,7 +9,7 @@ import NotificationsPanel from "@/components/NotificationsPanel";
 
 export function SettingsPage() {
     const { user, logout } = useAuth();
-    const { isDark, toggle } = useTheme();
+    const { themeMode, setThemeMode } = useTheme();
     const { t, lang, setLang, available, tr } = useI18n();
     const nav = useNavigate();
 
@@ -43,9 +43,11 @@ export function SettingsPage() {
                         <Moon className="w-5 h-5 text-[var(--primary)]" />
                         <span className="font-arabic font-bold text-sm text-[var(--text)]">{tr("الوضع الداكن")}</span>
                     </div>
-                    <button onClick={toggle} data-testid="settings-theme-toggle" className={`relative w-12 h-6 rounded-full transition-all ${isDark ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`}>
-                        <div className={`absolute top-0.5 ${isDark ? "left-0.5" : "left-6"} w-5 h-5 bg-white rounded-full transition-all shadow`}></div>
-                    </button>
+                    <select value={themeMode} onChange={(e) => setThemeMode(e.target.value)} data-testid="settings-theme-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
+                        <option value="system">{tr("حسب إعدادات الجهاز")}</option>
+                        <option value="light">{tr("فاتح")}</option>
+                        <option value="dark">{tr("داكن")}</option>
+                    </select>
                 </div>
                 <div className="flex items-center justify-between py-2 border-t border-[var(--border)]">
                     <div className="flex items-center gap-3">

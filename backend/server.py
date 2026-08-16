@@ -574,6 +574,27 @@ async def _og_listing_share(listing_id: str):
 
 
 
+@api.get("/health/ready", include_in_schema=False)
+async def readiness_probe():
+    """Dependency-aware readiness probe for orchestrators and deploy smoke tests.
+
+    A running process is not enough for production readiness: MongoDB must
+    answer, and production must have a managed Redis available for shared
+    cache/rate limits/WebSocket fan-out.
+    """
+    mongo_ok = False
+    try:
+        await db.command("ping")
+        mongo_ok = True
+    except Exception:
+        pass
+    redis_status = _redis_status() if "_redis_status" in globals() else "off"
+    production = (os.environ.get("APP_ENV", "development").lower() == "production")
+    checks = {"mongo": "ok" if mongo_ok else "down", "redis": redis_status}
+    ready = mongo_ok and (not production or redis_status == "on")
+    return JSONResponse({"status": "ready" if ready else "not_ready", "checks": checks}, status_code=200 if ready else 503)
+
+
 # Lightweight metrics endpoint — no Prometheus, just enough to grep latency/errors
 # from the live container. Numbers reset on restart, which is fine for a single
 # process; switch to Redis/Prom if you scale horizontally.

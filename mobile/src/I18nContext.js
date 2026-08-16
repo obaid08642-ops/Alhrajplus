@@ -9,6 +9,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { I18nManager, View } from "react-native";
 
 const I18nCtx = createContext(null);
+const DEVICE_LANGS = { ar: "ar", en: "en", hi: "hi", ur: "ur", bn: "bn", fr: "fr" };
+function detectDeviceLanguage() {
+    try {
+        const locale = Intl?.DateTimeFormat?.().resolvedOptions?.().locale || "";
+        const base = String(locale).toLowerCase().split("-")[0].split("_")[0];
+        return DEVICE_LANGS[base] || "ar";
+    } catch (_) { return "ar"; }
+}
 
 // --- Translation table -------------------------------------------------------
 // Keys mirror what the web app uses, but in mobile we use them by their Arabic
@@ -2232,17 +2240,19 @@ export function tr(key) {
 }
 
 export function I18nProvider({ children }) {
-    const [lang, setLangState] = useState("ar");
+    const [lang, setLangState] = useState(() => detectDeviceLanguage());
 
     useEffect(() => {
         (async () => {
             const saved = await AsyncStorage.getItem(KEY);
-            if (saved && SUPPORTED.includes(saved)) {
-                setLangState(saved);
-                _currentLang = saved;
+            const initial = saved && SUPPORTED.includes(saved) ? saved : detectDeviceLanguage();
+            setLangState(initial);
+            _currentLang = initial;
+            if (initial !== saved) await AsyncStorage.setItem(KEY, initial).catch(() => {});
+            if (initial && SUPPORTED.includes(initial)) {
                 // Make sure the layout direction matches the persisted language
                 // even when the system locale differs from the user choice.
-                const wantRTL = (saved === "ar" || saved === "ur");
+                const wantRTL = (initial === "ar" || initial === "ur");
                 try {
                     if (I18nManager.isRTL !== wantRTL) {
                         I18nManager.allowRTL(wantRTL);

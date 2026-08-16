@@ -79,6 +79,15 @@ export function CountryProvider({ children }) {
                     cc = (det?.data?.country || "").toUpperCase();
                 } catch (_) {}
             }
+            // Offline/device fallback: use the region embedded in the OS locale
+            // before falling back to the first configured marketplace country.
+            if (!cc) {
+                try {
+                    const locale = Intl?.DateTimeFormat?.().resolvedOptions?.().locale || "";
+                    const region = typeof Intl?.Locale === "function" ? new Intl.Locale(locale).region : locale.match(/[-_]([A-Za-z]{2})$/)?.[1];
+                    if (region && list.some((item) => item.code === region.toUpperCase())) cc = region.toUpperCase();
+                } catch (_) {}
+            }
             if (!cc) cc = list?.[0]?.code || "SA";
             setCountryState(cc);
             await AsyncStorage.setItem(STORAGE_KEY, cc).catch(() => {});
