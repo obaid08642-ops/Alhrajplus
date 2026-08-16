@@ -5,6 +5,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider } from "@/contexts/I18nContext";
+import { trackEvent } from "@/lib/analytics";
 import { CountryProvider } from "@/contexts/CountryContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
@@ -48,6 +49,14 @@ function PageFallback() {
             <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div>
         </div>
     );
+}
+
+function AnalyticsRouteTracker() {
+    const location = useLocation();
+    useEffect(() => {
+        trackEvent("page_view");
+    }, [location.pathname, location.search]);
+    return null;
 }
 
 function Layout({ children, hideNav = false }) {
@@ -134,6 +143,7 @@ function App() {
                         <CountryProvider>
                             {showSplash && <SplashScreen />}
                             <BrowserRouter>
+                                <AnalyticsRouteTracker />
                                 <AppRouter />
                                 <Suspense fallback={null}>
                                     <AIAssistantWidget />

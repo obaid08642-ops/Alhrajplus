@@ -22,6 +22,8 @@ export function useChatSocket() {
     const pingTimer = useRef(null);
     const reconnectTimer = useRef(null);
     const [connected, setConnected] = useState(false);
+    const userId = user?.id;
+    const connectRef = useRef(null);
 
     const dispatch = useCallback((event) => {
         const set = handlersRef.current.get(event.type);
@@ -30,8 +32,19 @@ export function useChatSocket() {
         if (wildcard) wildcard.forEach((h) => { try { h(event); } catch (_) {} });
     }, []);
 
+    const scheduleReconnect = useCallback(() => {
+        if (reconnectTimer.current) return;
+        const attempt = Math.min(reconnectAttempt.current + 1, 6);
+        reconnectAttempt.current = attempt;
+        const delay = Math.min(1000 * 2 ** attempt, 30000); // 2s,4s,8s,16s,30s cap
+        reconnectTimer.current = setTimeout(() => {
+            reconnectTimer.current = null;
+            connectRef.current?.();
+        }, delay);
+    }, []);
+
     const connect = useCallback(() => {
-        if (!user || user === false) return;
+        if (!userId) return;
         const token = (() => {
             try { return localStorage.getItem("hp_access_token") || ""; } catch (_) { return ""; }
         })();
@@ -74,18 +87,9 @@ export function useChatSocket() {
         ws.onerror = () => {
             try { ws.close(); } catch (_) {}
         };
-    }, [user, dispatch]);
+    }, [userId, dispatch, scheduleReconnect]);
 
-    const scheduleReconnect = useCallback(() => {
-        if (reconnectTimer.current) return;
-        const attempt = Math.min(reconnectAttempt.current + 1, 6);
-        reconnectAttempt.current = attempt;
-        const delay = Math.min(1000 * 2 ** attempt, 30000); // 2s,4s,8s,16s,30s cap
-        reconnectTimer.current = setTimeout(() => {
-            reconnectTimer.current = null;
-            connect();
-        }, delay);
-    }, [connect]);
+    connectRef.current = connect;
 
     useEffect(() => {
         connect();
@@ -95,8 +99,7 @@ export function useChatSocket() {
             try { wsRef.current?.close(); } catch (_) {}
             wsRef.current = null;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.id]);
+    }, [userId, connect]);
 
     const send = useCallback((obj) => {
         const ws = wsRef.current;

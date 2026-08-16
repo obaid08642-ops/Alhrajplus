@@ -39,6 +39,7 @@ from search_engine import (
     build_search_blob,
     search_listings as _search_listings_engine,
     suggest as _search_suggest_engine,
+    public_listing_filter,
 )
 from seo_submitter import (
     submit_in_background as _seo_submit_bg,
@@ -2871,17 +2872,10 @@ async def list_listings(
         else:
             _METRICS["cache_misses"] = _METRICS.get("cache_misses", 0) + 1
 
-    # Visibility filter: keep the public feed clean. We accept legacy docs that
-    # predate the `moderation` field (treat missing as "approved") so historical
-    # data created before that column was added stays visible.
-    query: dict = {
-        "status": "active",
-        "$or": [
-            {"moderation": "approved"},
-            {"moderation": {"$exists": False}},
-            {"moderation": None},
-        ],
-    }
+    # One shared policy keeps feeds, search, and autocomplete consistent.
+    # Legacy records without moderation remain visible, while explicit pending,
+    # rejected, demo, and test-seeded records stay out of public discovery.
+    query: dict = public_listing_filter()
     if country_code:
         query["country_code"] = country_code
     if category:
@@ -3150,7 +3144,7 @@ async def recommended_listings(category: Optional[str] = None, country_code: Opt
         "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
         "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
     }
-    base_query: dict = {"status": "active", "moderation": "approved"}
+    base_query: dict = public_listing_filter()
     if country_code:
         base_query["country_code"] = country_code
     cat_split = max(1, int(limit * 0.6))
@@ -3224,7 +3218,7 @@ async def recent_listings(user: dict = Depends(get_current_user), limit: int = 2
         "currency_code": 1, "category": 1, "city": 1, "country_code": 1,
         "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
     }
-    docs = await db.listings.find({"id": {"$in": ids}, "status": "active"}, SLIM).to_list(length=limit)
+    docs = await db.listings.find(public_listing_filter({"id": {"$in": ids}}), SLIM).to_list(length=limit)
     # Preserve recently-viewed order.
     by_id = {d["id"]: d for d in docs}
     items = [by_id[i] for i in ids if i in by_id]
@@ -3396,7 +3390,7 @@ async def trending_listings(limit: int = 20, country_code: Optional[str] = None,
     """Most-viewed active listings in the past `days`. Hard cap 20."""
     limit = max(1, min(limit, 20))
     cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).isoformat()
-    query: dict = {"status": "active", "moderation": "approved", "created_at": {"$gte": cutoff}}
+    query: dict = public_listing_filter({"created_at": {"$gte": cutoff}})
     if country_code:
         query["country_code"] = country_code
     SLIM = {
@@ -3418,7 +3412,10 @@ async def trending_listings(limit: int = 20, country_code: Optional[str] = None,
 @api.get("/listings/by-slug/{slug}")
 async def get_listing_by_slug(slug: str, request: Request):
     """Resolve a listing by its SEO slug. Used by /listing/:slug URLs."""
-    item = await db.listings.find_one({"slug": slug}, {"_id": 0})
+    item = await db.listings.find_one(
+        public_listing_filter({"slug": slug}),
+        {"_id": 0},
+    )
     if not item:
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
@@ -3437,7 +3434,10 @@ async def get_listing_by_slug(slug: str, request: Request):
 @api.get("/listings/{listing_id}")
 async def get_listing(listing_id: str, request: Request):
     # Accept either UUID or slug for legacy/SEO URL compatibility
-    item = await db.listings.find_one({"$or": [{"id": listing_id}, {"slug": listing_id}]}, {"_id": 0})
+    item = await db.listings.find_one(
+        public_listing_filter({"$or": [{"id": listing_id}, {"slug": listing_id}]}),
+        {"_id": 0},
+    )
     if not item:
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
@@ -3453,7 +3453,10 @@ async def get_listing(listing_id: str, request: Request):
 
 @api.get("/listings/{listing_id}/similar")
 async def similar_listings(listing_id: str, limit: int = 12):
-    base = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    base = await db.listings.find_one(
+        public_listing_filter({"id": listing_id}),
+        {"_id": 0},
+    )
     if not base:
         raise HTTPException(404)
 
@@ -3475,12 +3478,12 @@ async def similar_listings(listing_id: str, limit: int = 12):
     if not base_tokens:
         # Fallback: original behavior (category + city)
         same_city = await db.listings.find(
-            {"category": base_category, "city": base_city, "id": {"$ne": listing_id}, "status": "active"},
+            public_listing_filter({"category": base_category, "city": base_city, "id": {"$ne": listing_id}}),
             {"_id": 0}
         ).limit(limit).to_list(length=limit)
         if len(same_city) < limit:
             more = await db.listings.find(
-                {"category": base_category, "city": {"$ne": base_city}, "id": {"$ne": listing_id}, "status": "active"},
+                public_listing_filter({"category": base_category, "city": {"$ne": base_city}, "id": {"$ne": listing_id}}),
                 {"_id": 0}
             ).limit(limit - len(same_city)).to_list(length=limit)
             same_city.extend(more)
@@ -3490,15 +3493,14 @@ async def similar_listings(listing_id: str, limit: int = 12):
     # OR whose description contains any base token, plus same category as a soft filter.
     title_re = "|".join(re.escape(t) for t in base_tokens)
     candidates = await db.listings.find(
-        {
+        public_listing_filter({
             "id": {"$ne": listing_id},
-            "status": "active",
             "$or": [
                 {"title": {"$regex": title_re, "$options": "i"}},
                 {"description": {"$regex": title_re, "$options": "i"}},
                 {"category": base_category},
             ],
-        },
+        }),
         {"_id": 0}
     ).limit(200).to_list(length=200)
 
@@ -3954,7 +3956,7 @@ async def listings_map(
     category: Optional[str] = None,
     limit: int = 200,
 ):
-    q: dict = {"lat": {"$ne": None}, "lng": {"$ne": None}, "status": "active"}
+    q: dict = public_listing_filter({"lat": {"$ne": None}, "lng": {"$ne": None}})
     if country_code:
         q["country_code"] = country_code
     if category:
@@ -4000,7 +4002,7 @@ async def check_favorite(listing_id: str, user: dict = Depends(get_current_user)
 async def list_favorites(user: dict = Depends(get_current_user)):
     favs = await db.favorites.find({"user_id": user["id"]}, {"_id": 0}).to_list(length=500)
     listing_ids = [f["listing_id"] for f in favs]
-    listings = await db.listings.find({"id": {"$in": listing_ids}}, {"_id": 0}).to_list(length=500)
+    listings = await db.listings.find(public_listing_filter({"id": {"$in": listing_ids}}), {"_id": 0}).to_list(length=500)
     return listings
 
 
@@ -5086,9 +5088,81 @@ async def stop_location_share(share_id: str, user: dict = Depends(get_current_us
 
 
 # ============================================================
+# Product analytics — privacy-conscious event collection for visitor funnels.
+# The client sends a short-lived visitor/session id, route, and allowlisted event
+# name only. No raw IP, message text, or arbitrary payload is persisted.
+# ============================================================
+_ANALYTICS_EVENTS = {
+    "page_view", "search", "listing_view", "contact_seller", "chat_started",
+    "listing_created", "listing_published", "favorite_added", "report_submitted",
+    "signup_started", "signup_completed", "login_completed", "auction_bid",
+}
+
+
+@api.post("/analytics/events")
+async def record_analytics_event(request: Request, body: dict):
+    event = str(body.get("event") or "").strip().lower()
+    if event not in _ANALYTICS_EVENTS:
+        raise HTTPException(400, "Unsupported analytics event")
+    visitor_id = str(body.get("visitor_id") or "").strip()[:80]
+    session_id = str(body.get("session_id") or "").strip()[:80]
+    if not visitor_id and not session_id:
+        raise HTTPException(400, "visitor_id or session_id required")
+    user = await _get_user_from_cookie(request)
+    doc = {
+        "event": event,
+        "visitor_id": visitor_id or None,
+        "session_id": session_id or None,
+        "user_id": (user or {}).get("id"),
+        "path": str(body.get("path") or "")[:240],
+        "category": str(body.get("category") or "")[:80] or None,
+        "country_code": str(body.get("country_code") or "").upper()[:3] or None,
+        "listing_id": str(body.get("listing_id") or "")[:80] or None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.analytics_events.insert_one(doc)
+    return {"ok": True}
+
+
+# ============================================================
 # Admin endpoints
 # ============================================================
 admin_router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
+
+
+@admin_router.get("/analytics/overview")
+async def admin_analytics_overview(days: int = 7):
+    days = max(1, min(days, 90))
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    match = {"created_at": {"$gte": since}}
+    event_counts = await db.analytics_events.aggregate([
+        {"$match": match},
+        {"$group": {"_id": "$event", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+    ]).to_list(length=100)
+    daily = await db.analytics_events.aggregate([
+        {"$match": match},
+        {"$project": {"date": {"$substrBytes": ["$created_at", 0, 10]}, "event": 1}},
+        {"$group": {"_id": {"date": "$date", "event": "$event"}, "count": {"$sum": 1}}},
+        {"$sort": {"_id.date": 1}},
+    ]).to_list(length=1000)
+    funnel_events = ["page_view", "search", "listing_view", "contact_seller", "chat_started", "listing_created", "listing_published"]
+    funnel = {name: 0 for name in funnel_events}
+    for row in event_counts:
+        if row.get("_id") in funnel:
+            funnel[row["_id"]] = int(row.get("count") or 0)
+    visitors = await db.analytics_events.distinct("visitor_id", {**match, "visitor_id": {"$ne": None}})
+    sessions = await db.analytics_events.distinct("session_id", {**match, "session_id": {"$ne": None}})
+    return {
+        "days": days,
+        "since": since,
+        "events_total": sum(int(x.get("count") or 0) for x in event_counts),
+        "unique_visitors": len(visitors),
+        "unique_sessions": len(sessions),
+        "event_counts": [{"event": x.get("_id"), "count": int(x.get("count") or 0)} for x in event_counts],
+        "daily": [{"date": x.get("_id", {}).get("date"), "event": x.get("_id", {}).get("event"), "count": int(x.get("count") or 0)} for x in daily],
+        "funnel": funnel,
+    }
 
 @admin_router.get("/stats")
 async def admin_stats():
@@ -7704,7 +7778,21 @@ async def startup():
     the container to be listening within ~240s; blocking on Mongo here would
     surface as 'failed to start and listen on the port'.
     """
-    # ----- ENV validation (production hardening). Log warnings only, never crash. -----
+    # ----- ENV validation (production hardening). -----
+    # Render exposes `RENDER=true`; APP_ENV can be used by other hosts. In a
+    # production-like runtime, silently accepting the repository defaults would
+    # make account takeover possible, so fail closed before serving traffic.
+    runtime_env = (os.environ.get("APP_ENV") or os.environ.get("ENVIRONMENT") or "").strip().lower()
+    production_like = runtime_env in {"prod", "production", "staging"} or os.environ.get("RENDER", "").strip().lower() == "true"
+    if production_like:
+        weak = []
+        if JWT_SECRET == "change-me-in-production" or len(JWT_SECRET) < 32:
+            weak.append("JWT_SECRET")
+        if ADMIN_PASSWORD == "Admin@HarajPlus2026":
+            weak.append("ADMIN_PASSWORD")
+        if weak:
+            raise RuntimeError("Unsafe production configuration: rotate " + ", ".join(weak))
+
     _env_advice = {
         "JWT_SECRET": "JWT signing secret — set to a 32+ random string in production.",
         "MONGO_URL": "MongoDB connection string.",
@@ -7814,6 +7902,11 @@ async def startup():
     await _safe_index(db.category_follows, [("user_id", 1), ("category", 1)], unique=True)
     await _safe_index(db.category_follows, "category")
     await _safe_index(db.listings, [("is_boosted", -1), ("created_at", -1)])
+    # Product analytics — supports daily funnel reports without full scans.
+    await _safe_index(db.analytics_events, [("created_at", -1)])
+    await _safe_index(db.analytics_events, [("event", 1), ("created_at", -1)])
+    await _safe_index(db.analytics_events, [("visitor_id", 1), ("created_at", -1)])
+    await _safe_index(db.analytics_events, [("session_id", 1), ("created_at", -1)])
     # Admin audit log
     await _safe_index(db.admin_logs, [("ts", -1)])
     await _safe_index(db.admin_logs, [("admin_id", 1), ("ts", -1)])

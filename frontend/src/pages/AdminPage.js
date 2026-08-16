@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,7 @@ export default function AdminPage() {
 
     const tabs = [
         { key: "stats", label: tr("الإحصائيات"), icon: BarChart3 },
+        { key: "analytics", label: tr("تحليلات CRM"), icon: BarChart3 },
         { key: "moderation", label: tr("مراجعة الإعلانات"), icon: Shield },
         { key: "banned_words", label: tr("الكلمات المحظورة"), icon: Flag },
         { key: "listings", label: tr("جميع الإعلانات"), icon: FileText },
@@ -50,6 +51,7 @@ export default function AdminPage() {
             </div>
 
             {tab === "stats" && <StatsPanel />}
+            {tab === "analytics" && <AnalyticsPanel />}
             {tab === "moderation" && <ModerationPanel />}
             {tab === "banned_words" && <BannedWordsPanel />}
             {tab === "listings" && <ListingsPanel />}
@@ -63,6 +65,63 @@ export default function AdminPage() {
             {tab === "geo" && <GeoPanel />}
             {tab === "logs" && <LogsPanel />}
             {tab === "theme" && <ThemePanel />}
+        </div>
+    );
+}
+
+function AnalyticsPanel() {
+    const [report, setReport] = useState(null);
+    const [days, setDays] = useState(7);
+    useEffect(() => {
+        let active = true;
+        api.get("/admin/analytics/overview", { params: { days } })
+            .then(({ data }) => { if (active) setReport(data); })
+            .catch(() => { if (active) setReport(null); });
+        return () => { active = false; };
+    }, [days]);
+    if (!report) return <div className="p-6 text-center font-arabic">{tr("تحميل تحليلات CRM...")}</div>;
+    const funnel = report.funnel || {};
+    const funnelRows = [
+        ["page_view", "مشاهدات الصفحات"],
+        ["search", "عمليات البحث"],
+        ["listing_view", "مشاهدات الإعلانات"],
+        ["contact_seller", "تواصل مع البائع"],
+        ["chat_started", "بدء المحادثات"],
+        ["listing_created", "إنشاء إعلان"],
+        ["listing_published", "نشر إعلان"],
+    ];
+    const maxEvent = Math.max(1, ...(report.event_counts || []).map((x) => x.count || 0));
+    return (
+        <div className="space-y-4" data-testid="admin-analytics-panel">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("تحليلات CRM ومسار التحويل")}</h2>
+                    <p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("بيانات مجهولة/محدودة عن الزوار والمستخدمين والإعلانات")}</p>
+                </div>
+                <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm">
+                    <option value={7}>7 أيام</option><option value={30}>30 يومًا</option><option value={90}>90 يومًا</option>
+                </select>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <FinanceCard label={tr("الأحداث")} value={report.events_total} />
+                <FinanceCard label={tr("الزوار الفريدون")} value={report.unique_visitors} />
+                <FinanceCard label={tr("الجلسات")} value={report.unique_sessions} />
+                <FinanceCard label={tr("الإعلانات المنشورة")} value={funnel.listing_published || 0} />
+            </div>
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <h3 className="font-arabic font-bold text-sm mb-3">{tr("مسار التحويل")}</h3>
+                <div className="space-y-2">
+                    {funnelRows.map(([key, label]) => <div key={key} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-2 text-xs">
+                        <span className="font-arabic-body text-[var(--text-muted)]">{tr(label)}</span>
+                        <div className="h-2 rounded-full bg-[var(--surface-elevated)] overflow-hidden"><div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${Math.min(100, ((funnel[key] || 0) / Math.max(1, funnel.page_view || 1)) * 100)}%` }} /></div>
+                        <span className="font-latin font-bold text-end">{Number(funnel[key] || 0).toLocaleString()}</span>
+                    </div>)}
+                </div>
+            </div>
+            <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
+                <h3 className="font-arabic font-bold text-sm mb-3">{tr("الأحداث الأكثر تكرارًا")}</h3>
+                <div className="space-y-2">{(report.event_counts || []).slice(0, 10).map((row) => <div key={row.event} className="flex items-center gap-2 text-xs"><span className="w-32 truncate font-mono">{row.event}</span><div className="flex-1 h-2 rounded-full bg-[var(--surface-elevated)] overflow-hidden"><div className="h-full bg-[var(--accent)] rounded-full" style={{ width: `${(row.count / maxEvent) * 100}%` }} /></div><span className="font-latin font-bold w-12 text-end">{row.count}</span></div>)}</div>
+            </div>
         </div>
     );
 }
@@ -305,7 +364,7 @@ function ListingsPanel() {
     const [skip, setSkip] = useState(0);
     const LIMIT = 30;
 
-    const load = async () => {
+    const load = useCallback(async () => {
         setLoading(true);
         try {
             const params = { limit: LIMIT, skip };
@@ -320,8 +379,8 @@ function ListingsPanel() {
         } catch (_) {
             setItems([]); setTotal(0);
         } finally { setLoading(false); }
-    };
-    useEffect(() => { load(); /* eslint-disable-next-line */ }, [filters.status, filters.moderation, filters.country_code, filters.flagged, filters.flag_kind, skip]);
+    }, [filters, skip]);
+    useEffect(() => { load(); }, [load]);
 
     const onSearch = (e) => { e.preventDefault(); setSkip(0); load(); };
     const del = async (id) => {
@@ -496,7 +555,7 @@ function UsersPanel() {
     const [loading, setLoading] = useState(false);
     const [activeUserId, setActiveUserId] = useState(null);
 
-    const reload = async () => {
+    const reload = useCallback(async () => {
         setLoading(true);
         try {
             const params = { limit: 200 };
@@ -508,8 +567,8 @@ function UsersPanel() {
             setUsers(data || []);
         } catch (_) { setUsers([]); }
         finally { setLoading(false); }
-    };
-    useEffect(() => { reload(); /* eslint-disable-next-line */ }, [filters.country_code, filters.banned, filters.verified]);
+    }, [filters]);
+    useEffect(() => { reload(); }, [reload]);
     const submitSearch = (e) => { e.preventDefault(); reload(); };
 
     return (
@@ -1032,7 +1091,7 @@ function GeoPanel() {
     const [newDistrict, setNewDistrict] = useState("");
     const [busy, setBusy] = useState(false);
 
-    const load = async () => {
+    const load = useCallback(async () => {
         try {
             const [c, o] = await Promise.all([
                 api.get("/meta/countries"),
@@ -1042,8 +1101,8 @@ function GeoPanel() {
             const ov = (o.data || []).find((x) => x.country_code === selCountry);
             setOverrides(ov || null);
         } catch (_) {}
-    };
-    useEffect(() => { load(); /* eslint-disable-next-line */ }, [selCountry]);
+    }, [selCountry]);
+    useEffect(() => { load(); }, [load]);
 
     const country = countries.find((c) => c.code === selCountry);
     const cityNames = (country?.cities || []).map((x) => x.name_ar);

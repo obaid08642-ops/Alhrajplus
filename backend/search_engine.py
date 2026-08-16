@@ -18,6 +18,33 @@ from typing import Optional, List, Tuple
 from rapidfuzz import process as _rf_process, fuzz as _rf_fuzz
 
 
+# Public listing visibility policy. Legacy records may not have a moderation
+# field, so missing/None is treated as approved; explicit pending/rejected
+# records remain hidden. Demo/test records are never part of public discovery.
+_PUBLIC_TEST_TITLE_RE = r"^(?:TEST(?:[_\s-]|$)|TEST_SEARCH(?:[_\s-]|$)|TEST_INDEX(?:[_\s-]|$))"
+
+
+def public_listing_filter(extra: Optional[dict] = None) -> dict:
+    """Return a Mongo filter for listings eligible for public discovery.
+
+    This is deliberately shared by feeds, text search, autocomplete, and
+    related listings so one endpoint cannot re-expose records hidden by another.
+    """
+    clauses = [
+        {"status": "active"},
+        {"$or": [
+            {"moderation": "approved"},
+            {"moderation": {"$exists": False}},
+            {"moderation": None},
+        ]},
+        {"is_demo": {"$ne": True}},
+        {"title": {"$not": {"$regex": _PUBLIC_TEST_TITLE_RE, "$options": "i"}}},
+    ]
+    if extra:
+        clauses.append(extra)
+    return {"$and": clauses}
+
+
 # ---------- Arabic normalization ----------
 
 _TASHKEEL_RE = re.compile(r"[\u064B-\u0652\u0670\u0640]")  # diacritics + tatweel
@@ -166,10 +193,10 @@ async def suggest(db, q: str, country_code: Optional[str], limit: int = 8) -> Li
     q_norm = normalize_arabic(q)
     if len(q_norm) < 1:
         return []
-    base = {"status": "active"}
+    extra = {"search_blob": {"$regex": re.escape(q_norm), "$options": "i"}}
     if country_code:
-        base["country_code"] = country_code
-    base["search_blob"] = {"$regex": re.escape(q_norm), "$options": "i"}
+        extra["country_code"] = country_code
+    base = public_listing_filter(extra)
     cursor = db.listings.find(base, {"_id": 0, "title": 1}).sort([("created_at", -1)]).limit(limit * 4)
     seen = set()
     out: List[str] = []
