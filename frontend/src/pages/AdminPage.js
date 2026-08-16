@@ -79,18 +79,21 @@ function VisitorsPanel() {
     const [country, setCountry] = useState("");
     const [sessions, setSessions] = useState([]);
     const [breakdown, setBreakdown] = useState([]);
+    const [topPaths, setTopPaths] = useState([]);
     const [loading, setLoading] = useState(true);
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const [visitors, devices] = await Promise.all([
+            const [visitors, devices, paths] = await Promise.all([
                 api.get("/admin/analytics/visitors", { params: { days, limit: 200, device_type: device, country_code: country } }),
                 api.get("/admin/analytics/breakdown", { params: { days, dimension: "device_type" } }),
+                api.get("/admin/analytics/breakdown", { params: { days, dimension: "path" } }),
             ]);
             setSessions(visitors.data?.sessions || []);
             setBreakdown(devices.data?.rows || []);
+            setTopPaths(paths.data?.rows || []);
         } catch (_) {
-            setSessions([]); setBreakdown([]);
+            setSessions([]); setBreakdown([]); setTopPaths([]);
         } finally { setLoading(false); }
     }, [days, device, country]);
     useEffect(() => { load(); }, [load]);
@@ -104,6 +107,7 @@ function VisitorsPanel() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><FinanceCard label={tr("الجلسات المعروضة")} value={sessions.length} /><FinanceCard label={tr("نشطون آخر دقيقتين")} value={active} /><FinanceCard label={tr("متوسط مدة الجلسة")} value={avgDuration} suffix={tr("ثانية")} /><FinanceCard label={tr("الأجهزة المسجلة")} value={breakdown.length} /></div>
             <div className="flex flex-wrap gap-2"><select value={device} onChange={(e) => setDevice(e.target.value)} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value="">كل الأجهزة</option><option value="mobile">Mobile</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={3} placeholder={tr("الدولة مثل SA")} className="w-36 bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-latin" /></div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4"><div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"><div className="p-4 border-b border-[var(--border)]"><h3 className="font-arabic font-bold">{tr("أكثر الشاشات زيارة")}</h3></div><div className="divide-y divide-[var(--border)]">{topPaths.slice(0, 10).map((r) => <div key={r.key || r.path} className="p-3 flex justify-between gap-3 text-xs"><span className="font-mono truncate">{r.key || r.path || "—"}</span><b className="font-latin">{r.count || r.events || 0}</b></div>)}{topPaths.length === 0 && <div className="p-5 text-center text-xs text-[var(--text-muted)]">{tr("لا توجد بيانات بعد")}</div>}</div></div><div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"><div className="p-4 border-b border-[var(--border)]"><h3 className="font-arabic font-bold">{tr("توزيع الأجهزة")}</h3></div><div className="divide-y divide-[var(--border)]">{breakdown.slice(0, 10).map((r) => <div key={r.key || r.device_type} className="p-3 flex justify-between gap-3 text-xs"><span>{r.key || r.device_type || "—"}</span><b className="font-latin">{r.count || r.events || 0}</b></div>)}{breakdown.length === 0 && <div className="p-5 text-center text-xs text-[var(--text-muted)]">{tr("لا توجد بيانات بعد")}</div>}</div></div></div>
             <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"><div className="p-4 border-b border-[var(--border)] flex items-center justify-between"><h3 className="font-arabic font-bold">{tr("آخر الجلسات")}</h3><span className="text-xs text-[var(--text-muted)]">{loading ? tr("جاري التحميل...") : `${sessions.length} ${tr("جلسة")}`}</span></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-start text-[var(--text-muted)] border-b border-[var(--border)]"><th className="p-3 text-start">{tr("آخر ظهور")}</th><th className="p-3 text-start">{tr("المسار")}</th><th className="p-3 text-start">{tr("الجهاز")}</th><th className="p-3 text-start">{tr("النظام/المتصفح")}</th><th className="p-3 text-start">{tr("الدولة/المصدر")}</th><th className="p-3 text-start">{tr("المدة")}</th></tr></thead><tbody>{sessions.slice(0, 100).map((s) => <tr key={s.session_id} className="border-b border-[var(--border)]/50"><td className="p-3 font-latin whitespace-nowrap">{s.last_seen ? new Date(s.last_seen).toLocaleString() : "—"}</td><td className="p-3 max-w-48 truncate font-mono">{s.last_path || "—"}</td><td className="p-3">{s.device_type || "—"}</td><td className="p-3">{[s.os, s.browser].filter(Boolean).join(" / ") || "—"}</td><td className="p-3 font-latin">{[s.country_code, s.source].filter(Boolean).join(" / ") || "—"}</td><td className="p-3 font-latin">{Math.round(Number(s.duration_ms || 0) / 1000)}s</td></tr>)}{!loading && sessions.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-[var(--text-muted)]">{tr("لا توجد بيانات بعد")}</td></tr>}</tbody></table></div></div>
         </div>
     );
