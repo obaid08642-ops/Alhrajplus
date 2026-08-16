@@ -936,3 +936,10 @@ mobile/src/useChatSocket.js:83:        if (!ws || ws.readyState !== 1) return fa
 ## Web Push runtime checkpoint — 2026-08-16
 
 تم فتح `http://127.0.0.1:4173/sw.js` من Web build المحلي، وظهر service worker فعليًا من الجذر. يحتوي على `push` handler و`showNotification` و`notificationclick` مع focus/navigation أو فتح نافذة جديدة للرابط الموجود في payload. هذا يثبت وجود طبقة التنفيذ المحلية، ولا يثبت delivery الخارجي حتى يتم اختبار VAPID/Redis/worker من staging حقيقي.
+
+
+## Cold-start deep-link verification — 2026-08-16
+
+تمت مراجعة `mobile/src/notifications.js` و`mobile/App.js`. كان listener يستدعي `getLastNotificationResponseAsync()` مبكرًا، بينما يتم ربط navigation ref لاحقًا في `NavigationContainer.onReady`. أضيفت آلية pending URL: يحفظ التطبيق رابط الإعلان أو المحادثة إذا وصل الإشعار قبل جاهزية navigator، ثم يعيد توجيهه فور `onReady`. نجح `npx expo export --platform web` بعد التعديل. يظل اختبار APNs/FCM/HMS الفعلي عند cold start على جهاز حقيقي مطلوبًا قبل الاعتماد النهائي.
+
+Commit: `4c5a871`.
