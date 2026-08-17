@@ -8509,5 +8509,488 @@
     "hi": "❌ Could not activate: ",
     "bn": "❌ Could not activate: ",
     "fr": "❌ Could not activate: "
+  },
+  "آخر حركة": {
+    "en": "Latest activity",
+    "ur": "حالیہ سرگرمی",
+    "hi": "हाल की गतिविधि",
+    "bn": "সাম্প্রতিক কার্যকলাপ",
+    "fr": "Dernière activité"
+  },
+  "أدخل رقم تواصل صحيحًا أو اختر رقم حسابي": {
+    "en": "Enter a valid contact number or choose my account number",
+    "ur": "درست رابطہ نمبر درج کریں یا میرا اکاؤنٹ نمبر منتخب کریں",
+    "hi": "मान्य संपर्क नंबर दर्ज करें या मेरा खाता नंबर चुनें",
+    "bn": "একটি বৈধ যোগাযোগ নম্বর দিন বা আমার অ্যাকাউন্ট নম্বর বেছে নিন",
+    "fr": "Saisissez un numéro valide ou choisissez mon numéro"
+  },
+  "أقصى محاولات": {
+    "en": "Max attempts",
+    "ur": "زیادہ سے زیادہ کوششیں",
+    "hi": "अधिकतम प्रयास",
+    "bn": "সর্বোচ্চ চেষ্টা",
+    "fr": "Tentatives maximales"
+  },
+  "إنهاء المكالمة": {
+    "en": "End call",
+    "ur": "کال ختم کریں",
+    "hi": "कॉल समाप्त करें",
+    "bn": "কল শেষ করুন",
+    "fr": "Terminer l’appel"
+  },
+  "ابحث...": {
+    "en": "Search...",
+    "ur": "تلاش کریں...",
+    "hi": "खोजें...",
+    "bn": "অনুসন্ধান...",
+    "fr": "Rechercher..."
+  },
+  "اختر": {
+    "en": "Choose",
+    "ur": "منتخب کریں",
+    "hi": "चुनें",
+    "bn": "নির্বাচন করুন",
+    "fr": "Choisir"
+  },
+  "اختر ملف صورة صالحًا": {
+    "en": "Choose a valid image file",
+    "ur": "درست تصویر فائل منتخب کریں",
+    "hi": "मान्य छवि फ़ाइल चुनें",
+    "bn": "একটি বৈধ ছবি ফাইল বেছে নিন",
+    "fr": "Choisissez un fichier image valide"
+  },
+  "الأخطاء": {
+    "en": "Errors",
+    "ur": "غلطیاں",
+    "hi": "त्रुटियां",
+    "bn": "ত্রুটি",
+    "fr": "Erreurs"
+  },
+  "الإمارة": {
+    "en": "Emirate",
+    "ur": "امارت",
+    "hi": "अमीरात",
+    "bn": "আমিরাত",
+    "fr": "Émirat"
+  },
+  "البلدية": {
+    "en": "Municipality",
+    "ur": "بلدیہ",
+    "hi": "नगरपालिका",
+    "bn": "পৌরসভা",
+    "fr": "Municipalité"
+  },
+  "التدوير التلقائي": {
+    "en": "Automatic rotation",
+    "ur": "خودکار گردش",
+    "hi": "स्वचालित रोटेशन",
+    "bn": "স্বয়ংক্রিয় রোটেশন",
+    "fr": "Rotation automatique"
+  },
+  "التدوير والاستخدام والأخطاء من الخادم": {
+    "en": "Rotation, usage and server errors",
+    "ur": "گردش، استعمال اور سرور کی غلطیاں",
+    "hi": "रोटेशन, उपयोग और सर्वर त्रुटियां",
+    "bn": "রোটেশন, ব্যবহার ও সার্ভার ত্রুটি",
+    "fr": "Rotation, utilisation et erreurs serveur"
+  },
+  "التوكنات": {
+    "en": "Tokens",
+    "ur": "ٹوکنز",
+    "hi": "टोकन",
+    "bn": "টোকেন",
+    "fr": "Jetons"
+  },
+  "الحد اليومي": {
+    "en": "Daily limit",
+    "ur": "روزانہ حد",
+    "hi": "दैनिक सीमा",
+    "bn": "দৈনিক সীমা",
+    "fr": "Limite quotidienne"
+  },
+  "الحي": {
+    "en": "District",
+    "ur": "علاقہ",
+    "hi": "जिला",
+    "bn": "এলাকা",
+    "fr": "Quartier"
+  },
+  "الحي / القسم": {
+    "en": "District / section",
+    "ur": "علاقہ / حصہ",
+    "hi": "जिला / अनुभाग",
+    "bn": "এলাকা / বিভাগ",
+    "fr": "Quartier / section"
+  },
+  "الطلبات": {
+    "en": "Requests",
+    "ur": "درخواستیں",
+    "hi": "अनुरोध",
+    "bn": "অনুরোধ",
+    "fr": "Demandes"
+  },
+  "القرية / المنطقة": {
+    "en": "Village / area",
+    "ur": "گاؤں / علاقہ",
+    "hi": "गांव / क्षेत्र",
+    "bn": "গ্রাম / এলাকা",
+    "fr": "Village / zone"
+  },
+  "المتصفح لا يدعم البحث الصوتي؛ جرّب Chrome أو Safari الحديث": {
+    "en": "Your browser does not support voice search; try modern Chrome or Safari",
+    "ur": "آپ کا براؤزر صوتی تلاش کو سپورٹ نہیں کرتا؛ جدید Chrome یا Safari آزمائیں",
+    "hi": "आपका ब्राउज़र वॉइस सर्च समर्थित नहीं करता; नया Chrome या Safari आज़माएं",
+    "bn": "আপনার ব্রাউজার ভয়েস সার্চ সমর্থন করে না; আধুনিক Chrome বা Safari চেষ্টা করুন",
+    "fr": "Votre navigateur ne prend pas en charge la recherche vocale ; essayez Chrome ou Safari récent"
+  },
+  "المحافظة": {
+    "en": "Governorate",
+    "ur": "صوبہ",
+    "hi": "प्रांत",
+    "bn": "গভর্নরেট",
+    "fr": "Gouvernorat"
+  },
+  "المدينة / المركز": {
+    "en": "City / center",
+    "ur": "شہر / مرکز",
+    "hi": "शहर / केंद्र",
+    "bn": "শহর / কেন্দ্র",
+    "fr": "Ville / centre"
+  },
+  "المزود الأساسي": {
+    "en": "Primary provider",
+    "ur": "بنیادی فراہم کنندہ",
+    "hi": "प्राथमिक प्रदाता",
+    "bn": "প্রাথমিক প্রদানকারী",
+    "fr": "Fournisseur principal"
+  },
+  "المكالمة متصلة": {
+    "en": "Call connected",
+    "ur": "کال منسلک ہے",
+    "hi": "कॉल कनेक्ट हो गई",
+    "bn": "কল সংযুক্ত হয়েছে",
+    "fr": "Appel connecté"
+  },
+  "المنطقة": {
+    "en": "Region",
+    "ur": "خطہ",
+    "hi": "क्षेत्र",
+    "bn": "অঞ্চল",
+    "fr": "Région"
+  },
+  "الموقع": {
+    "en": "Location",
+    "ur": "مقام",
+    "hi": "स्थान",
+    "bn": "অবস্থান",
+    "fr": "Emplacement"
+  },
+  "الوزن": {
+    "en": "Weight",
+    "ur": "وزن",
+    "hi": "वजन",
+    "bn": "ওজন",
+    "fr": "Poids"
+  },
+  "الوضع": {
+    "en": "Mode",
+    "ur": "موڈ",
+    "hi": "मोड",
+    "bn": "মোড",
+    "fr": "Mode"
+  },
+  "انتظر عرض المكالمة ثم حاول مرة أخرى": {
+    "en": "Wait for the call offer, then try again",
+    "ur": "کال آفر کا انتظار کریں، پھر دوبارہ کوشش کریں",
+    "hi": "कॉल ऑफ़र का इंतज़ार करें, फिर दोबारा प्रयास करें",
+    "bn": "কল অফারের জন্য অপেক্ষা করুন, তারপর আবার চেষ্টা করুন",
+    "fr": "Attendez l’offre d’appel puis réessayez"
+  },
+  "بيانات الموقع متاحة حالياً لـ": {
+    "en": "Location data is currently available for",
+    "ur": "مقام کا ڈیٹا فی الحال دستیاب ہے",
+    "hi": "स्थान डेटा वर्तमान में उपलब्ध है",
+    "bn": "অবস্থান ডেটা বর্তমানে উপলব্ধ",
+    "fr": "Les données de localisation sont actuellement disponibles pour"
+  },
+  "تحكم إداري غير سري؛ مفاتيح API تبقى في متغيرات الخادم ولا تُحفظ هنا": {
+    "en": "Non-secret admin control; API keys remain in server variables and are not stored here",
+    "ur": "غیر خفیہ انتظامی کنٹرول؛ API کیز سرور متغیرات میں رہتی ہیں اور یہاں محفوظ نہیں ہوتیں",
+    "hi": "गैर-गोपनीय एडमिन नियंत्रण; API कुंजियां सर्वर वेरिएबल में रहती हैं और यहां संग्रहीत नहीं होतीं",
+    "bn": "অ-গোপন অ্যাডমিন নিয়ন্ত্রণ; API কী সার্ভার ভেরিয়েবলে থাকে এবং এখানে সংরক্ষিত হয় না",
+    "fr": "Contrôle admin non secret ; les clés API restent dans les variables serveur et ne sont pas stockées ici"
+  },
+  "ترتيب التدوير": {
+    "en": "Rotation order",
+    "ur": "گردش کی ترتیب",
+    "hi": "रोटेशन क्रम",
+    "bn": "রোটেশন অর্ডার",
+    "fr": "Ordre de rotation"
+  },
+  "تستخدم Coins لترويج إعلاناتك": {
+    "en": "Use Coins to boost your listings",
+    "ur": "اپنی فہرستوں کو فروغ دینے کے لیے Coins استعمال کریں",
+    "hi": "अपने विज्ञापनों को बढ़ावा देने के लिए Coins का उपयोग करें",
+    "bn": "আপনার বিজ্ঞাপন প্রচার করতে Coins ব্যবহার করুন",
+    "fr": "Utilisez les Coins pour booster vos annonces"
+  },
+  "تشغيل الميكروفون": {
+    "en": "Enable microphone",
+    "ur": "مائیکروفون فعال کریں",
+    "hi": "माइक्रोफ़ोन चालू करें",
+    "bn": "মাইক্রোফোন চালু করুন",
+    "fr": "Activer le microphone"
+  },
+  "تعذر الوصول إلى الميكروفون أو بدء المكالمة": {
+    "en": "Could not access the microphone or start the call",
+    "ur": "مائیکروفون تک رسائی یا کال شروع نہیں ہو سکی",
+    "hi": "माइक्रोफ़ोन एक्सेस या कॉल शुरू नहीं हो सकी",
+    "bn": "মাইক্রোফোনে প্রবেশ বা কল শুরু করা যায়নি",
+    "fr": "Impossible d’accéder au microphone ou de démarrer l’appel"
+  },
+  "تعذر بدء التسجيل": {
+    "en": "Could not start recording",
+    "ur": "ریکارڈنگ شروع نہیں ہو سکی",
+    "hi": "रिकॉर्डिंग शुरू नहीं हो सकी",
+    "bn": "রেকর্ডিং শুরু করা যায়নি",
+    "fr": "Impossible de démarrer l’enregistrement"
+  },
+  "تعذر تحليل الصورة؛ حاول مرة أخرى": {
+    "en": "Could not analyze the image; try again",
+    "ur": "تصویر کا تجزیہ نہیں ہو سکا؛ دوبارہ کوشش کریں",
+    "hi": "छवि का विश्लेषण नहीं हो सका; फिर प्रयास करें",
+    "bn": "ছবি বিশ্লেষণ করা যায়নি; আবার চেষ্টা করুন",
+    "fr": "Impossible d’analyser l’image ; réessayez"
+  },
+  "تعذر تحميل حالة مزودي الذكاء الاصطناعي": {
+    "en": "Could not load AI provider status",
+    "ur": "AI فراہم کنندگان کی حالت لوڈ نہیں ہو سکی",
+    "hi": "AI प्रदाता स्थिति लोड नहीं हो सकी",
+    "bn": "AI প্রদানকারীর অবস্থা লোড করা যায়নি",
+    "fr": "Impossible de charger l’état des fournisseurs IA"
+  },
+  "تعذر تشغيل الميكروفون": {
+    "en": "Could not start the microphone",
+    "ur": "مائیکروفون شروع نہیں ہو سکا",
+    "hi": "माइक्रोफ़ोन शुरू नहीं हो सका",
+    "bn": "মাইক্রোফোন চালু করা যায়নি",
+    "fr": "Impossible de démarrer le microphone"
+  },
+  "تعذر حفظ إعدادات AI": {
+    "en": "Could not save AI settings",
+    "ur": "AI ترتیبات محفوظ نہیں ہو سکیں",
+    "hi": "AI सेटिंग सहेजी नहीं जा सकीं",
+    "bn": "AI সেটিংস সংরক্ষণ করা যায়নি",
+    "fr": "Impossible d’enregistrer les paramètres IA"
+  },
+  "تعذر قبول المكالمة": {
+    "en": "Could not accept the call",
+    "ur": "کال قبول نہیں ہو سکی",
+    "hi": "कॉल स्वीकार नहीं हो सकी",
+    "bn": "কল গ্রহণ করা যায়নি",
+    "fr": "Impossible d’accepter l’appel"
+  },
+  "تعذر قراءة الصورة": {
+    "en": "Could not read the image",
+    "ur": "تصویر پڑھی نہیں جا سکی",
+    "hi": "छवि पढ़ी नहीं जा सकी",
+    "bn": "ছবি পড়া যায়নি",
+    "fr": "Impossible de lire l’image"
+  },
+  "تم تحويل الصوت إلى نص": {
+    "en": "Voice converted to text",
+    "ur": "آواز کو متن میں تبدیل کر دیا گیا",
+    "hi": "आवाज़ को टेक्स्ट में बदला गया",
+    "bn": "ভয়েস টেক্সটে রূপান্তরিত হয়েছে",
+    "fr": "Voix convertie en texte"
+  },
+  "تم حفظ إعدادات AI": {
+    "en": "AI settings saved",
+    "ur": "AI ترتیبات محفوظ ہو گئیں",
+    "hi": "AI सेटिंग सहेजी गई",
+    "bn": "AI সেটিংস সংরক্ষিত হয়েছে",
+    "fr": "Paramètres IA enregistrés"
+  },
+  "تم رفض إذن الميكروفون؛ اسمح به من إعدادات المتصفح": {
+    "en": "Microphone permission denied; allow it in browser settings",
+    "ur": "مائیکروفون کی اجازت مسترد؛ براؤزر کی ترتیبات میں اجازت دیں",
+    "hi": "माइक्रोफ़ोन अनुमति अस्वीकृत; ब्राउज़र सेटिंग में अनुमति दें",
+    "bn": "মাইক্রোফোনের অনুমতি প্রত্যাখ্যাত; ব্রাউজার সেটিংসে অনুমতি দিন",
+    "fr": "Permission microphone refusée ; autorisez-la dans les réglages du navigateur"
+  },
+  "تمت مطابقة الصورة؛ جاري فتح النتائج": {
+    "en": "Image matched; opening results",
+    "ur": "تصویر مل گئی؛ نتائج کھولی جا رہی ہیں",
+    "hi": "छवि मिल गई; परिणाम खोले जा रहे हैं",
+    "bn": "ছবি মিলেছে; ফলাফল খোলা হচ্ছে",
+    "fr": "Image correspondante ; ouverture des résultats"
+  },
+  "جارٍ الاستماع...": {
+    "en": "Listening...",
+    "ur": "سن رہا ہے...",
+    "hi": "सुन रहा है...",
+    "bn": "শোনা হচ্ছে...",
+    "fr": "Écoute..."
+  },
+  "جارٍ تحويل الصوت إلى نص...": {
+    "en": "Converting voice to text...",
+    "ur": "آواز کو متن میں تبدیل کیا جا رہا ہے...",
+    "hi": "आवाज़ को टेक्स्ट में बदला जा रहा है...",
+    "bn": "ভয়েস টেক্সটে রূপান্তরিত হচ্ছে...",
+    "fr": "Conversion de la voix en texte..."
+  },
+  "جارٍ رفع الصورة وتحليلها...": {
+    "en": "Uploading and analyzing image...",
+    "ur": "تصویر اپ لوڈ اور تجزیہ کی جا رہی ہے...",
+    "hi": "छवि अपलोड और विश्लेषण हो रहा है...",
+    "bn": "ছবি আপলোড ও বিশ্লেষণ হচ্ছে...",
+    "fr": "Téléchargement et analyse de l’image..."
+  },
+  "جارٍ طلب إذن الميكروفون...": {
+    "en": "Requesting microphone permission...",
+    "ur": "مائیکروفون کی اجازت طلب کی جا رہی ہے...",
+    "hi": "माइक्रोफ़ोन अनुमति मांगी जा रही है...",
+    "bn": "মাইক্রোফোনের অনুমতি চাওয়া হচ্ছে...",
+    "fr": "Demande d’autorisation du microphone..."
+  },
+  "حجم الصورة كبير جدًا؛ الحد الأقصى 8MB": {
+    "en": "Image is too large; maximum 8MB",
+    "ur": "تصویر بہت بڑی ہے؛ زیادہ سے زیادہ 8MB",
+    "hi": "छवि बहुत बड़ी है; अधिकतम 8MB",
+    "bn": "ছবি খুব বড়; সর্বোচ্চ 8MB",
+    "fr": "Image trop volumineuse ; maximum 8 Mo"
+  },
+  "حفظ إعدادات AI": {
+    "en": "Save AI settings",
+    "ur": "AI ترتیبات محفوظ کریں",
+    "hi": "AI सेटिंग सहेजें",
+    "bn": "AI সেটিংস সংরক্ষণ করুন",
+    "fr": "Enregistrer les paramètres IA"
+  },
+  "خطأ في الاتصال": {
+    "en": "Connection error",
+    "ur": "کنکشن کی خرابی",
+    "hi": "कनेक्शन त्रुटि",
+    "bn": "সংযোগ ত্রুটি",
+    "fr": "Erreur de connexion"
+  },
+  "ريال سعودي": {
+    "en": "Saudi Riyal",
+    "ur": "سعودی ریال",
+    "hi": "सऊदी रियाल",
+    "bn": "সৌদি রিয়াল",
+    "fr": "Riyal saoudien"
+  },
+  "عتبة الحصة %": {
+    "en": "Quota threshold %",
+    "ur": "کوٹا حد ٪",
+    "hi": "कोटा सीमा %",
+    "bn": "কোটা সীমা %",
+    "fr": "Seuil de quota %"
+  },
+  "غير مهيأ": {
+    "en": "Not configured",
+    "ur": "ترتیب نہیں دیا گیا",
+    "hi": "कॉन्फ़िगर नहीं",
+    "bn": "কনফিগার করা হয়নি",
+    "fr": "Non configuré"
+  },
+  "فشلت المكالمة": {
+    "en": "Call failed",
+    "ur": "کال ناکام ہو گئی",
+    "hi": "कॉल विफल",
+    "bn": "কল ব্যর্থ হয়েছে",
+    "fr": "Échec de l’appel"
+  },
+  "فقط — استخدامه مؤقتاً.": {
+    "en": "Only — use temporarily.",
+    "ur": "صرف — عارضی طور پر استعمال کریں۔",
+    "hi": "केवल — अस्थायी रूप से उपयोग करें।",
+    "bn": "শুধু — সাময়িকভাবে ব্যবহার করুন।",
+    "fr": "Uniquement — à utiliser temporairement."
+  },
+  "كتم الميكروفون": {
+    "en": "Mute microphone",
+    "ur": "مائیکروفون خاموش کریں",
+    "hi": "माइक्रोफ़ोन म्यूट करें",
+    "bn": "মাইক্রোফোন নিঃশব্দ করুন",
+    "fr": "Couper le microphone"
+  },
+  "لا يمكن الاتصال بخدمة المواقع": {
+    "en": "Could not connect to location service",
+    "ur": "مقام کی سروس سے رابطہ نہیں ہو سکا",
+    "hi": "स्थान सेवा से कनेक्ट नहीं हो सका",
+    "bn": "লোকেশন সার্ভিসে সংযোগ করা যায়নি",
+    "fr": "Impossible de se connecter au service de localisation"
+  },
+  "لا يوجد مزود AI مفعّل": {
+    "en": "No AI provider is enabled",
+    "ur": "کوئی AI فراہم کنندہ فعال نہیں",
+    "hi": "कोई AI प्रदाता सक्षम नहीं",
+    "bn": "কোনো AI প্রদানকারী সক্রিয় নেই",
+    "fr": "Aucun fournisseur IA activé"
+  },
+  "لم نتمكن من فهم الصورة؛ جرّب صورة أوضح": {
+    "en": "We could not understand the image; try a clearer photo",
+    "ur": "تصویر سمجھ نہیں آئی؛ زیادہ واضح تصویر آزمائیں",
+    "hi": "हम छवि समझ नहीं सके; अधिक स्पष्ट फ़ोटो आज़माएं",
+    "bn": "ছবিটি বোঝা যায়নি; আরও পরিষ্কার ছবি চেষ্টা করুন",
+    "fr": "Nous n’avons pas compris l’image ; essayez une photo plus nette"
+  },
+  "لم يستخدم بعد": {
+    "en": "Not used yet",
+    "ur": "ابھی استعمال نہیں ہوا",
+    "hi": "अभी उपयोग नहीं हुआ",
+    "bn": "এখনও ব্যবহার করা হয়নি",
+    "fr": "Pas encore utilisé"
+  },
+  "متوقف": {
+    "en": "Disabled",
+    "ur": "غیر فعال",
+    "hi": "अक्षम",
+    "bn": "নিষ্ক্রিয়",
+    "fr": "Désactivé"
+  },
+  "مزودو الذكاء الاصطناعي": {
+    "en": "AI providers",
+    "ur": "AI فراہم کنندگان",
+    "hi": "AI प्रदाता",
+    "bn": "AI প্রদানকারী",
+    "fr": "Fournisseurs IA"
+  },
+  "مفعّل": {
+    "en": "Enabled",
+    "ur": "فعال",
+    "hi": "सक्षम",
+    "bn": "সক্রিয়",
+    "fr": "Activé"
+  },
+  "مكالمة صوتية": {
+    "en": "Voice call",
+    "ur": "صوتی کال",
+    "hi": "वॉइस कॉल",
+    "bn": "ভয়েস কল",
+    "fr": "Appel vocal"
+  },
+  "مكالمة واردة": {
+    "en": "Incoming call",
+    "ur": "آنے والی کال",
+    "hi": "इनकमिंग कॉल",
+    "bn": "ইনকামিং কল",
+    "fr": "Appel entrant"
+  },
+  "مهيأ": {
+    "en": "Configured",
+    "ur": "ترتیب دیا گیا",
+    "hi": "कॉन्फ़िगर किया गया",
+    "bn": "কনফিগার করা হয়েছে",
+    "fr": "Configuré"
+  },
+  "Coins": {
+    "en": "Coins",
+    "ur": "Coins",
+    "hi": "Coins",
+    "bn": "Coins",
+    "fr": "Coins"
   }
 }

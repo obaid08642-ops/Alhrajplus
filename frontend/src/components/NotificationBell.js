@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useChatSocket } from "@/lib/useChatSocket";
 import { playNotificationSound } from "@/lib/notificationSound";
+import { notificationUrl } from "@/lib/notificationLinks";
 
 /**
  * Bell icon for the TopBar.
@@ -31,25 +32,6 @@ const TYPE_ICONS = {
     new_follower: { Icon: Megaphone, color: "text-pink-500" },
     admin_broadcast: { Icon: Megaphone, color: "text-amber-500" },
 };
-
-function urlFor(n) {
-    if (n?.data?.url) return n.data.url;
-    switch (n?.type) {
-        case "new_message": return n.data?.sender_id ? `/chat?to=${n.data.sender_id}` : "/chat";
-        case "listing_approved":
-        case "listing_rejected":
-        case "price_drop":
-        case "listing_offer":
-        case "listing_offer_update":
-        case "auction":
-        case "comment":
-        case "comment_reply": return n.data?.listing_id ? `/listing/${n.data.listing_id}#comments` : "/";
-        case "search_alert":
-        case "saved_search": return n.data?.query ? `/search?q=${encodeURIComponent(n.data.query)}` : "/search";
-        case "new_follower": return n.data?.user_id ? `/seller/${n.data.user_id}` : "/profile";
-        default: return "/";
-    }
-}
 
 export default function NotificationBell() {
     const { user } = useAuth();
@@ -142,8 +124,8 @@ export default function NotificationBell() {
             </button>
 
             {open && (
-                <div data-testid="notif-dropdown" className="absolute top-12 end-0 w-[92vw] sm:w-96 max-h-[70vh] bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] z-50 flex flex-col" dir={direction}>
-                    <div className="flex items-center justify-between gap-2 p-3 border-b border-[var(--border)]">
+                <div data-testid="notif-dropdown" className="absolute top-12 start-1/2 -translate-x-1/2 w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] max-h-[70vh] overflow-hidden bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] z-50 flex flex-col" dir={direction}>
+                    <div className="flex items-center justify-between gap-2 p-3 border-b border-[var(--border)] min-w-0">
                         <h3 className="font-arabic font-bold text-sm text-[var(--text)] flex-1">{tr("الإشعارات")}</h3>
                         {unread > 0 && (
                             <button data-testid="notif-mark-all" onClick={markAllRead} className="text-[11px] text-[var(--primary)] hover:underline font-bold">
@@ -165,16 +147,16 @@ export default function NotificationBell() {
                             return (
                                 <Link
                                     key={n.id}
-                                    to={urlFor(n)}
+                                    to={notificationUrl(n)}
                                     onClick={() => { setOpen(false); if (!n.read) markOneRead(n.id); }}
                                     data-testid={`notif-item-${n.id}`}
-                                    className={`flex items-start gap-3 p-3 hover:bg-[var(--surface-elevated)] border-b border-[var(--border)] ${!n.read ? "bg-[var(--primary)]/5" : ""}`}
+                                    className={`flex items-start gap-3 p-3 min-w-0 overflow-hidden hover:bg-[var(--surface-elevated)] border-b border-[var(--border)] ${!n.read ? "bg-[var(--primary)]/5" : ""}`}
                                 >
                                     <div className={`w-9 h-9 rounded-full bg-[var(--surface-elevated)] flex items-center justify-center shrink-0 ${meta.color}`}>
                                         <Icon className="w-4 h-4" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{n.title}</div>
+                                        <div className="font-arabic font-bold text-sm text-[var(--text)] truncate min-w-0">{n.title}</div>
                                         {n.body && <div className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-2 mt-0.5">{n.body}</div>}
                                         <div className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(n.created_at || n.ts).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}</div>
                                     </div>

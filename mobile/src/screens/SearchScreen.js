@@ -2,8 +2,9 @@
 // Mirrors web /app/frontend/src/pages/SearchPage.js + filter bar from listings.
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Modal, StatusBar, Dimensions, RefreshControl, Alert } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Search, X, ChevronLeft, SlidersHorizontal, Check, MapPin, Mic, Bookmark } from "lucide-react-native";
+import { Search, X, ChevronLeft, SlidersHorizontal, Check, MapPin, Mic, Camera, Bookmark } from "lucide-react-native";
 // expo-audio v1.1+ removed the top-level `AudioModule`/`AudioRecorder`
 // named exports. Use the documented functions + grab the native AudioRecorder
 // constructor from the default-export module so `new AudioRecorder(...)`
@@ -77,6 +78,7 @@ export default function SearchScreen({
   const debounceRef = useRef(null);
   const [voiceRec, setVoiceRec] = useState(null);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
   const toggleVoice = async () => {
     if (voiceRec) {
       // Stop + transcribe
@@ -123,6 +125,35 @@ export default function SearchScreen({
         rec.record();
         setVoiceRec(rec);
       } catch (_) {}
+    }
+  };
+
+  const searchByImage = async () => {
+    if (imageBusy || voiceBusy) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        base64: true,
+        quality: 0.82,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        Alert.alert(t("خطأ"), t("تعذر قراءة الصورة"));
+        return;
+      }
+      setImageBusy(true);
+      const payload = `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`;
+      const { data } = await api.post("/ai/image-search", { image_base64: payload });
+      const query = String(data?.query || "").trim();
+      if (!query) throw new Error("empty image query");
+      setQ(query);
+      await runSearch(query);
+    } catch (e) {
+      Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر تحليل الصورة؛ حاول مرة أخرى"));
+    } finally {
+      setImageBusy(false);
     }
   };
 
@@ -293,12 +324,17 @@ export default function SearchScreen({
                         </TouchableOpacity> : <TouchableOpacity onPress={toggleVoice} hitSlop={6} disabled={voiceBusy}>
                             {voiceBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <Mic size={16} color={voiceRec ? "#EF4444" : colors.primary} />}
                         </TouchableOpacity>}
+                    <TouchableOpacity onPress={searchByImage} hitSlop={6} disabled={imageBusy || voiceBusy} testID="mobile-image-search-btn">
+                        {imageBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <Camera size={16} color={colors.primary} />}
+                    </TouchableOpacity>
                 </View>
                 <TouchableOpacity onPress={() => setFiltersOpen(true)} style={[s.filterBtn, activeFiltersCount > 0 && s.filterBtnActive]}>
                     <SlidersHorizontal size={18} color={activeFiltersCount > 0 ? "#fff" : colors.text} />
                     {activeFiltersCount > 0 && <View style={s.filterBadge}><Text style={s.filterBadgeText}>{activeFiltersCount}</Text></View>}
                 </TouchableOpacity>
             </View>
+
+            {(voiceBusy || imageBusy) && <View style={s.aiSearchStatus}><ActivityIndicator size="small" color={colors.primary} /><Text style={s.aiSearchStatusText}>{imageBusy ? t("جارٍ رفع الصورة وتحليلها...") : voiceRec ? t("جارٍ الاستماع...") : t("جارٍ تحويل الصوت إلى نص...")}</Text></View>}
 
             {/* Active filter chips */}
             {activeFiltersCount > 0 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
@@ -538,6 +574,25 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 10,
     backgroundColor: colors.bg
+  },
+  aiSearchStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  aiSearchStatusText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   headBtn: {
     width: 36,

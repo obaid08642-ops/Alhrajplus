@@ -8,6 +8,7 @@ import { useI18n, tr } from "@/contexts/I18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCountry } from "@/contexts/CountryContext";
 import { PremiumCategoryIcon } from "@/lib/categoryIcons";
+import { PageSEO } from "@/components/SEO";
 
 export default function CategoryPage() {
     const { categoryKey } = useParams();
@@ -86,7 +87,16 @@ export default function CategoryPage() {
 
     if (!category) return <div className="p-10 text-center font-arabic">{t("loading")}</div>;
 
+    const categoryName = pickName(category);
+    const seoPath = `/category/${encodeURIComponent(categoryKey)}${filters.city ? `?city=${encodeURIComponent(filters.city)}` : ""}`;
     return (
+        <>
+        <PageSEO
+            title={`${categoryName}${filters.city ? ` - ${filters.city}` : ""}${country ? ` | ${country}` : ""}`}
+            description={`${categoryName}${filters.city ? ` في ${filters.city}` : ""}: أحدث الإعلانات والعروض على الحراج بلس.`}
+            keywords={[categoryName, filters.city, country, "إعلانات", "بيع", "شراء"].filter(Boolean).join(", ")}
+            path={seoPath}
+        />
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
             <div className="flex items-center gap-2 mb-4 sm:mb-6">
                 <Link to="/" className="text-[var(--text-muted)] hover:text-[var(--primary)]"><ChevronLeft className="w-5 h-5 rotate-180" /></Link>
@@ -152,5 +162,6 @@ export default function CategoryPage() {
                 <AdSlot placement="home_middle" />
             </div>
         </div>
+        </>
     );
 }
