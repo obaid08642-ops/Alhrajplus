@@ -13,17 +13,14 @@ import { colors } from "../theme";
 const AUC_OPTS = {
   item_condition: ["جديد", "كالجديد", "مستعمل ممتاز", "مستعمل جيد", "للهواة / للجمع", "للترميم"],
   category_type: ["سيارات", "عقارات", "ساعات وإكسسوارات فاخرة", "مجوهرات", "تحف وأنتيكات", "نوادر وعملات", "إلكترونيات", "فن وأعمال يدوية", "أزياء فاخرة", "لوحات سيارات مميزة", "ماشية وخيل", "أخرى"],
-  auction_duration: ["3 أيام", "5 أيام", "7 أيام", "10 أيام", "14 يوم", "30 يوم", "حسب التاريخ المحدد"],
+  auction_duration: ["3 أيام", "5 أيام", "7 أيام", "حسب التاريخ المحدد"],
   shipping_option: ["استلام من البائع", "شحن داخل المدينة", "شحن داخل الدولة", "شحن دولي", "حسب الاتفاق"],
   payment_method: ["تحويل بنكي", "نقدي عند الاستلام", "Apple Pay / STC Pay", "بطاقة ائتمانية", "كاش حصراً", "Escrow (ضمان وسيط)"]
 };
 const DUR_TO_DAYS = {
   "3 أيام": 3,
   "5 أيام": 5,
-  "7 أيام": 7,
-  "10 أيام": 10,
-  "14 يوم": 14,
-  "30 يوم": 30
+  "7 أيام": 7
 };
 export function AuctionsDetailsBoxMobile({
   form,
@@ -61,6 +58,7 @@ export function AuctionsDetailsBoxMobile({
   const buyNowBelowStart = buyNowNum > 0 && startNum > 0 && buyNowNum <= startNum;
   return <View style={s.box} testID="auctions-details-box">
             <Text style={s.title}>🏷️ {t("تفاصيل المزاد")}</Text>
+            <Text style={s.hint}>{t("مدة المزاد من يوم إلى 7 أيام كحد أقصى؛ وينتهي تلقائيًا ويُنقل إلى ملفك الشخصي.")}</Text>
 
             <View style={s.row}>
                 <Cell label={t("حالة المعروض") + " *"}>

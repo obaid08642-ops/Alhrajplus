@@ -154,6 +154,7 @@ function AuctionCard({
     }}>
                 <Text style={styles.cardTitle} numberOfLines={1}>{listing.title}</Text>
                 <Text style={styles.cardCity} numberOfLines={1}>{listing.city}</Text>
+                <AuctionCountdown iso={listing.auction_end_at || listing.custom_fields?.end_time} />
                 <View style={styles.cardFoot}>
                     <View>
                         <Text style={styles.cardLabel}>{top ? t("أعلى مزايدة") : t("السعر الابتدائي")}</Text>
@@ -167,6 +168,25 @@ function AuctionCard({
             </View>
         </View>;
 }
+function AuctionCountdown({ iso }) {
+  const { t } = useI18n();
+  const [remaining, setRemaining] = useState(() => Math.max(0, new Date(iso || 0).getTime() - Date.now()));
+  useEffect(() => {
+    if (!iso) return undefined;
+    const tick = () => setRemaining(Math.max(0, new Date(iso).getTime() - Date.now()));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [iso]);
+  if (!iso) return null;
+  const seconds = Math.floor(remaining / 1000);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return <Text style={[styles.countdown, !remaining && styles.countdownEnded]}>{remaining ? `${t("متبقي")} ${days} ${t("ي")} ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}` : t("انتهى المزاد — محفوظ في ملفك")}</Text>;
+}
+
 function BidModal({
   user,
   listing,
@@ -245,7 +265,8 @@ function BidModal({
           padding: 14,
           gap: 12
         }}>
-                        <View style={styles.topBidBox}>
+                        <AuctionCountdown iso={listing.auction_end_at || listing.custom_fields?.end_time} />
+                    <View style={styles.topBidBox}>
                             <View>
                                 <Text style={styles.cardLabel}>{top ? t("أعلى مزايدة") : t("السعر الابتدائي")}</Text>
                                 <Text style={styles.modalPrice}>{Number(top?.amount || listing.price || 0).toLocaleString()} <Text style={styles.cardCurrency}>{listing.currency || t("ر.س")}</Text></Text>
@@ -442,6 +463,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     marginTop: 2
+  },
+  countdown: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 4,
+    marginBottom: 6,
+    textAlign: "left"
+  },
+  countdownEnded: {
+    color: colors.danger,
+    fontWeight: "800"
   },
   cardFoot: {
     flexDirection: "row",

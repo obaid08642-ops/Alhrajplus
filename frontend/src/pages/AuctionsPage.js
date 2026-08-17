@@ -121,7 +121,8 @@ function AuctionCard({ listing, onBid }) {
             </Link>
             <div className="p-3 flex-1 flex flex-col">
                 <h3 className="font-arabic font-bold text-sm text-[var(--text)] line-clamp-1 mb-1">{listing.title}</h3>
-                <p className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-1 mb-3">{listing.city}</p>
+                <p className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-1 mb-1">{listing.city}</p>
+                <AuctionCountdown iso={listing.auction_end_at || listing.custom_fields?.end_time} compact />
                 <div className="flex items-end justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)] flex-wrap">
                     <div className="min-w-0">
                         <div className="text-[10px] text-[var(--text-muted)] font-arabic-body">{top ? tr("أعلى مزايدة") : tr("السعر الابتدائي")}</div>
@@ -132,6 +133,28 @@ function AuctionCard({ listing, onBid }) {
                     </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function AuctionCountdown({ iso, compact = false }) {
+    const [remaining, setRemaining] = useState(() => Math.max(0, new Date(iso || 0).getTime() - Date.now()));
+    useEffect(() => {
+        if (!iso) return undefined;
+        const tick = () => setRemaining(Math.max(0, new Date(iso).getTime() - Date.now()));
+        tick();
+        const timer = window.setInterval(tick, 1000);
+        return () => window.clearInterval(timer);
+    }, [iso]);
+    if (!iso) return null;
+    const totalSeconds = Math.floor(remaining / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return (
+        <div data-testid="auction-countdown" className={`${compact ? "mb-2" : "mb-3"} text-[10px] font-arabic-body ${remaining ? "text-[var(--text-muted)]" : "text-red-600 font-bold"}`}>
+            {remaining ? `${tr("متبقي")} ${days} ${tr("ي")} ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : tr("انتهى المزاد — محفوظ في ملفك")}
         </div>
     );
 }
@@ -148,6 +171,7 @@ function BidDialog({ listing, onClose, onPlaced }) {
     // history below for the timeline list.
     const live = useAuctionLive(listing.id);
     const top = live.topBid || bids[0] || null;
+    const auctionEndAt = live.auctionEndAt || listing.auction_end_at || listing.custom_fields?.end_time;
     const liveCount = live.bidCount || bids.length;
     // Owner-defined min increment (saved as `custom_fields.bid_increment` in the post form).
     const minIncrement = Number(
@@ -215,6 +239,7 @@ function BidDialog({ listing, onClose, onPlaced }) {
                     </div>
                 </div>
                 <div className="p-4 space-y-4">
+                    <AuctionCountdown iso={auctionEndAt} />
                     <div className="bg-[var(--surface-elevated)] rounded-xl p-3 flex items-center justify-between">
                         <div>
                             <div className="text-[10px] text-[var(--text-muted)] font-arabic-body">{top ? tr("أعلى مزايدة") : tr("السعر الابتدائي")}</div>

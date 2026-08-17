@@ -1,16 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Globe, Moon, Sun, User, LogOut, Mic, Camera, Shield, Settings as SettingsIcon, Info, FileText, Mail, Clock, TrendingUp, X } from "lucide-react";
+import { Search, Globe, Moon, Sun, Mic, Camera, Clock, TrendingUp, X } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
-import CountrySwitcher from "@/components/CountrySwitcher";
 import NotificationBell from "@/components/NotificationBell";
 import { useState, useRef, useEffect } from "react";
 import api from "@/lib/api";
 
 export default function TopBar() {
     const { isDark, themeMode, setThemeMode } = useTheme();
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const { t, lang, setLang, available } = useI18n();
     const nav = useNavigate();
     const [openMenu, setOpenMenu] = useState(null);
@@ -133,14 +132,14 @@ export default function TopBar() {
 
     return (
         <header className="sticky top-0 z-40 backdrop-blur-xl bg-[var(--primary)] dark:bg-[var(--primary)] border-b border-[var(--primary-hover)]/45 dark:border-white/10 shadow-md">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3" ref={ref}>
-                <Link to="/" className="flex items-baseline gap-1 sm:gap-1.5 select-none shrink-0" data-testid="logo-link">
-                    <img src="/logo-haraj.png" alt="" className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow-md" />
+            <div className="max-w-7xl mx-auto px-2 sm:px-6 py-2 flex flex-nowrap items-center gap-1.5 sm:gap-2" ref={ref} dir="rtl">
+                <Link to="/" className="flex items-baseline gap-1 select-none shrink-0" data-testid="logo-link">
+                    <img src="/logo-haraj.png" alt="الحراج بلس" className="w-8 h-8 sm:w-9 sm:h-9 object-contain drop-shadow-md" />
                 </Link>
 
                 {/* Search with suggestions */}
-                <div className="flex-[1_1_0%] basis-full sm:basis-0 order-2 sm:order-none mx-0 sm:mx-2 relative min-w-0" ref={searchRef}>
-                    <div className={`flex items-center bg-white/95 dark:bg-[var(--surface)]/90 rounded-full px-3 py-2 border-2 border-white/30 dark:border-white/10 shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-white transition-all`}>
+                <div className="relative flex-none w-[clamp(92px,25vw,320px)] min-w-0" ref={searchRef}>
+                    <div className={`flex items-center bg-white/95 dark:bg-[var(--surface)]/90 rounded-full px-2 sm:px-2.5 py-1.5 border border-white/30 dark:border-white/10 shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-white transition-all`}>
                         <Search className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                         <input
                             ref={inputRef}
@@ -152,10 +151,10 @@ export default function TopBar() {
                             onKeyDown={handleSearchKey}
                             className="bg-transparent flex-1 mx-2 outline-none text-xs sm:text-sm placeholder:text-[var(--text-muted)] text-[var(--text)] font-arabic-body min-w-0"
                         />
-                        <button data-testid="voice-search-btn" onClick={startVoice} title={tr("بحث صوتي")} className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0">
+                        <button data-testid="voice-search-btn" onClick={startVoice} title={tr("بحث صوتي")} className="hidden sm:block text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0">
                             <Mic className="w-4 h-4" />
                         </button>
-                        <label data-testid="image-search-btn" title={tr("بحث بالصورة")} className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0 ms-1.5 cursor-pointer">
+                        <label data-testid="image-search-btn" title={tr("بحث بالصورة")} className="hidden sm:block text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0 ms-1.5 cursor-pointer">
                             <Camera className="w-4 h-4" />
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => startImageSearch(e.target.files[0])} />
                         </label>
@@ -230,7 +229,7 @@ export default function TopBar() {
 
                 {/* Language */}
                 <div className="relative">
-                    <button data-testid="lang-btn" onClick={() => setOpenMenu(openMenu === "lang" ? null : "lang")} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/15 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center border border-white/25 dark:border-white/15 transition-all backdrop-blur">
+                    <button data-testid="lang-btn" onClick={() => setOpenMenu(openMenu === "lang" ? null : "lang")} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/15 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center border border-white/25 dark:border-white/15 transition-all backdrop-blur">
                         <Globe className="w-4 h-4 text-white" />
                     </button>
                     {openMenu === "lang" && (
@@ -252,7 +251,7 @@ export default function TopBar() {
                 </div>
 
                 <div className="relative">
-                    <button data-testid="theme-toggle-btn" onClick={() => setOpenMenu(openMenu === "theme" ? null : "theme")} aria-label="Theme" className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/15 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center border border-white/25 dark:border-white/15 transition-all backdrop-blur">
+                    <button data-testid="theme-toggle-btn" onClick={() => setOpenMenu(openMenu === "theme" ? null : "theme")} aria-label="Theme" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/15 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center border border-white/25 dark:border-white/15 transition-all backdrop-blur">
                         {isDark ? <Sun className="w-4 h-4 text-[var(--accent)]" /> : <Moon className="w-4 h-4 text-white" />}
                     </button>
                     {openMenu === "theme" && (
@@ -264,46 +263,9 @@ export default function TopBar() {
                     )}
                 </div>
 
-                {/* User menu */}
-                {user ? (
-                    <div className="relative">
-                        <button data-testid="user-menu-btn" onClick={() => setOpenMenu(openMenu === "user" ? null : "user")} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white text-[var(--primary)] hover:bg-white/90 flex items-center justify-center transition-all shadow-md">
-                            <span className="font-bold text-sm font-arabic">{user.name?.[0] || "U"}</span>
-                        </button>
-                        {openMenu === "user" && (
-                            <div className="absolute top-12 end-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-2 min-w-[200px] z-50 font-arabic">
-                                <div className="px-4 py-2 border-b border-[var(--border)]">
-                                    <div className="font-bold text-sm text-[var(--text)]">{user.name}</div>
-                                    <div className="text-xs text-[var(--text-muted)]">{user.email}</div>
-                                </div>
-                                <Link to="/profile" data-testid="profile-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
-                                    <User className="w-4 h-4" /> {t("nav_profile")}
-                                </Link>
-                                <Link to="/settings" data-testid="settings-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
-                                    <SettingsIcon className="w-4 h-4" /> {tr("الإعدادات")}
-                                </Link>
-                                <Link to="/about" data-testid="about-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
-                                    <Info className="w-4 h-4" /> {tr("عن التطبيق")}
-                                </Link>
-                                <Link to="/terms" data-testid="terms-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
-                                    <FileText className="w-4 h-4" /> {tr("الشروط")}
-                                </Link>
-                                <Link to="/contact" data-testid="contact-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--text)]" onClick={() => setOpenMenu(null)}>
-                                    <Mail className="w-4 h-4" /> {tr("تواصل / الإعلان")}
-                                </Link>
-                                {user.role === "admin" && (
-                                    <Link to="/admin" data-testid="admin-link" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--primary)]/10 text-[var(--accent)] font-bold border-t border-[var(--border)]" onClick={() => setOpenMenu(null)}>
-                                        <Shield className="w-4 h-4" /> {t("admin_panel")}
-                                    </Link>
-                                )}
-                                <button data-testid="logout-btn" onClick={async () => { await logout(); setOpenMenu(null); nav("/"); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600">
-                                    <LogOut className="w-4 h-4" /> {t("logout")}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <Link to="/login" data-testid="login-cta" className="bg-[var(--secondary)] dark:bg-[var(--accent)] text-white dark:text-[#0A1128] px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-full font-bold text-[11px] sm:text-sm hover:scale-105 hover:shadow-lg transition-all font-arabic shrink-0 border border-white/15 whitespace-nowrap">
+                {/* Profile access is intentionally kept in BottomNav → More */}
+                {!user && (
+                    <Link to="/login" data-testid="login-cta" className="bg-[var(--secondary)] dark:bg-[var(--accent)] text-white dark:text-[#0A1128] px-2.5 sm:px-4 py-1.5 rounded-full font-bold text-[11px] sm:text-xs hover:scale-105 hover:shadow-lg transition-all font-arabic shrink-0 border border-white/15 whitespace-nowrap">
                         <span className="sm:hidden">{tr("دخول")}</span>
                         <span className="hidden sm:inline">{t("login")}</span>
                     </Link>

@@ -2660,6 +2660,56 @@ async def cloudinary_signature(
 # ============================================================
 # Listings
 # ============================================================
+def _normalize_auction_submission(custom_fields: Optional[dict], now_dt: Optional[datetime] = None) -> tuple[dict, Optional[str]]:
+    """Normalize a new auction and enforce the one-week maximum server-side."""
+    cf = dict(custom_fields or {})
+    if not cf.get("auction_duration") and not (cf.get("end_time") or cf.get("auction_end_at")):
+        now_dt = now_dt or datetime.now(timezone.utc)
+        end_dt = now_dt + timedelta(days=7)
+        cf["auction_duration"] = "7 أيام"
+        cf["end_time"] = end_dt.isoformat()
+        return cf, end_dt.isoformat()
+
+    now_dt = now_dt or datetime.now(timezone.utc)
+    duration_days = {
+        "3 أيام": 3, "5 أيام": 5, "7 أيام": 7,
+        "3 days": 3, "5 days": 5, "7 days": 7,
+    }
+    raw_duration = cf.get("auction_duration")
+    raw_end = cf.get("end_time") or cf.get("auction_end_at")
+    end_dt: Optional[datetime] = None
+    if raw_duration:
+        if isinstance(raw_duration, (int, float)):
+            days = int(raw_duration)
+        else:
+            normalized_duration = str(raw_duration).strip().lower()
+            days = duration_days.get(normalized_duration)
+            if days is None:
+                import re
+                match = re.search(r"(\d+)", normalized_duration)
+                days = int(match.group(1)) if match else None
+        if not days or days < 1 or days > 7:
+            raise HTTPException(400, "مدة المزاد يجب أن تكون بين يوم واحد و7 أيام كحد أقصى")
+        end_dt = now_dt + timedelta(days=days)
+    elif raw_end:
+        try:
+            end_dt = datetime.fromisoformat(str(raw_end).replace("Z", "+00:00"))
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            else:
+                end_dt = end_dt.astimezone(timezone.utc)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "وقت انتهاء المزاد غير صالح")
+        if end_dt <= now_dt:
+            raise HTTPException(400, "وقت انتهاء المزاد يجب أن يكون في المستقبل")
+        if end_dt > now_dt + timedelta(days=7):
+            raise HTTPException(400, "لا يمكن أن تتجاوز مدة المزاد 7 أيام")
+    else:
+        end_dt = now_dt + timedelta(days=7)
+    cf["end_time"] = end_dt.isoformat()
+    return cf, end_dt.isoformat()
+
+
 def _validate_model_3d(custom_fields: Optional[dict]) -> None:
     """Accept only an uploaded/hosted GLB or GLTF asset; no fake conversion."""
     url = (custom_fields or {}).get("model_3d_url")
@@ -2679,8 +2729,11 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     cat = next((c for c in CATEGORIES if c["key"] == body.category), None)
     if not cat:
         raise HTTPException(400, "فئة غير صالحة")
-    custom_fields = body.custom_fields or {}
+    custom_fields = dict(body.custom_fields or {})
     _validate_model_3d(custom_fields)
+    auction_end_at: Optional[str] = None
+    if body.category == "auctions":
+        custom_fields, auction_end_at = _normalize_auction_submission(custom_fields)
     # The active country selected in the posting flow is authoritative. It must
     # be a supported marketplace country; otherwise a listing could be stored
     # under an unsupported code and disappear from every isolated feed.
@@ -2704,6 +2757,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "subcategory": body.subcategory,
         "post_type": body.post_type,
         "custom_fields": custom_fields,
+        "auction_end_at": auction_end_at,
         "images": body.images,
         "videos": body.videos,
         "country_code": effective_cc,

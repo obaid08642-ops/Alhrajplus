@@ -8250,5 +8250,264 @@
     "hi": "📤 परीक्षण नोटिफिकेशन भेजा गया — कुछ सेकंड में जाँच करें",
     "bn": "📤 টেস্ট বিজ্ঞপ্তি পাঠানো হয়েছে — কয়েক সেকেন্ডের মধ্যে পরীক্ষা করুন",
     "fr": "📤 Notification de test envoyée — vérifiez dans quelques secondes"
+  },
+  "مدة المزاد من يوم إلى 7 أيام كحد أقصى؛ وينتهي تلقائيًا ويُنقل إلى ملفك الشخصي.": {
+    "en": "Auction duration is 1 to 7 days maximum; it ends automatically and moves to your profile.",
+    "ur": "نیلامی کی مدت زیادہ سے زیادہ 1 سے 7 دن ہے؛ یہ خود بخود ختم ہو کر آپ کے پروفائل میں منتقل ہو جائے گی۔",
+    "hi": "नीलामी की अवधि अधिकतम 1 से 7 दिन है; यह अपने आप समाप्त होकर आपकी प्रोफ़ाइल में चली जाएगी।",
+    "bn": "নিলামের সময়কাল সর্বোচ্চ ১ থেকে ৭ দিন; এটি স্বয়ংক্রিয়ভাবে শেষ হয়ে আপনার প্রোফাইলে চলে যাবে।",
+    "fr": "La durée de l'enchère est de 1 à 7 jours maximum ; elle se termine automatiquement et est archivée dans votre profil."
+  },
+  "حد أقصى 7 أيام من وقت النشر": {
+    "en": "Maximum 7 days from publication",
+    "ur": "اشاعت کے وقت سے زیادہ سے زیادہ 7 دن",
+    "hi": "प्रकाशन के समय से अधिकतम 7 दिन",
+    "bn": "প্রকাশের সময় থেকে সর্বোচ্চ ৭ দিন",
+    "fr": "7 jours maximum à compter de la publication"
+  },
+  "متبقي": {
+    "en": "Remaining",
+    "ur": "باقی",
+    "hi": "शेष",
+    "bn": "বাকি",
+    "fr": "Restant"
+  },
+  "انتهى المزاد — محفوظ في ملفك": {
+    "en": "Auction ended — saved in your profile",
+    "ur": "نیلامی ختم ہو گئی — آپ کے پروفائل میں محفوظ ہے",
+    "hi": "नीलामी समाप्त — आपकी प्रोफ़ाइल में محفوظ",
+    "bn": "নিলাম শেষ — আপনার প্রোফাইলে সংরক্ষিত",
+    "fr": "Enchère terminée — enregistrée dans votre profil"
+  },
+  "ي": {
+    "en": "d",
+    "ur": "دن",
+    "hi": "दि.",
+    "bn": "দিন",
+    "fr": "j"
+  },
+  "استكشف الإعلانات": {
+    "en": "Explore listings",
+    "ur": "Explore listings",
+    "hi": "Explore listings",
+    "bn": "Explore listings",
+    "fr": "Explore listings"
+  },
+  "اكتب رسالتك": {
+    "en": "Write your message",
+    "ur": "Write your message",
+    "hi": "Write your message",
+    "bn": "Write your message",
+    "fr": "Write your message"
+  },
+  "البيانات مرتبطة بالدولة المختارة": {
+    "en": "Data is linked to the selected country",
+    "ur": "Data is linked to the selected country",
+    "hi": "Data is linked to the selected country",
+    "bn": "Data is linked to the selected country",
+    "fr": "Data is linked to the selected country"
+  },
+  "الحساب": {
+    "en": "Account",
+    "ur": "Account",
+    "hi": "Account",
+    "bn": "Account",
+    "fr": "Account"
+  },
+  "الدفع": {
+    "en": "Payment",
+    "ur": "Payment",
+    "hi": "Payment",
+    "bn": "Payment",
+    "fr": "Payment"
+  },
+  "السعر: ": {
+    "en": "Price: ",
+    "ur": "Price: ",
+    "hi": "Price: ",
+    "bn": "Price: ",
+    "fr": "Price: "
+  },
+  "الصور: ": {
+    "en": "Images: ",
+    "ur": "Images: ",
+    "hi": "Images: ",
+    "bn": "Images: ",
+    "fr": "Images: "
+  },
+  "العنوان: ": {
+    "en": "Title: ",
+    "ur": "Title: ",
+    "hi": "Title: ",
+    "bn": "Title: ",
+    "fr": "Title: "
+  },
+  "الفئة: ": {
+    "en": "Category: ",
+    "ur": "Category: ",
+    "hi": "Category: ",
+    "bn": "Category: ",
+    "fr": "Category: "
+  },
+  "المدينة: ": {
+    "en": "City: ",
+    "ur": "City: ",
+    "hi": "City: ",
+    "bn": "City: ",
+    "fr": "City: "
+  },
+  "المزادات النشطة ": {
+    "en": "Active auctions ",
+    "ur": "Active auctions ",
+    "hi": "Active auctions ",
+    "bn": "Active auctions ",
+    "fr": "Active auctions "
+  },
+  "الميزانية إلى": {
+    "en": "Budget to",
+    "ur": "Budget to",
+    "hi": "Budget to",
+    "bn": "Budget to",
+    "fr": "Budget to"
+  },
+  "الميزانية من": {
+    "en": "Budget from",
+    "ur": "Budget from",
+    "hi": "Budget from",
+    "bn": "Budget from",
+    "fr": "Budget from"
+  },
+  "بلاغ": {
+    "en": "Report",
+    "ur": "Report",
+    "hi": "Report",
+    "bn": "Report",
+    "fr": "Report"
+  },
+  "تذاكر الدعم": {
+    "en": "Support tickets",
+    "ur": "Support tickets",
+    "hi": "Support tickets",
+    "bn": "Support tickets",
+    "fr": "Support tickets"
+  },
+  "تعذر حفظ البيانات": {
+    "en": "Could not save the data",
+    "ur": "Could not save the data",
+    "hi": "Could not save the data",
+    "bn": "Could not save the data",
+    "fr": "Could not save the data"
+  },
+  "تم الحفظ بنجاح": {
+    "en": "Saved successfully",
+    "ur": "Saved successfully",
+    "hi": "Saved successfully",
+    "bn": "Saved successfully",
+    "fr": "Saved successfully"
+  },
+  "طلبات الشراء": {
+    "en": "Buy requests",
+    "ur": "Buy requests",
+    "hi": "Buy requests",
+    "bn": "Buy requests",
+    "fr": "Buy requests"
+  },
+  "طلبات حقيقية مرتبطة بالدولة والفئة والميزانية": {
+    "en": "Real requests linked to country, category, and budget",
+    "ur": "Real requests linked to country, category, and budget",
+    "hi": "Real requests linked to country, category, and budget",
+    "bn": "Real requests linked to country, category, and budget",
+    "fr": "Real requests linked to country, category, and budget"
+  },
+  "عاجل": {
+    "en": "Urgent",
+    "ur": "Urgent",
+    "hi": "Urgent",
+    "bn": "Urgent",
+    "fr": "Urgent"
+  },
+  "عام": {
+    "en": "General",
+    "ur": "General",
+    "hi": "General",
+    "bn": "General",
+    "fr": "General"
+  },
+  "عنصر محفوظ": {
+    "en": "Saved item",
+    "ur": "Saved item",
+    "hi": "Saved item",
+    "bn": "Saved item",
+    "fr": "Saved item"
+  },
+  "عنوان الطلب": {
+    "en": "Request title",
+    "ur": "Request title",
+    "hi": "Request title",
+    "bn": "Request title",
+    "fr": "Request title"
+  },
+  "فتح الإعلان": {
+    "en": "Open listing",
+    "ur": "Open listing",
+    "hi": "Open listing",
+    "bn": "Open listing",
+    "fr": "Open listing"
+  },
+  "كلمة محظورة: ": {
+    "en": "Blocked word: ",
+    "ur": "Blocked word: ",
+    "hi": "Blocked word: ",
+    "bn": "Blocked word: ",
+    "fr": "Blocked word: "
+  },
+  "مبلغ المزايدة ": {
+    "en": "Bid amount ",
+    "ur": "Bid amount ",
+    "hi": "Bid amount ",
+    "bn": "Bid amount ",
+    "fr": "Bid amount "
+  },
+  "متابعة البلاغات والأسئلة مع سجل الرسائل": {
+    "en": "Track reports and questions with message history",
+    "ur": "Track reports and questions with message history",
+    "hi": "Track reports and questions with message history",
+    "bn": "Track reports and questions with message history",
+    "fr": "Track reports and questions with message history"
+  },
+  "مرتفع": {
+    "en": "High",
+    "ur": "High",
+    "hi": "High",
+    "bn": "High",
+    "fr": "High"
+  },
+  "موضوع التذكرة": {
+    "en": "Ticket subject",
+    "ur": "Ticket subject",
+    "hi": "Ticket subject",
+    "bn": "Ticket subject",
+    "fr": "Ticket subject"
+  },
+  "وصف الطلب": {
+    "en": "Request description",
+    "ur": "Request description",
+    "hi": "Request description",
+    "bn": "Request description",
+    "fr": "Request description"
+  },
+  "❌ تعذّر الإرسال: ": {
+    "en": "❌ Could not send: ",
+    "ur": "❌ Could not send: ",
+    "hi": "❌ Could not send: ",
+    "bn": "❌ Could not send: ",
+    "fr": "❌ Could not send: "
+  },
+  "❌ تعذّر التفعيل: ": {
+    "en": "❌ Could not activate: ",
+    "ur": "❌ Could not activate: ",
+    "hi": "❌ Could not activate: ",
+    "bn": "❌ Could not activate: ",
+    "fr": "❌ Could not activate: "
   }
 }

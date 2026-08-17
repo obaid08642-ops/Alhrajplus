@@ -16,19 +16,24 @@
 import { Sparkle } from "lucide-react";
 import { useEffect } from "react";
 
+function toLocalDateTime(date) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 /* =========================================================================
    AUCTIONS — 5 rows × 2 cols (10 fields)
    ========================================================================= */
 const AUC_OPTIONS = {
     item_condition: ["جديد", "كالجديد", "مستعمل ممتاز", "مستعمل جيد", "للهواة / للجمع", "للترميم"],
     category_type: ["سيارات", "عقارات", "ساعات وإكسسوارات فاخرة", "مجوهرات", "تحف وأنتيكات", "نوادر وعملات", "إلكترونيات", "فن وأعمال يدوية", "أزياء فاخرة", "لوحات سيارات مميزة", "ماشية وخيل", "أخرى"],
-    auction_duration: ["3 أيام", "5 أيام", "7 أيام", "10 أيام", "14 يوم", "30 يوم", "حسب التاريخ المحدد"],
+    auction_duration: ["3 أيام", "5 أيام", "7 أيام", "حسب التاريخ المحدد"],
     shipping_option: ["استلام من البائع", "شحن داخل المدينة", "شحن داخل الدولة", "شحن دولي", "حسب الاتفاق"],
     payment_method: ["تحويل بنكي", "نقدي عند الاستلام", "Apple Pay / STC Pay", "بطاقة ائتمانية", "كاش حصراً", "Escrow (ضمان وسيط)"],
 };
 
 const DURATION_TO_DAYS = {
-    "3 أيام": 3, "5 أيام": 5, "7 أيام": 7, "10 أيام": 10, "14 يوم": 14, "30 يوم": 30,
+    "3 أيام": 3, "5 أيام": 5, "7 أيام": 7,
 };
 
 export function AuctionsDetailsBox({ form, setForm, tr, currency = "ر.س" }) {
@@ -62,6 +67,7 @@ export function AuctionsDetailsBox({ form, setForm, tr, currency = "ر.س" }) {
             <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-1 flex items-center gap-1">
                 🏷️ {tr("تفاصيل المزاد")}
             </h4>
+            <p className="text-[10px] font-arabic-body text-[var(--text-muted)]">{tr("مدة المزاد من يوم إلى 7 أيام كحد أقصى؛ وينتهي تلقائيًا ويُنقل إلى ملفك الشخصي.")}</p>
             <div className="grid grid-cols-2 gap-2">
                 {/* Row 1 */}
                 <SelectCell label={tr("حالة المعروض")} value={cf.item_condition} options={AUC_OPTIONS.item_condition} required onChange={(v) => set({ item_condition: v })} testid="auc-condition" />
@@ -77,7 +83,7 @@ export function AuctionsDetailsBox({ form, setForm, tr, currency = "ر.س" }) {
 
                 {/* Row 4 */}
                 <SelectCell label={tr("مدة المزاد")} value={cf.auction_duration} options={AUC_OPTIONS.auction_duration} required onChange={(v) => set({ auction_duration: v })} testid="auc-duration" />
-                <DateTimeCell label={tr("وقت الانتهاء")} value={cf.end_time} onChange={(v) => set({ end_time: v })} testid="auc-end-time" hint={cf.auction_duration && cf.auction_duration !== "حسب التاريخ المحدد" ? tr("✓ تلقائي من المدة") : null} />
+                <DateTimeCell label={tr("وقت الانتهاء")} value={cf.end_time} onChange={(v) => set({ end_time: v })} testid="auc-end-time" min={toLocalDateTime(new Date())} max={toLocalDateTime(new Date(Date.now() + 7 * 86400 * 1000))} hint={cf.auction_duration && cf.auction_duration !== "حسب التاريخ المحدد" ? tr("✓ تلقائي من المدة") : tr("حد أقصى 7 أيام من وقت النشر")} />
 
                 {/* Row 5 */}
                 <SelectCell label={tr("خيار الشحن")} value={cf.shipping_option} options={AUC_OPTIONS.shipping_option} required onChange={(v) => set({ shipping_option: v })} testid="auc-shipping" />
@@ -353,13 +359,15 @@ function DateCell({ label, value, onChange, testid }) {
     );
 }
 
-function DateTimeCell({ label, value, onChange, hint, testid }) {
+function DateTimeCell({ label, value, onChange, hint, testid, min, max }) {
     return (
         <label className="block">
             <span className="block text-[10px] font-arabic font-bold text-[var(--text-muted)] mb-1">{label}</span>
             <input
                 type="datetime-local"
                 value={value || ""}
+                min={min}
+                max={max}
                 onChange={(e) => onChange(e.target.value)}
                 data-testid={testid}
                 className="w-full bg-[var(--surface-elevated)] rounded-xl px-2 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-latin"
