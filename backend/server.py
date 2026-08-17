@@ -9026,7 +9026,7 @@ async def economy_config():
     return {k: cfg[k] for k in ("welcome_coins", "referral_coins", "share_open_coins", "referral_enabled", "share_rewards_enabled", "boost_products")}
 
 
-@admin_router.put("/economy/config")
+@api.put("/admin/economy/config")
 async def update_economy_config(body: EconomyConfigIn, user: dict = Depends(require_admin)):
     products = []
     seen = set()
