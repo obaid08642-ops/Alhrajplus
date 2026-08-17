@@ -47,12 +47,16 @@
 |---|---|
 | Two-account live Chat confirmation | **BLOCKED** until a separate authenticated test account/session is available. This is required to visibly verify fan-out, delete-for-me isolation, and delete-for-everyone across two real clients. |
 | Physical-device push-tap validation | **BLOCKED** because Expo/iOS/Android device access and a real registered token are not available in this sandbox. Build/export and resolver paths were verified. |
-| Post-publication deployment smoke | **PENDING** until the Phase 5 commit is pushed and Render/Vercel complete their deployments. It must be performed read-only after deploy. |
+| Post-publication deployment smoke | **PASS (read-only)** — Vercel deployment succeeded; the homepage loaded; Render health was OK; deployed OpenAPI exposed all four new Phase 5 endpoints. |
 
 ## Publication record
 
-The commit SHA, target branches, push outcome, deployment revision, and post-deploy smoke result will be appended after the Phase 5 publication step. No Phase 6 implementation is authorized by this report.
+**Commit:** `d6a9f78c8bd4ca480d0bbc4663a7362b0d220074` — `feat: complete comments chat notifications deep links`.
+
+**Branches pushed:** `main` and `production-readiness-premium`, both advanced from `0ccda44` to `d6a9f78` successfully.
+
+**Deployment and post-deploy smoke:** Vercel reported `success` for this revision. The public homepage loaded successfully after its initial loading frame. Render health returned `{"status":"ok","service":"haraj-plus-backend"}`. Direct read-only inspection of the deployed OpenAPI document confirmed all new Phase 5 endpoints: delete-message-for-me, delete-conversation-for-me, report-message, and report-comment. No Phase 6 implementation is authorized by this report.
 
 ## Final phase conclusion
 
-The code and automated regression gate for the Phase 5 scope are complete. Subject to successful commit/push and post-deploy smoke verification, the phase remains **PASS WITH BLOCKERS** exclusively because two-account realtime and physical-device push validation require resources outside this environment.
+The code, automated regression gate, publication, and read-only post-deploy smoke for the Phase 5 scope are complete. The phase is **PASS WITH BLOCKERS** exclusively because two-account realtime validation and physical-device push-tap validation require resources outside this environment.
