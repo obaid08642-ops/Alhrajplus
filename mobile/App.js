@@ -55,6 +55,7 @@ import AuctionsScreen from "./src/screens/AuctionsScreen";
 import FlightsScreen from "./src/screens/FlightsScreen";
 import WalletScreen from "./src/screens/WalletScreen";
 import AIAssistantScreen from "./src/screens/AIAssistantScreen";
+import { BuyRequestsScreen, SupportTicketsScreen } from "./src/screens/WorkflowScreens";
 import { theme, colors } from "./src/theme";
 import { registerForNotifications, setNotificationNavigationRef } from "./src/notifications";
 import { useI18n } from "./src/I18nContext";
@@ -198,6 +199,8 @@ function Navigation() {
                 <Stack.Screen name="Flights" component={FlightsScreen} options={{ title: t("حجز الطيران") }} />
                 <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: t("محفظتي") }} />
                 <Stack.Screen name="AIAssistant" component={AIAssistantScreen} options={{ title: t("المساعد الذكي") }} />
+                <Stack.Screen name="BuyRequests" component={BuyRequestsScreen} options={{ title: t("طلبات الشراء") }} />
+                <Stack.Screen name="Support" component={SupportTicketsScreen} options={{ title: t("الدعم والمساعدة") }} />
                 {/* Auth screens — always available so guests can sign up */}
                 <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Register" component={RegisterScreen} options={{ title: t("إنشاء حساب") }} />

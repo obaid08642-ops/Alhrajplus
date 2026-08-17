@@ -995,6 +995,36 @@ class ThemeIn(BaseModel):
     site_name: Optional[str] = None
     tagline_ar: Optional[str] = None
 
+class BuyRequestIn(BaseModel):
+    title: str = Field(min_length=3, max_length=160)
+    category: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=4000)
+    budget_min: Optional[float] = Field(default=None, ge=0)
+    budget_max: Optional[float] = Field(default=None, ge=0)
+    city: str = Field(default="", max_length=120)
+    country_code: str = Field(default="SA", min_length=2, max_length=3)
+    expires_at: Optional[str] = None
+
+class ResumeIn(BaseModel):
+    resume_url: str = Field(min_length=8, max_length=2000)
+    file_name: str = Field(default="resume", max_length=180)
+    mime_type: str = Field(default="application/pdf", max_length=120)
+
+class JobApplicationIn(BaseModel):
+    cover_note: str = Field(default="", max_length=5000)
+    resume_url: Optional[str] = Field(default=None, max_length=2000)
+    country_code: str = Field(default="SA", min_length=2, max_length=3)
+
+class SupportTicketIn(BaseModel):
+    subject: str = Field(min_length=3, max_length=180)
+    message: str = Field(min_length=3, max_length=6000)
+    category: str = Field(default="general", max_length=60)
+    priority: str = Field(default="normal", max_length=20)
+    listing_id: Optional[str] = Field(default=None, max_length=120)
+
+class SupportReplyIn(BaseModel):
+    message: str = Field(min_length=1, max_length=6000)
+
 
 # ============================================================
 # Public meta endpoints
@@ -4779,6 +4809,154 @@ async def submit_contact(body: ContactIn, request: Request):
         "status": "open", "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"id": cid, "success": True}
+
+# ============================================================
+# Buy Requests, resumes/applications, and support tickets
+# These are first-class persisted workflows; no mock cards or fake success.
+# ============================================================
+def _supported_country_or_default(value: Optional[str], fallback: str = "SA") -> str:
+    supported = {str(item.get("code") or "").upper() for item in COUNTRIES}
+    code = str(value or fallback).upper().strip()
+    return code if code in supported else fallback
+
+@api.post("/buy-requests")
+async def create_buy_request(body: BuyRequestIn, user: dict = Depends(get_current_user)):
+    country_code = _supported_country_or_default(body.country_code, user.get("country_code") or "SA")
+    if body.budget_min is not None and body.budget_max is not None and body.budget_min > body.budget_max:
+        raise HTTPException(400, "budget_min cannot exceed budget_max")
+    now = datetime.now(timezone.utc)
+    expires_at = body.expires_at
+    if expires_at:
+        try:
+            parsed = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            if parsed <= now:
+                raise HTTPException(400, "expires_at must be in the future")
+            expires_at = parsed.isoformat()
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(400, "Invalid expires_at")
+    else:
+        expires_at = (now + timedelta(days=30)).isoformat()
+    rid = str(uuid.uuid4())
+    doc = {
+        "id": rid, "user_id": user["id"], "title": body.title.strip(),
+        "category": body.category.strip(), "description": body.description.strip(),
+        "budget_min": body.budget_min, "budget_max": body.budget_max,
+        "city": body.city.strip(), "country_code": country_code,
+        "status": "open", "expires_at": expires_at,
+        "created_at": now.isoformat(), "updated_at": now.isoformat(),
+    }
+    await db.buy_requests.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+@api.get("/buy-requests")
+async def list_buy_requests(country_code: Optional[str] = None, category: Optional[str] = None, city: Optional[str] = None, limit: int = Query(50, ge=1, le=200), user: dict = Depends(get_current_user)):
+    cc = _supported_country_or_default(country_code, user.get("country_code") or "SA")
+    query = {"country_code": cc, "status": "open", "expires_at": {"$gt": datetime.now(timezone.utc).isoformat()}}
+    if category: query["category"] = category.strip()
+    if city: query["city"] = city.strip()
+    rows = await db.buy_requests.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+    return rows
+
+@api.get("/buy-requests/mine")
+async def my_buy_requests(user: dict = Depends(get_current_user)):
+    return await db.buy_requests.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(200).to_list(length=200)
+
+@api.delete("/buy-requests/{request_id}")
+async def delete_buy_request(request_id: str, user: dict = Depends(get_current_user)):
+    result = await db.buy_requests.delete_one({"id": request_id, "user_id": user["id"]})
+    if not result.deleted_count:
+        raise HTTPException(404, "Buy request not found")
+    await db.buy_request_matches.delete_many({"request_id": request_id})
+    return {"success": True, "id": request_id}
+
+@api.put("/users/me/resume")
+async def save_resume(body: ResumeIn, user: dict = Depends(get_current_user)):
+    if not body.resume_url.startswith(("https://", "http://")):
+        raise HTTPException(400, "resume_url must be an absolute URL")
+    now = datetime.now(timezone.utc).isoformat()
+    resume = {"url": body.resume_url, "file_name": body.file_name.strip(), "mime_type": body.mime_type.strip(), "updated_at": now}
+    await db.users.update_one({"id": user["id"]}, {"$set": {"resume": resume, "updated_at": now}})
+    return {"success": True, "resume": resume}
+
+@api.get("/users/me/resume")
+async def get_resume(user: dict = Depends(get_current_user)):
+    doc = await db.users.find_one({"id": user["id"]}, {"_id": 0, "resume": 1})
+    return (doc or {}).get("resume") or None
+
+@api.post("/listings/{listing_id}/applications")
+async def apply_to_job(listing_id: str, body: JobApplicationIn, user: dict = Depends(get_current_user)):
+    cc = _supported_country_or_default(body.country_code, user.get("country_code") or "SA")
+    listing = await db.listings.find_one(public_listing_filter_for_country(cc, {"id": listing_id}), {"_id": 0, "id": 1, "user_id": 1, "category": 1, "country_code": 1})
+    if not listing:
+        raise HTTPException(404, "Listing not found in selected country")
+    if listing.get("user_id") == user["id"]:
+        raise HTTPException(400, "Cannot apply to your own listing")
+    existing = await db.job_applications.find_one({"listing_id": listing_id, "applicant_id": user["id"]}, {"_id": 0})
+    if existing:
+        return {**existing, "already_applied": True}
+    resume_url = body.resume_url
+    if not resume_url:
+        me = await db.users.find_one({"id": user["id"]}, {"_id": 0, "resume": 1})
+        resume_url = ((me or {}).get("resume") or {}).get("url")
+    if not resume_url:
+        raise HTTPException(400, "Upload a resume before applying")
+    now = datetime.now(timezone.utc).isoformat()
+    application = {"id": str(uuid.uuid4()), "listing_id": listing_id, "applicant_id": user["id"], "owner_id": listing["user_id"], "country_code": cc, "resume_url": resume_url, "cover_note": body.cover_note.strip(), "status": "submitted", "created_at": now, "updated_at": now}
+    await db.job_applications.insert_one(application)
+    return {k: v for k, v in application.items() if k != "_id"}
+
+@api.get("/listings/{listing_id}/applications")
+async def list_job_applications(listing_id: str, user: dict = Depends(get_current_user)):
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1})
+    if not listing or listing.get("user_id") != user["id"]:
+        raise HTTPException(403, "Only the listing owner can view applications")
+    return await db.job_applications.find({"listing_id": listing_id}, {"_id": 0}).sort("created_at", -1).limit(500).to_list(length=500)
+
+@api.patch("/job-applications/{application_id}")
+async def update_job_application(application_id: str, status: str = Query(..., min_length=3, max_length=30), user: dict = Depends(get_current_user)):
+    allowed = {"submitted", "reviewing", "shortlisted", "rejected", "accepted"}
+    if status not in allowed:
+        raise HTTPException(400, "Unsupported application status")
+    result = await db.job_applications.update_one({"id": application_id, "owner_id": user["id"]}, {"$set": {"status": status, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    if not result.modified_count:
+        raise HTTPException(404, "Application not found")
+    return {"success": True, "id": application_id, "status": status}
+
+@api.post("/support/tickets")
+async def create_support_ticket(body: SupportTicketIn, user: dict = Depends(get_current_user)):
+    priority = body.priority if body.priority in {"low", "normal", "high", "urgent"} else "normal"
+    now = datetime.now(timezone.utc).isoformat()
+    ticket = {"id": str(uuid.uuid4()), "user_id": user["id"], "subject": body.subject.strip(), "message": body.message.strip(), "category": body.category.strip() or "general", "priority": priority, "listing_id": body.listing_id, "status": "open", "messages": [{"id": str(uuid.uuid4()), "author_id": user["id"], "message": body.message.strip(), "created_at": now}], "created_at": now, "updated_at": now}
+    await db.support_tickets.insert_one(ticket)
+    return {k: v for k, v in ticket.items() if k != "_id"}
+
+@api.get("/support/tickets")
+async def list_support_tickets(user: dict = Depends(get_current_user)):
+    query = {"user_id": user["id"]} if user.get("role") != "admin" else {}
+    return await db.support_tickets.find(query, {"_id": 0}).sort("updated_at", -1).limit(200).to_list(length=200)
+
+@api.get("/support/tickets/{ticket_id}")
+async def get_support_ticket(ticket_id: str, user: dict = Depends(get_current_user)):
+    query = {"id": ticket_id}
+    if user.get("role") != "admin": query["user_id"] = user["id"]
+    ticket = await db.support_tickets.find_one(query, {"_id": 0})
+    if not ticket: raise HTTPException(404, "Ticket not found")
+    return ticket
+
+@api.post("/support/tickets/{ticket_id}/replies")
+async def reply_support_ticket(ticket_id: str, body: SupportReplyIn, user: dict = Depends(get_current_user)):
+    query = {"id": ticket_id}
+    if user.get("role") != "admin": query["user_id"] = user["id"]
+    ticket = await db.support_tickets.find_one(query, {"_id": 0, "status": 1})
+    if not ticket: raise HTTPException(404, "Ticket not found")
+    now = datetime.now(timezone.utc).isoformat()
+    item = {"id": str(uuid.uuid4()), "author_id": user["id"], "message": body.message.strip(), "created_at": now}
+    await db.support_tickets.update_one({"id": ticket_id}, {"$push": {"messages": item}, "$set": {"status": "open" if user.get("role") != "admin" else "pending_user", "updated_at": now}})
+    return {"success": True, "message": item}
 
 @api.post("/auth/request-account-deletion")
 async def request_account_deletion(user: dict = Depends(get_current_user)):

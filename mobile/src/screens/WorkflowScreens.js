@@ -1,0 +1,31 @@
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import api from "../api";
+import { useI18n } from "../I18nContext";
+import { useCountry } from "../CountryContext";
+import { useThemeMode } from "../ThemeContext";
+
+function Field({ value, onChangeText, placeholder, multiline = false, keyboardType }) {
+  const { palette } = useThemeMode();
+  return <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={palette.muted} keyboardType={keyboardType} multiline={multiline} style={[s.field, { color: palette.text, backgroundColor: palette.surface, borderColor: palette.border }, multiline && s.multiline]} />;
+}
+
+function WorkflowScreen({ kind, navigation }) {
+  const { t } = useI18n();
+  const { country } = useCountry();
+  const { palette } = useThemeMode();
+  const buy = kind === "buy";
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [form, setForm] = useState(buy ? { title: "", category: "", city: "", description: "", budget_min: "", budget_max: "" } : { subject: "", message: "", category: "general", priority: "normal" });
+  const set = (key, value) => setForm((x) => ({ ...x, [key]: value }));
+  const load = useCallback(async () => { setLoading(true); try { const { data } = await api.get(buy ? "/buy-requests/mine" : "/support/tickets", { params: { country_code: country } }); setRows(Array.isArray(data) ? data : []); } catch (_) { setRows([]); } finally { setLoading(false); } }, [buy, country]);
+  useEffect(() => { load(); }, [load]);
+  const submit = async () => { setBusy(true); setNotice(""); try { await api.post(buy ? "/buy-requests" : "/support/tickets", { ...form, ...(buy ? { country_code: country, budget_min: form.budget_min === "" ? null : Number(form.budget_min), budget_max: form.budget_max === "" ? null : Number(form.budget_max) } : {}) }); setNotice(t("تم الحفظ بنجاح")); setForm(buy ? { title: "", category: "", city: "", description: "", budget_min: "", budget_max: "" } : { subject: "", message: "", category: "general", priority: "normal" }); await load(); } catch (e) { setNotice(e?.response?.data?.detail || t("تعذر حفظ البيانات")); } finally { setBusy(false); } };
+  return <SafeAreaView style={[s.root, { backgroundColor: palette.bg }]}><KeyboardAvoidingView style={s.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}><FlatList data={rows} keyExtractor={(x) => String(x.id)} refreshing={loading} onRefresh={load} contentContainerStyle={s.content} ListHeaderComponent={<View><Text style={[s.title, { color: palette.text }]}>{t(buy ? "طلبات الشراء" : "الدعم والمساعدة")}</Text><Text style={[s.caption, { color: palette.muted }]}>{t(buy ? "اطلب منتجًا أو خدمة في الدولة المختارة" : "أنشئ تذكرة وتابع حالتها")}</Text>{buy ? <><Field value={form.title} onChangeText={(v) => set("title", v)} placeholder={t("عنوان الطلب")} /><Field value={form.category} onChangeText={(v) => set("category", v)} placeholder={t("الفئة")} /><Field value={form.city} onChangeText={(v) => set("city", v)} placeholder={t("المدينة")} /><View style={s.row}><Field value={form.budget_min} onChangeText={(v) => set("budget_min", v)} placeholder={t("الميزانية من")} keyboardType="numeric" /><Field value={form.budget_max} onChangeText={(v) => set("budget_max", v)} placeholder={t("الميزانية إلى")} keyboardType="numeric" /></View><Field value={form.description} onChangeText={(v) => set("description", v)} placeholder={t("وصف الطلب")} multiline /></> : <><Field value={form.subject} onChangeText={(v) => set("subject", v)} placeholder={t("موضوع التذكرة")} /><Field value={form.message} onChangeText={(v) => set("message", v)} placeholder={t("اكتب رسالتك")} multiline /></>}<TouchableOpacity disabled={busy} onPress={submit} style={[s.button, { backgroundColor: palette.primary }]}><Text style={s.buttonText}>{busy ? t("جاري الحفظ...") : t(buy ? "نشر طلب الشراء" : "إرسال التذكرة")}</Text></TouchableOpacity>{notice ? <Text style={[s.notice, { color: palette.text }]}>{notice}</Text> : null}<Text style={[s.section, { color: palette.text }]}>{t("السجلات السابقة")}</Text></View>} renderItem={({ item }) => <View style={[s.card, { backgroundColor: palette.surface, borderColor: palette.border }]}><View style={s.cardHeader}><Text style={[s.cardTitle, { color: palette.text }]}>{item.title || item.subject}</Text><Text style={[s.status, { color: palette.primary }]}>{item.status}</Text></View><Text style={[s.cardBody, { color: palette.muted }]}>{item.description || item.message}</Text></View>} ListEmptyComponent={!loading ? <Text style={[s.empty, { color: palette.muted }]}>{t("لا توجد بيانات بعد")}</Text> : <ActivityIndicator color={palette.primary} />} /></KeyboardAvoidingView></SafeAreaView>;
+}
+export function BuyRequestsScreen({ navigation }) { return <WorkflowScreen kind="buy" navigation={navigation} />; }
+export function SupportTicketsScreen({ navigation }) { return <WorkflowScreen kind="support" navigation={navigation} />; }
+const s = StyleSheet.create({ root: { flex: 1 }, flex: { flex: 1 }, content: { padding: 16, paddingBottom: 40 }, title: { fontSize: 25, fontWeight: "900", marginBottom: 4 }, caption: { fontSize: 13, marginBottom: 14 }, field: { flex: 1, minHeight: 46, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, marginBottom: 10, fontSize: 15 }, multiline: { minHeight: 92, paddingTop: 12, textAlignVertical: "top" }, row: { flexDirection: "row", gap: 8 }, button: { borderRadius: 15, paddingVertical: 14, alignItems: "center", marginTop: 3 }, buttonText: { color: "#fff", fontWeight: "800", fontSize: 15 }, notice: { marginTop: 10, textAlign: "center" }, section: { marginTop: 24, marginBottom: 10, fontSize: 17, fontWeight: "800" }, card: { borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 10 }, cardHeader: { flexDirection: "row", justifyContent: "space-between", gap: 10 }, cardTitle: { flex: 1, fontSize: 16, fontWeight: "800" }, status: { fontSize: 12, fontWeight: "800" }, cardBody: { marginTop: 7, lineHeight: 20 }, empty: { textAlign: "center", padding: 30 } });
