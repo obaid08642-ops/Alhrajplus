@@ -17,3 +17,7 @@ The first visual check exposed a CSS issue: the call page's flex control rule ov
 ## Remaining boundary
 
 This proves neither physical speaker hardware routing nor bidirectional microphone audio between two independent user devices. Android routing is implemented through the documented installed Expo Audio option and must still be verified on an actual Android device. Reliable cross-network calls still require TURN whenever direct STUN traversal fails.
+
+## Publication check
+
+The capability-aware control fix was pushed to both `main` and `production-readiness-premium` at `b882f8f`. Vercel completed successfully. A public visual smoke check of the Mobile WebView's current versioned page (`v=phase6_call_ui_3`) showed only the mute and end-call controls in the unsupported Chromium environment; the speaker control did not render.
