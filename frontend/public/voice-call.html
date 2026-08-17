@@ -111,6 +111,7 @@
             try { await pc.setRemoteDescription(message.data); remoteDescriptionSet = true; await flushIce(); state("Connected"); } catch (_) {}
           } else if (message.type === "call_offer") await applyOffer(message.data);
           else if (message.type === "call_ice") await addIce(message.data);
+          else if (message.type === "call_reject") { state("Call rejected"); rn({ type: "error", value: "call_rejected" }); end(false); }
           else if (message.type === "call_hangup") end(false);
         };
       }
@@ -123,6 +124,7 @@
             if (incoming.call_id && incoming.call_id !== callId) return;
             if (incoming.type === "call_offer") applyOffer(incoming.data);
             else if (incoming.type === "call_ice") addIce(incoming.data);
+            else if (incoming.type === "call_reject") { state("Call rejected"); rn({ type: "error", value: "call_rejected" }); end(false); }
             else if (incoming.type === "call_hangup") end(false);
           }
         } catch (_) {}

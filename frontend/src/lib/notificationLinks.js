@@ -47,10 +47,10 @@ export function notificationUrl(notification) {
   const listingId = data.listing_id || data.listingId || data.ad_id || notification?.listing_id;
   const commentId = data.comment_id || data.commentId || (data.entity === "comment" ? data.entity_id : null);
   const conversationId = data.conversation_id || data.convo_id || data.conversationId;
-  const senderId = data.sender_id || data.senderId || data.from_user_id || data.user_id;
+  const senderId = data.sender_id || data.senderId || data.from_user_id || data.caller_id || data.user_id;
   const query = data.query || data.search_query || data.q || "";
 
-  if (["new_message", "message", "chat"].includes(type)) {
+  if (["new_message", "message", "chat", "incoming_call", "voice_call"].includes(type)) {
     const params = new URLSearchParams();
     if (senderId) params.set("to", senderId);
     if (listingId) params.set("listing", listingId);

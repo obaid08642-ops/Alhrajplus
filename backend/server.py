@@ -5173,6 +5173,104 @@ async def voice_ice_servers(user: dict = Depends(get_current_user)):
     return {"ice_servers": servers, "relay_configured": relay_configured, "turn_config_error": turn_config_error}
 
 
+_CALL_SIGNAL_TYPES = {"call_invite", "call_offer", "call_answer", "call_ice", "call_reject", "call_hangup"}
+_CALL_TERMINAL_STATES = {"rejected", "ended", "missed", "failed"}
+_CALL_SIGNAL_MAX_BYTES = 64 * 1024
+
+
+def _valid_call_id(call_id: object) -> bool:
+    return isinstance(call_id, str) and 8 <= len(call_id) <= 128 and re.fullmatch(r"[A-Za-z0-9_-]+", call_id) is not None
+
+
+async def _authorize_call_signal(sender_id: str, target_id: str, convo_id: str, call_id: str, event_type: str) -> Optional[dict]:
+    """Authorize and transition a WebRTC signal without trusting browser payloads.
+
+    Signaling remains intentionally lightweight, but every event is tied to the
+    persisted two-party conversation, active country, block policy and a short
+    lived server-side call session.  Media never touches this service.
+    """
+    if event_type not in _CALL_SIGNAL_TYPES or not _valid_call_id(call_id):
+        return None
+    expected_participants = sorted([sender_id, target_id])
+    conversation = await db.conversations.find_one(
+        {"id": convo_id, "participants": {"$all": expected_participants, "$size": 2}},
+        {"_id": 0, "id": 1, "participants": 1, "country_code": 1},
+    )
+    if not conversation or sorted(conversation.get("participants") or []) != expected_participants:
+        return None
+    users = await db.users.find({"id": {"$in": expected_participants}}, {"_id": 0, "id": 1, "country_code": 1, "banned": 1}).to_list(length=2)
+    if len(users) != 2 or any(item.get("banned") for item in users):
+        return None
+    countries = {country_code_or_default(item.get("country_code"), "SA") for item in users}
+    conversation_country = country_code_or_default(conversation.get("country_code"), next(iter(countries)))
+    if len(countries) != 1 or conversation_country not in countries:
+        return None
+    blocked = await db.blocks.find_one({"$or": [{"blocker_id": sender_id, "blocked_id": target_id}, {"blocker_id": target_id, "blocked_id": sender_id}]}, {"_id": 0, "blocker_id": 1})
+    if blocked:
+        return None
+
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    session = await db.call_sessions.find_one({"id": call_id}, {"_id": 0})
+    if event_type == "call_invite":
+        if session:
+            # A retry may repeat the invitation but cannot replace its pair or revive a terminal call.
+            if session.get("caller_id") != sender_id or session.get("callee_id") != target_id or session.get("convo_id") != convo_id or session.get("status") in _CALL_TERMINAL_STATES:
+                return None
+            return session
+        session = {
+            "id": call_id, "convo_id": convo_id, "caller_id": sender_id, "callee_id": target_id,
+            "country_code": conversation_country, "status": "ringing", "created_at": now_iso,
+            "updated_at": now_iso, "expires_at": (now + timedelta(seconds=45)).isoformat(),
+        }
+        await db.call_sessions.insert_one(session)
+        return session
+
+    if not session or session.get("convo_id") != convo_id:
+        return None
+    if {session.get("caller_id"), session.get("callee_id")} != {sender_id, target_id}:
+        return None
+    if session.get("status") in _CALL_TERMINAL_STATES:
+        return None
+    if session.get("expires_at") and session["expires_at"] < now_iso and session.get("status") == "ringing":
+        await db.call_sessions.update_one({"id": call_id}, {"$set": {"status": "missed", "ended_at": now_iso, "updated_at": now_iso, "end_reason": "invite_expired"}})
+        return None
+    if event_type == "call_offer" and sender_id != session.get("caller_id"):
+        return None
+    if event_type in {"call_answer", "call_reject"} and sender_id != session.get("callee_id"):
+        return None
+
+    updates = {"updated_at": now_iso}
+    if event_type == "call_offer":
+        updates["status"] = "offered"
+    elif event_type == "call_answer":
+        updates.update({"status": "connected", "accepted_at": now_iso})
+    elif event_type == "call_reject":
+        updates.update({"status": "rejected", "ended_at": now_iso, "end_reason": "rejected"})
+    elif event_type == "call_hangup":
+        updates.update({"status": "ended", "ended_at": now_iso, "end_reason": "hangup"})
+    if event_type != "call_ice":
+        await db.call_sessions.update_one({"id": call_id}, {"$set": updates})
+        session.update(updates)
+    return session
+
+
+@api.get("/voice/calls")
+async def voice_call_history(limit: int = 50, user: dict = Depends(get_current_user)):
+    """Return only the authenticated participant's call history; no global log leak."""
+    limit = max(1, min(int(limit or 50), 100))
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.call_sessions.update_many(
+        {"status": {"$in": ["ringing", "offered"]}, "expires_at": {"$lte": now_iso}},
+        {"$set": {"status": "missed", "ended_at": now_iso, "updated_at": now_iso, "end_reason": "invite_expired"}},
+    )
+    return await db.call_sessions.find(
+        {"$or": [{"caller_id": user["id"]}, {"callee_id": user["id"]}], "country_code": active_cc},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(length=limit)
+
+
 @app.websocket("/api/ws/chat")
 async def chat_websocket(websocket: WebSocket, token: str = Query("")):
     """Single per-user real-time chat channel.
@@ -5227,26 +5325,31 @@ async def chat_websocket(websocket: WebSocket, token: str = Query("")):
                         "is_typing": bool(event.get("is_typing")),
                     })
                 continue
-            if etype in {"call_invite", "call_offer", "call_answer", "call_ice", "call_hangup"}:
-                # WebRTC signaling only: media never passes through the API.
-                # The target must be a participant of the supplied conversation
-                # when convo_id is present, preventing arbitrary user fan-out.
+            if etype in _CALL_SIGNAL_TYPES:
+                # WebRTC signaling only: media never passes through this API.
+                # Every event is authorized against the persisted conversation,
+                # active market and mutual block policy before fan-out.
                 to = event.get("to")
                 convo_id = event.get("convo_id")
-                if not isinstance(to, str) or not to or to == user_id:
+                call_id = event.get("call_id")
+                data = event.get("data") or {}
+                if not isinstance(to, str) or not to or to == user_id or not isinstance(convo_id, str) or not convo_id or not isinstance(data, dict):
                     continue
-                if not isinstance(convo_id, str) or not convo_id:
+                try:
+                    if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _CALL_SIGNAL_MAX_BYTES:
+                        continue
+                except Exception:
                     continue
-                parts = convo_id.split("_")
-                if user_id not in parts or to not in parts:
+                session = await _authorize_call_signal(user_id, to, convo_id, call_id, etype)
+                if not session:
                     continue
-                await _chat_hub.send_to_user(to, {
-                    "type": etype,
-                    "from": user_id,
-                    "convo_id": convo_id,
-                    "call_id": event.get("call_id"),
-                    "data": event.get("data") or {},
+                delivered = await _chat_hub.send_to_user(to, {
+                    "type": etype, "from": user_id, "convo_id": convo_id,
+                    "call_id": call_id, "data": data,
                 })
+                if etype == "call_invite" and delivered == 0:
+                    route = f"/chat?to={user_id}&convo={convo_id}"
+                    await _send_user_notification(to, "مكالمة واردة", "لديك مكالمة صوتية واردة", "incoming_call", route, {"entity": "conversation", "entity_id": convo_id, "conversation_id": convo_id, "convo_id": convo_id, "caller_id": user_id, "call_id": call_id, "country_code": session.get("country_code")}, pref_key="messages")
                 continue
             if etype == "read":
                 convo_id = event.get("convo_id")
@@ -9761,6 +9864,10 @@ async def startup():
     await _safe_index(db.wallet_transactions, [("user_id", 1), ("type", 1)], unique=True, partialFilterExpression={"type": "bonus"})
     await _safe_index(db.messages, [("sender_id", 1), ("client_message_id", 1)], unique=True, partialFilterExpression={"client_message_id": {"$type": "string"}})
     await db.conversations.create_index("id", unique=True)
+    await db.call_sessions.create_index("id", unique=True)
+    await db.call_sessions.create_index([("caller_id", 1), ("country_code", 1), ("created_at", -1)])
+    await db.call_sessions.create_index([("callee_id", 1), ("country_code", 1), ("created_at", -1)])
+    await db.call_sessions.create_index([("status", 1), ("expires_at", 1)])
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
     await db.bids.create_index([("listing_id", 1), ("amount", -1)])
     await db.bids.create_index("ts")

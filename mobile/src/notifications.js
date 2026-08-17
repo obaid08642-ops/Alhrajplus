@@ -54,7 +54,7 @@ function _emitReceived(notif) {
 function notificationUrlFromData(raw) {
     const data = raw && typeof raw === "object" ? raw : {};
     const payload = data.payload && typeof data.payload === "object" ? { ...data.payload, ...data } : data;
-    return payload.url || payload.deep_link || payload.link || "";
+    return payload.route || payload.url || payload.deep_link || payload.link || "";
 }
 
 export function routeFromUrl(url) {

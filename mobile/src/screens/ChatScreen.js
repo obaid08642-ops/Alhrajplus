@@ -369,6 +369,7 @@ function ChatThread({
   const [uploading, setUploading] = useState(false);
   const [voiceCallVisible, setVoiceCallVisible] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
+  const [outgoingCall, setOutgoingCall] = useState(null);
   // Reply-to state — was missing in last build which caused
   // "Property 'replyTo' doesn't exist" crash at line 805 when the composer
   // tried to render the reply preview.
@@ -455,10 +456,15 @@ function ChatThread({
   // signaling event is passed into it after its secure token handshake.
   useEffect(() => {
     const offInvite = subscribe("call_invite", event => {
-      if (event?.convo_id === convoId && event.from === other.id) {
-        setIncomingCall(event);
-        setVoiceCallVisible(true);
-      }
+      if (event?.convo_id !== convoId || event.from !== other.id || !event.call_id) return;
+      setIncomingCall(event);
+      Alert.alert(t("مكالمة واردة"), t("لديك مكالمة صوتية واردة"), [
+        { text: t("رفض"), style: "destructive", onPress: () => {
+          wsSend({ type: "call_reject", to: event.from, convo_id: convoId, call_id: event.call_id, data: {} });
+          setIncomingCall(null);
+        } },
+        { text: t("قبول"), onPress: () => setVoiceCallVisible(true) },
+      ]);
     });
     const offOffer = subscribe("call_offer", event => {
       if (event?.convo_id === convoId && event.from === other.id) setIncomingCall(event);
@@ -469,8 +475,15 @@ function ChatThread({
         setVoiceCallVisible(false);
       }
     });
-    return () => { offInvite?.(); offOffer?.(); offHangup?.(); };
-  }, [convoId, other.id, subscribe]);
+    const offReject = subscribe("call_reject", event => {
+      if (event?.convo_id === convoId && event.from === other.id && event.call_id === outgoingCall?.call_id) {
+        setVoiceCallVisible(false);
+        setOutgoingCall(null);
+        Alert.alert(t("المكالمة مرفوضة"), t("قام المستخدم برفض المكالمة"));
+      }
+    });
+    return () => { offInvite?.(); offOffer?.(); offHangup?.(); offReject?.(); };
+  }, [convoId, other.id, outgoingCall?.call_id, subscribe, t, wsSend]);
 
   // Subscribe to WS events
   useEffect(() => {
@@ -863,7 +876,7 @@ function ChatThread({
                         {otherTyping ? t("يكتب الآن...") : presenceText}
                     </Text>
                 </View>
-                <TouchableOpacity onPress={() => setVoiceCallVisible(true)} style={s.headBtn} hitSlop={8} testID="chat-call-btn">
+                <TouchableOpacity onPress={() => { setIncomingCall(null); setOutgoingCall({ call_id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 9)}` }); setVoiceCallVisible(true); }} style={s.headBtn} hitSlop={8} testID="chat-call-btn">
                     <Phone size={20} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => {
@@ -1085,7 +1098,7 @@ function ChatThread({
 
             {/* Forward contact picker */}
             {forwardSrc && <ForwardPicker src={forwardSrc} onClose={() => setForwardSrc(null)} currentUser={user} onForwarded={() => { setForwardSrc(null); }} />}
-            <VoiceCallWebView visible={voiceCallVisible} role={incomingCall ? "receiver" : "caller"} to={incomingCall?.from || other.id} convoId={convoId} callId={incomingCall?.call_id} signalingEvent={incomingCall?.type === "call_offer" ? incomingCall : null} name={other.name} onClose={() => { setVoiceCallVisible(false); setIncomingCall(null); }} />
+            <VoiceCallWebView visible={voiceCallVisible} role={incomingCall ? "receiver" : "caller"} to={incomingCall?.from || other.id} convoId={convoId} callId={incomingCall?.call_id || outgoingCall?.call_id} signalingEvent={incomingCall?.type === "call_offer" ? incomingCall : null} name={other.name} onClose={() => { const activeCall = incomingCall || outgoingCall; if (activeCall?.call_id) wsSend({ type: "call_hangup", to: incomingCall?.from || other.id, convo_id: convoId, call_id: activeCall.call_id, data: {} }); setVoiceCallVisible(false); setIncomingCall(null); setOutgoingCall(null); }} />
         </KeyboardAvoidingView>;
 }
 

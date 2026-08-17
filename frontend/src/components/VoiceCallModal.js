@@ -119,11 +119,16 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
                 else pendingIceRef.current.push(candidate);
             } else if (event.type === "call_answer" && pcRef.current && event.call_id === call?.call_id) {
                 pcRef.current.setRemoteDescription(event.data).then(() => setStatus("connected")).catch(() => {});
+            } else if (event.type === "call_reject" && event.call_id === call?.call_id) {
+                setError(tr("تم رفض المكالمة"));
+                setStatus("failed");
+                try { pcRef.current?.close(); } catch (_) {}
+                streamRef.current?.getTracks?.().forEach((track) => track.stop());
             } else if (event.type === "call_hangup" && event.call_id === call?.call_id) {
                 cleanup(false);
             }
         };
-        const offs = ["call_invite", "call_offer", "call_answer", "call_ice", "call_hangup"].map((type) => socket.subscribe(type, acceptEvent));
+        const offs = ["call_invite", "call_offer", "call_answer", "call_ice", "call_reject", "call_hangup"].map((type) => socket.subscribe(type, acceptEvent));
         return () => offs.forEach((off) => off?.());
     }, [call?.call_id, cleanup, convoId, onActiveChange, other?.name, socket, user?.id]);
 
@@ -148,6 +153,12 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
         }
     };
 
+    const rejectIncoming = () => {
+        if (!call) return;
+        socket?.send({ type: "call_reject", to: call.peer_id, convo_id: call.convo_id, call_id: call.call_id, data: {} });
+        cleanup(false);
+    };
+
     const toggleMute = () => {
         const next = !muted;
         streamRef.current?.getAudioTracks?.().forEach((track) => { track.enabled = !next; });
@@ -168,7 +179,7 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
                 <div className="flex justify-center gap-3 mt-6">
                     {status === "incoming" && <button onClick={acceptIncoming} className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center" aria-label={tr("قبول") }><Phone className="w-5 h-5" /></button>}
                     {status !== "incoming" && status !== "failed" && <button onClick={toggleMute} className="w-12 h-12 rounded-full bg-[var(--surface-elevated)] text-[var(--text)] flex items-center justify-center" aria-label={muted ? tr("تشغيل الميكروفون") : tr("كتم الميكروفون")}>{muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}</button>}
-                    <button onClick={() => cleanup(true)} className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center" aria-label={tr("إنهاء المكالمة")}><PhoneOff className="w-5 h-5" /></button>
+                    <button onClick={status === "incoming" ? rejectIncoming : () => cleanup(true)} className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center" aria-label={status === "incoming" ? tr("رفض") : tr("إنهاء المكالمة")}><PhoneOff className="w-5 h-5" /></button>
                 </div>
             </div>
         </div>

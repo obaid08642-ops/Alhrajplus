@@ -19,4 +19,9 @@ describe("notificationUrl", () => {
     expect(notificationUrl({ type: "new_message", data: { sender_id: "user-2", convo_id: "user-1_user-2" } }))
       .toBe("/chat?to=user-2&convo=user-1_user-2");
   });
+
+  test("routes an incoming call to its exact conversation", () => {
+    expect(notificationUrl({ type: "incoming_call", data: { caller_id: "user-2", convo_id: "user-1_user-2" } }))
+      .toBe("/chat?to=user-2&convo=user-1_user-2");
+  });
 });
