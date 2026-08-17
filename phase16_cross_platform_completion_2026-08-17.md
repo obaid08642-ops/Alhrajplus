@@ -19,7 +19,7 @@ Commit pushed to `main`:
 
 `95d7132d60a79746b508f677598609ab3e2dcacd`
 
-The frontend must be deployed so `/voice-call.html` is available at `https://www.alhraj.online/voice-call.html`. The Backend must also be deployed with the signaling changes. The API health check remained HTTP 200 before deployment.
+The frontend must be deployed so `/voice-call.html` is available at `https://www.alhraj.online/voice-call.html`. The Backend must also be deployed with the signaling changes. The API health check returned HTTP 200 after deployment. The live site served `static/js/main.7274c30e.js`, and `https://www.alhraj.online/voice-call.html` returned HTTP 200.
 
 ## Free-call limitation
 
