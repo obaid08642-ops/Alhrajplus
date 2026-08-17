@@ -36,11 +36,14 @@
 | TURN relay verification | **BLOCKED** | No TURN provider or configured `TURN_ICE_SERVERS_JSON` was available to test. STUN-only cannot guarantee traversal of all NAT/firewall configurations. |
 | Background/closed-app incoming-call behavior | **BLOCKED** | Native CallKit/Android ConnectionService plus platform call/VoIP push credentials and real-device lifecycle evidence are required. Standard notification routing to the conversation is implemented, but it is not equivalent to OS-level incoming-call support. |
 | Microphone permission, speaker routing, ringtone, reconnect, and network-switch evidence | **BLOCKED** | These require physical iOS/Android and browser devices with actual microphone/media permissions. |
+| Render backend publication | **BLOCKED** | Commit `1a3382e` was pushed to both configured Git branches, but after three timed read-only OpenAPI checks the deployed Render service still did not expose `/api/voice/calls`. Health remained OK, so the server is up but has not yet loaded this revision. A manual Render redeploy or deployment-log review is required. |
 
 ## Publication record
 
-The commit SHA, branches, and read-only post-deployment API verification will be appended after the Phase 6 publication step.
+**Code commit:** `1a3382ec7a95eda5e910913ac259514aec3ce353` — `feat: harden realtime voice call lifecycle`.
+
+**Branches pushed:** `main` and `production-readiness-premium` advanced successfully to the Phase 6 code revision. Vercel reported a successful deployment. Render health returned `{"status":"ok","service":"haraj-plus-backend"}`, but its OpenAPI document did not expose `/api/voice/calls` after three checks; consequently, post-deploy Backend verification is explicitly blocked pending a Render redeploy or log review.
 
 ## Final assessment
 
-The Phase 6 code, authorization boundary, history, lifecycle semantics, Web/Mobile integration, and automated build/test gates are complete. The result is **PASS WITH BLOCKERS** because the plan explicitly forbids marking calls fully proven without physical-device and TURN evidence.
+The Phase 6 code, authorization boundary, history, lifecycle semantics, Web/Mobile integration, and automated build/test gates are complete. The result is **PASS WITH BLOCKERS** because the plan explicitly forbids marking calls fully proven without physical-device and TURN evidence, and because the latest Backend revision is still awaiting confirmed Render deployment.
