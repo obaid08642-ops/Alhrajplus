@@ -251,10 +251,9 @@ export default function TopBar() {
                     </button>
                     {openMenu === "lang" && (
                         <div className="absolute top-12 end-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-2 min-w-[150px] z-50">
-                            {available.map((l) => (
+                            {available.filter((l) => l !== "auto").map((l) => (
                                 <button key={l} onClick={() => { setLang(l); setOpenMenu(null); }} data-testid={`lang-opt-${l}`}
                                     className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${lang === l ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}>
-                                    {l === "auto" && "تلقائي / Auto"}
                                     {l === "ar" && "🇸🇦 العربية"}
                                     {l === "en" && "🇬🇧 English"}
                                     {l === "ur" && "🇵🇰 اردو"}
@@ -273,8 +272,8 @@ export default function TopBar() {
                     </button>
                     {openMenu === "theme" && (
                         <div className="absolute top-12 end-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-2 min-w-[150px] z-50">
-                            {[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([mode, label]) => (
-                                <button key={mode} onClick={() => { setThemeMode(mode); setOpenMenu(null); }} className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${themeMode === mode ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}>{label}</button>
+                            {[["light", tr("فاتح")], ["dark", tr("داكن")]].map(([mode, label]) => (
+                                <button key={mode} onClick={() => { setThemeMode(mode); setOpenMenu(null); }} className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${(themeMode === mode || (themeMode === "system" && (isDark ? mode === "dark" : mode === "light"))) ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}>{label}</button>
                             ))}
                         </div>
                     )}

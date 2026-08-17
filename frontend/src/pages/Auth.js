@@ -24,7 +24,7 @@ function LangButton() {
             </button>
             {open && (
                 <div data-testid="auth-lang-menu" className="absolute top-10 start-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-1.5 min-w-[150px] z-50">
-                    {available.map((l) => (
+                    {available.filter((l) => l !== "auto").map((l) => (
                         <button
                             key={l}
                             type="button"

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Bell, Check, X, MessageCircle, Tag, Hammer, CheckCircle2, XCircle, Megaphone } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +35,7 @@ const TYPE_ICONS = {
 
 export default function NotificationBell() {
     const { user } = useAuth();
+    const nav = useNavigate();
     const { lang } = useI18n();
     const locale = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
     const direction = lang === "ar" ? "rtl" : "ltr";
@@ -111,7 +112,7 @@ export default function NotificationBell() {
         <div className="relative" ref={ref}>
             <button
                 data-testid="notif-bell-btn"
-                onClick={() => setOpen((o) => !o)}
+                onClick={() => nav("/notifications")}
                 className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/15 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 border border-white/25 dark:border-white/15 flex items-center justify-center transition-all backdrop-blur"
                 aria-label={tr("الإشعارات")}
             >

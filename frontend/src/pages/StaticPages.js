@@ -24,7 +24,7 @@ function MfaSecurityPanel() {
 
 export function SettingsPage() {
     const { user, logout } = useAuth();
-    const { themeMode, setThemeMode } = useTheme();
+    const { themeMode, setThemeMode, isDark } = useTheme();
     const { t, lang, setLang, available, tr } = useI18n();
     const nav = useNavigate();
 
@@ -58,8 +58,7 @@ export function SettingsPage() {
                         <Moon className="w-5 h-5 text-[var(--primary)]" />
                         <span className="font-arabic font-bold text-sm text-[var(--text)]">{tr("الوضع الداكن")}</span>
                     </div>
-                    <select value={themeMode} onChange={(e) => setThemeMode(e.target.value)} data-testid="settings-theme-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
-                        <option value="system">{tr("حسب إعدادات الجهاز")}</option>
+                    <select value={themeMode === "system" ? (isDark ? "dark" : "light") : themeMode} onChange={(e) => setThemeMode(e.target.value)} data-testid="settings-theme-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
                         <option value="light">{tr("فاتح")}</option>
                         <option value="dark">{tr("داكن")}</option>
                     </select>
@@ -70,7 +69,7 @@ export function SettingsPage() {
                         <span className="font-arabic font-bold text-sm text-[var(--text)]">{tr("اللغة")}</span>
                     </div>
                     <select value={lang} onChange={(e) => setLang(e.target.value)} data-testid="settings-lang-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
-                        {available.map((l) => <option key={l} value={l}>
+                        {available.filter((l) => l !== "auto").map((l) => <option key={l} value={l}>
                             {l === "ar" && "🇸🇦 العربية"}{l === "en" && "🇬🇧 English"}{l === "ur" && "🇵🇰 اردو"}
                             {l === "hi" && "🇮🇳 हिन्दी"}{l === "bn" && "🇧🇩 বাংলা"}{l === "fr" && "🇫🇷 Français"}
                         </option>)}
