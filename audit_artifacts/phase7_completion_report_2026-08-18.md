@@ -38,16 +38,18 @@
 
 ## النشر والتحقق المنشور
 
-تم إنشاء commit `2f2e58725563bb4da4913ee83b174818928d9f99` بعنوان `feat: complete economy referrals sharing promotions analytics` ودفعه بنجاح إلى فرعي `main` و`production-readiness-premium`. تم تأكيد SHA من GitHub لكلا الفرعين.
+تم إنشاء commit الميزات `2f2e58725563bb4da4913ee83b174818928d9f99` ثم commit إصلاح المسار الإداري `fbf8aca`، ودفعهما بنجاح إلى فرعي `main` و`production-readiness-premium`.
 
-استجاب Web على Vercel بـHTTP 200 بعد الدفع. لكن Backend على Render بقي يرد بـHTTP 404 لمسار `GET /api/economy/config` بعد فترة انتظار النشر، مع بقاء `GET /health` يعمل. هذا يثبت أن خادم Render المتاح لا يزال لا يحتوي عقد Phase 7؛ لا يمكن إجراء smoke test صحيح للواجهة أو العقود الجديدة قبل أن يلتقط Render commit `2f2e587`.
+تم التحقق من Render بعد deployment الأخير. رجع `GET /api/economy/config` بالحالة **200** وبمنتجات الترويج وقيم Coins الافتراضية المتوقعة. أظهر OpenAPI المسارات `POST /api/referral/open` و`POST /api/listings/{listing_id}/shares` و`POST /api/shares/{share_id}/open` و`PUT /api/admin/economy/config`. كما رجع `GET /health` بالحالة **200**.
+
+أثبتت smoke tests السلبية على النسخة المنشورة الحماية المطلوبة: طلب تحديث الاقتصاد بلا مصادقة رجع **401**، وإنشاء مشاركة بلا مصادقة رجع **401**، ورمز إحالة غير صالح رجع **404**. استجاب Web على Vercel بـHTTP 200 بعد الدفع.
 
 ## القيود والـBlockers
 
 فشل تشغيل `pytest -q backend/tests` الشامل محلياً لأن مجموعة تاريخية من اختبارات HTTP التكاملية تفترض وجود خادم على `127.0.0.1` ولم يكن خادم محلي قيد التشغيل. النتيجة كانت **65 passed و35 skipped و145 failed و122 errors**، وجميع أخطاء هذه الدفعة كانت `ConnectionError` إلى الخادم المحلي، وليست فشلاً لمنطق Phase 7. تم بدلاً من ذلك تشغيل regression suite ذات الصلة بنجاح.
 
-**Blocker النشر:** يلزم تشغيل أو انتظار deployment لـRender من الفرع `production-readiness-premium` عند SHA `2f2e587`، ثم إعادة فحص `GET /api/economy/config` وإكمال smoke tests الفعلية. لا يبدأ Phase 8 قبل حل هذا الـblocker أو قبول إغلاق المرحلة مع هذا القيد صراحةً.
+لم ينفذ اختبار end-to-end بحسابين حقيقيين لفتح رابط مشاركة ومنح المكافأة على staging؛ تجنّب هذا الإجراء إنشاء مكافآت اختبارية دائمة في بيانات المنصة. المنطق مغطى باختبارات وحدة مركزة، مع smoke tests منشورة للعقود والحماية.
 
 ## النتيجة
 
-**PASS WITH BLOCKERS — GitHub push confirmed; Render deployment verification blocked.**
+**PASS WITH BLOCKERS.** اكتملت المتطلبات البرمجية والتحققات المنشورة. يبقى فقط اختبار بيانات حقيقي بحسابين كتحقق تشغيلي اختياري، ولا يبدأ Phase 8 قبل أمر المستخدم الصريح.
