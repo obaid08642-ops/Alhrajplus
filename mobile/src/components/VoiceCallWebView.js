@@ -48,7 +48,9 @@ export default function VoiceCallWebView({ visible, role = "caller", to, convoId
     setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false }).catch(() => {});
     onClose?.();
   };
-  const url = `https://www.alhraj.online/voice-call.html?role=${encodeURIComponent(role)}&to=${encodeURIComponent(to || "")}&convo=${encodeURIComponent(convoId || "")}&callId=${encodeURIComponent(callId || `call_${Date.now()}`)}&name=${encodeURIComponent(name || "Haraj Plus")}`;
+  // Versioned query is intentional: Vercel can retain a prior public HTML
+  // response at the bare path while the mobile WebView needs the matching call protocol.
+  const url = `https://www.alhraj.online/voice-call.html?v=phase6_call_ui_2&role=${encodeURIComponent(role)}&to=${encodeURIComponent(to || "")}&convo=${encodeURIComponent(convoId || "")}&callId=${encodeURIComponent(callId || `call_${Date.now()}`)}&name=${encodeURIComponent(name || "Haraj Plus")}`;
   return <Modal visible={visible} animationType="slide" onRequestClose={closeCall}>
     <View style={{ flex: 1, backgroundColor: "#0f1a35" }}>
       <WebView ref={ref} originWhitelist={["*"]} source={{ uri: url }} javaScriptEnabled domStorageEnabled allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} mediaCapturePermissionGrantType="grantIfSameHostElsePrompt" onLoadEnd={() => setReady(true)} onMessage={event => { try { const msg = JSON.parse(event.nativeEvent.data); if (msg.type === "speaker") { const enabled = msg.value !== false; setSpeakerEnabled(enabled); setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false, shouldRouteThroughEarpiece: !enabled }).catch(() => {}); } if (msg.type === "hangup") closeCall(); } catch (_) {} }} style={{ flex: 1, backgroundColor: "#0f1a35" }} />

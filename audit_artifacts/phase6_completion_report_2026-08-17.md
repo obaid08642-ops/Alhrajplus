@@ -52,6 +52,8 @@ The call surfaces were upgraded in both applications. Web now has a full-screen 
 
 The old TURN wording is no longer shown merely because a relay is unavailable. The interface identifies the call as direct/STUN while connecting and displays the TURN-specific error only after WebRTC reports an actual direct-connection failure.
 
+A staging investigation also found that the bare `/voice-call.html` path was still served from a Vercel CDN cache with the preceding call page although the revision deployment was marked successful. The same URL with a version query returned the new interface. The Mobile WebView now uses a versioned query (`v=phase6_call_ui_2`) so it cannot execute that stale page or its obsolete signaling bridge.
+
 ## Final assessment
 
 The Phase 6 code, authorization boundary, history, lifecycle semantics, Web/Mobile integration, redesigned call UI, ringtone, and automated build/test gates are complete. The result is **PASS WITH BLOCKERS** because the plan explicitly forbids marking calls fully proven without physical-device and TURN evidence. TURN remains required for reliable calls across all restrictive networks; Render is a signaling host and cannot itself act as a UDP/TCP TURN relay.
