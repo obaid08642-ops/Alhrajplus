@@ -12,7 +12,8 @@ import { useCountry } from "../CountryContext";
 import { useThemeMode } from "../ThemeContext";
 import ListingCard from "../components/ListingCard";
 import { SkeletonListingGrid, SkeletonCategoryGrid } from "../components/Skeleton";
-import { MessageCircle, Bell, FileText, Megaphone, Sparkles, Settings, Globe, Flag, Search, Users, Moon, Sun, Trash2, FolderOpen, User } from "lucide-react-native";
+import { MessageCircle, Bell, FileText, Megaphone, Sparkles, Settings, Globe, Flag, Search, Users, Moon, Sun, Trash2, FolderOpen, User, CheckCheck } from "lucide-react-native";
+import { routeFromUrl, onNotificationReceived } from "../notifications";
 
 // FlatList perf defaults — defined once at module scope.
 const FLAT_PERF = {
@@ -138,74 +139,28 @@ export function NotificationsScreen({
   const { palette } = useThemeMode();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
-    api.get("/notifications").then(({
-      data
-    }) => setItems(data?.items || data || [])).catch(() => setItems([])).finally(() => setLoading(false));
-  }, [user]);
+    setLoading(true); setError("");
+    try { const { data } = await api.get("/notifications", { params: { limit: 100 } }); setItems(Array.isArray(data) ? data : (data?.items || [])); }
+    catch (e) { setError(e?.response?.data?.detail || t("تعذر تحميل الإشعارات")); }
+    finally { setLoading(false); }
+  }, [user, t]);
+  useEffect(() => { load(); return onNotificationReceived(load); }, [load]);
   const open = async n => {
     try {
       await api.post(`/notifications/${n.id}/read`);
     } catch (_) {}
-    // Owner mandate: tapping a notification MUST navigate to the relevant
-    // screen (chat thread / listing / etc.). Previous logic only checked
-    // a few specific `type` values and silently failed for everything
-    // else. New logic prioritises the explicit `url` field (same one the
-    // push payload uses) and falls back to type/reference_id heuristics.
     const rawData = n.data && typeof n.data === "object" ? n.data : {};
-    const d = rawData.payload && typeof rawData.payload === "object" ? { ...rawData.payload, ...rawData } : rawData;
-    let url = n.url || d.url || d.deep_link || d.deepLink || d.link || "";
-    try {
-      if (/^https?:\/\//i.test(url)) { const parsed = new URL(url); url = `${parsed.pathname}${parsed.search}${parsed.hash}`; }
-    } catch (_) {}
-    if (url && !url.startsWith("/")) url = `/${url}`;
-    // 1) Use the push-payload deep-link first; support every top-level route.
-    if (url) {
-      try {
-        let m = url.match(/^\/listing\/([^/?#]+)/);
-        if (m) { navigation.navigate("ListingDetail", { id: m[1], focus: /(?:#comments|[?&](?:focus|section)=comments)/i.test(url) ? "comments" : undefined }); return; }
-        m = url.match(/^\/seller\/([^/?#]+)/);
-        if (m) { navigation.navigate("SellerProfile", { sellerId: m[1] }); return; }
-        m = url.match(/^\/chat(?:\?to=([^&]+))?/);
-        if (m) { navigation.navigate("Chat", m[1] ? { to: decodeURIComponent(m[1]) } : {}); return; }
-        m = url.match(/^\/c\/([^/?#]+)/);
-        if (m) { navigation.navigate("Search", { category: decodeURIComponent(m[1]) }); return; }
-        m = url.match(/^\/search(?:\?q=([^&]+))?/);
-        if (m) { navigation.navigate("Search", m[1] ? { q: decodeURIComponent(m[1]) } : {}); return; }
-        if (url === "/reels" || url.startsWith("/reels?") || url === "/stories" || url.startsWith("/stories?")) { navigation.navigate("Main", { screen: "ReelsTab" }); return; }
-        if (url === "/notifications" || url.startsWith("/notifications?")) { navigation.navigate("Notifications"); return; }
-        if (url === "/map" || url.startsWith("/map?")) { navigation.navigate("Map"); return; }
-        if (url === "/offers" || url.startsWith("/offers?")) { navigation.navigate("Offers"); return; }
-        if (url === "/auctions" || url.startsWith("/auctions?")) {
-          const params = new URLSearchParams(url.split("?")[1] || "");
-          navigation.navigate("Auctions", params.get("openBidFor") ? { openBidFor: params.get("openBidFor") } : undefined);
-          return;
-        }
-        if (url.startsWith("/post")) { navigation.navigate("Post"); return; }
-      } catch (_) {}
-    }
-    // 2) Type-based fallback (legacy notifications without `url`).
-    const type = n.type || "";
-    if (type === "new_message" || type === "message" || type === "chat") {
-      const to = d.sender_id || d.from || n.reference_id;
-      if (to) { navigation.navigate("Chat", { to }); return; }
-    }
-    if (type.startsWith("listing") || type === "price_drop") {
-      const id = d.listing_id || n.reference_id;
-      if (id) { navigation.navigate("ListingDetail", { id }); return; }
-    }
-    if (type === "auction" || type.startsWith("auction") || type === "bid_outbid") {
-      const id = d.listing_id || n.reference_id;
-      if (id) { navigation.navigate("ListingDetail", { id }); return; }
-      navigation.navigate("Auctions");
-      return;
-    }
-    // 3) Last-resort fallback — if a reference_id looks like a listing UUID,
-    // open that.
-    if (n.reference_id) {
-      navigation.navigate("ListingDetail", { id: n.reference_id });
-    }
+    const data = rawData.payload && typeof rawData.payload === "object" ? { ...rawData.payload, ...rawData } : rawData;
+    const directUrl = n.url || data.route || data.url || data.deep_link || data.deepLink || data.link;
+    if (directUrl) { routeFromUrl(directUrl); return; }
+    const legacyType = n.type || data.type || "";
+    if (["new_message", "message", "chat"].includes(legacyType) && (data.sender_id || data.user_id)) { routeFromUrl(`/chat?to=${encodeURIComponent(data.sender_id || data.user_id)}${data.convo_id ? `&convo=${encodeURIComponent(data.convo_id)}` : ""}`); return; }
+    if ((legacyType === "comment" || legacyType === "comment_reply") && data.listing_id) { routeFromUrl(`/listing/${encodeURIComponent(data.listing_id)}?focus=comments${data.comment_id ? `&comment=${encodeURIComponent(data.comment_id)}` : ""}#comments`); return; }
+    if (data.listing_id) { routeFromUrl(`/listing/${encodeURIComponent(data.listing_id)}`); return; }
+    routeFromUrl("/notifications"); return;
   };
   // Visual icon + tint per notification type — clean baby-blue family.
   const iconFor = type => {
@@ -220,9 +175,11 @@ export function NotificationsScreen({
     }
   };
   if (!user) return <View style={s.center}><Text style={s.muted}>{t("يجب تسجيل الدخول أولاً")}</Text></View>;
+  const markAll = async () => { try { await api.post("/notifications/read-all"); setItems(xs => xs.map(n => ({ ...n, read: true }))); } catch (e) { setError(e?.response?.data?.detail || t("تعذر تحديث الإشعارات")); } };
   if (loading) return <View style={s.center}><ActivityIndicator color={theme.colors.primary} /></View>;
   return <View style={{ flex: 1, backgroundColor: palette.bg }}>
-            <Text style={s.pageTitle}>{t("الإشعارات")}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 }}><Text style={s.pageTitle}>{t("الإشعارات")}</Text>{items.some(n => !n.read) && <TouchableOpacity onPress={markAll} style={{ flexDirection: "row", gap: 5, alignItems: "center", padding: 8 }}><CheckCheck size={18} color={theme.colors.primary} /><Text style={{ color: theme.colors.primary, fontWeight: "700" }}>{t("تعليم الكل كمقروء")}</Text></TouchableOpacity>}</View>
+            {error ? <View style={{ marginHorizontal: 12, marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: "#FEE2E2", flexDirection: "row", justifyContent: "space-between", gap: 10 }}><Text style={{ color: "#B91C1C", flex: 1 }}>{error}</Text><TouchableOpacity onPress={load}><Text style={{ color: "#B91C1C", fontWeight: "700" }}>{t("إعادة المحاولة")}</Text></TouchableOpacity></View> : null}
             <FlatList
               data={items}
               keyExtractor={n => n.id || String(Math.random())}

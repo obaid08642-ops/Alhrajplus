@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput, PanResponder } from "react-native";
-import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2, Eye, MapPin } from "lucide-react-native";
+import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2, Eye, MapPin, Reply, Trash2, Flag } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "../api";
@@ -55,6 +55,8 @@ export default function ListingDetailScreen({
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
   const [commentBusy, setCommentBusy] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
+  const [commentError, setCommentError] = useState("");
   const carouselRef = useRef(null);
   const scrollRef = useRef(null);
   const [commentsY, setCommentsY] = useState(null);
@@ -70,7 +72,7 @@ export default function ListingDetailScreen({
         setSimilar(s.data);
         setBadge(b.data);
         setLikeCount(Number(l.data.like_count || 0));
-        api.get(`/listings/${id}/comments`).then(({ data }) => setComments(data?.items || [])).catch(() => {});
+        api.get(`/listings/${id}/comments`).then(({ data }) => setComments(Array.isArray(data) ? data : (data?.items || []))).catch(() => setCommentError(t("تعذر تحميل التعليقات")));
         if (user) api.get(`/listings/${id}/like/check`).then(({ data }) => setLiked(!!data?.liked)).catch(() => {});
         // Fire-and-forget: log to "recently viewed" so /listings/recent works.
         api.post(`/listings/${id}/view`).catch(() => {});
@@ -159,18 +161,25 @@ export default function ListingDetailScreen({
       setLikeCount(count => Math.max(0, count + (previous ? 1 : -1)));
     }
   };
+  const refreshComments = async () => {
+    try { const { data } = await api.get(`/listings/${id}/comments`); setComments(Array.isArray(data) ? data : (data?.items || [])); setCommentError(""); }
+    catch (e) { setCommentError(e?.response?.data?.detail || t("تعذر تحميل التعليقات")); }
+  };
   const submitComment = async () => {
     if (!user) { navigation.navigate("Login"); return; }
     const text = commentText.trim();
     if (!text) return;
-    setCommentBusy(true);
+    setCommentBusy(true); setCommentError("");
     try {
-      const { data } = await api.post(`/listings/${id}/comments`, { text });
-      setComments(items => [data, ...items]);
-      setCommentText("");
-    } catch (e) { Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر نشر التعليق")); }
+      const client_comment_id = globalThis.crypto?.randomUUID?.() || `mobile-comment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const { data } = await api.post(`/listings/${id}/comments`, { text, parent_id: replyTo?.id || null, client_comment_id });
+      setComments(items => [data, ...items.filter(item => item.id !== data.id)]);
+      setCommentText(""); setReplyTo(null);
+    } catch (e) { setCommentError(e.response?.data?.detail || t("تعذر نشر التعليق")); }
     finally { setCommentBusy(false); }
   };
+  const deleteComment = comment => Alert.alert(t("حذف التعليق"), t("هل تريد حذف تعليقك؟"), [{ text: t("إلغاء"), style: "cancel" }, { text: t("حذف"), style: "destructive", onPress: async () => { try { await api.delete(`/listing-comments/${comment.id}`); await refreshComments(); } catch (e) { setCommentError(e?.response?.data?.detail || t("تعذر حذف التعليق")); } } }]);
+  const reportComment = comment => Alert.alert(t("إبلاغ عن تعليق"), t("سيتم إرسال البلاغ للمراجعة."), [{ text: t("إلغاء"), style: "cancel" }, { text: t("إبلاغ"), style: "destructive", onPress: async () => { try { await api.post(`/listing-comments/${comment.id}/report`, { reason: "inappropriate_content" }); Alert.alert(t("تم"), t("تم استلام بلاغك")); } catch (e) { setCommentError(e?.response?.data?.detail || t("تعذر إرسال البلاغ")); } } }]);
   const submitReport = async reason => {
     try {
       await api.post("/reports", {
@@ -415,11 +424,8 @@ export default function ListingDetailScreen({
                 <Text style={styles.desc}>{listing.description}</Text>
 
                 <Text style={styles.sectionTitle} onLayout={(e) => setCommentsY(e.nativeEvent.layout.y)}>{t("التعليقات")}</Text>
-                {user ? <View style={styles.commentComposer}>
-                    <TextInput value={commentText} onChangeText={setCommentText} maxLength={1000} placeholder={t("اكتب تعليقًا عامًا...")} placeholderTextColor={theme.colors.textMuted} style={styles.commentInput} multiline />
-                    <TouchableOpacity onPress={submitComment} disabled={commentBusy || !commentText.trim()} style={[styles.commentSubmit, (commentBusy || !commentText.trim()) && { opacity: 0.5 }]} testID="mobile-comment-submit"><Text style={styles.commentSubmitText}>{commentBusy ? t("جارٍ النشر...") : t("نشر")}</Text></TouchableOpacity>
-                </View> : <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.commentLogin}><Text style={styles.commentLoginText}>{t("سجل الدخول لكتابة تعليق")}</Text></TouchableOpacity>}
-                {comments.length === 0 ? <Text style={styles.emptyComments}>{t("لا توجد تعليقات بعد")}</Text> : comments.map(comment => <View key={comment.id} style={styles.commentCard}><View style={styles.commentMeta}><Text style={styles.commentAuthor}>{comment.author?.name || t("مستخدم")}</Text>{comment.author?.verified && <CheckCircle2 size={13} color={theme.colors.primary} />}<Text style={styles.commentDate}>{new Date(comment.created_at).toLocaleDateString()}</Text></View><Text style={styles.commentBody}>{comment.text}</Text></View>)}
+                {user ? <>{replyTo && <View style={styles.replyBanner}><Text numberOfLines={1} style={styles.replyBannerText}>{t("رد على")}: {replyTo.author?.name || t("مستخدم")}</Text><TouchableOpacity onPress={() => setReplyTo(null)}><Text style={styles.replyCancel}>{t("إلغاء")}</Text></TouchableOpacity></View>}<View style={styles.commentComposer}><TextInput value={commentText} onChangeText={setCommentText} maxLength={1000} placeholder={replyTo ? t("اكتب ردك...") : t("اكتب تعليقًا عامًا...")} placeholderTextColor={theme.colors.textMuted} style={styles.commentInput} multiline /><TouchableOpacity onPress={submitComment} disabled={commentBusy || !commentText.trim()} style={[styles.commentSubmit, (commentBusy || !commentText.trim()) && { opacity: 0.5 }]} testID="mobile-comment-submit"><Text style={styles.commentSubmitText}>{commentBusy ? t("جارٍ النشر...") : t("نشر")}</Text></TouchableOpacity></View>{commentError ? <View style={styles.commentError}><Text style={styles.commentErrorText}>{commentError}</Text><TouchableOpacity onPress={refreshComments}><Text style={styles.commentRetry}>{t("إعادة المحاولة")}</Text></TouchableOpacity></View> : null}</> : <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.commentLogin}><Text style={styles.commentLoginText}>{t("سجل الدخول لكتابة تعليق")}</Text></TouchableOpacity>}
+                {comments.length === 0 ? <Text style={styles.emptyComments}>{t("لا توجد تعليقات بعد")}</Text> : comments.filter(comment => !comment.parent_id).map(comment => <View key={comment.id} style={[styles.commentCard, route.params?.commentId === comment.id && styles.commentFocused]}><View style={styles.commentMeta}><Text style={styles.commentAuthor}>{comment.author?.name || t("مستخدم")}</Text>{comment.author?.verified && <CheckCircle2 size={13} color={theme.colors.primary} />}<Text style={styles.commentDate}>{new Date(comment.created_at).toLocaleDateString()}</Text></View><Text style={styles.commentBody}>{comment.text}</Text>{user && <View style={styles.commentActions}><TouchableOpacity onPress={() => setReplyTo(comment)} style={styles.commentAction}><Reply size={14} color={theme.colors.primary} /><Text style={styles.commentActionText}>{t("رد")}</Text></TouchableOpacity>{user.id === comment.user_id ? <TouchableOpacity onPress={() => deleteComment(comment)} style={styles.commentAction}><Trash2 size={14} color="#DC2626" /><Text style={[styles.commentActionText, { color: "#DC2626" }]}>{t("حذف")}</Text></TouchableOpacity> : <TouchableOpacity onPress={() => reportComment(comment)} style={styles.commentAction}><Flag size={14} color={theme.colors.textMuted} /><Text style={styles.commentActionText}>{t("إبلاغ")}</Text></TouchableOpacity>}</View>}{comments.filter(reply => reply.parent_id === comment.id).map(reply => <View key={reply.id} style={[styles.commentReply, route.params?.commentId === reply.id && styles.commentFocused]}><View style={styles.commentMeta}><Text style={styles.commentAuthor}>{reply.author?.name || t("مستخدم")}</Text>{reply.author?.verified && <CheckCircle2 size={13} color={theme.colors.primary} />}<Text style={styles.commentDate}>{new Date(reply.created_at).toLocaleDateString()}</Text></View><Text style={styles.commentBody}>{reply.text}</Text>{user && <View style={styles.commentActions}><TouchableOpacity onPress={() => setReplyTo(reply)} style={styles.commentAction}><Reply size={14} color={theme.colors.primary} /><Text style={styles.commentActionText}>{t("رد")}</Text></TouchableOpacity>{user.id === reply.user_id ? <TouchableOpacity onPress={() => deleteComment(reply)} style={styles.commentAction}><Trash2 size={14} color="#DC2626" /><Text style={[styles.commentActionText, { color: "#DC2626" }]}>{t("حذف")}</Text></TouchableOpacity> : <TouchableOpacity onPress={() => reportComment(reply)} style={styles.commentAction}><Flag size={14} color={theme.colors.textMuted} /><Text style={styles.commentActionText}>{t("إبلاغ")}</Text></TouchableOpacity>}</View>}</View>)}</View>)}
 
                 <Text style={styles.sectionTitle}>{t("معلومات البائع")}</Text>
                 <TouchableOpacity onPress={() => listing.seller?.id && navigation.navigate("SellerProfile", {
@@ -807,6 +813,17 @@ const styles = StyleSheet.create({
   commentAuthor: { color: theme.colors.text, fontWeight: "900", fontSize: 12 },
   commentDate: { color: theme.colors.textMuted, fontSize: 10, marginStart: "auto" },
   commentBody: { color: theme.colors.text, fontSize: 13, lineHeight: 20, textAlign: "right" },
+  replyBanner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8, backgroundColor: "#E0F2FE" },
+  replyBannerText: { color: theme.colors.text, fontSize: 12, flex: 1, textAlign: "right" },
+  replyCancel: { color: theme.colors.primary, fontWeight: "800", fontSize: 12 },
+  commentError: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, borderRadius: 10, padding: 9, marginBottom: 10, backgroundColor: "#FEE2E2" },
+  commentErrorText: { color: "#B91C1C", fontSize: 12, flex: 1, textAlign: "right" },
+  commentRetry: { color: "#B91C1C", fontWeight: "800", fontSize: 12 },
+  commentActions: { flexDirection: "row", gap: 14, marginTop: 9, justifyContent: "flex-start" },
+  commentAction: { flexDirection: "row", alignItems: "center", gap: 4 },
+  commentActionText: { color: theme.colors.primary, fontWeight: "700", fontSize: 11 },
+  commentReply: { marginTop: 8, marginStart: 14, paddingStart: 10, paddingTop: 9, borderStartWidth: 2, borderStartColor: theme.colors.primary, backgroundColor: theme.colors.surface, borderRadius: 10 },
+  commentFocused: { borderWidth: 2, borderColor: theme.colors.primary },
   priceRow: {
     flexDirection: "row",
     alignItems: "center",

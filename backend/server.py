@@ -1133,6 +1133,9 @@ class ListingCommentIn(BaseModel):
     # creating a duplicate comment or surfacing a false failure.
     client_comment_id: Optional[str] = Field(default=None, min_length=8, max_length=100)
 
+class CommentReportIn(BaseModel):
+    reason: str = Field(min_length=2, max_length=500)
+
 class AdIn(BaseModel):
     title: str
     image_url: Optional[str] = ""  # not required for iframe ads
@@ -4348,24 +4351,53 @@ async def list_listing_comments(listing_id: str, country_code: Optional[str] = N
 
 @api.post("/listings/{listing_id}/comments")
 async def create_listing_comment(listing_id: str, body: ListingCommentIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 0, "user_id": 1, "title": 1}):
-        raise HTTPException(404, "الإعلان غير موجود")
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if country_code and country_code_or_default(country_code, active_cc) != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 0, "id": 1, "user_id": 1, "title": 1, "country_code": 1})
+    if not listing:
+        raise HTTPException(404, "الإعلان غير موجود في الدولة المختارة")
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
     if await db.listing_comments.count_documents({"user_id": user["id"], "created_at": {"$gte": cutoff}}) >= 10:
         raise HTTPException(429, "محاولات التعليق كثيرة، حاول لاحقًا")
+    parent = None
+    if body.parent_id:
+        parent = await db.listing_comments.find_one({"id": body.parent_id, "listing_id": listing_id, "deleted": {"$ne": True}}, {"_id": 0})
+        if not parent:
+            raise HTTPException(404, "التعليق الأصلي غير موجود أو محذوف")
+    recipient_id = (parent or {}).get("user_id") or listing.get("user_id")
+    if recipient_id and recipient_id != user["id"]:
+        blocked = await db.blocks.find_one({"$or": [{"blocker_id": user["id"], "blocked_id": recipient_id}, {"blocker_id": recipient_id, "blocked_id": user["id"]}]}, {"_id": 1})
+        if blocked:
+            raise HTTPException(403, "التعليق غير متاح لهذه العلاقة")
     now = datetime.now(timezone.utc).isoformat()
     if body.client_comment_id:
-        existing = await db.listing_comments.find_one(
-            {"listing_id": listing_id, "user_id": user["id"], "client_comment_id": body.client_comment_id, "deleted": {"$ne": True}},
-            {"_id": 0},
-        )
+        existing = await db.listing_comments.find_one({"listing_id": listing_id, "user_id": user["id"], "client_comment_id": body.client_comment_id, "deleted": {"$ne": True}}, {"_id": 0})
         if existing:
             existing["author"] = {"id": user["id"], "name": user.get("name") or "مستخدم", "avatar_url": user.get("avatar_url"), "verified": bool(user.get("verified"))}
             return existing
-    comment = {"id": uuid.uuid4().hex, "listing_id": listing_id, "user_id": user["id"], "text": body.text.strip(), "parent_id": body.parent_id, "client_comment_id": body.client_comment_id, "created_at": now, "updated_at": now, "deleted": False}
+    comment = {"id": uuid.uuid4().hex, "listing_id": listing_id, "country_code": active_cc, "user_id": user["id"], "text": body.text.strip(), "parent_id": body.parent_id, "client_comment_id": body.client_comment_id, "created_at": now, "updated_at": now, "deleted": False}
     await db.listing_comments.insert_one(comment)
     comment["author"] = {"id": user["id"], "name": user.get("name") or "مستخدم", "avatar_url": user.get("avatar_url"), "verified": bool(user.get("verified"))}
+    if recipient_id and recipient_id != user["id"]:
+        ntype = "comment_reply" if parent else "comment"
+        route = f"/listing/{listing_id}?focus=comments&comment={comment['id']}#comments"
+        title = "رد جديد على تعليقك" if parent else "تعليق جديد على إعلانك"
+        asyncio.create_task(_send_user_notification(recipient_id, title, (user.get("name") or "مستخدم") + ": " + comment["text"][:120], ntype, route, {"entity": "comment", "entity_id": comment["id"], "listing_id": listing_id, "comment_id": comment["id"], "parent_id": body.parent_id, "user_id": user["id"], "country_code": active_cc}, pref_key="comments"))
     return comment
+
+@api.post("/listing-comments/{comment_id}/report")
+async def report_listing_comment(comment_id: str, body: CommentReportIn, user: dict = Depends(get_current_user)):
+    comment = await db.listing_comments.find_one({"id": comment_id, "deleted": {"$ne": True}}, {"_id": 0, "id": 1, "listing_id": 1, "user_id": 1, "country_code": 1})
+    if not comment:
+        raise HTTPException(404, "التعليق غير موجود")
+    if comment.get("user_id") == user["id"]:
+        raise HTTPException(400, "لا يمكنك الإبلاغ عن تعليقك")
+    if country_code_or_default(comment.get("country_code"), "SA") != country_code_or_default(user.get("country_code"), "SA"):
+        raise HTTPException(409, "التعليق خارج الدولة النشطة")
+    rid = str(uuid.uuid4())
+    await db.reports.insert_one({"id": rid, "reporter_id": user["id"], "target_type": "comment", "target_id": comment_id, "reason": body.reason.strip(), "status": "open", "created_at": datetime.now(timezone.utc).isoformat(), "listing_id": comment.get("listing_id"), "reported_user_id": comment.get("user_id")})
+    return {"id": rid, "success": True}
 
 @api.delete("/listing-comments/{comment_id}")
 async def delete_listing_comment(comment_id: str, user: dict = Depends(get_current_user)):
@@ -5258,6 +5290,15 @@ async def get_presence(user_id: str, _: dict = Depends(get_current_user)):
     return {"user_id": user_id, "online": False, "last_seen": (u or {}).get("last_seen")}
 
 
+async def _chat_receiver_for_active_country(sender: dict, receiver_id: str) -> tuple[dict, str]:
+    active_cc = country_code_or_default(sender.get("country_code"), "SA")
+    receiver = await db.users.find_one({"id": receiver_id}, {"_id": 0, "id": 1, "name": 1, "country_code": 1})
+    if not receiver:
+        raise HTTPException(404, "المستلم غير موجود")
+    if country_code_or_default(receiver.get("country_code"), "SA") != active_cc:
+        raise HTTPException(409, "لا يمكن بدء محادثة بين سوقين مختلفين")
+    return receiver, active_cc
+
 @api.post("/chat/send")
 async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_user)):
     if body.receiver_id == user["id"]:
@@ -5283,22 +5324,32 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
     ]}, {"_id": 0, "blocker_id": 1})
     if blocked:
         raise HTTPException(403, "Messaging is unavailable for this user")
-    receiver = await db.users.find_one({"id": body.receiver_id}, {"_id": 0, "id": 1, "name": 1})
-    if not receiver:
-        raise HTTPException(404, "Receiver not found")
+    receiver, active_cc = await _chat_receiver_for_active_country(user, body.receiver_id)
+    if body.listing_id:
+        linked_listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": body.listing_id}), {"_id": 0, "id": 1})
+        if not linked_listing:
+            raise HTTPException(404, "الإعلان المرتبط غير موجود في الدولة المختارة")
     convo_id = "_".join(sorted([user["id"], body.receiver_id]))
+    reply_to = None
+    reply_id = (body.reply_to or {}).get("id") if isinstance(body.reply_to, dict) else None
+    if reply_id:
+        original = await db.messages.find_one({"id": reply_id, "convo_id": convo_id, "deleted": {"$ne": True}}, {"_id": 0, "id": 1, "sender_id": 1, "text": 1, "image": 1, "voice": 1, "location": 1})
+        if not original:
+            raise HTTPException(404, "الرسالة المراد الرد عليها غير متاحة")
+        reply_to = {"id": original["id"], "text": original.get("text"), "image": original.get("image"), "voice": original.get("voice"), "location": original.get("location"), "sender_id": original.get("sender_id"), "sender_name": user.get("name") if original.get("sender_id") == user["id"] else receiver.get("name")}
     msg = {
         "id": str(uuid.uuid4()),
         "convo_id": convo_id,
         "sender_id": user["id"],
         "receiver_id": body.receiver_id,
         "listing_id": body.listing_id,
+        "country_code": active_cc,
         "text": text or None,
         "image": body.image,
         "voice": body.voice,
         "voice_duration_ms": body.voice_duration_ms,
         "location": body.location,
-        "reply_to": body.reply_to,
+        "reply_to": reply_to,
         "forwarded_from": body.forwarded_from,
         "client_message_id": body.client_message_id,
         "read": False,
@@ -5319,9 +5370,10 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
             "id": convo_id,
             "participants": sorted([user["id"], body.receiver_id]),
             "listing_id": body.listing_id,
+            "country_code": active_cc,
             "last_message": body.text or "[وسائط]",
             "last_ts": msg["ts"],
-        }, "$inc": {f"unread_{body.receiver_id}": 1}},
+        }, "$inc": {f"unread_{body.receiver_id}": 1}, "$pull": {"hidden_for": user["id"]}},
         upsert=True
     )
     msg.pop("_id", None)
@@ -5347,29 +5399,14 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
     # receiver is NOT actively connected (saves on no-op push).
     if delivered == 0:
         preview = (body.text or "[وسائط]")[:80]
-        await db.notifications.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_id": body.receiver_id,
-            "type": "new_message",
-            "title": f"رسالة جديدة من {user.get('name', 'مستخدم')}",
-            "body": preview,
-            "data": {"convo_id": convo_id, "sender_id": user["id"], "listing_id": body.listing_id},
-            "read": False,
-            "created_at": msg["ts"],
-        })
-        asyncio.create_task(_send_push(
-            db, [body.receiver_id],
-            title=f"💬 {user.get('name', 'رسالة جديدة')}",
-            body=preview,
-            url=f"/chat?to={user['id']}" + (f"&listing={body.listing_id}" if body.listing_id else ""),
-            data={"type": "new_message", "convo_id": convo_id, "sender_id": user["id"], "listing_id": body.listing_id},
-            pref_key="messages",
-        ))
+        route = f"/chat?to={user['id']}&convo={convo_id}" + (f"&listing={body.listing_id}" if body.listing_id else "")
+        await _send_user_notification(body.receiver_id, f"رسالة جديدة من {user.get('name', 'مستخدم')}", preview, "new_message", route, {"entity": "conversation", "entity_id": convo_id, "conversation_id": convo_id, "convo_id": convo_id, "sender_id": user["id"], "listing_id": body.listing_id, "message_id": msg["id"], "country_code": active_cc}, pref_key="messages")
     return msg_payload
 
 @api.get("/chat/conversations")
 async def list_conversations(user: dict = Depends(get_current_user)):
-    convos = await db.conversations.find({"participants": user["id"]}, {"_id": 0}).sort("last_ts", -1).to_list(length=200)
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    convos = await db.conversations.find({"participants": user["id"], "hidden_for": {"$ne": user["id"]}, "$or": [{"country_code": active_cc}, {"country_code": {"$exists": False}}]}, {"_id": 0}).sort("last_ts", -1).to_list(length=200)
     # enrich with other participant info — return BOTH the nested `other`
     # object AND flat `other_*` keys (mobile UI uses the flat form).
     for c in convos:
@@ -5395,7 +5432,7 @@ async def get_messages(convo_id: str, before: Optional[str] = None, limit: int =
         raise HTTPException(403)
     if before:
         limit = max(1, min(limit, 100))
-        q = {"convo_id": convo_id, "ts": {"$lt": before}}
+        q = {"convo_id": convo_id, "ts": {"$lt": before}, "hidden_for": {"$ne": user["id"]}}
         msgs = await db.messages.find(q, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
         msgs.reverse()
         return {
@@ -5404,11 +5441,41 @@ async def get_messages(convo_id: str, before: Optional[str] = None, limit: int =
             "next_before": msgs[0]["ts"] if (msgs and len(msgs) == limit) else None,
         }
     # Legacy: latest 500 oldest-first + mark as read.
-    msgs = await db.messages.find({"convo_id": convo_id}, {"_id": 0}).sort("ts", 1).to_list(length=500)
+    msgs = await db.messages.find({"convo_id": convo_id, "hidden_for": {"$ne": user["id"]}}, {"_id": 0}).sort("ts", 1).to_list(length=500)
     await db.messages.update_many({"convo_id": convo_id, "receiver_id": user["id"], "read": False}, {"$set": {"read": True}})
     await db.conversations.update_one({"id": convo_id}, {"$set": {f"unread_{user['id']}": 0}})
     return msgs
 
+
+@api.post("/chat/messages/{message_id}/delete-for-me")
+async def delete_chat_message_for_me(message_id: str, user: dict = Depends(get_current_user)):
+    msg = await db.messages.find_one({"id": message_id}, {"_id": 0, "convo_id": 1})
+    if not msg:
+        raise HTTPException(404, "الرسالة غير موجودة")
+    if user["id"] not in (msg.get("convo_id") or "").split("_"):
+        raise HTTPException(403, "غير مصرح")
+    await db.messages.update_one({"id": message_id}, {"$addToSet": {"hidden_for": user["id"]}})
+    return {"success": True, "message_id": message_id, "scope": "self"}
+
+@api.delete("/chat/conversations/{convo_id}")
+async def delete_chat_conversation_for_me(convo_id: str, user: dict = Depends(get_current_user)):
+    conversation = await db.conversations.find_one({"id": convo_id, "participants": user["id"]}, {"_id": 0, "id": 1})
+    if not conversation:
+        raise HTTPException(404, "المحادثة غير موجودة")
+    await db.conversations.update_one({"id": convo_id}, {"$addToSet": {"hidden_for": user["id"]}})
+    await db.messages.update_many({"convo_id": convo_id}, {"$addToSet": {"hidden_for": user["id"]}})
+    return {"success": True, "convo_id": convo_id, "scope": "self"}
+
+@api.post("/chat/messages/{message_id}/report")
+async def report_chat_message(message_id: str, body: ReportIn, user: dict = Depends(get_current_user)):
+    msg = await db.messages.find_one({"id": message_id}, {"_id": 0, "convo_id": 1, "sender_id": 1})
+    if not msg:
+        raise HTTPException(404, "الرسالة غير موجودة")
+    if user["id"] not in (msg.get("convo_id") or "").split("_"):
+        raise HTTPException(403, "غير مصرح")
+    report_id = str(uuid.uuid4())
+    await db.reports.insert_one({"id": report_id, "reporter_id": user["id"], "target_type": "message", "target_id": message_id, "reason": body.reason.strip(), "status": "open", "created_at": datetime.now(timezone.utc).isoformat(), "conversation_id": msg.get("convo_id"), "reported_user_id": msg.get("sender_id")})
+    return {"id": report_id, "success": True}
 
 @api.delete("/chat/messages/{message_id}")
 async def delete_chat_message(message_id: str, user: dict = Depends(get_current_user)):
@@ -6234,15 +6301,13 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
             for w in watchers:
                 if w["user_id"] == item["user_id"]:
                     continue
+                route = f"/listing/{listing_id}"
+                notification_data = _notification_payload("price_drop", route, {"entity": "listing", "entity_id": listing_id, "listing_id": listing_id, "old_price": old_price, "new_price": new_price, "country_code": item.get("country_code")})
                 await db.notifications.insert_one({
-                    "id": str(uuid.uuid4()),
-                    "user_id": w["user_id"],
-                    "type": "price_drop",
-                    "title": f"💸 تخفيض في السعر -{pct}%",
-                    "body": f"تم تخفيض سعر «{title}» إلى {new_price:,.0f}",
-                    "data": {"listing_id": listing_id, "old_price": old_price, "new_price": new_price},
-                    "read": False,
-                    "created_at": now_iso,
+                    "id": str(uuid.uuid4()), "user_id": w["user_id"], "type": "price_drop",
+                    "title": f"💸 تخفيض في السعر -{pct}%", "body": f"تم تخفيض سعر «{title}» إلى {new_price:,.0f}",
+                    "url": route, "data": notification_data, "schema_version": notification_data["schema_version"], "entity_type": notification_data["entity_type"], "entity_id": listing_id,
+                    "read": False, "created_at": now_iso,
                 })
             # Push (unified Expo + Web)
             try:
@@ -6253,7 +6318,7 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
                         title=f"💸 تخفيض سعر -{pct}%",
                         body=f"«{title}» الآن بـ {new_price:,.0f}",
                         url=f"/listing/{listing_id}",
-                        data={"type": "price_drop", "listing_id": listing_id},
+                        data={"type": "price_drop", **_notification_payload("price_drop", f"/listing/{listing_id}", {"entity": "listing", "entity_id": listing_id, "listing_id": listing_id, "country_code": item.get("country_code")})},
                         pref_key="watchlist",
                     ))
             except Exception:
@@ -6720,24 +6785,7 @@ async def admin_approve(lid: str, user: dict = Depends(require_admin)):
         item = await db.listings.find_one({"id": lid}, {"_id": 0, "user_id": 1, "title": 1})
         if item and item.get("user_id"):
             title = item.get("title", "إعلانك")
-            await db.notifications.insert_one({
-                "id": str(uuid.uuid4()),
-                "user_id": item["user_id"],
-                "type": "listing_approved",
-                "title": "✅ تمت الموافقة على إعلانك",
-                "body": f"«{title}» متاح الآن للجميع",
-                "data": {"listing_id": lid},
-                "read": False,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-            asyncio.create_task(_send_push(
-                db, [item["user_id"]],
-                title="✅ تمت الموافقة على إعلانك",
-                body=f"«{title}» متاح الآن للجميع",
-                url=f"/listing/{lid}",
-                data={"type": "listing_approved", "listing_id": lid},
-                pref_key="listing_status",
-            ))
+            await _send_user_notification(item["user_id"], "✅ تمت الموافقة على إعلانك", f"«{title}» متاح الآن للجميع", "listing_approved", f"/listing/{lid}", {"entity": "listing", "entity_id": lid, "listing_id": lid}, pref_key="listing_status")
     return {"updated": r.modified_count}
 
 
@@ -6749,24 +6797,7 @@ async def admin_reject(lid: str, user: dict = Depends(require_admin)):
         item = await db.listings.find_one({"id": lid}, {"_id": 0, "user_id": 1, "title": 1})
         if item and item.get("user_id"):
             title = item.get("title", "إعلانك")
-            await db.notifications.insert_one({
-                "id": str(uuid.uuid4()),
-                "user_id": item["user_id"],
-                "type": "listing_rejected",
-                "title": "❌ تم رفض إعلانك",
-                "body": f"«{title}» — يرجى مراجعة الشروط وإعادة النشر",
-                "data": {"listing_id": lid},
-                "read": False,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-            asyncio.create_task(_send_push(
-                db, [item["user_id"]],
-                title="❌ تم رفض إعلانك",
-                body=f"«{title}» — راجع الشروط وأعد النشر",
-                url=f"/listing/{lid}",
-                data={"type": "listing_rejected", "listing_id": lid},
-                pref_key="listing_status",
-            ))
+            await _send_user_notification(item["user_id"], "❌ تم رفض إعلانك", f"«{title}» — يرجى مراجعة الشروط وإعادة النشر", "listing_rejected", f"/listing/{lid}", {"entity": "listing", "entity_id": lid, "listing_id": lid}, pref_key="listing_status")
     return {"updated": r.modified_count}
 
 @admin_router.get("/users")
@@ -7370,11 +7401,12 @@ async def broadcast_notification(body: BroadcastIn):
         ]
     user_ids = [u["id"] async for u in db.users.find(q, {"_id": 0, "id": 1})]
     deep_url = (body.url or "/").strip() or "/"
+    broadcast_data = _notification_payload("admin_broadcast", deep_url, {"entity": "broadcast", "entity_id": deep_url, "image": body.image or None})
     docs = [
         {"id": str(uuid.uuid4()), "user_id": uid, "title": body.title, "body": body.body,
          "type": "admin_broadcast", "read": False, "ts": datetime.now(timezone.utc).isoformat(),
-         "url": deep_url, "image": body.image or None,
-         "data": {"type": "admin_broadcast", "url": deep_url, "image": body.image or None}}
+         "url": deep_url, "image": body.image or None, "data": dict(broadcast_data),
+         "schema_version": broadcast_data["schema_version"], "entity_type": broadcast_data["entity_type"], "entity_id": broadcast_data["entity_id"]}
         for uid in user_ids
     ]
     if docs:
@@ -7386,7 +7418,7 @@ async def broadcast_notification(body: BroadcastIn):
             title=body.title,
             body=body.body,
             url=deep_url,
-            data={"type": "admin_broadcast", "url": deep_url, "image": body.image or None},
+            data={"type": "admin_broadcast", **broadcast_data},
             pref_key="broadcasts",
             image=body.image or None,
         ))
@@ -7402,15 +7434,12 @@ async def admin_notification_test(user: dict = Depends(require_admin)):
     title = "🔔 إشعار تجريبي من لوحة الأدمن"
     body = "إذا وصلك هذا الإشعار، فإن نظام الإشعارات يعمل بشكل سليم ✅"
     now = datetime.now(timezone.utc).isoformat()
+    route = "/admin"
+    data = _notification_payload("admin_test", route, {"entity": "admin", "entity_id": user["id"], "user_id": user["id"]})
     doc = {
-        "id": str(uuid.uuid4()),
-        "user_id": user["id"],
-        "title": title,
-        "body": body,
-        "type": "admin_test",
-        "read": False,
-        "ts": now,
-        "created_at": now,
+        "id": str(uuid.uuid4()), "user_id": user["id"], "title": title, "body": body, "type": "admin_test",
+        "url": route, "data": data, "schema_version": data["schema_version"], "entity_type": data["entity_type"], "entity_id": data["entity_id"],
+        "read": False, "ts": now, "created_at": now,
     }
     await db.notifications.insert_one(doc)
     push_result = {}
@@ -7419,8 +7448,8 @@ async def admin_notification_test(user: dict = Depends(require_admin)):
             db, [user["id"]],
             title=title,
             body=body,
-            url="/admin",
-            data={"type": "admin_test"},
+            url=route,
+            data={"type": "admin_test", **data},
             pref_key=None,  # ignore prefs for test
         ) or {}
     except Exception as e:
@@ -7705,15 +7734,47 @@ async def cancel_scheduled_broadcast(sid: str):
     return {"ok": True}
 
 
+NOTIFICATION_SCHEMA_VERSION = 1
+
+def _notification_payload(ntype: str, url: str, extra_data: Optional[dict] = None) -> dict:
+    """Canonical, versioned payload consumed by Web and Mobile resolvers.
+
+    Legacy keys remain accepted by clients, but all newly created notifications
+    carry stable entity/ID fields and a relative route so no specific event
+    silently falls back to Home.
+    """
+    data = dict(extra_data or {})
+    data.setdefault("schema_version", NOTIFICATION_SCHEMA_VERSION)
+    data.setdefault("type", ntype)
+    data.setdefault("route", url)
+    data.setdefault("entity", data.get("entity_type") or ntype)
+    data.setdefault("entity_type", data["entity"])
+    for canonical, aliases in {
+        "entity_id": ("target_id", "reference_id"),
+        "listing_id": ("listingId", "ad_id"),
+        "conversation_id": ("convo_id", "conversationId"),
+        "comment_id": ("commentId",),
+        "offer_id": ("offerId",),
+        "auction_id": ("auctionId",),
+        "user_id": ("userId",),
+    }.items():
+        if data.get(canonical) is None:
+            for alias in aliases:
+                if data.get(alias) is not None:
+                    data[canonical] = data[alias]
+                    break
+    return data
+
 async def _send_user_notification(user_id: str, title: str, body: str, ntype: str, url: str, extra_data: Optional[dict] = None, pref_key: Optional[str] = None):
     """Persist and push one notification; optional dedupe_key makes worker retries safe."""
     now = datetime.now(timezone.utc).isoformat()
-    data = dict(extra_data or {})
+    data = _notification_payload(ntype, url, extra_data)
     dedupe_key = data.get("dedupe_key")
     doc = {
         "id": str(uuid.uuid4()), "user_id": user_id,
         "title": title, "body": body, "type": ntype,
         "url": url, "data": data, "dedupe_key": dedupe_key,
+        "schema_version": data["schema_version"], "entity_type": data["entity_type"], "entity_id": data.get("entity_id"),
         "read": False, "ts": now, "created_at": now,
     }
     try:
@@ -7864,10 +7925,12 @@ async def _process_due_schedules(now_iso: str) -> int:
                 {"last_seen": {"$exists": False}},
             ]
         user_ids = [u["id"] async for u in db.users.find(q, {"_id": 0, "id": 1})]
+        route = sch.get("url") or "/"
+        scheduled_data = _notification_payload("admin_scheduled", route, {"entity": "scheduled_broadcast", "entity_id": sch["id"], "schedule_id": sch["id"]})
         docs = [{
             "id": str(uuid.uuid4()), "user_id": uid,
-            "title": sch["title"], "body": sch["body"],
-            "type": "admin_scheduled", "url": sch.get("url") or "/",
+            "title": sch["title"], "body": sch["body"], "type": "admin_scheduled", "url": route,
+            "data": dict(scheduled_data), "schema_version": scheduled_data["schema_version"], "entity_type": scheduled_data["entity_type"], "entity_id": scheduled_data["entity_id"],
             "read": False, "ts": now_iso, "created_at": now_iso,
         } for uid in user_ids]
         if docs:
@@ -7876,8 +7939,8 @@ async def _process_due_schedules(now_iso: str) -> int:
             try:
                 await _send_push(
                     db, user_ids, title=sch["title"], body=sch["body"],
-                    url=sch.get("url") or "/",
-                    data={"type": "admin_scheduled", "schedule_id": sch["id"]},
+                    url=route,
+                    data={"type": "admin_scheduled", **scheduled_data},
                     pref_key="broadcasts",
                 )
             except Exception as e:

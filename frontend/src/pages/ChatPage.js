@@ -3,7 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
 import {
     Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square,
-    MapPin, Languages, Check, CheckCheck, ChevronDown, Radio, Reply, Phone,
+    MapPin, Languages, Check, CheckCheck, ChevronDown, Radio, Reply, Phone, Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
@@ -74,7 +74,7 @@ function linkify(text) {
 
 
 /** Single message bubble — memoised so list updates don't rerender history. */
-const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact, onDelete }) => {
+const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact, onDelete, onDeleteForMe }) => {
     const liveShare = m.location?.live_share_id;
     // Swipe-to-reply touch handler — simple horizontal drag detection
     const startX = useRef(null);
@@ -115,6 +115,13 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
             {/* Reactions picker strip — long-press / right-click to open */}
             {showReactStrip && (
                 <div className="absolute -top-10 start-1/2 -translate-x-1/2 z-10 flex gap-1 bg-white rounded-full shadow-lg px-2 py-1 border border-gray-200" data-testid={`react-strip-${m.id}`}>
+                            {!m.deleted && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onDeleteForMe?.(m); setShowReactStrip(false); }}
+                                    className="text-[11px] text-[var(--text-muted)] hover:underline px-1.5"
+                                    data-testid={`delete-for-me-${m.id}`}
+                                >{tr("حذف لدي")}</button>
+                            )}
                             {mine && !m.deleted && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onDelete?.(m); setShowReactStrip(false); }}
@@ -740,6 +747,7 @@ export default function ChatPage() {
                                 <button onClick={() => setStartCall(true)} className="w-9 h-9 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 flex items-center justify-center shrink-0" aria-label={tr("مكالمة صوتية")} data-testid="voice-call-btn">
                                     <Phone className="w-4 h-4" />
                                 </button>
+                                <button onClick={async () => { if (!window.confirm(tr("سيتم حذف هذه المحادثة لديك فقط. متابعة؟"))) return; try { await api.delete(`/chat/conversations/${activeConvoId}`); setConvos(prev => prev.filter(c => c.id !== activeConvoId)); setMessages([]); setActiveConvoId(null); setActiveOther(null); } catch (_) {} }} className="w-9 h-9 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 flex items-center justify-center shrink-0" aria-label={tr("حذف المحادثة لدي")} data-testid="delete-conversation-for-me-btn"><Trash2 className="w-4 h-4" /></button>
                             </div>
 
                             {/* Listing context card — shown when chat was opened from a listing */}
@@ -775,6 +783,10 @@ export default function ChatPage() {
                                                 await api.delete(`/chat/messages/${msg.id}`);
                                                 setMessages(prev => prev.map(x => x.id === msg.id ? { ...x, deleted: true, deleted_at: new Date().toISOString(), text: null, image: null, voice: null, location: null, reply_to: null, reactions: {} } : x));
                                             } catch (_) {}
+                                        }}
+                                        onDeleteForMe={async (msg) => {
+                                            try { await api.post(`/chat/messages/${msg.id}/delete-for-me`); setMessages(prev => prev.filter(x => x.id !== msg.id)); }
+                                            catch (_) {}
                                         }}
                                         onReact={async (msg, emoji) => {
                                             try {

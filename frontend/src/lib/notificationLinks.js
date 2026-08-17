@@ -41,16 +41,22 @@ export function notificationData(notification) {
 export function notificationUrl(notification) {
   const data = notificationData(notification);
   const type = String(notification?.type || data.type || data.notification_type || "").toLowerCase();
-  const explicit = internalize(data.url || data.deep_link || data.link || notification?.url);
+  const explicit = internalize(data.route || data.url || data.deep_link || data.link || notification?.url);
   if (explicit) return explicit;
 
-  const listingId = data.listing_id || data.listingId || data.ad_id || data.entity_id || data.target_id || notification?.listing_id;
+  const listingId = data.listing_id || data.listingId || data.ad_id || notification?.listing_id;
+  const commentId = data.comment_id || data.commentId || (data.entity === "comment" ? data.entity_id : null);
+  const conversationId = data.conversation_id || data.convo_id || data.conversationId;
   const senderId = data.sender_id || data.senderId || data.from_user_id || data.user_id;
   const query = data.query || data.search_query || data.q || "";
 
   if (["new_message", "message", "chat"].includes(type)) {
-    if (senderId) return `/chat?to=${encodeURIComponent(senderId)}${listingId ? `&listing=${encodeURIComponent(listingId)}` : ""}`;
-    return "/chat";
+    const params = new URLSearchParams();
+    if (senderId) params.set("to", senderId);
+    if (listingId) params.set("listing", listingId);
+    if (conversationId) params.set("convo", conversationId);
+    const queryString = params.toString();
+    return queryString ? `/chat?${queryString}` : "/chat";
   }
   if (["search_alert", "saved_search", "search"].includes(type)) {
     return query ? `/search?q=${encodeURIComponent(query)}` : "/saved-searches";
@@ -60,8 +66,9 @@ export function notificationUrl(notification) {
   }
   if (type === "auction" && listingId) return `/auctions?openBidFor=${encodeURIComponent(listingId)}`;
   if (LISTING_TYPES.has(type) && listingId) {
-    const focus = type === "comment" || type === "comment_reply" ? "#comments" : "";
-    return `/listing/${encodeURIComponent(listingId)}${focus}`;
+    const isComment = type === "comment" || type === "comment_reply";
+    const commentQuery = isComment && commentId ? `?focus=comments&comment=${encodeURIComponent(commentId)}` : "";
+    return `/listing/${encodeURIComponent(listingId)}${commentQuery}${isComment ? "#comments" : ""}`;
   }
   if (type === "admin_broadcast" && explicit) return explicit;
   return "/notifications";

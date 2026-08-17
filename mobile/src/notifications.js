@@ -57,7 +57,7 @@ function notificationUrlFromData(raw) {
     return payload.url || payload.deep_link || payload.link || "";
 }
 
-function routeFromUrl(url) {
+export function routeFromUrl(url) {
     if (!url) return;
     // Backend normally sends a relative path; tolerate absolute frontend URLs too.
     try {
@@ -73,18 +73,22 @@ function routeFromUrl(url) {
     // Listing detail, including comment deep-links.
     let m = url.match(/^\/listing\/([^/?#]+)/);
     if (m && _navigationRef?.navigate) {
+        const params = new URLSearchParams(url.split("?")[1]?.split("#")[0] || "");
         const isComments = /(?:#comments|[?&](?:focus|section)=comments)/i.test(url);
-        _navigationRef.navigate("ListingDetail", { id: m[1], focus: isComments ? "comments" : undefined });
+        _navigationRef.navigate("ListingDetail", { id: m[1], focus: isComments ? "comments" : undefined, commentId: params.get("comment") || undefined, fromNotification: true });
         return;
     }
     // Seller profile
     m = url.match(/^\/seller\/([^/?#]+)/);
     if (m && _navigationRef?.navigate) { _navigationRef.navigate("SellerProfile", { sellerId: m[1] }); return; }
     // Chat
-    m = url.match(/^\/chat(\?to=([^&]+))?/);
+    m = url.match(/^\/chat(?:\?([^#]+))?/);
     if (m && _navigationRef?.navigate) {
-        const to = m[2];
-        _navigationRef.navigate("Chat", to ? { to } : {});
+        const params = new URLSearchParams(m[1] || "");
+        const to = params.get("to");
+        const convo = params.get("convo") || params.get("conversation_id");
+        const listing = params.get("listing");
+        _navigationRef.navigate("Chat", { ...(to ? { to } : {}), ...(convo ? { convo } : {}), ...(listing ? { listing_id: listing } : {}), fromNotification: true });
         return;
     }
     if (url === "/notifications" || url.startsWith("/notifications?")) {

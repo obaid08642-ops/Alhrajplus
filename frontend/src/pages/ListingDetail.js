@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import api from "@/lib/api";
 import { telLink, whatsappLink, normalizePhone } from "@/lib/phone";
-import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, Edit3, RefreshCw, CheckCircle2, Trash2, Bell, Tag, Box, Gavel } from "lucide-react";
+import { Heart, Phone, MessageCircle, MapPin, Eye, Calendar, Share2, Flag, ChevronLeft, Star, ChevronRight, Sparkles, TrendingUp, ShieldAlert, Maximize2, Edit3, RefreshCw, CheckCircle2, Trash2, Bell, Tag, Box, Gavel, Reply } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -41,6 +41,7 @@ function buildHologramIcon({ price, currency }) {
 export default function ListingDetail() {
     const { id } = useParams();
     const nav = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { t, pickName, pickLabel, tr, lang } = useI18n();
     const [listing, setListing] = useState(null);
@@ -63,6 +64,8 @@ export default function ListingDetail() {
     const [commentText, setCommentText] = useState("");
     const [commentClientId, setCommentClientId] = useState("");
     const [commentBusy, setCommentBusy] = useState(false);
+    const [replyTo, setReplyTo] = useState(null);
+    const [commentError, setCommentError] = useState("");
     const [loadError, setLoadError] = useState("");
     const [neighbors, setNeighbors] = useState(null);
     const [showReport, setShowReport] = useState(false);
@@ -130,16 +133,28 @@ export default function ListingDetail() {
                         setWatching(watches.some((w) => w.listing_id === normalizedListing.id));
                     }).catch(() => { if (!cancelled) setWatching(false); });
                 }
-            } catch (error) {
-                if (!cancelled) {
-                    setListing(null);
-                    setLoadError(error?.response?.status === 404 ? tr("الإعلان غير موجود") : tr("تعذر تحميل الإعلان"));
+                            } catch (error) {
+                    if (!cancelled) {
+                        if (error?.response?.status === 404 && location.state?.fromNotification) {
+                            nav("/notifications?missing=listing", { replace: true, state: { missingDestination: true } });
+                            return;
+                        }
+                        setListing(null);
+                        setLoadError(error?.response?.status === 404 ? tr("الإعلان غير موجود") : tr("تعذر تحميل الإعلان"));
+                    }
                 }
-            }
+
         };
         load();
         return () => { cancelled = true; };
-    }, [id, user, lang, tr]);
+    }, [id, user, lang, tr, location.state, nav]);
+
+    useEffect(() => {
+        const commentId = new URLSearchParams(location.search).get("comment");
+        if (!commentId || !comments.length) return;
+        const timer = window.setTimeout(() => document.getElementById(`comment-${commentId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+        return () => window.clearTimeout(timer);
+    }, [comments, location.search]);
 
     const toggleFollow = async () => {
         if (!user) return nav("/login");
@@ -198,21 +213,37 @@ export default function ListingDetail() {
         }
     };
 
+    const refreshComments = async () => {
+        try {
+            const { data } = await api.get(`/listings/${listing.id}/comments`);
+            setComments(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []));
+            setCommentError("");
+        } catch (e) { setCommentError(e?.response?.data?.detail || tr("تعذر تحميل التعليقات")); }
+    };
     const submitComment = async (e) => {
         e.preventDefault();
         if (!user) return nav("/login");
         const text = commentText.trim();
         if (!text) return;
-        setCommentBusy(true);
+        setCommentBusy(true); setCommentError("");
         const requestId = commentClientId || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
         if (!commentClientId) setCommentClientId(requestId);
         try {
-            const { data } = await api.post(`/listings/${listing.id}/comments`, { text, client_comment_id: requestId });
+            const { data } = await api.post(`/listings/${listing.id}/comments`, { text, parent_id: replyTo?.id || null, client_comment_id: requestId });
             if (data?.id) setComments((items) => [data, ...items.filter((item) => item?.id !== data.id)]);
-            setCommentText("");
-            setCommentClientId("");
-        } catch (e) { alert(e.response?.data?.detail || tr("تعذر نشر التعليق")); }
+            setCommentText(""); setCommentClientId(""); setReplyTo(null);
+        } catch (e) { setCommentError(e.response?.data?.detail || tr("تعذر نشر التعليق")); }
         finally { setCommentBusy(false); }
+    };
+    const deleteComment = async (commentId) => {
+        try { await api.delete(`/listing-comments/${commentId}`); await refreshComments(); }
+        catch (e) { setCommentError(e.response?.data?.detail || tr("تعذر حذف التعليق")); }
+    };
+    const reportComment = async (commentId) => {
+        const reason = window.prompt(tr("سبب الإبلاغ عن التعليق"));
+        if (!reason?.trim()) return;
+        try { await api.post(`/listing-comments/${commentId}/report`, { reason: reason.trim() }); }
+        catch (e) { setCommentError(e.response?.data?.detail || tr("تعذر إرسال البلاغ")); }
     };
 
     const submitReport = async (e) => {
@@ -426,13 +457,8 @@ export default function ListingDetail() {
                     {/* Public comments */}
                     <div className="bg-[var(--surface)] rounded-3xl p-4 sm:p-6 border border-[var(--border)]">
                         <div className="flex items-center justify-between mb-4"><h2 className="font-arabic font-bold text-lg text-[var(--text)]">{tr("التعليقات")}</h2><span className="text-xs text-[var(--text-muted)] font-latin">{comments.length}</span></div>
-                        {user ? (
-                            <form onSubmit={submitComment} className="flex gap-2 mb-4">
-                                <input data-testid="listing-comment-input" value={commentText} onChange={(e) => setCommentText(e.target.value)} maxLength={1000} placeholder={tr("اكتب تعليقًا عامًا...")} className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
-                                <button data-testid="listing-comment-submit" disabled={commentBusy || !commentText.trim()} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl px-4 py-2 font-arabic font-bold text-xs disabled:opacity-50">{commentBusy ? tr("جارٍ النشر...") : tr("نشر")}</button>
-                            </form>
-                        ) : <button onClick={() => nav("/login")} className="w-full mb-4 rounded-xl py-2.5 bg-[var(--surface-elevated)] text-[var(--primary)] font-arabic font-bold text-sm">{tr("سجل الدخول لكتابة تعليق")}</button>}
-                        {comments.length === 0 ? <p className="text-sm text-[var(--text-muted)] font-arabic-body">{tr("لا توجد تعليقات بعد")}</p> : <div className="space-y-3">{comments.map((comment) => <div key={comment.id} className="rounded-2xl bg-[var(--surface-elevated)] p-3"><div className="flex items-center gap-2 mb-1"><span className="font-arabic font-bold text-xs text-[var(--text)]">{comment.author?.name || tr("مستخدم")}</span>{comment.author?.verified && <CheckCircle2 className="w-3 h-3 text-[var(--primary)]" />}<span className="text-[10px] text-[var(--text-muted)] font-latin ms-auto">{new Date(comment.created_at).toLocaleDateString(lang === "ar" ? "ar" : "en")}</span></div><p className="text-sm text-[var(--text)] font-arabic-body whitespace-pre-wrap">{comment.text}</p></div>)}</div>}
+                        {user ? (<><form onSubmit={submitComment} className="space-y-2 mb-4">{replyTo && <div className="flex items-center justify-between gap-2 rounded-xl bg-[var(--primary)]/10 px-3 py-2 text-xs font-arabic"><span className="truncate">{tr("رد على")}: {replyTo.author?.name || tr("مستخدم")}</span><button type="button" onClick={() => setReplyTo(null)} className="text-[var(--primary)] font-bold">{tr("إلغاء")}</button></div>}<div className="flex gap-2"><input data-testid="listing-comment-input" value={commentText} onChange={(e) => setCommentText(e.target.value)} maxLength={1000} placeholder={replyTo ? tr("اكتب ردك...") : tr("اكتب تعليقًا عامًا...")} className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" /><button data-testid="listing-comment-submit" disabled={commentBusy || !commentText.trim()} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl px-4 py-2 font-arabic font-bold text-xs disabled:opacity-50">{commentBusy ? tr("جارٍ النشر...") : tr("نشر")}</button></div></form>{commentError && <div className="mb-3 text-xs text-red-600 font-arabic-body flex justify-between gap-2"><span>{commentError}</span><button onClick={refreshComments} className="underline font-bold">{tr("إعادة المحاولة")}</button></div>}</>) : <button onClick={() => nav("/login")} className="w-full mb-4 rounded-xl py-2.5 bg-[var(--surface-elevated)] text-[var(--primary)] font-arabic font-bold text-sm">{tr("سجل الدخول لكتابة تعليق")}</button>}
+                        {comments.length === 0 ? <p className="text-sm text-[var(--text-muted)] font-arabic-body">{tr("لا توجد تعليقات بعد")}</p> : <div className="space-y-3">{comments.filter((comment) => !comment.parent_id).map((comment) => <div key={comment.id} id={`comment-${comment.id}`} className={`rounded-2xl bg-[var(--surface-elevated)] p-3 ${new URLSearchParams(window.location.search).get("comment") === comment.id ? "ring-2 ring-[var(--primary)]" : ""}`}><CommentCard comment={comment} user={user} lang={lang} tr={tr} onReply={setReplyTo} onDelete={deleteComment} onReport={reportComment} />{comments.filter((reply) => reply.parent_id === comment.id).map((reply) => <div key={reply.id} id={`comment-${reply.id}`} className={`mt-2 ms-4 border-s-2 border-[var(--primary)]/30 ps-3 ${new URLSearchParams(window.location.search).get("comment") === reply.id ? "rounded-xl ring-2 ring-[var(--primary)]" : ""}`}><CommentCard comment={reply} user={user} lang={lang} tr={tr} onReply={setReplyTo} onDelete={deleteComment} onReport={reportComment} /></div>)}</div>)}</div>}
                     </div>
 
                     {/* Custom fields */}
@@ -726,4 +752,10 @@ export default function ListingDetail() {
             )}
         </div>
     );
+}
+
+
+function CommentCard({ comment, user, lang, tr, onReply, onDelete, onReport }) {
+    const mine = user?.id === comment.user_id;
+    return <div className="group"><div className="flex items-center gap-2 mb-1"><span className="font-arabic font-bold text-xs text-[var(--text)]">{comment.author?.name || tr("مستخدم")}</span>{comment.author?.verified && <CheckCircle2 className="w-3 h-3 text-[var(--primary)]" />}<span className="text-[10px] text-[var(--text-muted)] font-latin ms-auto">{new Date(comment.created_at).toLocaleDateString(lang === "ar" ? "ar" : "en")}</span></div><p className="text-sm text-[var(--text)] font-arabic-body whitespace-pre-wrap">{comment.text}</p>{user && <div className="mt-2 flex gap-3 text-[11px] font-arabic"><button type="button" onClick={() => onReply(comment)} className="inline-flex items-center gap-1 text-[var(--primary)]"><Reply className="w-3 h-3" />{tr("رد")}</button>{mine ? <button type="button" onClick={() => onDelete(comment.id)} className="inline-flex items-center gap-1 text-red-600"><Trash2 className="w-3 h-3" />{tr("حذف")}</button> : <button type="button" onClick={() => onReport(comment.id)} className="inline-flex items-center gap-1 text-[var(--text-muted)]"><Flag className="w-3 h-3" />{tr("إبلاغ")}</button>}</div>}</div>;
 }

@@ -533,6 +533,11 @@ function ChatThread({
       if (ev.convo_id !== convoId) return;
       setMessages(prev => prev.map(m => m.id === ev.message_id ? { ...m, reactions: ev.reactions } : m));
     });
+    const unsubDeleted = subscribe("message_deleted", ev => {
+      if (ev.convo_id !== convoId || !ev.message_id) return;
+      setMessages(prev => prev.filter(m => m.id !== ev.message_id));
+      setReplyTo(prev => prev?.id === ev.message_id ? null : prev);
+    });
     return () => {
       unsubMsg();
       unsubTyping();
@@ -540,6 +545,7 @@ function ChatThread({
       unsubDelivered();
       unsubPresence();
       unsubReact();
+      unsubDeleted();
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
   }, [subscribe, convoId, other.id, user.id, wsSend]);
@@ -888,6 +894,18 @@ function ChatThread({
             }
           }
         }, {
+          text: t("حذف المحادثة لدي"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.delete(`/chat/conversations/${convoId}`);
+              setMessages([]);
+              onBack?.();
+            } catch (_) {
+              Alert.alert(t("خطأ"), t("تعذر حذف المحادثة"));
+            }
+          }
+        }, {
           text: t("إلغاء"),
           style: "cancel"
         }]);
@@ -1058,6 +1076,9 @@ function ChatThread({
                         }} style={s.lpRow} testID="msg-action-copy">
                             <Text style={s.lpText}>📋  {t("نسخ النص")}</Text>
                         </TouchableOpacity> : null}
+                        <TouchableOpacity onPress={async () => { const message = longPressMsg; setLongPressMsg(null); try { await api.post(`/chat/messages/${message.id}/delete-for-me`); setMessages(prev => prev.filter(m => m.id !== message.id)); } catch (_) { Alert.alert(t("خطأ"), t("تعذر حذف الرسالة")); } }} style={s.lpRow} testID="msg-action-delete-for-me"><Text style={s.lpText}>🗑  {t("حذف لدي")}</Text></TouchableOpacity>
+                        {longPressMsg.sender_id === user?.id ? <TouchableOpacity onPress={async () => { const message = longPressMsg; setLongPressMsg(null); try { await api.delete(`/chat/messages/${message.id}`); setMessages(prev => prev.filter(m => m.id !== message.id)); } catch (_) { Alert.alert(t("خطأ"), t("تعذر حذف الرسالة")); } }} style={s.lpRow} testID="msg-action-delete-all"><Text style={[s.lpText, { color: "#DC2626" }]}>🗑  {t("حذف لدى الجميع")}</Text></TouchableOpacity> : null}
+                        <TouchableOpacity onPress={async () => { const message = longPressMsg; setLongPressMsg(null); try { await api.post(`/chat/messages/${message.id}/report`, { reason: "inappropriate_content" }); Alert.alert(t("تم"), t("تم استلام بلاغك")); } catch (_) { Alert.alert(t("خطأ"), t("تعذر إرسال البلاغ")); } }} style={s.lpRow} testID="msg-action-report"><Text style={s.lpText}>⚑  {t("إبلاغ عن الرسالة")}</Text></TouchableOpacity>
                     </View>
                 </TouchableOpacity>
             </Modal>}
