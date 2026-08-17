@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Bell, Check, X, MessageCircle, Tag, Hammer, CheckCircle2, XCircle, Megaphone } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { tr } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { useChatSocket } from "@/lib/useChatSocket";
 import { playNotificationSound } from "@/lib/notificationSound";
 
@@ -53,6 +53,9 @@ function urlFor(n) {
 
 export default function NotificationBell() {
     const { user } = useAuth();
+    const { lang } = useI18n();
+    const locale = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
+    const direction = lang === "ar" ? "rtl" : "ltr";
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState([]);
     const [unread, setUnread] = useState(0);
@@ -139,7 +142,7 @@ export default function NotificationBell() {
             </button>
 
             {open && (
-                <div data-testid="notif-dropdown" className="absolute top-12 end-0 w-[92vw] sm:w-96 max-h-[70vh] bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] z-50 flex flex-col" dir="rtl">
+                <div data-testid="notif-dropdown" className="absolute top-12 end-0 w-[92vw] sm:w-96 max-h-[70vh] bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] z-50 flex flex-col" dir={direction}>
                     <div className="flex items-center justify-between gap-2 p-3 border-b border-[var(--border)]">
                         <h3 className="font-arabic font-bold text-sm text-[var(--text)] flex-1">{tr("الإشعارات")}</h3>
                         {unread > 0 && (
@@ -173,7 +176,7 @@ export default function NotificationBell() {
                                     <div className="flex-1 min-w-0">
                                         <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{n.title}</div>
                                         {n.body && <div className="text-xs text-[var(--text-muted)] font-arabic-body line-clamp-2 mt-0.5">{n.body}</div>}
-                                        <div className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(n.created_at || n.ts).toLocaleString("ar", { dateStyle: "short", timeStyle: "short" })}</div>
+                                        <div className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(n.created_at || n.ts).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}</div>
                                     </div>
                                     {!n.read && <span className="w-2 h-2 rounded-full bg-[var(--primary)] mt-2 shrink-0" />}
                                 </Link>

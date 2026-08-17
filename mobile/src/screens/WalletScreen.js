@@ -11,8 +11,10 @@ import { colors, radius, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
 export default function WalletScreen() {
   const {
-    t
+    t,
+    lang
   } = useI18n();
+  const locale = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
   const {
     user
   } = useAuth();
@@ -106,7 +108,7 @@ export default function WalletScreen() {
                         <Wallet size={18} color="#fff" />
                         <Text style={styles.heroLabel}>{t("رصيد محفظتك")}</Text>
                     </View>
-                    <Text style={styles.heroBalance}>{Number(data.balance || 0).toLocaleString()}</Text>
+                    <Text style={styles.heroBalance}>{Number(data.balance || 0).toLocaleString(locale)}</Text>
                     <Text style={styles.heroCurrency}>{data.currency || country?.currency_code || "SAR"}</Text>
                 </View>
             </View>
@@ -171,12 +173,12 @@ export default function WalletScreen() {
             minWidth: 0
           }}>
                                     <Text style={styles.txDesc} numberOfLines={1}>{tx.description}</Text>
-                                    <Text style={styles.txDate}>{new Date(tx.created_at).toLocaleString("ar")}</Text>
+                                    <Text style={styles.txDate}>{new Date(tx.created_at).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}</Text>
                                 </View>
                                 <Text style={[styles.txAmount, {
             color: positive ? "#10B981" : "#EF4444"
           }]}>
-                                    {positive ? "+" : ""}{Number(tx.amount).toLocaleString()}
+                                    {positive ? "+" : ""}{Number(tx.amount).toLocaleString(locale)}
                                 </Text>
                             </View>;
       })}

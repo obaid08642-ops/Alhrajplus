@@ -19,7 +19,10 @@ export default function TopBar() {
     const [history, setHistory] = useState([]);
     const [autoSugg, setAutoSugg] = useState([]);
     const [voiceStatus, setVoiceStatus] = useState("");
+    const [voicePhase, setVoicePhase] = useState("idle");
     const [imageStatus, setImageStatus] = useState("");
+    const [imagePhase, setImagePhase] = useState("idle");
+    const [imagePreview, setImagePreview] = useState("");
     const ref = useRef();
     const searchRef = useRef();
     const inputRef = useRef();
@@ -94,41 +97,49 @@ export default function TopBar() {
 
     const startVoice = () => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { setVoiceStatus(tr("المتصفح لا يدعم البحث الصوتي؛ جرّب Chrome أو Safari الحديث")); return; }
+        if (!SR) { setVoicePhase("error"); setVoiceStatus(tr("المتصفح لا يدعم البحث الصوتي؛ جرّب Chrome أو Safari الحديث")); return; }
         const r = new SR();
         r.lang = lang === "en" ? "en-US" : "ar-SA";
         r.continuous = false;
         r.interimResults = true;
-        setVoiceStatus(tr("جارٍ الاستماع..."));
+        setVoicePhase("requesting");
+        setVoiceStatus(tr("جارٍ طلب إذن الميكروفون..."));
+        r.onstart = () => { setVoicePhase("listening"); setVoiceStatus(tr("جارٍ الاستماع...")); };
         r.onresult = (e) => {
             const text = Array.from(e.results || []).map((x) => x[0]?.transcript || "").join(" ").trim();
             setSearchVal(text);
             if (e.results[e.results.length - 1]?.isFinal) {
-                setVoiceStatus(tr("تم تحويل الصوت إلى نص"));
-                setTimeout(() => { setVoiceStatus(""); submitSearch(text); }, 250);
+                setVoicePhase("transcribing");
+                setVoiceStatus(tr("جارٍ تحويل الصوت إلى نص..."));
+                setTimeout(() => { setVoicePhase("success"); setVoiceStatus(tr("تم تحويل الصوت إلى نص")); submitSearch(text); setTimeout(() => { setVoicePhase("idle"); setVoiceStatus(""); }, 900); }, 250);
             }
         };
-        r.onerror = (e) => { setVoiceStatus(e?.error === "not-allowed" ? tr("تم رفض إذن الميكروفون؛ اسمح به من إعدادات المتصفح") : tr("تعذر تشغيل الميكروفون")); };
-        r.onend = () => setVoiceStatus((s) => s === tr("جارٍ الاستماع...") ? tr("انتهى الاستماع") : s);
-        try { r.start(); } catch (_) { setVoiceStatus(tr("تعذر بدء التسجيل")); }
+        r.onerror = (e) => { setVoicePhase("error"); setVoiceStatus(e?.error === "not-allowed" ? tr("تم رفض إذن الميكروفون؛ اسمح به من إعدادات المتصفح") : tr("تعذر تشغيل الميكروفون")); };
+        r.onend = () => setVoicePhase((p) => p === "listening" ? "success" : p);
+        try { r.start(); } catch (_) { setVoicePhase("error"); setVoiceStatus(tr("تعذر بدء التسجيل")); }
     };
 
     const startImageSearch = async (file) => {
         if (!file) return;
-        if (!file.type?.startsWith("image/")) { setImageStatus(tr("اختر ملف صورة صالحًا")); return; }
-        if (file.size > 8 * 1024 * 1024) { setImageStatus(tr("حجم الصورة كبير جدًا؛ الحد الأقصى 8MB")); return; }
+        if (!file.type?.startsWith("image/")) { setImagePhase("error"); setImageStatus(tr("اختر ملف صورة صالحًا")); return; }
+        if (file.size > 8 * 1024 * 1024) { setImagePhase("error"); setImageStatus(tr("حجم الصورة كبير جدًا؛ الحد الأقصى 8MB")); return; }
+        setImagePhase("selected");
+        setImagePreview(URL.createObjectURL(file));
+        setImagePhase("processing");
         setImageStatus(tr("جارٍ رفع الصورة وتحليلها..."));
         const reader = new FileReader();
-        reader.onerror = () => setImageStatus(tr("تعذر قراءة الصورة"));
+        reader.onerror = () => { setImagePhase("error"); setImageStatus(tr("تعذر قراءة الصورة")); };
         reader.onload = async () => {
             try {
                 const data = await api.post("/ai/image-search", { image_base64: reader.result });
                 const q = (data.data?.query || "").trim();
-                if (!q) { setImageStatus(tr("لم نتمكن من فهم الصورة؛ جرّب صورة أوضح")); return; }
+                if (!q) { setImagePhase("error"); setImageStatus(tr("لم نتمكن من فهم الصورة؛ جرّب صورة أوضح")); return; }
                 setSearchVal(q);
+                setImagePhase("success");
                 setImageStatus(tr("تمت مطابقة الصورة؛ جاري فتح النتائج"));
                 setTimeout(() => { setImageStatus(""); nav(`/search?q=${encodeURIComponent(q)}&from=image`); }, 250);
             } catch (e) {
+                setImagePhase("error");
                 setImageStatus(e?.response?.data?.detail || tr("تعذر تحليل الصورة؛ حاول مرة أخرى"));
             }
         };
@@ -163,7 +174,7 @@ export default function TopBar() {
                             <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => startImageSearch(e.target.files[0])} />
                         </label>
-                        {(voiceStatus || imageStatus) && <div className="absolute top-full mt-1 start-0 end-0 z-50 rounded-xl bg-black/80 text-white text-xs px-3 py-2 shadow-lg" role="status">{(voiceStatus || imageStatus).includes(tr("جارٍ")) && <Loader2 className="inline-block w-3.5 h-3.5 animate-spin me-1" />}{voiceStatus || imageStatus}</div>}
+                        {(voiceStatus || imageStatus) && <div className="absolute top-full mt-1 start-0 end-0 z-50 rounded-xl bg-black/85 text-white text-xs px-3 py-2 shadow-lg flex items-center gap-2" role="status" aria-live="polite">{(voicePhase === "listening" || voicePhase === "transcribing" || imagePhase === "processing") && <Loader2 className="inline-block w-3.5 h-3.5 animate-spin shrink-0" />}{imagePreview && imagePhase !== "idle" && <img src={imagePreview} alt="" className="w-8 h-8 rounded-md object-cover shrink-0" />}{voiceStatus || imageStatus}</div>}
                     </div>
 
                     {/* Suggestions dropdown */}

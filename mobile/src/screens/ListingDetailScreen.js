@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput, PanResponder } from "react-native";
 import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2, Eye, MapPin } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,6 +41,7 @@ export default function ListingDetailScreen({
 
   const [listing, setListing] = useState(null);
   const [similar, setSimilar] = useState([]);
+  const [neighbors, setNeighbors] = useState(null);
   const [badge, setBadge] = useState(null);
   const [activeImg, setActiveImg] = useState(0);
   const [zoomImg, setZoomImg] = useState(null);
@@ -79,6 +80,15 @@ export default function ListingDetailScreen({
       }
     })();
   }, [id]);
+
+  useEffect(() => {
+    if (!listing?.id) return;
+    let active = true;
+    api.get(`/listings/${listing.id}/neighbors`, { params: { country_code: listing.country_code } })
+      .then(({ data }) => { if (active) setNeighbors(data); })
+      .catch(() => { if (active) setNeighbors(null); });
+    return () => { active = false; };
+  }, [listing?.id, listing?.country_code]);
 
   useEffect(() => {
     if (route.params?.focus !== "comments" || commentsY == null || !listing) return;
@@ -262,7 +272,15 @@ export default function ListingDetailScreen({
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}`);
   };
   const isAuction = listing && (listing.category === "auctions" || !!listing.auction_meta || !!listing.is_auction);
-  return <View style={[styles.wrap, { backgroundColor: palette.bg }]}>
+  const listingSwipeResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 1.35,
+    onPanResponderRelease: (_, g) => {
+      if (Math.abs(g.dx) < 72 || !neighbors) return;
+      const target = g.dx < 0 ? neighbors.next : neighbors.previous;
+      if (target?.id) navigation.replace("ListingDetail", { id: target.slug || target.id, from: "swipe" });
+    },
+  })).current;
+  return <View style={[styles.wrap, { backgroundColor: palette.bg }]} {...listingSwipeResponder.panHandlers}>
         {/* Floating back button — top-end (RTL: right). High-contrast pill so
             it works against any image background. */}
         <TouchableOpacity

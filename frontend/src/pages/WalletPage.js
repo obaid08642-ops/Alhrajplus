@@ -7,7 +7,8 @@ import { Link } from "react-router-dom";
 
 export default function WalletPage() {
     const { user } = useAuth();
-    useI18n(); // subscribe so the page re-renders when language changes
+    const { lang } = useI18n();
+    const locale = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
     const [data, setData] = useState({ balance: 0, currency: "SAR", transactions: [] });
     const [loading, setLoading] = useState(true);
     const [claiming, setClaiming] = useState(false);
@@ -65,9 +66,9 @@ export default function WalletPage() {
                         <span className="font-arabic-body text-sm">{tr("رصيد محفظتك")}</span>
                     </div>
                     <div className="font-latin font-black text-5xl sm:text-6xl mb-1 tabular-nums" data-testid="wallet-balance">
-                        {Number(data.balance || 0).toLocaleString()}
+                        {Number(data.balance || 0).toLocaleString(locale)}
                     </div>
-                    <div className="font-arabic-body text-sm opacity-90">{data.currency === "SAR" ? "ريال سعودي" : data.currency}</div>
+                    <div className="font-arabic-body text-sm opacity-90">{data.currency === "SAR" ? tr("ريال سعودي") : data.currency}</div>
                 </div>
             </div>
 
@@ -128,10 +129,10 @@ export default function WalletPage() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="font-arabic font-bold text-sm text-[var(--text)] truncate">{t.description}</div>
-                                        <div className="font-arabic-body text-[10px] text-[var(--text-muted)]">{new Date(t.created_at).toLocaleString("ar")}</div>
+                                        <div className="font-arabic-body text-[10px] text-[var(--text-muted)]">{new Date(t.created_at).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}</div>
                                     </div>
                                     <div className={`font-latin font-black text-base tabular-nums ${positive ? "text-emerald-600" : "text-red-600"}`}>
-                                        {positive ? "+" : ""}{Number(t.amount).toLocaleString()}
+                                        {positive ? "+" : ""}{Number(t.amount).toLocaleString(locale)}
                                     </div>
                                 </div>
                             );

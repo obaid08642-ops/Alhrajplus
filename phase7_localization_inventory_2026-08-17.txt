@@ -1,0 +1,22 @@
+== hardcoded locale/dir ==
+frontend/src/components/AuthCallback.js:98:            <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4" dir="rtl" data-testid="auth-callback-error">
+frontend/src/components/AuthCallback.js:126:        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]" dir="rtl" data-testid="auth-callback-loading">
+frontend/src/components/CountryPicker.js:37:            dir="rtl"
+frontend/src/components/layout/BottomNav.js:116:            <nav data-testid="bottom-nav-pill" className="fixed left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1rem)] sm:w-auto" style={{ bottom: "env(safe-area-inset-bottom, 0px)" }} dir="rtl">
+frontend/src/components/layout/TopBar.js:151:            <div className="max-w-7xl mx-auto px-2 sm:px-6 py-2 flex flex-nowrap items-center gap-1.5 sm:gap-2" ref={ref} dir="rtl">
+frontend/src/index.js:26:      <main dir="rtl" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f1f6fa", color: "#0f172a", fontFamily: "system-ui, sans-serif" }}>
+frontend/src/pages/AdminPage.js:929:                                    <span className="text-[10px] text-[var(--text-muted)] font-arabic-body">{r.created_at ? new Date(r.created_at).toLocaleString("ar") : ""}</span>
+frontend/src/pages/AdminPage.js:1165:                                        <span className="bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">⏰ {new Date(s.send_at).toLocaleString("ar")}</span>
+frontend/src/pages/SnapAuthCallback.js:35:        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]" dir="rtl">
+frontend/src/pages/WalletPage.js:131:                                        <div className="font-arabic-body text-[10px] text-[var(--text-muted)]">{new Date(t.created_at).toLocaleString("ar")}</div>
+frontend/src/pages/XAuthCallback.js:35:        <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]" dir="rtl">
+frontend/src/pages/SellerStorefrontPage.js:24:        <main className="max-w-7xl mx-auto px-3 sm:px-6 py-5 space-y-5" dir="rtl" data-testid="seller-storefront-page">
+mobile/src/screens/MapScreen.js:128:<html dir="rtl" lang="ar">
+mobile/src/screens/WalletScreen.js:174:                                    <Text style={styles.txDate}>{new Date(tx.created_at).toLocaleString("ar")}</Text>
+== direct high-risk Arabic fragments ==
+frontend/src/pages/AdminPage.js:163:                <div className="flex gap-2 items-center"><select value={days} onChange={(e) => setDays(Number(e.target.value))} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value={1}>24 ساعة</option><option value={7}>7 أيام</option><option value={30}>30 يومًا</option><option value={90}>90 يومًا</option></select><button onClick={load} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]" title={tr("تحديث")}><RefreshCw className="w-4 h-4" /></button></div>
+frontend/src/pages/AdminPage.js:225:                    <option value={7}>7 أيام</option><option value={30}>30 يومًا</option><option value={90}>90 يومًا</option>
+frontend/src/pages/ChatPage.js:625:            () => alert(tr("تعذر الوصول للموقع"))
+frontend/src/pages/PostListing.js:93:        }).catch(() => alert(tr("تعذر تحميل الإعلان")));
+frontend/src/pages/PostListing.js:989:                                () => alert(tr("تعذر الوصول للموقع. تأكد من السماح بالموقع"))
+frontend/src/pages/SearchAndMap.js:284:            () => alert(tr("تعذر الوصول للموقع"))

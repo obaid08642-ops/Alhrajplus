@@ -285,12 +285,21 @@ export default function PostListing() {
 
     const submit = async () => {
         setErr("");
+        if (form.show_phone && form.contact_phone) {
+            const customDigits = form.contact_phone.replace(/\D/g, "");
+            if (customDigits.length < 6) {
+                setErr(tr("أدخل رقم تواصل صحيحًا أو اختر رقم حسابي"));
+                return;
+            }
+        }
         setBusy(true);
         try {
             const payload = {
                 ...form,
                 price: form.price ? parseFloat(form.price) : null,
                 country_code: activeCountryCode || undefined,  // STRICT: post in active country
+                contact_phone_source: form.show_phone ? (form.contact_phone ? "custom" : "account") : null,
+                contact_phone: form.show_phone && form.contact_phone ? form.contact_phone : "",
             };
             if (editId) {
                 const { data } = await api.put(`/listings/${editId}`, payload);

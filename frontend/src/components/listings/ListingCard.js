@@ -3,12 +3,13 @@ import { Heart, MapPin, TrendingUp, Star, Sparkles, Crown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { tr } from "@/contexts/I18nContext";
+import { useI18n, tr } from "@/contexts/I18nContext";
 import { optimizeImage, buildSrcSet, lqipUrl } from "@/lib/imageOptimizer";
 import ListingTypeBadge from "@/components/ListingTypeBadge";
 
 export default function ListingCard({ listing, compact = true }) {
     const { user } = useAuth();
+    const { lang } = useI18n();
     const [fav, setFav] = useState(false);
     const [imageIndex, setImageIndex] = useState(0);
     const swipeStartX = useRef(null);
@@ -44,7 +45,8 @@ export default function ListingCard({ listing, compact = true }) {
     };
 
     const ts = listing.created_at ? new Date(listing.created_at) : null;
-    const timeAgo = ts ? formatTimeAgo(ts) : "";
+    const timeAgo = ts ? formatTimeAgo(ts, lang) : "";
+    const numberLocale = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
 
     return (
         <Link
@@ -64,7 +66,7 @@ export default function ListingCard({ listing, compact = true }) {
                 </button>
                 {listing.verified && (
                     <span className="absolute top-2 left-2 bg-[var(--primary)]/95 text-[var(--primary-fg)] rounded-full px-2 py-0.5 text-[9px] font-black font-arabic flex items-center gap-1">
-                        <Star className="w-2.5 h-2.5 fill-current" /> موثّق
+                        <Star className="w-2.5 h-2.5 fill-current" /> {tr("موثّق")}
                     </span>
                 )}
                 {listing.ai_badge === "good" && (
@@ -84,7 +86,7 @@ export default function ListingCard({ listing, compact = true }) {
                     <div className="flex items-baseline gap-1 mb-1">
                         {listing.price ? (
                             <>
-                                <span className="font-latin font-black text-base text-[var(--secondary)] dark:text-[var(--primary)]">{Number(listing.price).toLocaleString()}</span>
+                                <span className="font-latin font-black text-base text-[var(--secondary)] dark:text-[var(--primary)]">{Number(listing.price).toLocaleString(numberLocale)}</span>
                                 <span className="text-[10px] text-[var(--text-muted)] font-arabic-body">{listing.currency || "ر.س"}</span>
                             </>
                         ) : (
@@ -101,12 +103,11 @@ export default function ListingCard({ listing, compact = true }) {
     );
 }
 
-function formatTimeAgo(date) {
-    const now = new Date();
-    const diff = (now - date) / 1000;
-    if (diff < 60) return "الآن";
-    if (diff < 3600) return `${Math.floor(diff / 60)}د`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}س`;
-    if (diff < 2592000) return `${Math.floor(diff / 86400)}ي`;
-    return `${Math.floor(diff / 2592000)}ش`;
+function formatTimeAgo(date, lang = "ar") {
+    const diff = Math.max(0, (Date.now() - date.getTime()) / 1000);
+    const locale = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
+    const rtf = typeof Intl !== "undefined" && Intl.RelativeTimeFormat ? new Intl.RelativeTimeFormat(locale, { numeric: "auto" }) : null;
+    const choose = diff < 60 ? [Math.floor(diff), "second"] : diff < 3600 ? [Math.floor(diff / 60), "minute"] : diff < 86400 ? [Math.floor(diff / 3600), "hour"] : diff < 2592000 ? [Math.floor(diff / 86400), "day"] : [Math.floor(diff / 2592000), "month"];
+    if (rtf) return rtf.format(-choose[0], choose[1]);
+    return `${choose[0]} ${choose[1]}`;
 }

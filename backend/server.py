@@ -5177,7 +5177,17 @@ async def ai_provider_status(user: dict = Depends(require_admin)):
 @api.get("/admin/ai/config")
 async def get_ai_config(user: dict = Depends(require_admin)):
     doc = await db.ai_config.find_one({"id": "default"}, {"_id": 0}) or {}
-    return {"order": doc.get("order") or [x.strip() for x in os.getenv("AI_PROVIDER_ORDER", "gemini").split(",") if x.strip()], "providers": doc.get("providers") or {}}
+    return {
+        "mode": doc.get("mode", "automatic"),
+        "primary": doc.get("primary", ""),
+        "rotation_enabled": bool(doc.get("rotation_enabled", True)),
+        "fallback_enabled": bool(doc.get("fallback_enabled", True)),
+        "max_attempts": int(doc.get("max_attempts", 3) or 3),
+        "quota_threshold_pct": float(doc.get("quota_threshold_pct", 90) or 90),
+        "cooldown_seconds": int(doc.get("cooldown_seconds", 60) or 60),
+        "order": doc.get("order") or [x.strip() for x in os.getenv("AI_PROVIDER_ORDER", "gemini").split(",") if x.strip()],
+        "providers": doc.get("providers") or {},
+    }
 
 
 @api.put("/admin/ai/config")
@@ -5185,6 +5195,16 @@ async def update_ai_config(body: dict, user: dict = Depends(require_admin)):
     status = await ai_orchestrator.status()
     allowed = {str(x.get("name")) for x in status}
     order = [str(x).strip().lower() for x in (body.get("order") or []) if str(x).strip().lower() in allowed][:20]
+    mode = str(body.get("mode") or "automatic").lower()
+    if mode not in {"automatic", "priority", "manual"}: mode = "automatic"
+    primary = str(body.get("primary") or "").strip().lower()
+    if primary and primary not in allowed: primary = ""
+    try: max_attempts = max(1, min(int(body.get("max_attempts", len(allowed)) or len(allowed)), 20))
+    except (TypeError, ValueError): max_attempts = min(3, max(1, len(allowed)))
+    try: quota_threshold_pct = max(0.0, min(float(body.get("quota_threshold_pct", 90) or 90), 100.0))
+    except (TypeError, ValueError): quota_threshold_pct = 90.0
+    try: cooldown_seconds = max(0, min(int(body.get("cooldown_seconds", 60) or 60), 86400))
+    except (TypeError, ValueError): cooldown_seconds = 60
     providers = {}
     for name, patch in (body.get("providers") or {}).items():
         name = str(name).strip().lower()
@@ -5195,14 +5215,15 @@ async def update_ai_config(body: dict, user: dict = Depends(require_admin)):
         if "weight" in patch:
             try: item["weight"] = max(1, min(int(patch.get("weight")), 100))
             except (TypeError, ValueError): pass
-        if "daily_limit" in patch:
-            try: item["daily_limit"] = max(0, min(int(patch.get("daily_limit")), 10_000_000))
-            except (TypeError, ValueError): pass
+        for field in ("daily_limit", "monthly_limit", "rpm_limit", "rpd_limit", "tpm_limit"):
+            if field in patch:
+                try: item[field] = max(0, min(int(patch.get(field)), 10_000_000))
+                except (TypeError, ValueError): pass
         providers[name] = item
-    doc = {"id": "default", "order": order, "providers": providers, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user["id"]}
+    doc = {"id": "default", "mode": mode, "primary": primary, "rotation_enabled": bool(body.get("rotation_enabled", True)), "fallback_enabled": bool(body.get("fallback_enabled", True)), "max_attempts": max_attempts, "quota_threshold_pct": quota_threshold_pct, "cooldown_seconds": cooldown_seconds, "order": order, "providers": providers, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user["id"]}
     await db.ai_config.update_one({"id": "default"}, {"$set": doc}, upsert=True)
     await _admin_log(user["id"], "ai_config_update", "default", {"order": order, "providers": providers})
-    return {"order": order, "providers": providers}
+    return {"mode": mode, "primary": primary, "rotation_enabled": doc["rotation_enabled"], "fallback_enabled": doc["fallback_enabled"], "max_attempts": max_attempts, "quota_threshold_pct": quota_threshold_pct, "cooldown_seconds": cooldown_seconds, "order": order, "providers": providers}
 
 
 # ============================================================
@@ -8008,7 +8029,12 @@ async def coins_spend(body: CoinsSpendIn, user: dict = Depends(get_current_user)
     changed = await db.users.update_one({"id": user["id"], "coins_balance": {"$gte": body.amount}}, {"$inc": {"coins_balance": -body.amount}})
     if not changed.modified_count:
         raise HTTPException(402, "رصيد الـCoins غير كافٍ")
-    tx = await _coins_log(user["id"], "spend", -body.amount, body.purpose, body.ref_id, body.idempotency_key)
+    try:
+        tx = await _coins_log(user["id"], "spend", -body.amount, body.purpose, body.ref_id, body.idempotency_key)
+    except DuplicateKeyError:
+        await db.users.update_one({"id": user["id"]}, {"$inc": {"coins_balance": body.amount}})
+        existing = await db.coins_ledger.find_one({"user_id": user["id"], "idempotency_key": body.idempotency_key}, {"_id": 0})
+        return {"success": True, "duplicate": True, "balance": await _coins_balance(user["id"]), "transaction": existing}
     return {"success": True, "balance": await _coins_balance(user["id"]), "transaction": tx}
 
 
@@ -8022,7 +8048,12 @@ async def coins_grant(body: CoinsGrantIn, user: dict = Depends(require_admin)):
         if existing:
             return {"success": True, "duplicate": True, "balance": await _coins_balance(body.user_id), "transaction": existing}
     await db.users.update_one({"id": body.user_id}, {"$inc": {"coins_balance": body.amount}})
-    tx = await _coins_log(body.user_id, "grant", body.amount, body.purpose, None, body.idempotency_key)
+    try:
+        tx = await _coins_log(body.user_id, "grant", body.amount, body.purpose, None, body.idempotency_key)
+    except DuplicateKeyError:
+        await db.users.update_one({"id": body.user_id}, {"$inc": {"coins_balance": -body.amount}})
+        existing = await db.coins_ledger.find_one({"user_id": body.user_id, "idempotency_key": body.idempotency_key}, {"_id": 0})
+        return {"success": True, "duplicate": True, "balance": await _coins_balance(body.user_id), "transaction": existing}
     await _admin_log(user["id"], "coins_grant", body.user_id, {"amount": body.amount, "purpose": body.purpose})
     return {"success": True, "balance": await _coins_balance(body.user_id), "transaction": tx}
 
@@ -8078,7 +8109,11 @@ async def wallet_claim_welcome_bonus(user: dict = Depends(get_current_user)):
     if already:
         raise HTTPException(409, "تم استلام مكافأة الانضمام مسبقاً")
     await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": BONUS_AMOUNT}})
-    await _wallet_log(user["id"], "bonus", BONUS_AMOUNT, BONUS_LABEL)
+    try:
+        await _wallet_log(user["id"], "bonus", BONUS_AMOUNT, BONUS_LABEL)
+    except DuplicateKeyError:
+        await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": -BONUS_AMOUNT}})
+        raise HTTPException(409, "تم استلام مكافأة الانضمام مسبقاً")
     new_bal = await _wallet_balance(user["id"])
     return {"success": True, "balance": new_bal, "amount": BONUS_AMOUNT, "label": BONUS_LABEL}
 
@@ -8893,6 +8928,8 @@ async def startup():
     await _safe_index(db.google_oauth_states, "state", unique=True)
     await _safe_index(db.google_oauth_states, "expires_at", expireAfterSeconds=0)
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
+    await _safe_index(db.coins_ledger, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string", "$ne": ""}})
+    await _safe_index(db.wallet_transactions, [("user_id", 1), ("type", 1)], unique=True, partialFilterExpression={"type": "bonus"})
     await _safe_index(db.messages, [("sender_id", 1), ("client_message_id", 1)], unique=True, partialFilterExpression={"client_message_id": {"$type": "string"}})
     await db.conversations.create_index("id", unique=True)
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
