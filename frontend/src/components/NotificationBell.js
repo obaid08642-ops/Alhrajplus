@@ -24,6 +24,11 @@ const TYPE_ICONS = {
     listing_rejected: { Icon: XCircle, color: "text-red-500" },
     price_drop: { Icon: Tag, color: "text-orange-500" },
     auction: { Icon: Hammer, color: "text-purple-500" },
+    comment: { Icon: MessageCircle, color: "text-cyan-500" },
+    comment_reply: { Icon: MessageCircle, color: "text-cyan-500" },
+    search_alert: { Icon: Bell, color: "text-indigo-500" },
+    saved_search: { Icon: Bell, color: "text-indigo-500" },
+    new_follower: { Icon: Megaphone, color: "text-pink-500" },
     admin_broadcast: { Icon: Megaphone, color: "text-amber-500" },
 };
 
@@ -35,7 +40,13 @@ function urlFor(n) {
         case "listing_rejected":
         case "price_drop":
         case "listing_offer":
-        case "listing_offer_update": return n.data?.listing_id ? `/listing/${n.data.listing_id}` : "/";
+        case "listing_offer_update":
+        case "auction":
+        case "comment":
+        case "comment_reply": return n.data?.listing_id ? `/listing/${n.data.listing_id}#comments` : "/";
+        case "search_alert":
+        case "saved_search": return n.data?.query ? `/search?q=${encodeURIComponent(n.data.query)}` : "/search";
+        case "new_follower": return n.data?.user_id ? `/seller/${n.data.user_id}` : "/profile";
         default: return "/";
     }
 }

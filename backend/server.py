@@ -53,6 +53,7 @@ from google_indexing import (
     enqueue_updated as _google_idx_updated,
     enqueue_deleted as _google_idx_deleted,
 )
+from ai_orchestrator import AIOrchestrator
 
 
 # ============================================================
@@ -176,6 +177,7 @@ client = AsyncIOMotorClient(
     retryWrites=True,
 )
 db = client[DB_NAME]
+ai_orchestrator = AIOrchestrator(db)
 
 # Startup banner — masks credentials but shows DB selection so deployment
 # misconfiguration (wrong DB_NAME / wrong cluster) is obvious in container logs.
@@ -3591,18 +3593,33 @@ async def update_notif_settings(body: NotifPrefsIn, user: dict = Depends(get_cur
 # ============================================================
 @api.post("/listings/{listing_id}/boost")
 async def boost_listing(listing_id: str, user: dict = Depends(get_current_user)):
-    item = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1})
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1, "is_boosted": 1, "boost_until": 1})
     if not item:
         raise HTTPException(404, "Listing not found")
-    if item["user_id"] != user["id"] and user.get("role") != "admin":
+    is_admin = user.get("role") == "admin"
+    if item["user_id"] != user["id"] and not is_admin:
         raise HTTPException(403, "غير مصرح")
-    boost_until = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-    await db.listings.update_one(
-        {"id": listing_id},
-        {"$set": {"is_boosted": True, "boost_until": boost_until}},
-    )
+    now = datetime.now(timezone.utc)
+    if item.get("is_boosted") and item.get("boost_until") and str(item["boost_until"]) > now.isoformat():
+        return {"ok": True, "is_boosted": True, "boost_until": item["boost_until"], "charged_coins": 0}
+    cost = max(0, int(os.getenv("COINS_BOOST_COST", "100")))
+    charged = 0
+    if not is_admin and cost:
+        changed = await db.users.update_one({"id": user["id"], "coins_balance": {"$gte": cost}}, {"$inc": {"coins_balance": -cost}})
+        if not changed.modified_count:
+            raise HTTPException(402, f"رصيد الـCoins غير كافٍ لترويج الإعلان ({cost} Coins)")
+        charged = cost
+    boost_until = (now + timedelta(days=7)).isoformat()
+    try:
+        await db.listings.update_one({"id": listing_id}, {"$set": {"is_boosted": True, "boost_until": boost_until}})
+        if charged:
+            await _coins_log(user["id"], "spend", -charged, "listing_boost", listing_id, f"boost:{listing_id}:{boost_until[:10]}")
+    except Exception:
+        if charged:
+            await db.users.update_one({"id": user["id"]}, {"$inc": {"coins_balance": charged}})
+        raise
     _cache_invalidate()
-    return {"ok": True, "is_boosted": True, "boost_until": boost_until}
+    return {"ok": True, "is_boosted": True, "boost_until": boost_until, "charged_coins": charged, "balance": await _coins_balance(user["id"])}
 
 @api.delete("/listings/{listing_id}/boost")
 async def unboost_listing(listing_id: str, user: dict = Depends(get_current_user)):
@@ -5114,42 +5131,60 @@ LANG_NAMES = {
 }
 
 @api.post("/ai/image-search")
-async def ai_image_search(body: AIImageSearchIn):
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(503, "خدمة الذكاء الاصطناعي غير مفعلة")
-    # Strip data URL prefix if present
+async def ai_image_search(body: AIImageSearchIn, user: dict = Depends(get_current_user)):
     raw = body.image_base64
     if "," in raw:
         raw = raw.split(",", 1)[1]
-    if len(raw) < 100:
-        raise HTTPException(400, "صورة غير صالحة")
-
+    if len(raw) < 100 or len(raw) > 12_000_000:
+        raise HTTPException(400, "صورة غير صالحة أو كبيرة جدًا")
+    prompt = ("أنت مساعد بحث في تطبيق إعلانات مبوبة. حلل الصورة وأرجع 3 إلى 6 كلمات بحث "
+              "قصيرة باللغة العربية تصف المنتج الرئيسي فقط، بدون شرح أو إيموجي. "
+              "مثال: تويوتا كامري 2020 أبيض.")
     try:
-        from llm_shim import LlmChat, UserMessage, ImageContent
+        result = await ai_orchestrator.text("image_search", prompt, image_base64=body.image_base64)
+        query = (result.get("text") or "").strip().strip('"').strip("'").splitlines()[0][:120]
+        if not query:
+            raise RuntimeError("empty image query")
+        return {"query": query, "request_id": result.get("request_id"), "provider": result.get("provider"), "attempts": result.get("attempts", [])}
     except Exception as e:
-        logger.error(f"llm_shim import failed: {e}")
-        raise HTTPException(500, "خدمة الذكاء الاصطناعي غير متوفرة")
+        logger.error("[AI image-search] %s", e)
+        raise HTTPException(503, "تعذر تحليل الصورة حاليًا؛ حاول مرة أخرى")
 
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"img-search-{uuid.uuid4().hex[:8]}",
-        system_message=(
-            "أنت مساعد بحث في تطبيق إعلانات مبوبة. مهمتك تحليل الصورة وإرجاع كلمات بحث "
-            "قصيرة ومركزة باللغة العربية (3 إلى 6 كلمات فقط) تصف المنتج الرئيسي في الصورة. "
-            "أرجع الكلمات فقط بدون أي شرح أو إيموجي. مثال: 'تويوتا كامري 2020 أبيض'."
-        ),
-    ).with_model("gemini", "gemini-2.5-flash")
 
-    img = ImageContent(image_base64=raw)
-    msg = UserMessage(text="حلل هذه الصورة وأرجع كلمات البحث المناسبة فقط:", file_contents=[img])
-    try:
-        text = await chat.send_message(msg)
-        # Sanitize
-        query = (text or "").strip().strip('"').strip("'").splitlines()[0][:120]
-        return {"query": query}
-    except Exception as e:
-        logger.error(f"[AI image-search] {e}")
-        raise HTTPException(500, "تعذر تحليل الصورة")
+@api.get("/ai/providers/status")
+async def ai_provider_status(user: dict = Depends(require_admin)):
+    return {"providers": await ai_orchestrator.status(), "rotation": os.getenv("AI_PROVIDER_ORDER", "gemini")}
+
+
+@api.get("/admin/ai/config")
+async def get_ai_config(user: dict = Depends(require_admin)):
+    doc = await db.ai_config.find_one({"id": "default"}, {"_id": 0}) or {}
+    return {"order": doc.get("order") or [x.strip() for x in os.getenv("AI_PROVIDER_ORDER", "gemini").split(",") if x.strip()], "providers": doc.get("providers") or {}}
+
+
+@api.put("/admin/ai/config")
+async def update_ai_config(body: dict, user: dict = Depends(require_admin)):
+    status = await ai_orchestrator.status()
+    allowed = {str(x.get("name")) for x in status}
+    order = [str(x).strip().lower() for x in (body.get("order") or []) if str(x).strip().lower() in allowed][:20]
+    providers = {}
+    for name, patch in (body.get("providers") or {}).items():
+        name = str(name).strip().lower()
+        if name not in allowed or not isinstance(patch, dict):
+            continue
+        item = {}
+        if "enabled" in patch: item["enabled"] = bool(patch.get("enabled"))
+        if "weight" in patch:
+            try: item["weight"] = max(1, min(int(patch.get("weight")), 100))
+            except (TypeError, ValueError): pass
+        if "daily_limit" in patch:
+            try: item["daily_limit"] = max(0, min(int(patch.get("daily_limit")), 10_000_000))
+            except (TypeError, ValueError): pass
+        providers[name] = item
+    doc = {"id": "default", "order": order, "providers": providers, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user["id"]}
+    await db.ai_config.update_one({"id": "default"}, {"$set": doc}, upsert=True)
+    await _admin_log(user["id"], "ai_config_update", "default", {"order": order, "providers": providers})
+    return {"order": order, "providers": providers}
 
 
 # ============================================================
@@ -7246,7 +7281,11 @@ async def verify_email(token: str, request: Request):
     if referral:
         changed = await db.referral_events.update_one({"id": referral["id"], "status": "pending"}, {"$set": {"status": "qualified", "qualified_at": datetime.now(timezone.utc).isoformat()}})
         if changed.modified_count:
-            await db.users.update_one({"referral_code": referral["inviter_code"]}, {"$inc": {"referral_points": int(referral.get("reward_points") or 0)}})
+            reward = int(referral.get("reward_points") or 0)
+            referrer = await db.users.find_one({"referral_code": referral["inviter_code"]}, {"_id": 0, "id": 1})
+            if referrer and reward > 0:
+                await db.users.update_one({"id": referrer["id"]}, {"$inc": {"referral_points": reward, "coins_balance": reward}})
+                await _coins_log(referrer["id"], "referral_reward", reward, "qualified_referral", referral.get("invitee_id"), referral.get("id"))
     await db.email_verify_tokens.delete_one({"token": token})
     return {"success": True, "message": "تم تأكيد البريد بنجاح"}
 
@@ -7871,6 +7910,20 @@ async def seo_listing_html(listing_id: str):
 # Wallet / Balance system (internal credits — no real payments yet)
 # Used for: boosting listings, premium features. Currency = SAR-equivalent credits.
 # ============================================================
+class CoinsSpendIn(BaseModel):
+    amount: int = Field(gt=0, le=1_000_000)
+    purpose: str = Field(min_length=2, max_length=80)
+    ref_id: Optional[str] = Field(default=None, max_length=120)
+    idempotency_key: Optional[str] = Field(default=None, max_length=160)
+
+
+class CoinsGrantIn(BaseModel):
+    user_id: str = Field(min_length=1, max_length=120)
+    amount: int = Field(gt=0, le=1_000_000)
+    purpose: str = Field(default="admin_grant", min_length=2, max_length=80)
+    idempotency_key: Optional[str] = Field(default=None, max_length=160)
+
+
 class WalletTopupIn(BaseModel):
     amount: float = Field(gt=0)
     note: Optional[str] = None
@@ -7898,6 +7951,62 @@ async def _wallet_log(user_id: str, kind: str, amount: float, description: str, 
         "ref_id": ref_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+
+
+async def _coins_balance(user_id: str) -> int:
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "coins_balance": 1})
+    return int((u or {}).get("coins_balance") or 0)
+
+
+async def _coins_log(user_id: str, kind: str, amount: int, purpose: str, ref_id: Optional[str] = None, idempotency_key: Optional[str] = None):
+    if idempotency_key:
+        existing = await db.coins_ledger.find_one({"user_id": user_id, "idempotency_key": idempotency_key}, {"_id": 0})
+        if existing:
+            return existing
+    doc = {"id": str(uuid.uuid4()), "user_id": user_id, "type": kind, "amount": int(amount), "purpose": purpose[:80], "ref_id": ref_id, "idempotency_key": idempotency_key, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.coins_ledger.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+
+@api.get("/coins/me")
+async def coins_me(user: dict = Depends(get_current_user)):
+    balance = await _coins_balance(user["id"])
+    ledger = await db.coins_ledger.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(length=50)
+    return {"balance": balance, "ledger": ledger}
+
+
+@api.get("/coins/ledger")
+async def coins_ledger(limit: int = 50, user: dict = Depends(get_current_user)):
+    limit = max(1, min(int(limit or 50), 200))
+    return await db.coins_ledger.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+
+
+@api.post("/coins/spend")
+async def coins_spend(body: CoinsSpendIn, user: dict = Depends(get_current_user)):
+    if body.idempotency_key:
+        existing = await db.coins_ledger.find_one({"user_id": user["id"], "idempotency_key": body.idempotency_key}, {"_id": 0})
+        if existing:
+            return {"success": True, "duplicate": True, "balance": await _coins_balance(user["id"]), "transaction": existing}
+    changed = await db.users.update_one({"id": user["id"], "coins_balance": {"$gte": body.amount}}, {"$inc": {"coins_balance": -body.amount}})
+    if not changed.modified_count:
+        raise HTTPException(402, "رصيد الـCoins غير كافٍ")
+    tx = await _coins_log(user["id"], "spend", -body.amount, body.purpose, body.ref_id, body.idempotency_key)
+    return {"success": True, "balance": await _coins_balance(user["id"]), "transaction": tx}
+
+
+@admin_router.post("/coins/grant")
+async def coins_grant(body: CoinsGrantIn, user: dict = Depends(require_admin)):
+    target = await db.users.find_one({"id": body.user_id}, {"_id": 0, "id": 1})
+    if not target:
+        raise HTTPException(404, "المستخدم غير موجود")
+    if body.idempotency_key:
+        existing = await db.coins_ledger.find_one({"user_id": body.user_id, "idempotency_key": body.idempotency_key}, {"_id": 0})
+        if existing:
+            return {"success": True, "duplicate": True, "balance": await _coins_balance(body.user_id), "transaction": existing}
+    await db.users.update_one({"id": body.user_id}, {"$inc": {"coins_balance": body.amount}})
+    tx = await _coins_log(body.user_id, "grant", body.amount, body.purpose, None, body.idempotency_key)
+    await _admin_log(user["id"], "coins_grant", body.user_id, {"amount": body.amount, "purpose": body.purpose})
+    return {"success": True, "balance": await _coins_balance(body.user_id), "transaction": tx}
 
 
 @api.get("/wallet/me")

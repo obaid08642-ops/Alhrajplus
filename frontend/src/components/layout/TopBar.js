@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Globe, Moon, Sun, Mic, Camera, Clock, TrendingUp, X } from "lucide-react";
+import { Search, Globe, Moon, Sun, Mic, Camera, Clock, TrendingUp, X, Loader2 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
@@ -18,6 +18,8 @@ export default function TopBar() {
     const [trending, setTrending] = useState([]);
     const [history, setHistory] = useState([]);
     const [autoSugg, setAutoSugg] = useState([]);
+    const [voiceStatus, setVoiceStatus] = useState("");
+    const [imageStatus, setImageStatus] = useState("");
     const ref = useRef();
     const searchRef = useRef();
     const inputRef = useRef();
@@ -92,39 +94,42 @@ export default function TopBar() {
 
     const startVoice = () => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) { alert(tr("المتصفح لا يدعم البحث الصوتي. جرّب Chrome أو Safari الحديث")); return; }
+        if (!SR) { setVoiceStatus(tr("المتصفح لا يدعم البحث الصوتي؛ جرّب Chrome أو Safari الحديث")); return; }
         const r = new SR();
-        r.lang = "ar-SA";
+        r.lang = lang === "en" ? "en-US" : "ar-SA";
         r.continuous = false;
-        r.interimResults = false;
+        r.interimResults = true;
+        setVoiceStatus(tr("جارٍ الاستماع..."));
         r.onresult = (e) => {
-            const text = e.results[0][0].transcript;
-            submitSearch(text);
+            const text = Array.from(e.results || []).map((x) => x[0]?.transcript || "").join(" ").trim();
+            setSearchVal(text);
+            if (e.results[e.results.length - 1]?.isFinal) {
+                setVoiceStatus(tr("تم تحويل الصوت إلى نص"));
+                setTimeout(() => { setVoiceStatus(""); submitSearch(text); }, 250);
+            }
         };
-        r.onerror = () => alert(tr("تعذر تشغيل الميكروفون. تحقق من الأذونات"));
-        r.start();
+        r.onerror = (e) => { setVoiceStatus(e?.error === "not-allowed" ? tr("تم رفض إذن الميكروفون؛ اسمح به من إعدادات المتصفح") : tr("تعذر تشغيل الميكروفون")); };
+        r.onend = () => setVoiceStatus((s) => s === tr("جارٍ الاستماع...") ? tr("انتهى الاستماع") : s);
+        try { r.start(); } catch (_) { setVoiceStatus(tr("تعذر بدء التسجيل")); }
     };
 
     const startImageSearch = async (file) => {
         if (!file) return;
-        if (file.size > 8 * 1024 * 1024) { alert(tr("حجم الصورة كبير جداً (الحد الأقصى 8MB)")); return; }
+        if (!file.type?.startsWith("image/")) { setImageStatus(tr("اختر ملف صورة صالحًا")); return; }
+        if (file.size > 8 * 1024 * 1024) { setImageStatus(tr("حجم الصورة كبير جدًا؛ الحد الأقصى 8MB")); return; }
+        setImageStatus(tr("جارٍ رفع الصورة وتحليلها..."));
         const reader = new FileReader();
+        reader.onerror = () => setImageStatus(tr("تعذر قراءة الصورة"));
         reader.onload = async () => {
             try {
-                const dataUrl = reader.result;
-                const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/ai/image-search`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ image_base64: dataUrl }),
-                });
-                if (!res.ok) { alert(tr("تعذر تحليل الصورة. حاول لاحقاً.")); return; }
-                const data = await res.json();
-                const q = (data.query || "").trim();
-                if (!q) { alert(tr("لم نتمكن من فهم الصورة. حاول بصورة أوضح.")); return; }
-                nav(`/search?q=${encodeURIComponent(q)}&from=image`);
+                const data = await api.post("/ai/image-search", { image_base64: reader.result });
+                const q = (data.data?.query || "").trim();
+                if (!q) { setImageStatus(tr("لم نتمكن من فهم الصورة؛ جرّب صورة أوضح")); return; }
+                setSearchVal(q);
+                setImageStatus(tr("تمت مطابقة الصورة؛ جاري فتح النتائج"));
+                setTimeout(() => { setImageStatus(""); nav(`/search?q=${encodeURIComponent(q)}&from=image`); }, 250);
             } catch (e) {
-                alert(tr("خطأ في البحث بالصورة"));
+                setImageStatus(e?.response?.data?.detail || tr("تعذر تحليل الصورة؛ حاول مرة أخرى"));
             }
         };
         reader.readAsDataURL(file);
@@ -158,6 +163,7 @@ export default function TopBar() {
                             <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => startImageSearch(e.target.files[0])} />
                         </label>
+                        {(voiceStatus || imageStatus) && <div className="absolute top-full mt-1 start-0 end-0 z-50 rounded-xl bg-black/80 text-white text-xs px-3 py-2 shadow-lg" role="status">{(voiceStatus || imageStatus).includes(tr("جارٍ")) && <Loader2 className="inline-block w-3.5 h-3.5 animate-spin me-1" />}{voiceStatus || imageStatus}</div>}
                     </div>
 
                     {/* Suggestions dropdown */}

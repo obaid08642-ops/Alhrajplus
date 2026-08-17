@@ -8,7 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Platform, Linking } from "react-native";
-import { User, Heart, ListIcon, LogOut, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Sparkles, Bell, Bookmark, Users as UsersIcon, Award, Copy, MapPin, Gavel, Plane, Flame, Tag, Download, Apple, Smartphone } from "lucide-react-native";
+import { User, Heart, ListIcon, LogOut, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Sparkles, Bell, Bookmark, Users as UsersIcon, Award, Copy, MapPin, Gavel, Plane, Flame, Tag, Download, Apple, Smartphone } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
 import api from "../api";
 import { useThemeMode } from "../ThemeContext";
@@ -28,20 +28,24 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState(null);
   const [referral, setReferral] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
+  const [coins, setCoins] = useState(null);
   const [phoneBusy, setPhoneBusy] = useState(false);
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [s, r, w] = await Promise.all([api.get("/auth/me/stats").catch(() => ({
+      const [s, r, w, c] = await Promise.all([api.get("/auth/me/stats").catch(() => ({
         data: null
       })), api.get("/referral/me").catch(() => ({
         data: null
       })), api.get("/wallet/me").catch(() => ({
         data: null
+      })), api.get("/coins/me").catch(() => ({
+        data: null
       }))]);
       setStats(s.data);
       setReferral(r.data);
       setWalletBalance(w.data?.balance ?? null);
+      setCoins(c.data);
     } catch (_) {}
   }, [user]);
   const onProfileFocus = useCallback(() => { load(); }, [load]);
@@ -188,6 +192,12 @@ export default function ProfileScreen() {
                 </View>
                 <ChevronLeft size={20} color="#fff" />
             </TouchableOpacity>
+
+            {coins && <TouchableOpacity onPress={() => nav.navigate("Wallet")} style={[s.coinsCard, shadow.card]} testID="profile-coins-card">
+                    <View style={s.coinsIcon}><Coins size={22} color="#B7791F" /></View>
+                    <View style={{ flex: 1 }}><Text style={s.coinsLabel}>{t("Coins")}</Text><Text style={s.coinsSub}>{t("تستخدم Coins لترويج إعلاناتك")}</Text></View>
+                    <Text style={s.coinsAmount}>{Number(coins.balance || 0).toLocaleString()}</Text>
+                </TouchableOpacity>}
 
             {/* Quick actions grid */}
             <View style={s.quickGrid}>
@@ -489,6 +499,29 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)"
   },
   // Wallet card
+  coinsCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF8E1",
+    borderWidth: 1,
+    borderColor: "#F6D365"
+  },
+  coinsIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "#FDE68A",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10
+  },
+  coinsLabel: { fontSize: 15, fontWeight: "900", color: "#7C4A03" },
+  coinsSub: { fontSize: 11, color: "#9A6B24", marginTop: 2 },
+  coinsAmount: { fontSize: 21, fontWeight: "900", color: "#B7791F" },
   walletCard: {
     flexDirection: "row",
     alignItems: "center",

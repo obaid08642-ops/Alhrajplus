@@ -42,6 +42,7 @@ const TRANSLATIONS = {
         camera: "الكاميرا", gallery: "المعرض",
         zoom_in: "تكبير", zoom_out: "تصغير", close: "إغلاق",
         premium_locked: "🔒 الباقات المدفوعة معطلة — جميع الميزات مجانية حالياً",
+        Coins: "Coins", "تستخدم Coins لترويج إعلاناتك": "تستخدم Coins لترويج إعلاناتك", "آخر حركة": "آخر حركة",
     },
     en: {
         site_name: "Haraj Plus", tagline: "Sell & Buy Anything",
@@ -81,6 +82,7 @@ const TRANSLATIONS = {
         camera: "Camera", gallery: "Gallery",
         zoom_in: "Zoom In", zoom_out: "Zoom Out", close: "Close",
         premium_locked: "🔒 Premium packages disabled — all features free for now",
+        Coins: "Coins", "تستخدم Coins لترويج إعلاناتك": "Use Coins to boost your listings", "آخر حركة": "Latest activity",
     },
     ur: {
         site_name: "حراج پلس", tagline: "خریدیں اور بیچیں",

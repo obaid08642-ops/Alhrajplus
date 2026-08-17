@@ -64,9 +64,13 @@ function routeFromUrl(url) {
         _pendingNotificationUrl = url;
         return;
     }
-    // Listing detail
+    // Listing detail, including comment deep-links.
     let m = url.match(/^\/listing\/([^/?#]+)/);
-    if (m && _navigationRef?.navigate) { _navigationRef.navigate("ListingDetail", { id: m[1] }); return; }
+    if (m && _navigationRef?.navigate) {
+        const isComments = /(?:#comments|[?&](?:focus|section)=comments)/i.test(url);
+        _navigationRef.navigate("ListingDetail", { id: m[1], focus: isComments ? "comments" : undefined });
+        return;
+    }
     // Seller profile
     m = url.match(/^\/seller\/([^/?#]+)/);
     if (m && _navigationRef?.navigate) { _navigationRef.navigate("SellerProfile", { sellerId: m[1] }); return; }
@@ -101,6 +105,11 @@ function routeFromUrl(url) {
     // Post listing (abandoned-draft reminder)
     if (url === "/post" || url.startsWith("/post?")) {
         if (_navigationRef?.navigate) { _navigationRef.navigate("Post"); return; }
+    }
+    // Comment notifications without a listing id still land in the comments inbox.
+    if (url === "/comments" || url.startsWith("/comments?")) {
+        _navigationRef.navigate("Notifications");
+        return;
     }
     // Search (abandoned-search reminder) — supports /search?q=... or /c/{category}
     m = url.match(/^\/search(?:\?q=([^&]+))?/);

@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import ListingCard from "@/components/listings/ListingCard";
 
@@ -63,6 +63,7 @@ export default function ProfilePage() {
     const [myListings, setMyListings] = useState([]);
     const [favorites, setFavorites] = useState([]);
     const [referral, setReferral] = useState(null);
+    const [coins, setCoins] = useState(null);
     const [stats, setStats] = useState(null);
     const [offers, setOffers] = useState([]);
     const [offerBusy, setOfferBusy] = useState("");
@@ -76,6 +77,7 @@ export default function ProfilePage() {
         api.get("/listings/me/mine").then(({ data }) => setMyListings(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setMyListings([]));
         api.get("/favorites").then(({ data }) => setFavorites(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setFavorites([]));
         api.get("/referral/me").then(({ data }) => setReferral(data));
+        api.get("/coins/me").then(({ data }) => setCoins(data)).catch(() => setCoins(null));
         api.get("/auth/me/stats").then(({ data }) => setStats(data)).catch(() => {});
         api.get("/offers/mine").then(({ data }) => setOffers(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setOffers([]));
     }, [user]);
@@ -176,6 +178,17 @@ export default function ProfilePage() {
                             بقي {referral.next_milestone - referral.invited_count} أصدقاء للوصول للمستوى التالي
                         </div>
                     )}
+                </div>
+            )}
+
+            {coins && (
+                <div data-testid="profile-coins-card" className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 rounded-3xl p-5 border-2 border-amber-300/40 mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-amber-400/20 flex items-center justify-center"><Coins className="w-6 h-6 text-amber-600" /></div>
+                        <div className="flex-1"><h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("Coins")}</h3><p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("تستخدم Coins لترويج إعلاناتك")}</p></div>
+                        <strong className="font-latin text-xl text-amber-700 dark:text-amber-300">{Number(coins.balance || 0).toLocaleString()}</strong>
+                    </div>
+                    {Array.isArray(coins.ledger) && coins.ledger.length > 0 && <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-arabic-body text-[var(--text-muted)]"><span>{tr("آخر حركة")}: {coins.ledger[0].type === "spend" ? "−" : "+"}{Math.abs(Number(coins.ledger[0].amount || 0))} Coins</span><span>·</span><span>{coins.ledger[0].purpose}</span></div>}
                 </div>
             )}
 

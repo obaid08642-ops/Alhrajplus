@@ -55,6 +55,8 @@ export default function ListingDetailScreen({
   const [commentText, setCommentText] = useState("");
   const [commentBusy, setCommentBusy] = useState(false);
   const carouselRef = useRef(null);
+  const scrollRef = useRef(null);
+  const [commentsY, setCommentsY] = useState(null);
   const SCREEN_W = Dimensions.get("window").width;
   useEffect(() => {
     (async () => {
@@ -77,6 +79,12 @@ export default function ListingDetailScreen({
       }
     })();
   }, [id]);
+
+  useEffect(() => {
+    if (route.params?.focus !== "comments" || commentsY == null || !listing) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, commentsY - 24), animated: true }), 120);
+    return () => clearTimeout(timer);
+  }, [route.params?.focus, commentsY, listing]);
 
   // Load follow + watch status once we know who the seller is.
   useEffect(() => {
@@ -266,7 +274,7 @@ export default function ListingDetailScreen({
         >
           <ChevronRight size={22} color="#fff" strokeWidth={2.6} />
         </TouchableOpacity>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isAuction ? 120 : 90 }}>
+        <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isAuction ? 120 : 90 }}>
             <View style={styles.imageWrap}>
                 {listing.images?.length ? <FlatList ref={carouselRef} data={listing.images} horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyExtractor={(_, i) => `img-${i}`} getItemLayout={(_, i) => ({
         length: SCREEN_W,
@@ -388,7 +396,7 @@ export default function ListingDetailScreen({
                 <Text style={styles.sectionTitle}>{t("الوصف")}</Text>
                 <Text style={styles.desc}>{listing.description}</Text>
 
-                <Text style={styles.sectionTitle}>{t("التعليقات")}</Text>
+                <Text style={styles.sectionTitle} onLayout={(e) => setCommentsY(e.nativeEvent.layout.y)}>{t("التعليقات")}</Text>
                 {user ? <View style={styles.commentComposer}>
                     <TextInput value={commentText} onChangeText={setCommentText} maxLength={1000} placeholder={t("اكتب تعليقًا عامًا...")} placeholderTextColor={theme.colors.textMuted} style={styles.commentInput} multiline />
                     <TouchableOpacity onPress={submitComment} disabled={commentBusy || !commentText.trim()} style={[styles.commentSubmit, (commentBusy || !commentText.trim()) && { opacity: 0.5 }]} testID="mobile-comment-submit"><Text style={styles.commentSubmitText}>{commentBusy ? t("جارٍ النشر...") : t("نشر")}</Text></TouchableOpacity>

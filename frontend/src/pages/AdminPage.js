@@ -38,6 +38,7 @@ export default function AdminPage() {
         { key: "theme", label: tr("الهوية البصرية"), icon: Palette },
         { key: "buy_requests", label: tr("طلبات الشراء"), icon: ShoppingBag },
         { key: "support", label: tr("تذاكر الدعم"), icon: LifeBuoy },
+        { key: "ai", label: tr("مزودو الذكاء الاصطناعي"), icon: Sparkles },
     ];
 
     return (
@@ -75,8 +76,42 @@ export default function AdminPage() {
             {tab === "theme" && <ThemePanel />}
             {tab === "buy_requests" && <AdminBuyRequestsPanel />}
             {tab === "support" && <AdminSupportPanel />}
+            {tab === "ai" && <AIProvidersPanel />}
         </div>
     );
+}
+
+function AIProvidersPanel() {
+    const [rows, setRows] = useState([]);
+    const [rotation, setRotation] = useState("");
+    const [config, setConfig] = useState({ order: [], providers: {} });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState("");
+    const [error, setError] = useState("");
+    const load = useCallback(async () => {
+        setLoading(true); setError("");
+        try {
+            const [r, c] = await Promise.all([api.get("/ai/providers/status"), api.get("/admin/ai/config")]);
+            setRows(Array.isArray(r.data?.providers) ? r.data.providers : []);
+            setRotation(r.data?.rotation || "");
+            setConfig(c.data || { order: [], providers: {} });
+        } catch (e) {
+            setRows([]); setError(e?.response?.data?.detail || tr("تعذر تحميل حالة مزودي الذكاء الاصطناعي"));
+        } finally { setLoading(false); }
+    }, []);
+    useEffect(() => { load(); }, [load]);
+    const patchProvider = (name, patch) => setConfig((old) => ({ ...old, providers: { ...old.providers, [name]: { ...(old.providers?.[name] || {}), ...patch } } }));
+    const saveConfig = async () => { setSaving(true); setSaved(""); try { await api.put("/admin/ai/config", config); setSaved(tr("تم حفظ إعدادات AI")); await load(); } catch (e) { setError(e?.response?.data?.detail || tr("تعذر حفظ إعدادات AI")); } finally { setSaving(false); } };
+    return <div className="space-y-4" data-testid="admin-ai-providers-panel">
+        <div className="flex items-center justify-between gap-3">
+            <div><h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("مزودو الذكاء الاصطناعي")}</h2><p className="text-xs text-[var(--text-muted)]">{tr("التدوير والاستخدام والأخطاء من الخادم")}</p></div>
+            <button onClick={load} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]" title={tr("تحديث")}><RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /></button>
+        </div>
+        {error && <div className="p-3 rounded-xl bg-red-500/10 text-red-600 text-sm">{error}</div>}
+        <div className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-sm space-y-3"><div className="flex flex-wrap items-center gap-2"><b>{tr("ترتيب التدوير")}</b><input value={(config.order || []).join(", ")} onChange={(e) => setConfig({ ...config, order: e.target.value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean) })} placeholder={rotation || "gemini, grok"} className="flex-1 min-w-[220px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 font-mono text-xs" /></div><p className="text-xs text-[var(--text-muted)]">{tr("تحكم إداري غير سري؛ مفاتيح API تبقى في متغيرات الخادم ولا تُحفظ هنا")}</p><div className="flex items-center gap-2"><button onClick={saveConfig} disabled={saving} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50">{saving ? tr("حفظ...") : tr("حفظ إعدادات AI")}</button>{saved && <span className="text-xs text-emerald-600">{saved}</span>}</div></div>
+        <div className="grid gap-3">{!loading && rows.length === 0 && <div className="p-8 text-center text-[var(--text-muted)] bg-[var(--surface)] border border-[var(--border)] rounded-2xl">{tr("لا يوجد مزود AI مفعّل")}</div>}{rows.map((r) => <article key={r.name} className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]"><div className="flex items-start justify-between gap-3"><div><h3 className="font-bold text-[var(--text)]">{r.name} <span className="text-xs text-[var(--text-muted)]">{r.model || "—"}</span></h3><p className="text-xs text-[var(--text-muted)]">{r.configured ? tr("مهيأ") : tr("غير مهيأ")} · {r.enabled ? tr("مفعّل") : tr("متوقف")}</p></div><span className={`text-xs px-2 py-1 rounded-full ${r.last_status === "success" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-700"}`}>{r.last_status || tr("لم يستخدم بعد")}</span></div><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs"><div><span className="text-[var(--text-muted)]">{tr("الطلبات")}</span><b className="block font-latin">{r.requests || 0}</b></div><div><span className="text-[var(--text-muted)]">{tr("التوكنات")}</span><b className="block font-latin">{r.total_tokens || 0}</b></div><div><span className="text-[var(--text-muted)]">{tr("الأخطاء")}</span><b className="block font-latin">{r.errors || 0}</b></div><label><span className="text-[var(--text-muted)]">{tr("الحد اليومي")}</span><input type="number" min="0" value={config.providers?.[r.name]?.daily_limit ?? r.daily_limit ?? ""} onChange={(e) => patchProvider(r.name, { daily_limit: Number(e.target.value) })} className="block w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-lg px-2 py-1 font-latin" /></label></div><div className="mt-3 flex flex-wrap items-center gap-3 text-xs"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={config.providers?.[r.name]?.enabled ?? r.enabled} onChange={(e) => patchProvider(r.name, { enabled: e.target.checked })} />{tr("تفعيل")}</label><label className="inline-flex items-center gap-2">{tr("الوزن")}<input type="number" min="1" max="100" value={config.providers?.[r.name]?.weight ?? r.weight ?? 1} onChange={(e) => patchProvider(r.name, { weight: Number(e.target.value) })} className="w-16 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-lg px-2 py-1 font-latin" /></label></div>{r.last_error && <p className="text-xs text-red-600 mt-3 break-words">{r.last_error}</p>}</article>)}</div>
+    </div>;
 }
 
 function AdminBuyRequestsPanel() {
