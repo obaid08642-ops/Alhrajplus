@@ -141,7 +141,17 @@ export default function ReelsPage() {
             <div ref={scrollerRef} onScroll={onScroll} className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
                 {reels.map((l, i) => (
                     <div key={l.id} className="h-full w-full snap-start relative flex items-center justify-center">
-                        <video ref={(el) => (refs.current[i] = el)} src={l.videos[0]} muted={muted} playsInline preload={i === active ? "metadata" : "none"} poster={l.images?.[0] || undefined} onTimeUpdate={(e) => setProgress((p) => ({ ...p, [i]: e.currentTarget.duration ? e.currentTarget.currentTime / e.currentTarget.duration : 0 }))} onEnded={() => i < reels.length - 1 ? goTo(i + 1) : goTo(0)} onError={() => setLoadError(tr("تعذر تشغيل الفيديو"))} className="w-full h-full object-cover" />
+                        <video ref={(el) => (refs.current[i] = el)} src={l.videos[0]} muted={muted} playsInline preload={i === active ? "metadata" : "none"} poster={l.images?.[0] || undefined} onTimeUpdate={(e) => {
+                            // React can clear synthetic-event.currentTarget before a deferred functional
+                            // state updater runs. Capture the native media element synchronously.
+                            const video = e.currentTarget;
+                            const duration = Number(video?.duration);
+                            const currentTime = Number(video?.currentTime);
+                            const ratio = Number.isFinite(duration) && duration > 0 && Number.isFinite(currentTime)
+                                ? Math.max(0, Math.min(1, currentTime / duration))
+                                : 0;
+                            setProgress((p) => ({ ...p, [i]: ratio }));
+                        }} onEnded={() => i < reels.length - 1 ? goTo(i + 1) : goTo(0)} onError={() => setLoadError(tr("تعذر تشغيل الفيديو"))} className="w-full h-full object-cover" />
                         <div className="absolute top-[max(4rem,calc(env(safe-area-inset-top)+3.25rem))] inset-x-4 z-20 flex gap-1" aria-label={tr("تقدم الفيديوهات")}>{reels.map((_, bar) => <button key={bar} onClick={() => goTo(bar)} className="h-1 flex-1 rounded-full bg-white/30 overflow-hidden" aria-label={`${tr("فيديو")} ${bar + 1}`}><span className="block h-full bg-white" style={{ width: `${bar < active ? 100 : bar === active ? (progress[active] || 0) * 100 : 0}%` }} /></button>)}</div>
                         {/* Overlay info */}
                         <div className="absolute inset-x-0 bottom-0 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/90 via-black/60 to-transparent">
