@@ -1379,11 +1379,11 @@ async def register(body: RegisterIn, request: Request, response: Response):
     }
     await db.users.insert_one(user)
     if referred_by:
-        cfg = await db.referral_config.find_one({"id": "default"}, {"_id": 0}) or {"reward_points": 100, "enabled": True}
-        if cfg.get("enabled", True):
+        cfg = await _economy_config()
+        if cfg.get("referral_enabled", True):
             await db.referral_events.update_one(
                 {"invitee_id": uid},
-                {"$setOnInsert": {"id": str(uuid.uuid4()), "inviter_code": referred_by, "invitee_id": uid, "status": "pending", "reward_points": int(cfg.get("reward_points", 100)), "created_at": datetime.now(timezone.utc).isoformat()}},
+                {"$setOnInsert": {"id": str(uuid.uuid4()), "inviter_code": referred_by, "invitee_id": uid, "status": "pending", "reward_points": int(cfg.get("referral_coins", 25)), "country_code": body.country_code, "qualification": "email_verified", "created_at": datetime.now(timezone.utc).isoformat()}},
                 upsert=True,
             )
     # Send verification email (non-blocking failure)
@@ -4154,7 +4154,7 @@ async def update_notif_settings(body: NotifPrefsIn, user: dict = Depends(get_cur
 # Sets is_boosted=true + boost_until=now+7d. Sort uses (-is_boosted, -created_at).
 # ============================================================
 @api.post("/listings/{listing_id}/boost")
-async def boost_listing(listing_id: str, user: dict = Depends(get_current_user)):
+async def boost_listing(listing_id: str, user: dict = Depends(get_current_user), body: Optional[dict] = None):
     item = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1, "is_boosted": 1, "boost_until": 1})
     if not item:
         raise HTTPException(404, "Listing not found")
@@ -4162,17 +4162,22 @@ async def boost_listing(listing_id: str, user: dict = Depends(get_current_user))
     if item["user_id"] != user["id"] and not is_admin:
         raise HTTPException(403, "غير مصرح")
     now = datetime.now(timezone.utc)
-    boost_until = (now + timedelta(days=7)).isoformat()
+    cfg = await _economy_config()
+    product_id = str((body or {}).get("product_id") or "boost_24h").strip().lower()
+    product = next((p for p in cfg.get("boost_products", []) if p.get("id") == product_id), None)
+    if not product:
+        raise HTTPException(422, "منتج الترويج غير متاح")
+    cost, duration_hours, strength = int(product["cost"]), int(product["duration_hours"]), int(product.get("strength", 1))
+    boost_until = (now + timedelta(hours=duration_hours)).isoformat()
     # Claim the boost atomically first. This prevents two concurrent taps from
     # both charging the same listing before either request observes is_boosted.
     claim = await db.listings.update_one(
         {"id": listing_id, "$or": [{"is_boosted": {"$ne": True}}, {"boost_until": {"$lte": now.isoformat()}}]},
-        {"$set": {"is_boosted": True, "boost_until": boost_until}},
+        {"$set": {"is_boosted": True, "boost_until": boost_until, "boost_product_id": product_id, "boost_strength": strength, "boost_country_code": country_code_or_default(user.get("country_code"), "SA")}},
     )
     if not claim.modified_count:
         current = await db.listings.find_one({"id": listing_id}, {"_id": 0, "boost_until": 1}) or {}
         return {"ok": True, "is_boosted": True, "boost_until": current.get("boost_until"), "charged_coins": 0}
-    cost = max(0, int(os.getenv("COINS_BOOST_COST", "100")))
     charged = 0
     try:
         if not is_admin and cost:
@@ -4181,14 +4186,18 @@ async def boost_listing(listing_id: str, user: dict = Depends(get_current_user))
                 raise HTTPException(402, f"رصيد الـCoins غير كافٍ لترويج الإعلان ({cost} Coins)")
             charged = cost
         if charged:
-            await _coins_log(user["id"], "spend", -charged, "listing_boost", listing_id, f"boost:{listing_id}:{boost_until[:10]}")
+            key = str((body or {}).get("idempotency_key") or f"boost:{listing_id}:{product_id}:{boost_until[:13]}")[:160]
+            await _coins_log(user["id"], "spend", -charged, "listing_boost", listing_id, key, {"product_id": product_id, "duration_hours": duration_hours, "strength": strength})
     except Exception:
         if charged:
             await db.users.update_one({"id": user["id"]}, {"$inc": {"coins_balance": charged}})
         await db.listings.update_one({"id": listing_id, "boost_until": boost_until}, {"$set": {"is_boosted": False}, "$unset": {"boost_until": ""}})
         raise
     _cache_invalidate()
-    return {"ok": True, "is_boosted": True, "boost_until": boost_until, "charged_coins": charged, "balance": await _coins_balance(user["id"])}
+    await _analytics_event("boost_purchased", user_id=user["id"], country_code=country_code_or_default(user.get("country_code"), "SA"), listing_id=listing_id, promotion_id=product_id)
+    if charged:
+        await _analytics_event("coins_spent", user_id=user["id"], country_code=country_code_or_default(user.get("country_code"), "SA"), listing_id=listing_id, promotion_id=product_id)
+    return {"ok": True, "is_boosted": True, "boost_until": boost_until, "product_id": product_id, "strength": strength, "charged_coins": charged, "balance": await _coins_balance(user["id"])}
 
 @api.delete("/listings/{listing_id}/boost")
 async def unboost_listing(listing_id: str, user: dict = Depends(get_current_user)):
@@ -6606,6 +6615,7 @@ _ANALYTICS_EVENTS = {
     "listing_created", "listing_published", "favorite_added", "report_submitted",
     "signup_started", "signup_completed", "login_completed", "auction_bid",
     "session_start", "session_heartbeat", "session_end", "screen_view",
+    "referral_link_open", "referral_registered", "referral_qualified", "share_created", "share_opened", "share_qualified", "boost_purchased", "boost_expired", "coins_earned", "coins_spent",
 }
 
 
@@ -6643,6 +6653,9 @@ async def record_analytics_event(request: Request, body: dict):
         "category": str(body.get("category") or "")[:80] or None,
         "country_code": str(body.get("country_code") or "").upper()[:3] or None,
         "listing_id": str(body.get("listing_id") or "")[:80] or None,
+        "share_id": str(body.get("share_id") or "")[:80] or None,
+        "referral_code": str(body.get("referral_code") or "").upper()[:32] or None,
+        "promotion_id": str(body.get("promotion_id") or "")[:80] or None,
         "device_type": _safe_text("device_type", 24),
         "os": _safe_text("os", 40),
         "browser": _safe_text("browser", 40),
@@ -6656,6 +6669,23 @@ async def record_analytics_event(request: Request, body: dict):
     }
     await db.analytics_events.insert_one(doc)
     return {"ok": True}
+
+
+async def _analytics_event(event: str, *, user_id: Optional[str] = None, visitor_id: Optional[str] = None, session_id: Optional[str] = None, country_code: Optional[str] = None, listing_id: Optional[str] = None, share_id: Optional[str] = None, referral_code: Optional[str] = None, promotion_id: Optional[str] = None):
+    """Record a server-confirmed, privacy-minimised product event."""
+    if event not in _ANALYTICS_EVENTS:
+        return
+    collection = getattr(db, "analytics_events", None)
+    if collection is None:
+        return
+    await collection.insert_one({
+        "event": event, "user_id": user_id, "visitor_id": visitor_id, "session_id": session_id,
+        "country_code": country_code, "listing_id": listing_id, "share_id": share_id,
+        "referral_code": referral_code, "promotion_id": promotion_id,
+        "path": None, "category": None, "device_type": None, "os": None, "browser": None,
+        "source": "server", "campaign": None, "referrer_host": None, "duration_ms": 0,
+        "screen_width": None, "screen_height": None, "created_at": datetime.now(timezone.utc).isoformat(),
+    })
 
 
 # ============================================================
@@ -8214,11 +8244,16 @@ async def verify_email(token: str, request: Request):
     if referral:
         changed = await db.referral_events.update_one({"id": referral["id"], "status": "pending"}, {"$set": {"status": "qualified", "qualified_at": datetime.now(timezone.utc).isoformat()}})
         if changed.modified_count:
-            reward = int(referral.get("reward_points") or 0)
+            cfg = await _economy_config()
+            reward = int(cfg.get("referral_coins") if cfg.get("referral_enabled", True) else 0)
             referrer = await db.users.find_one({"referral_code": referral["inviter_code"]}, {"_id": 0, "id": 1})
             if referrer and reward > 0:
-                await db.users.update_one({"id": referrer["id"]}, {"$inc": {"referral_points": reward, "coins_balance": reward}})
-                await _coins_log(referrer["id"], "referral_reward", reward, "qualified_referral", referral.get("invitee_id"), referral.get("id"))
+                tx, duplicate = await _coin_mutation(referrer["id"], reward, "referral_reward", "qualified_referral", referral.get("invitee_id"), f"referral_reward:{referral.get('id')}", {"inviter_code": referral["inviter_code"], "qualification": "email_verified"})
+                if not duplicate:
+                    await db.users.update_one({"id": referrer["id"]}, {"$inc": {"referral_points": reward}})
+                    await db.referral_events.update_one({"id": referral["id"]}, {"$set": {"status": "rewarded", "rewarded_at": datetime.now(timezone.utc).isoformat(), "reward_transaction_id": tx.get("id"), "reward_coins": reward}})
+                    await _analytics_event("referral_qualified", user_id=referrer["id"], referral_code=referral["inviter_code"])
+                    await _analytics_event("coins_earned", user_id=referrer["id"], referral_code=referral["inviter_code"])
     await db.email_verify_tokens.delete_one({"token": token})
     return {"success": True, "message": "تم تأكيد البريد بنجاح"}
 
@@ -8867,6 +8902,38 @@ class CoinsGrantIn(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, max_length=160)
 
 
+class EconomyConfigIn(BaseModel):
+    welcome_coins: int = Field(default=10, ge=0, le=100_000)
+    referral_coins: int = Field(default=25, ge=0, le=100_000)
+    share_open_coins: int = Field(default=2, ge=0, le=10_000)
+    referral_enabled: bool = True
+    share_rewards_enabled: bool = True
+    boost_products: list[dict] = Field(default_factory=list)
+
+
+class ListingShareIn(BaseModel):
+    client_share_id: str = Field(min_length=8, max_length=160)
+    channel: str = Field(default="system", min_length=2, max_length=40)
+
+
+class ShareOpenIn(BaseModel):
+    visitor_id: str = Field(min_length=8, max_length=100)
+    session_id: str = Field(min_length=8, max_length=100)
+    platform: str = Field(default="web", min_length=2, max_length=30)
+
+
+class ReferralOpenIn(BaseModel):
+    code: str = Field(min_length=4, max_length=32)
+    visitor_id: str = Field(min_length=8, max_length=100)
+    session_id: str = Field(min_length=8, max_length=100)
+    platform: str = Field(default="web", min_length=2, max_length=30)
+
+
+class PromotionPurchaseIn(BaseModel):
+    product_id: str = Field(min_length=2, max_length=80)
+    idempotency_key: str = Field(min_length=8, max_length=160)
+
+
 class WalletTopupIn(BaseModel):
     amount: float = Field(gt=0)
     note: Optional[str] = None
@@ -8901,14 +8968,126 @@ async def _coins_balance(user_id: str) -> int:
     return int((u or {}).get("coins_balance") or 0)
 
 
-async def _coins_log(user_id: str, kind: str, amount: int, purpose: str, ref_id: Optional[str] = None, idempotency_key: Optional[str] = None):
+async def _economy_config() -> dict:
+    defaults = {
+        "id": "default", "welcome_coins": _welcome_coins_amount(), "referral_coins": 25,
+        "share_open_coins": 2, "referral_enabled": True, "share_rewards_enabled": True,
+        "boost_products": [
+            {"id": "boost_24h", "cost": 100, "duration_hours": 24, "strength": 1},
+            {"id": "boost_72h", "cost": 250, "duration_hours": 72, "strength": 2},
+            {"id": "boost_7d", "cost": 500, "duration_hours": 168, "strength": 3},
+        ],
+    }
+    stored = await db.economy_config.find_one({"id": "default"}, {"_id": 0})
+    return {**defaults, **(stored or {})}
+
+
+async def _coins_log(user_id: str, kind: str, amount: int, purpose: str, ref_id: Optional[str] = None, idempotency_key: Optional[str] = None, metadata: Optional[dict] = None, before: Optional[int] = None, after: Optional[int] = None):
     if idempotency_key:
         existing = await db.coins_ledger.find_one({"user_id": user_id, "idempotency_key": idempotency_key}, {"_id": 0})
         if existing:
             return existing
-    doc = {"id": str(uuid.uuid4()), "user_id": user_id, "type": kind, "amount": int(amount), "purpose": purpose[:80], "ref_id": ref_id, "idempotency_key": idempotency_key, "created_at": datetime.now(timezone.utc).isoformat()}
+    doc = {"id": str(uuid.uuid4()), "user_id": user_id, "type": kind, "amount": int(amount), "purpose": purpose[:80], "ref_id": ref_id, "idempotency_key": idempotency_key, "status": "completed", "before_balance": before, "after_balance": after, "metadata": metadata or {}, "created_at": datetime.now(timezone.utc).isoformat()}
     await db.coins_ledger.insert_one(doc)
     return {k: v for k, v in doc.items() if k != "_id"}
+
+
+async def _coin_mutation(user_id: str, amount: int, tx_type: str, purpose: str, ref_id: Optional[str], idempotency_key: str, metadata: Optional[dict] = None) -> tuple[dict, bool]:
+    """Apply a coin balance change once and persist an auditable ledger row.
+
+    Mongo deployments without replica-set transactions use a guarded balance update
+    plus a unique idempotency ledger key and compensation on duplicate insertion.
+    """
+    existing = await db.coins_ledger.find_one({"user_id": user_id, "idempotency_key": idempotency_key}, {"_id": 0})
+    if existing:
+        return existing, True
+    before = await _coins_balance(user_id)
+    query = {"id": user_id}
+    if amount < 0:
+        query["coins_balance"] = {"$gte": abs(amount)}
+    changed = await db.users.update_one(query, {"$inc": {"coins_balance": amount}})
+    if not changed.modified_count:
+        raise HTTPException(402, "رصيد الـCoins غير كافٍ")
+    after = before + amount
+    try:
+        tx = await _coins_log(user_id, tx_type, amount, purpose, ref_id, idempotency_key, metadata, before, after)
+    except DuplicateKeyError:
+        await db.users.update_one({"id": user_id}, {"$inc": {"coins_balance": -amount}})
+        existing = await db.coins_ledger.find_one({"user_id": user_id, "idempotency_key": idempotency_key}, {"_id": 0})
+        if existing:
+            return existing, True
+        raise
+    return tx, False
+
+
+@api.get("/economy/config")
+async def economy_config():
+    cfg = await _economy_config()
+    return {k: cfg[k] for k in ("welcome_coins", "referral_coins", "share_open_coins", "referral_enabled", "share_rewards_enabled", "boost_products")}
+
+
+@admin_router.put("/economy/config")
+async def update_economy_config(body: EconomyConfigIn, user: dict = Depends(require_admin)):
+    products = []
+    seen = set()
+    for raw in body.boost_products[:10]:
+        try:
+            pid = str(raw.get("id") or "").strip().lower()[:80]
+            cost, hours, strength = int(raw.get("cost")), int(raw.get("duration_hours")), int(raw.get("strength", 1))
+        except (AttributeError, TypeError, ValueError):
+            raise HTTPException(422, "منتج الترويج غير صالح")
+        if not pid or pid in seen or cost < 1 or cost > 1_000_000 or hours < 1 or hours > 24 * 31 or strength < 1 or strength > 100:
+            raise HTTPException(422, "منتج الترويج غير صالح")
+        seen.add(pid); products.append({"id": pid, "cost": cost, "duration_hours": hours, "strength": strength})
+    doc = {"id": "default", **body.model_dump(), "boost_products": products or (await _economy_config())["boost_products"], "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user["id"]}
+    await db.economy_config.update_one({"id": "default"}, {"$set": doc}, upsert=True)
+    await _admin_log(user["id"], "economy_config_update", "default", {"products": len(doc["boost_products"])})
+    return await economy_config()
+
+
+@api.post("/referral/open")
+async def referral_open(body: ReferralOpenIn):
+    code = body.code.upper().strip()
+    owner = await db.users.find_one({"referral_code": code}, {"_id": 0, "id": 1, "country_code": 1})
+    if not owner: raise HTTPException(404, "رمز الإحالة غير صالح")
+    key = f"ref_open:{code}:{body.visitor_id}:{body.session_id}"
+    opened = await db.referral_opens.update_one({"idempotency_key": key}, {"$setOnInsert": {"id": str(uuid.uuid4()), "code": code, "referrer_id": owner["id"], "visitor_id": body.visitor_id, "session_id": body.session_id, "platform": body.platform, "idempotency_key": key, "created_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    if opened.upserted_id:
+        await _analytics_event("referral_link_open", user_id=owner["id"], visitor_id=body.visitor_id, session_id=body.session_id, country_code=owner.get("country_code"), referral_code=code)
+    return {"ok": True, "code": code}
+
+
+@api.post("/listings/{listing_id}/shares")
+async def create_listing_share(listing_id: str, body: ListingShareIn, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 0, "id": 1, "country_code": 1})
+    if not listing: raise HTTPException(404, "الإعلان غير موجود أو غير متاح للمشاركة في سوقك")
+    existing = await db.listing_shares.find_one({"sharer_id": user["id"], "client_share_id": body.client_share_id}, {"_id": 0})
+    if existing: return {"share": existing, "duplicate": True}
+    share = {"id": str(uuid.uuid4()), "listing_id": listing_id, "country_code": listing["country_code"], "sharer_id": user["id"], "channel": body.channel.lower(), "client_share_id": body.client_share_id, "status": "created", "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.listing_shares.insert_one(share)
+    await _analytics_event("share_created", user_id=user["id"], country_code=listing["country_code"], listing_id=listing_id, share_id=share["id"])
+    return {"share": {k:v for k,v in share.items() if k != "_id"}, "url": f"/listing/{listing_id}?share={share['id']}"}
+
+
+@api.post("/shares/{share_id}/open")
+async def qualify_listing_share_open(share_id: str, body: ShareOpenIn, request: Request):
+    share = await db.listing_shares.find_one({"id": share_id}, {"_id": 0})
+    if not share: raise HTTPException(404, "رابط المشاركة غير صالح")
+    viewer = await _get_user_from_cookie(request)
+    if viewer and viewer.get("id") == share.get("sharer_id"): return {"ok": True, "qualified": False, "reason": "self_open"}
+    key = f"share_open:{share_id}:{body.visitor_id}"
+    opened = await db.share_opens.update_one({"idempotency_key": key}, {"$setOnInsert": {"id": str(uuid.uuid4()), "share_id": share_id, "visitor_id": body.visitor_id, "session_id": body.session_id, "platform": body.platform, "idempotency_key": key, "created_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    if not opened.upserted_id: return {"ok": True, "qualified": False, "reason": "duplicate_open"}
+    await _analytics_event("share_opened", visitor_id=body.visitor_id, session_id=body.session_id, country_code=share.get("country_code"), listing_id=share.get("listing_id"), share_id=share_id)
+    cfg = await _economy_config(); reward = int(cfg.get("share_open_coins") or 0)
+    if not cfg.get("share_rewards_enabled", True) or reward <= 0: return {"ok": True, "qualified": False, "reason": "reward_disabled"}
+    tx, duplicate = await _coin_mutation(share["sharer_id"], reward, "share_reward", "qualified_share_open", share_id, f"share_reward:{share_id}:{body.visitor_id}", {"listing_id": share["listing_id"], "platform": body.platform})
+    await db.listing_shares.update_one({"id": share_id}, {"$set": {"status": "rewarded", "rewarded_at": datetime.now(timezone.utc).isoformat()}})
+    if not duplicate:
+        await _analytics_event("share_qualified", user_id=share["sharer_id"], visitor_id=body.visitor_id, session_id=body.session_id, country_code=share.get("country_code"), listing_id=share.get("listing_id"), share_id=share_id)
+        await _analytics_event("coins_earned", user_id=share["sharer_id"], country_code=share.get("country_code"), listing_id=share.get("listing_id"), share_id=share_id)
+    return {"ok": True, "qualified": not duplicate, "reward": reward if not duplicate else 0, "transaction": tx}
 
 
 @api.get("/coins/me")
@@ -9861,6 +10040,10 @@ async def startup():
     await _safe_index(db.google_oauth_states, "expires_at", expireAfterSeconds=0)
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
     await _safe_index(db.coins_ledger, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string", "$ne": ""}})
+    await _safe_index(db.listing_shares, [("sharer_id", 1), ("client_share_id", 1)], unique=True)
+    await _safe_index(db.share_opens, [("idempotency_key", 1)], unique=True)
+    await _safe_index(db.referral_opens, [("idempotency_key", 1)], unique=True)
+    await _safe_index(db.listing_shares, [("listing_id", 1), ("country_code", 1), ("created_at", -1)])
     await _safe_index(db.wallet_transactions, [("user_id", 1), ("type", 1)], unique=True, partialFilterExpression={"type": "bonus"})
     await _safe_index(db.messages, [("sender_id", 1), ("client_message_id", 1)], unique=True, partialFilterExpression={"client_message_id": {"$type": "string"}})
     await db.conversations.create_index("id", unique=True)

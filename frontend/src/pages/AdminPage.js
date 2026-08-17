@@ -6,6 +6,8 @@ import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, 
 import { tr } from "@/contexts/I18nContext";
 import { canAccessAdmin } from "@/lib/accessControl";
 
+const ECONOMY_DEFAULTS = { welcome_coins: 10, referral_coins: 25, share_open_coins: 2, referral_enabled: true, share_rewards_enabled: true, boost_products: [] };
+
 export default function AdminPage() {
     const { user, loading } = useAuth();
     const nav = useNavigate();
@@ -23,6 +25,7 @@ export default function AdminPage() {
         { key: "analytics", label: tr("تحليلات CRM"), icon: BarChart3 },
         { key: "visitors", label: tr("الزوار المباشرون"), icon: Monitor },
         { key: "referrals", label: tr("الإحالات والنمو"), icon: Gift },
+        { key: "economy", label: tr("الاقتصاد والترويج"), icon: DollarSign },
         { key: "moderation", label: tr("مراجعة الإعلانات"), icon: Shield },
         { key: "banned_words", label: tr("الكلمات المحظورة"), icon: Flag },
         { key: "listings", label: tr("جميع الإعلانات"), icon: FileText },
@@ -61,6 +64,7 @@ export default function AdminPage() {
             {tab === "analytics" && <AnalyticsPanel />}
             {tab === "visitors" && <VisitorsPanel />}
             {tab === "referrals" && <ReferralsPanel />}
+            {tab === "economy" && <EconomyPanel />}
             {tab === "moderation" && <ModerationPanel />}
             {tab === "banned_words" && <BannedWordsPanel />}
             {tab === "listings" && <ListingsPanel />}
@@ -193,6 +197,38 @@ function ReferralsPanel() {
     );
 }
 
+function EconomyPanel() {
+    const [config, setConfig] = useState(ECONOMY_DEFAULTS);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [notice, setNotice] = useState("");
+    const [error, setError] = useState("");
+    const load = useCallback(async () => {
+        setLoading(true); setError("");
+        try { const { data } = await api.get("/economy/config"); setConfig({ ...ECONOMY_DEFAULTS, ...(data || {}) }); }
+        catch (e) { setError(e?.response?.data?.detail || tr("تعذر تحميل إعدادات الاقتصاد")); }
+        finally { setLoading(false); }
+    }, []);
+    useEffect(() => { load(); }, [load]);
+    const patchProduct = (index, key, value) => setConfig((old) => ({ ...old, boost_products: old.boost_products.map((product, i) => i === index ? { ...product, [key]: value } : product) }));
+    const addProduct = () => setConfig((old) => ({ ...old, boost_products: [...old.boost_products, { id: `boost_${old.boost_products.length + 1}`, cost: 100, duration_hours: 24, strength: 1 }] }));
+    const save = async () => {
+        setSaving(true); setNotice(""); setError("");
+        try {
+            const payload = { ...config, welcome_coins: Number(config.welcome_coins), referral_coins: Number(config.referral_coins), share_open_coins: Number(config.share_open_coins), boost_products: config.boost_products.map((p) => ({ id: String(p.id || "").trim().toLowerCase(), cost: Number(p.cost), duration_hours: Number(p.duration_hours), strength: Number(p.strength) })) };
+            const { data } = await api.put("/admin/economy/config", payload);
+            setConfig({ ...ECONOMY_DEFAULTS, ...(data || {}) }); setNotice(tr("تم حفظ إعدادات الاقتصاد"));
+        } catch (e) { setError(e?.response?.data?.detail || tr("تعذر حفظ الإعدادات. تحقق من حقول المنتجات.")); }
+        finally { setSaving(false); }
+    };
+    return <div className="space-y-4" data-testid="admin-economy-panel">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("الاقتصاد والترويج")}</h2><p className="text-xs text-[var(--text-muted)]">{tr("الـCoins مخصصة للترويج فقط؛ لا توجد مكافآت نقدية أو بوابة شحن.")}</p></div><button onClick={load} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]" title={tr("تحديث")}><RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /></button></div>
+        {error && <div className="p-3 rounded-xl bg-red-500/10 text-red-600 text-sm">{error}</div>}{notice && <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-700 text-sm">{notice}</div>}
+        <section className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-4"><div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{[["welcome_coins", "Coins الترحيب"], ["referral_coins", "Coins الإحالة المؤهلة"], ["share_open_coins", "Coins فتح المشاركة"]].map(([key, label]) => <label key={key} className="text-sm font-arabic font-bold">{tr(label)}<input type="number" min="0" max="100000" value={config[key]} onChange={(e) => setConfig({ ...config, [key]: e.target.value })} className="block mt-1 w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 font-latin" /></label>)}</div><div className="flex flex-wrap gap-5 text-sm"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={!!config.referral_enabled} onChange={(e) => setConfig({ ...config, referral_enabled: e.target.checked })} />{tr("تفعيل مكافآت الإحالة")}</label><label className="inline-flex items-center gap-2"><input type="checkbox" checked={!!config.share_rewards_enabled} onChange={(e) => setConfig({ ...config, share_rewards_enabled: e.target.checked })} />{tr("تفعيل مكافآت فتح المشاركة")}</label></div></section>
+        <section className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] space-y-3"><div className="flex items-center justify-between"><div><h3 className="font-arabic font-black text-lg">{tr("منتجات الترويج")}</h3><p className="text-xs text-[var(--text-muted)]">{tr("مدة وقوة وتكلفة مضبوطة من الخادم، بحد أقصى 10 منتجات.")}</p></div><button onClick={addProduct} disabled={config.boost_products.length >= 10} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] text-sm disabled:opacity-50"><Plus className="w-4 h-4" />{tr("منتج")}</button></div><div className="space-y-2">{config.boost_products.map((product, index) => <div key={`${product.id}-${index}`} className="grid grid-cols-2 sm:grid-cols-[1.7fr_1fr_1fr_1fr_auto] gap-2 items-end p-3 rounded-xl bg-[var(--surface-elevated)]"><label className="text-xs">ID<input value={product.id} maxLength="80" onChange={(e) => patchProduct(index, "id", e.target.value)} className="mt-1 block w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 font-mono" /></label><label className="text-xs">{tr("التكلفة")}<input type="number" min="1" max="1000000" value={product.cost} onChange={(e) => patchProduct(index, "cost", e.target.value)} className="mt-1 block w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 font-latin" /></label><label className="text-xs">{tr("الساعات")}<input type="number" min="1" max="744" value={product.duration_hours} onChange={(e) => patchProduct(index, "duration_hours", e.target.value)} className="mt-1 block w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 font-latin" /></label><label className="text-xs">{tr("القوة")}<input type="number" min="1" max="100" value={product.strength} onChange={(e) => patchProduct(index, "strength", e.target.value)} className="mt-1 block w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 font-latin" /></label><button onClick={() => setConfig((old) => ({ ...old, boost_products: old.boost_products.filter((_, i) => i !== index) }))} className="p-2 text-red-600 rounded-lg hover:bg-red-500/10" title={tr("حذف")}><Trash2 className="w-4 h-4" /></button></div>)}{!loading && config.boost_products.length === 0 && <div className="p-5 text-center text-sm text-[var(--text-muted)]">{tr("لا توجد منتجات؛ أضف منتجاً ثم احفظ.")}</div>}</div><button onClick={save} disabled={saving || loading} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-xl font-arabic font-bold disabled:opacity-50">{saving ? tr("حفظ...") : tr("حفظ إعدادات الاقتصاد")}</button></section>
+    </div>;
+}
+
 function AnalyticsPanel() {
     const [report, setReport] = useState(null);
     const [days, setDays] = useState(7);
@@ -213,8 +249,17 @@ function AnalyticsPanel() {
         ["chat_started", "بدء المحادثات"],
         ["listing_created", "إنشاء إعلان"],
         ["listing_published", "نشر إعلان"],
+        ["referral_link_open", "فتح رابط الإحالة"],
+        ["referral_qualified", "إحالات مؤهلة"],
+        ["share_created", "روابط مشاركة منشأة"],
+        ["share_opened", "مشاركات مفتوحة"],
+        ["share_qualified", "مشاركات مؤهلة"],
+        ["boost_purchased", "عمليات ترويج"],
+        ["coins_earned", "Coins مكتسبة"],
+        ["coins_spent", "Coins مصروفة"],
     ];
     const maxEvent = Math.max(1, ...(report.event_counts || []).map((x) => x.count || 0));
+    const eventCount = (key) => Number(funnel[key] || (report.event_counts || []).find((row) => row.event === key)?.count || 0);
     return (
         <div className="space-y-4" data-testid="admin-analytics-panel">
             <div className="flex items-center justify-between gap-3">
@@ -232,6 +277,8 @@ function AnalyticsPanel() {
                 <FinanceCard label={tr("الجلسات")} value={report.unique_sessions} />
                 <FinanceCard label={tr("الإعلانات المنشورة")} value={funnel.listing_published || 0} />
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><FinanceCard label={tr("فتح الإحالات")} value={eventCount("referral_link_open")} /><FinanceCard label={tr("إحالات مؤهلة")} value={eventCount("referral_qualified")} /><FinanceCard label={tr("مشاركات مؤهلة")} value={eventCount("share_qualified")} /><FinanceCard label={tr("عمليات الترويج")} value={eventCount("boost_purchased")} /></div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><FinanceCard label={tr("روابط مشاركة")} value={eventCount("share_created")} /><FinanceCard label={tr("مشاركات مفتوحة")} value={eventCount("share_opened")} /><FinanceCard label={tr("Coins مكتسبة")} value={eventCount("coins_earned")} /><FinanceCard label={tr("Coins مصروفة")} value={eventCount("coins_spent")} /></div>
             <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
                 <h3 className="font-arabic font-bold text-sm mb-3">{tr("مسار التحويل")}</h3>
                 <div className="space-y-2">

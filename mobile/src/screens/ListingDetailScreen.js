@@ -139,7 +139,14 @@ export default function ListingDetailScreen({
   const wa = () => _normalizedPhone && Linking.openURL(`https://wa.me/${_normalizedPhone.replace("+", "")}?text=${encodeURIComponent(`${t("مرحباً بخصوص:")} ${listing.title}`)}`);
   const shareAd = async () => {
     try {
-      const url = `https://alhraj.online/listing/${listing.slug || listing.id}`;
+      let url = `https://alhraj.online/listing/${listing.slug || listing.id}`;
+      if (user) {
+        try {
+          const clientShareId = `rn_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+          const { data } = await api.post(`/listings/${listing.id}/shares`, { client_share_id: clientShareId, channel: "native" });
+          if (data?.url) url = new URL(data.url, "https://alhraj.online").toString();
+        } catch (_) { /* Share remains available without reward attribution. */ }
+      }
       await Share.share({
         title: listing.title,
         message: `${listing.title}\n${url}`,

@@ -243,6 +243,22 @@ export function RegisterPage() {
             .catch(() => { setCountries([]); setErr(tr("تعذر تحميل الدول، يمكنك المتابعة بالدولة الافتراضية السعودية")); });
     }, [tr]);
 
+    useEffect(() => {
+        const code = String(refFromUrl || "").trim().toUpperCase();
+        if (!code) return;
+        const makeId = (key) => {
+            let value = localStorage.getItem(key);
+            if (!value) { value = `${key}_${crypto.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`}`; localStorage.setItem(key, value); }
+            return value;
+        };
+        const visitorId = makeId("alhraj_visitor");
+        const sessionId = makeId("alhraj_session");
+        const dedupeKey = `referral_open:${code}:${sessionId}`;
+        if (sessionStorage.getItem(dedupeKey)) return;
+        sessionStorage.setItem(dedupeKey, "1");
+        api.post("/referral/open", { code, visitor_id: visitorId, session_id: sessionId, platform: "web" }).catch(() => {});
+    }, [refFromUrl]);
+
     const safeCountries = Array.isArray(countries) ? countries : [];
     const cur = safeCountries.find((c) => c.code === form.country_code) || { code: "SA", phone_code: "+966", phone_length: 9, cities: [] };
 

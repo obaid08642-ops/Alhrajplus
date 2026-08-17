@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff, Bookmark, Users } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff, Bookmark, Users, Sparkles } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import { canAccessAdmin } from "@/lib/accessControl";
 import ListingCard from "@/components/listings/ListingCard";
@@ -68,6 +68,10 @@ export default function ProfilePage() {
     const [stats, setStats] = useState(null);
     const [offers, setOffers] = useState([]);
     const [offerBusy, setOfferBusy] = useState("");
+    const [boostProducts, setBoostProducts] = useState([]);
+    const [boostProductId, setBoostProductId] = useState("");
+    const [boostBusy, setBoostBusy] = useState("");
+    const [boostMessage, setBoostMessage] = useState("");
     const isAdmin = canAccessAdmin(user);
 
     useEffect(() => {
@@ -80,9 +84,24 @@ export default function ProfilePage() {
         api.get("/favorites").then(({ data }) => setFavorites(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setFavorites([]));
         api.get("/referral/me").then(({ data }) => setReferral(data));
         api.get("/coins/me").then(({ data }) => setCoins(data)).catch(() => setCoins(null));
+        api.get("/economy/config").then(({ data }) => { const products = Array.isArray(data?.boost_products) ? data.boost_products : []; setBoostProducts(products); setBoostProductId((old) => old || products[0]?.id || ""); }).catch(() => { setBoostProducts([]); setBoostProductId(""); });
         api.get("/auth/me/stats").then(({ data }) => setStats(data)).catch(() => {});
         api.get("/offers/mine").then(({ data }) => setOffers(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setOffers([]));
     }, [user]);
+
+    const boostListing = async (listing) => {
+        if (!boostProductId) { setBoostMessage(tr("لا توجد باقات ترويج مفعّلة حالياً")); return; }
+        setBoostBusy(listing.id); setBoostMessage("");
+        try {
+            const key = `boost_${listing.id}_${boostProductId}_${Date.now()}`;
+            await api.post(`/listings/${listing.id}/boost`, { product_id: boostProductId, idempotency_key: key });
+            const [listingResponse, coinsResponse] = await Promise.all([api.get("/listings/me/mine"), api.get("/coins/me")]);
+            setMyListings(Array.isArray(listingResponse.data) ? listingResponse.data : (Array.isArray(listingResponse.data?.items) ? listingResponse.data.items : []));
+            setCoins(coinsResponse.data || null);
+            setBoostMessage(tr("تم ترويج الإعلان بنجاح"));
+        } catch (e) { setBoostMessage(e?.response?.data?.detail || tr("تعذر الترويج؛ تحقق من رصيد Coins.")); }
+        finally { setBoostBusy(""); }
+    };
 
     const togglePhoneVisibility = async () => {
         try {
@@ -273,6 +292,7 @@ export default function ProfilePage() {
                 </button>
             </div>
 
+            {boostMessage && <div role="status" className="mb-3 p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs font-arabic-body text-[var(--text-muted)]">{boostMessage}</div>}
             {tab === "listings" ? (
                 myListings.length === 0 ? (
                     <div className="bg-[var(--surface)] rounded-2xl p-8 text-center border border-[var(--border)]">
@@ -284,7 +304,10 @@ export default function ProfilePage() {
                         {myListings.map((l) => (
                             <div key={l.id} className="relative group">
                                 <ListingCard listing={l} compact />
-                                <button data-testid={`del-listing-${l.id}`} onClick={() => removeListing(l.id)} className="absolute top-2 left-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute inset-x-2 bottom-2 z-10 flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    {l.is_boosted ? <span className="flex-1 bg-amber-500 text-white px-2 py-1.5 rounded-lg text-[10px] font-arabic font-bold text-center inline-flex items-center justify-center gap-1"><Star className="w-3 h-3 fill-current" />{tr("مُروَّج")}</span> : <><select aria-label={tr("باقة الترويج")} value={boostProductId} onChange={(e) => setBoostProductId(e.target.value)} onClick={(e) => e.stopPropagation()} className="min-w-0 flex-1 bg-white/95 dark:bg-slate-900/95 text-[var(--text)] border border-[var(--border)] rounded-lg px-1 py-1 text-[10px] font-latin"><option value="">{tr("اختر باقة")}</option>{boostProducts.map((product) => <option key={product.id} value={product.id}>{product.duration_hours}h · {product.cost} Coins</option>)}</select><button data-testid={`boost-listing-${l.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); boostListing(l); }} disabled={boostBusy === l.id || !boostProductId} className="bg-[var(--primary)] text-[var(--primary-fg)] px-2 py-1.5 rounded-lg text-[10px] font-arabic font-bold disabled:opacity-50 inline-flex items-center gap-1">{boostBusy === l.id ? "…" : <><Sparkles className="w-3 h-3" />{tr("رَوِّج")}</>}</button></>}
+                                </div>
+                                <button data-testid={`del-listing-${l.id}`} onClick={() => removeListing(l.id)} className="absolute top-2 left-2 z-20 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                             </div>

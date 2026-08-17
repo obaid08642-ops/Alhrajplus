@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from "react-native";
 import { Flame, Plane, Bell, Trash2 } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
@@ -106,6 +106,7 @@ export function MyListingsScreen({
   const { palette } = useThemeMode();
   
   const [items, setItems] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const load = useCallback(async (showSpinner = true) => {
@@ -124,6 +125,7 @@ export function MyListingsScreen({
   }, []);
   useEffect(() => {
     load();
+    api.get("/economy/config").then(({ data }) => setProducts(Array.isArray(data?.boost_products) ? data.boost_products : [])).catch(() => setProducts([]));
   }, [load]);
   const onRefresh = () => {
     setRefreshing(true);
@@ -131,10 +133,29 @@ export function MyListingsScreen({
   };
   const toggleBoost = useCallback(async item => {
     try {
-      if (item.is_boosted) await api.delete(`/listings/${item.id}/boost`);else await api.post(`/listings/${item.id}/boost`);
-      load(false);
-    } catch (_) {}
-  }, [load]);
+      if (item.is_boosted) {
+        await api.delete(`/listings/${item.id}/boost`);
+        await load(false);
+        return;
+      }
+      if (!products.length) {
+        Alert.alert(t("الترويج غير متاح"), t("لا توجد منتجات ترويج مفعلة حالياً."));
+        return;
+      }
+      const choose = async product => {
+        try {
+          const key = `boost_${item.id}_${product.id}_${Date.now()}`;
+          await api.post(`/listings/${item.id}/boost`, { product_id: product.id, idempotency_key: key });
+          await load(false);
+        } catch (e) {
+          Alert.alert(t("تعذر الترويج"), e?.response?.data?.detail || t("تحقق من رصيد Coins ثم أعد المحاولة."));
+        }
+      };
+      Alert.alert(t("اختر باقة الترويج"), t("سيُخصم من Coins فقط بعد التأكيد."), [...products.map(product => ({ text: `${product.duration_hours}h · ${product.cost} Coins · ×${product.strength}`, onPress: () => choose(product) })), { text: t("إلغاء"), style: "cancel" }]);
+    } catch (e) {
+      Alert.alert(t("تعذر الترويج"), e?.response?.data?.detail || t("تعذر تنفيذ الطلب."));
+    }
+  }, [load, products, t]);
   const renderItem = useCallback(({
     item
   }) => <View style={{

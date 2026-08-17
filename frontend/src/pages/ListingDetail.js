@@ -417,7 +417,12 @@ export default function ListingDetail() {
                             <div className="flex items-center gap-2 shrink-0">
                             <button data-testid="like-btn" onClick={toggleLike} className={`px-3 h-10 rounded-full flex items-center justify-center gap-1.5 font-arabic-body text-sm font-bold transition-colors ${liked ? "bg-red-500/10 text-red-600" : "bg-[var(--surface-elevated)] text-[var(--text-muted)] hover:text-red-600"}`} title={tr("إعجاب بالإعلان")}><Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} /> <span>{likeCount}</span></button>
                             <button data-testid="share-btn" onClick={async () => {
-                                const url = window.location.href;
+                                let url = window.location.href;
+                                try {
+                                    const clientShareId = crypto.randomUUID?.() || `share_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                                    const { data } = await api.post(`/listings/${listing.id}/shares`, { client_share_id: clientShareId, channel: navigator.share ? "native" : "copy" });
+                                    if (data?.url) url = new URL(data.url, window.location.origin).toString();
+                                } catch (_) { /* Guests keep a normal public link; no reward is claimed. */ }
                                 const shareData = { title: listing.title, text: `${listing.title} - الحراج بلس`, url };
                                 try {
                                     if (navigator.share) {
