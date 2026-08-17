@@ -35,7 +35,7 @@ export function JobsDetailsBoxMobile({
       ...patch
     }
   });
-  const isSeeker = cf.post_type === "باحث عن عمل";
+  const isSeeker = (cf.post_type || cf.job_post_type) === "باحث عن عمل";
   return <View style={s.box} testID="jobs-details-box">
             <Text style={s.title}>💼 {t("تفاصيل الوظيفة")}</Text>
 
@@ -47,7 +47,8 @@ export function JobsDetailsBoxMobile({
         })} placeholder={t("مثال: مهندس برمجيات أول")} placeholderTextColor={colors.textMuted} style={s.input} />
                 </Cell>
                 <Cell label={t("نوع الوظيفة") + " *"}>
-                    <PickerCell value={cf.job_type} options={JOB_OPTS.job_type} onChange={v => set({
+                    <PickerCell value={cf.employment_type || cf.job_type} options={JOB_OPTS.job_type} onChange={v => set({
+          employment_type: v,
           job_type: v
         })} />
                 </Cell>
@@ -74,7 +75,8 @@ export function JobsDetailsBoxMobile({
             {/* Row 3 */}
             <View style={s.row}>
                 <Cell label={t("المؤهل العلمي") + " *"}>
-                    <PickerCell value={cf.education_level} options={JOB_OPTS.education_level} onChange={v => set({
+                    <PickerCell value={cf.education || cf.education_level} options={JOB_OPTS.education_level} onChange={v => set({
+          education: v,
           education_level: v
         })} />
                 </Cell>
@@ -93,7 +95,8 @@ export function JobsDetailsBoxMobile({
         })} />
                 </Cell>
                 <Cell label={t("المجال / التخصص") + " *"}>
-                    <PickerCell value={cf.field} options={JOB_OPTS.field} onChange={v => set({
+                    <PickerCell value={cf.industry || cf.field} options={JOB_OPTS.field} onChange={v => set({
+          industry: v,
           field: v
         })} />
                 </Cell>
@@ -186,7 +189,8 @@ export function RealEstateDetailsBoxMobile({
             {/* Row 3 */}
             <View style={s.row}>
                 <Cell label={t("المساحة (م²)") + " *"}>
-                    <TextInput value={String(cf.area || "")} onChangeText={v => set({
+                    <TextInput value={String(cf.area_m2 || cf.area || "")} onChangeText={v => set({
+          area_m2: v.replace(/[^0-9.]/g, ""),
           area: v.replace(/[^0-9.]/g, "")
         })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
                 </Cell>
@@ -201,8 +205,9 @@ export function RealEstateDetailsBoxMobile({
             {/* Row 4 */}
             <View style={s.row}>
                 <Cell label={t("الفرش") + " *"}>
-                    <PickerCell value={cf.furnishing} options={RE_OPTS.furnishing} onChange={v => set({
-          furnishing: v
+                    <PickerCell value={cf.furnishing || cf.furnished} options={RE_OPTS.furnishing} onChange={v => set({
+          furnishing: v,
+          furnished: v
         })} />
                 </Cell>
                 <Cell label={t("حالة العقار") + " *"}>

@@ -49,7 +49,16 @@ export function ThemeModeProvider({ children }) {
     const primaryHover = remoteTheme?.primary_hover || lightColors.primaryHover;
     const accent = remoteTheme?.accent_color || lightColors.accent;
     const base = isDark ? darkColors : lightColors;
-    return { ...base, primary, primaryHover, accent, navBg: primary, secondary: remoteTheme?.secondary_color || base.secondary };
+    return {
+      ...base,
+      primary,
+      primaryHover,
+      accent,
+      navBg: primary,
+      navActive: isDark ? base.text : base.navActive,
+      navInactive: isDark ? "rgba(231,238,248,0.78)" : base.navInactive,
+      secondary: remoteTheme?.secondary_color || base.secondary,
+    };
   }, [isDark, remoteTheme]);
   const setThemeMode = useCallback(async (mode) => {
     if (!["system", "light", "dark"].includes(mode)) return;

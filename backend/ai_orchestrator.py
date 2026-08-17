@@ -101,6 +101,7 @@ class AIOrchestrator:
         self.db = db
         self._cursor = 0
         self._lock = asyncio.Lock()
+        self._cooldown_until: dict[str, float] = {}
 
     async def _admin_config(self) -> dict:
         try:
@@ -140,12 +141,24 @@ class AIOrchestrator:
             specs = specs[:1]
         if not specs:
             return []
-        async with self._lock:
-            start = self._cursor % len(specs)
-            self._cursor = (self._cursor + 1) % len(specs)
         if str(override.get("mode") or "automatic").lower() == "priority" or not bool(override.get("rotation_enabled", True)):
             return specs
-        return specs[start:] + specs[:start]
+        # Weighted round-robin: weights influence selection without allowing a
+        # provider to appear twice in one fallback chain.
+        weighted: list[str] = []
+        for spec in specs:
+            weighted.extend([spec.name] * max(1, min(int(spec.weight or 1), 20)))
+        by_name = {spec.name: spec for spec in specs}
+        async with self._lock:
+            start = self._cursor % len(weighted)
+            self._cursor = (start + 1) % len(weighted)
+        ordered: list[ProviderSpec] = []
+        seen: set[str] = set()
+        for name in weighted[start:] + weighted[:start]:
+            if name not in seen:
+                ordered.append(by_name[name])
+                seen.add(name)
+        return ordered
 
     async def _record(self, request_id: str, operation: str, provider: ProviderSpec,
                       *, status: str, started: float, prompt_tokens: int = 0,
@@ -211,7 +224,11 @@ class AIOrchestrator:
         max_attempts = max(1, min(int(override.get("max_attempts", len(providers)) or len(providers)), len(providers)))
         fallback_enabled = bool(override.get("fallback_enabled", True))
         quota_threshold = max(0.0, min(float(override.get("quota_threshold_pct", 100) or 100), 100.0))
+        cooldown_seconds = max(0, min(int(override.get("cooldown_seconds", 60) or 60), 86400))
         for provider in providers[:max_attempts]:
+            if self._cooldown_until.get(provider.name, 0.0) > time.monotonic():
+                await self._record(request_id, operation, provider, status="cooldown_skipped", started=time.monotonic(), error="provider_cooldown")
+                continue
             today = _now()[:10]
             usage = await self.db.ai_provider_daily.find_one({"provider": provider.name, "day": today}, {"_id": 0}) or {}
             limit = provider.daily_limit or provider.rpd_limit
@@ -226,11 +243,14 @@ class AIOrchestrator:
                     text, pt, ct = await self._openai_compatible(provider, prompt, image_base64)
                 if not text:
                     raise RuntimeError("empty provider response")
+                self._cooldown_until.pop(provider.name, None)
                 await self._record(request_id, operation, provider, status="success", started=started, prompt_tokens=pt, completion_tokens=ct)
                 return {"request_id": request_id, "provider": provider.name, "model": provider.model, "text": text, "attempts": attempts + [{"provider": provider.name, "status": "success"}], "fallback": bool(attempts), "original_provider": attempts[0]["provider"] if attempts else provider.name}
             except Exception as exc:
                 message = str(exc)
                 attempts.append({"provider": provider.name, "status": "failed", "error": message[:300]})
+                if cooldown_seconds:
+                    self._cooldown_until[provider.name] = time.monotonic() + cooldown_seconds
                 await self._record(request_id, operation, provider, status="failed", started=started, error=message)
                 logger.warning("AI provider %s failed for %s: %s", provider.name, operation, message)
                 if not fallback_enabled:

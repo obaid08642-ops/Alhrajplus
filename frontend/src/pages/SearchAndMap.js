@@ -127,7 +127,7 @@ export function SearchPage() {
         const timer = setTimeout(async () => {
             setLoading(true);
             try {
-                const params = { q: q || undefined, country_code: user?.country_code, limit: 30, sort: sortBy };
+                const params = { q: q || undefined, country_code: country || "SA", limit: 30, sort: sortBy };
                 if (days) params.days = days;
                 if (minPrice) params.min_price = minPrice;
                 if (maxPrice) params.max_price = maxPrice;

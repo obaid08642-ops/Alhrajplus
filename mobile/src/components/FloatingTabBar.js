@@ -123,8 +123,8 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
 
   // The tab bar, header, and primary actions all consume the same theme token.
   const surface = palette.navBg || palette.primary;
-  const activeColor = isDark ? palette.text : palette.primaryFg;
-  const inactiveColor = isDark ? "rgba(231,238,248,0.72)" : "rgba(10,17,40,0.72)";
+  const activeColor = palette.navActive || (isDark ? palette.text : palette.primaryFg);
+  const inactiveColor = palette.navInactive || (isDark ? "rgba(231,238,248,0.78)" : "rgba(255,255,255,0.78)");
 
   // FAB vertical position — measured from the bottom of the wrap (screen bottom).
   // Wrap bottom = screen bottom = bar's true bottom. Bar's TOP edge is at

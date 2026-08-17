@@ -429,8 +429,26 @@ export default function PostScreen({
     "furniture", "electronics", "auctions", "livestock", "equipment"
   ]);
 
+  const validateSpecializedFields = () => {
+    const cf = form.custom_fields || {};
+    const required = {
+      cars: [["make", "الماركة"], ["model", "الموديل"], ["year", "سنة الصنع"], ["transmission", "ناقل الحركة"], ["fuel_type", "نوع الوقود"], ["condition", "الحالة"]],
+      phones: [["brand", "الماركة"], ["model", "الموديل"], ["condition", "الحالة"]],
+      electronics: [["brand", "الماركة"], ["model", "الموديل"], ["condition", "الحالة"]],
+      jobs: [["job_title", "المسمى الوظيفي"], ["employment_type", "نوع الوظيفة"], ["experience_level", "مستوى الخبرة"], ["education", "المؤهل العلمي"], ["industry", "المجال"]],
+      realestate: [["property_type", "نوع العقار"], ["listing_type", "نوع الإعلان"], ["rooms", "عدد الغرف"], ["bathrooms", "عدد الحمامات"], ["area_m2", "المساحة"], ["furnishing", "الفرش"], ["condition", "حالة العقار"], ["building_age", "عمر البناء"], ["payment_method", "طريقة الدفع"]],
+    }[form.category] || [];
+    const aliases = { make: ["make", "car_brand"], model: ["model", "car_model"], year: ["year", "car_year"], brand: ["brand", "phone_brand"], employment_type: ["employment_type", "job_type"], education: ["education", "education_level"], industry: ["industry", "field"], area_m2: ["area_m2", "area"] };
+    for (const [key, label] of required) {
+      if (!(aliases[key] || [key]).some(name => String(cf[name] ?? "").trim())) return `${t("حقل مطلوب:")} ${t(label)}`;
+    }
+    return null;
+  };
+
   const validateRequiredFields = () => {
     if (!form.title || !form.description) return t("الرجاء إكمال العنوان والوصف");
+    const specializedError = validateSpecializedFields();
+    if (specializedError) return specializedError;
     if (!form.city) return t("الرجاء اختيار المدينة");
     const isStory = form.subcategory === "story" || form.custom_fields?.is_story;
     if (isStory && (!form.videos || form.videos.length === 0)) {
@@ -1243,8 +1261,11 @@ function Step2({
 
             <Field label={t("نموذج 3D") + (form.custom_fields?.model_3d_url ? " ✓" : "")}>
                 <TouchableOpacity onPress={onPickModel3D} style={[s.imgBtn, { borderColor: "#7C3AED", borderWidth: 1.5 }]} testID="post-pick-model-3d-btn">
-                    <Text style={[s.imgBtnText, { color: "#7C3AED" }]}>{form.custom_fields?.model_3d_url ? t("تم رفع نموذج 3D") : t("رفع ملف GLB أو GLTF")}</Text>
+                    <Text style={[s.imgBtnText, { color: "#7C3AED" }]}>{form.custom_fields?.model_3d_url ? t("استبدال نموذج 3D") : t("رفع ملف GLB أو GLTF")}</Text>
                 </TouchableOpacity>
+                {form.custom_fields?.model_3d_url && <TouchableOpacity onPress={() => setForm(f => ({ ...f, custom_fields: { ...f.custom_fields, model_3d_url: "" } }))} style={[s.imgBtn, { borderColor: colors.danger, borderWidth: 1.5, marginTop: 8 }]} testID="post-remove-model-3d-btn">
+                    <Text style={[s.imgBtnText, { color: colors.danger }]}>{t("إزالة نموذج 3D")}</Text>
+                </TouchableOpacity>}
                 {uploadingModel && <ActivityIndicator color="#7C3AED" style={{ marginTop: 8 }} />}
                 <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 6 }}>{t("يمكن إنشاء الملف خارجيًا من الصور أو الفيديو ثم رفعه هنا")}</Text>
             </Field>

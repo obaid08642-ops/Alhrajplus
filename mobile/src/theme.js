@@ -4,8 +4,8 @@
 // the central "create listing" CTA pops against the primary blue surface.
 export const colors = {
     // PRIMARY — medium sky blue (matches web's --primary).
-    primary: "#01c9ff",
-    primaryHover: "#6DAEE0",   // deeper hover state — used by gradient & pressed.
+    primary: "#4FB6E6",
+    primaryHover: "#2196D9",   // deeper hover state — used by gradient & pressed.
     primaryDeep: "#0F1B3A",    // navy text/icon on light surfaces (AAA contrast).
     primaryFg: "#FFFFFF",      // text/icons sitting ON the primary surface.
 
@@ -14,6 +14,8 @@ export const colors = {
     accent: "#D4AF37",
     accentHover: "#B8941F",
     accentFg: "#FFFFFF",
+    info: "#2563EB",
+    focusRing: "#0F1B3A",
 
     // Surfaces — pure white background + soft off-white card surface.
     bg: "#FFFFFF",
@@ -39,7 +41,7 @@ export const colors = {
     // (high-contrast pill highlight) and inactive=white at 70% opacity.
     navActive: "#FFFFFF",
     navInactive: "rgba(255,255,255,0.72)",
-    navBg: "#01c9ff",
+    navBg: "#4FB6E6",
 
     // Legacy alias kept so older screens compile until migration finishes.
     secondary: "#0F1A35",
@@ -52,9 +54,13 @@ export const radius = { sm: 12, md: 16, lg: 20, xl: 24, "2xl": 28, "3xl": 32, fu
 export const space = (n) => n * 4;
 
 export const font = {
+    family: "System",
     arabic:      { fontWeight: "700" },
     arabicBlack: { fontWeight: "900" },
     body:        { fontWeight: "400" },
+    caption:     { fontSize: 13, fontWeight: "600" },
+    label:       { fontSize: 11, fontWeight: "700" },
+    title:       { fontSize: 22, fontWeight: "800" },
 };
 
 // Soft, blurred shadows — replace hard borders. All shadows tinted with the
@@ -110,6 +116,8 @@ export const theme = {
         textDark: "#E7EEF8",
         textMutedDark: "#94A3B8",
         borderDark: "#1E2A44",
+        info: colors.info,
+        focusRing: colors.focusRing,
     },
     radius,
     spacing: space,

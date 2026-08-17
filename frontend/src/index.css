@@ -47,6 +47,12 @@ code {
         --primary: #4FB6E6;
         --primary-hover: #2196D9;
         --primary-fg: #FFFFFF;
+        --nav-bg: #4FB6E6;
+        --nav-active-bg: #2196D9;
+        --nav-fg: #FFFFFF;
+        --nav-inactive-fg: rgba(255,255,255,0.78);
+        --focus-ring: #0F1B3A;
+        --info: #2563EB;
         --secondary: #0A1128;
         --accent: #D4AF37;
         --text: #0F172A;
@@ -77,6 +83,11 @@ code {
         --input: 214 32% 91%;
         --ring: 199 78% 74%;
         --radius: 1rem;
+        --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Noto Sans Arabic", "Tajawal", system-ui, sans-serif;
+        --font-size-body: 1rem;
+        --font-size-caption: 0.8125rem;
+        --font-size-label: 0.6875rem;
+        --motion-standard: 220ms;
     }
 
     .dark {
@@ -86,6 +97,12 @@ code {
         --primary: #6CC2EE;
         --primary-hover: #89CFF0;
         --primary-fg: #0A1128;
+        --nav-bg: #6CC2EE;
+        --nav-active-bg: #89CFF0;
+        --nav-fg: #0A1128;
+        --nav-inactive-fg: rgba(10,17,40,0.78);
+        --focus-ring: #E7EEF8;
+        --info: #60A5FA;
         --secondary: #1E293B;
         --accent: #E8C547;
         --text: #F8FAFC;
@@ -114,6 +131,11 @@ code {
         --border-shad: 217 33% 17%;
         --input: 217 33% 17%;
         --ring: 199 78% 74%;
+        --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Noto Sans Arabic", "Tajawal", system-ui, sans-serif;
+        --font-size-body: 1rem;
+        --font-size-caption: 0.8125rem;
+        --font-size-label: 0.6875rem;
+        --motion-standard: 220ms;
     }
 }
 
@@ -162,7 +184,9 @@ code {
 
 @layer base {
     * { @apply border-border; }
-    body { @apply bg-background text-foreground; }
+    body { @apply bg-background text-foreground; font-family: var(--font-ui); }
+    :where(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+    :where(button, a, input, select, textarea):disabled { cursor: not-allowed; }
 }
 
 /* ============================================================

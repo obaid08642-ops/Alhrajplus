@@ -2278,7 +2278,7 @@ const STRINGS = {
 
 const KEY = "hp_lang";
 const MANUAL_KEY = "hp_lang_manual";
-const SUPPORTED = ["ar", "en", "hi", "ur", "bn", "fr"];
+const SUPPORTED = ["auto", "ar", "en", "hi", "ur", "bn", "fr"];
 let _currentLang = "ar";
 export function currentLang() { return _currentLang; }
 
@@ -2317,23 +2317,24 @@ export function I18nProvider({ children }) {
 
     const setLang = useCallback(async (l) => {
         if (!SUPPORTED.includes(l)) return;
-        setLangState(l);
-        _currentLang = l;
-        await AsyncStorage.setItem(KEY, l);
-        await AsyncStorage.setItem(MANUAL_KEY, "1");
+        const next = l === "auto" ? detectDeviceLanguage() : l;
+        if (!SUPPORTED.includes(next) || next === "auto") return;
+        if (l === "auto") await AsyncStorage.removeItem(MANUAL_KEY).catch(() => {});
+        else await AsyncStorage.setItem(MANUAL_KEY, "1");
+        setLangState(next);
+        _currentLang = next;
+        await AsyncStorage.setItem(KEY, next);
         try {
-            const wantRTL = (l === "ar" || l === "ur");
+            const wantRTL = (next === "ar" || next === "ur");
             if (I18nManager.isRTL !== wantRTL) {
                 I18nManager.allowRTL(wantRTL);
                 I18nManager.forceRTL(wantRTL);
                 // RN requires a JS-bundle reload for the new direction to take
                 // effect on all already-mounted views. Use expo-updates when
-                // available — otherwise fall back to a soft React remount.
+                // available — otherwise fall back to the provider soft remount.
                 try {
                     const Updates = require("expo-updates");
-                    if (Updates && typeof Updates.reloadAsync === "function") {
-                        await Updates.reloadAsync();
-                    }
+                    if (Updates && typeof Updates.reloadAsync === "function") await Updates.reloadAsync();
                 } catch (_) { /* dev / non-managed build — UI will repaint on next nav */ }
             }
         } catch (_) {}

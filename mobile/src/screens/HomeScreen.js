@@ -215,7 +215,7 @@ function TopBar({
     }
   }, [imgSearchBusy, nav, t]);
   const LANG_LABELS = {
-    ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
+    auto: "تلقائي حسب الجهاز", ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
     ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷"
   };
   return <View style={{ paddingTop: insets.top + 4 }}>

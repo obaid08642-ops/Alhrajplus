@@ -66,18 +66,18 @@ export function CarCascade({ value, onChange, tr = TR }) {
     }, []);
 
     useEffect(() => {
-        if (!v.car_brand) { setModels([]); return; }
-        api.get("/meta/car-models", { params: { brand: v.car_brand } })
+        if (!(v.make || v.car_brand)) { setModels([]); return; }
+        api.get("/meta/car-models", { params: { brand: v.make || v.car_brand } })
             .then(({ data }) => setModels(data.models || []))
             .catch(() => setModels([]));
-    }, [v.car_brand]);
+    }, [v.make, v.car_brand]);
 
     useEffect(() => {
-        if (!v.car_brand || !v.car_model) { setTrims([]); return; }
-        api.get("/meta/car-trims", { params: { brand: v.car_brand, model: v.car_model } })
+        if (!(v.make || v.car_brand) || !(v.model || v.car_model)) { setTrims([]); return; }
+        api.get("/meta/car-trims", { params: { brand: v.make || v.car_brand, model: v.model || v.car_model } })
             .then(({ data }) => setTrims(data.trims || []))
             .catch(() => setTrims([]));
-    }, [v.car_brand, v.car_model]);
+    }, [v.make, v.car_brand, v.model, v.car_model]);
 
     const set = (patch) => onChange({ ...v, ...patch });
 
@@ -85,12 +85,12 @@ export function CarCascade({ value, onChange, tr = TR }) {
         <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] space-y-2" data-testid="car-cascade">
             <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-1 flex items-center gap-1">🚗 {tr("تفاصيل السيارة")}</h4>
             <div className="grid grid-cols-2 gap-2">
-                <Pick label={tr("الماركة")} value={v.car_brand || ""} options={brands} onChange={(b) => set({ car_brand: b, car_model: "", car_trim: "" })} testid="car-brand" />
-                <Pick label={tr("الموديل")} value={v.car_model || ""} options={models} onChange={(m) => set({ car_model: m, car_trim: "" })} disabled={!v.car_brand} testid="car-model" />
-                <Pick label={tr("السنة")} value={v.car_year || ""} options={years} onChange={(y) => set({ car_year: y })} testid="car-year" />
-                <Pick label={tr("الفئة")} value={v.car_trim || ""} options={trims} onChange={(t) => set({ car_trim: t })} disabled={!v.car_model} testid="car-trim" />
-                <Pick label={tr("الممشى (كم)")} value={v.mileage || ""} options={CAR_STATIC_OPTIONS.mileage} onChange={(x) => set({ mileage: x })} testid="car-mileage" />
-                <Pick label={tr("ناقل الحركة")} value={v.transmission || ""} options={CAR_STATIC_OPTIONS.transmission} onChange={(x) => set({ transmission: x })} testid="car-transmission" />
+                <Pick label={tr("الماركة")} value={v.make || v.car_brand || ""} options={brands} onChange={(b) => set({ make: b, car_brand: b, model: "", car_model: "", trim: "", car_trim: "" })} testid="car-brand" />
+                <Pick label={tr("الموديل")} value={v.model || v.car_model || ""} options={models} onChange={(m) => set({ model: m, car_model: m, trim: "", car_trim: "" })} disabled={!(v.make || v.car_brand)} testid="car-model" />
+                <Pick label={tr("السنة")} value={v.year || v.car_year || ""} options={years} onChange={(y) => set({ year: y, car_year: y })} testid="car-year" />
+                <Pick label={tr("الفئة")} value={v.trim || v.car_trim || ""} options={trims} onChange={(t) => set({ trim: t, car_trim: t })} disabled={!(v.model || v.car_model)} testid="car-trim" />
+                <Pick label={tr("الممشى (كم)")} value={v.kilometers || v.mileage || ""} options={CAR_STATIC_OPTIONS.mileage} onChange={(x) => set({ kilometers: x, mileage: x })} testid="car-mileage" />
+                <Pick label={tr("ناقل الحركة")} value={v.transmission || ""} options={["أوتوماتيك", "عادي"]} onChange={(x) => set({ transmission: x })} testid="car-transmission" />
                 <Pick label={tr("نوع الوقود")} value={v.fuel_type || ""} options={CAR_STATIC_OPTIONS.fuel_type} onChange={(x) => set({ fuel_type: x })} testid="car-fuel" />
                 <Pick label={tr("الحالة")} value={v.condition || ""} options={CAR_STATIC_OPTIONS.condition} onChange={(x) => set({ condition: x })} testid="car-condition" />
                 <Field label={tr("اللون")} value={v.color || ""} onChange={(x) => set({ color: x })} placeholder={tr("مثال: أبيض / أسود")} testid="car-color" />
@@ -113,20 +113,20 @@ export function PhoneCascade({ value, onChange, tr = TR }) {
     }, []);
 
     useEffect(() => {
-        if (!v.phone_brand) { setModels([]); return; }
-        api.get("/meta/phone-models", { params: { brand: v.phone_brand } })
+        if (!(v.brand || v.phone_brand)) { setModels([]); return; }
+        api.get("/meta/phone-models", { params: { brand: v.brand || v.phone_brand } })
             .then(({ data }) => setModels(data.models || []))
             .catch(() => setModels([]));
-    }, [v.phone_brand]);
+    }, [v.brand, v.phone_brand]);
 
     useEffect(() => {
-        if (!v.phone_brand || !v.phone_model) { setStorages([]); setColors([]); return; }
-        api.get("/meta/phone-variants", { params: { brand: v.phone_brand, model: v.phone_model } })
+        if (!(v.brand || v.phone_brand) || !(v.model || v.phone_model)) { setStorages([]); setColors([]); return; }
+        api.get("/meta/phone-variants", { params: { brand: v.brand || v.phone_brand, model: v.model || v.phone_model } })
             .then(({ data }) => {
                 setStorages(data.storage || []);
                 setColors(data.color || []);
             }).catch(() => { setStorages([]); setColors([]); });
-    }, [v.phone_brand, v.phone_model]);
+    }, [v.brand, v.phone_brand, v.model, v.phone_model]);
 
     const set = (patch) => onChange({ ...v, ...patch });
 
@@ -134,9 +134,9 @@ export function PhoneCascade({ value, onChange, tr = TR }) {
         <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] space-y-2" data-testid="phone-cascade">
             <h4 className="text-xs font-arabic font-black text-[var(--text)] mb-1 flex items-center gap-1">📱 {tr("تفاصيل الجوال")}</h4>
             <div className="grid grid-cols-2 gap-2">
-                <Pick label={tr("الماركة")} value={v.phone_brand || ""} options={brands} onChange={(b) => set({ phone_brand: b, phone_model: "", phone_storage: "", phone_color: "" })} testid="phone-brand" />
-                <Pick label={tr("الموديل")} value={v.phone_model || ""} options={models} onChange={(m) => set({ phone_model: m, phone_storage: "", phone_color: "" })} disabled={!v.phone_brand} testid="phone-model" />
-                <Pick label={tr("السعة")} value={v.phone_storage || ""} options={storages} onChange={(s) => set({ phone_storage: s })} disabled={!v.phone_model} testid="phone-storage" />
+                <Pick label={tr("الماركة")} value={v.brand || v.phone_brand || ""} options={brands} onChange={(b) => set({ brand: b, phone_brand: b, model: "", phone_model: "", storage: "", phone_storage: "", phone_color: "" })} testid="phone-brand" />
+                <Pick label={tr("الموديل")} value={v.model || v.phone_model || ""} options={models} onChange={(m) => set({ model: m, phone_model: m, storage: "", phone_storage: "", phone_color: "" })} disabled={!(v.brand || v.phone_brand)} testid="phone-model" />
+                <Pick label={tr("السعة")} value={v.storage || v.phone_storage || ""} options={storages} onChange={(s) => set({ storage: s, phone_storage: s })} disabled={!(v.model || v.phone_model)} testid="phone-storage" />
                 <Pick label={tr("اللون")} value={v.phone_color || ""} options={colors} onChange={(c) => set({ phone_color: c })} disabled={!v.phone_model} testid="phone-color" />
                 <Pick label={tr("الحالة")} value={v.condition || ""} options={PHONE_STATIC_OPTIONS.condition} onChange={(x) => set({ condition: x })} testid="phone-condition" />
                 <Pick label={tr("الذاكرة (RAM)")} value={v.ram || ""} options={PHONE_STATIC_OPTIONS.ram} onChange={(x) => set({ ram: x })} testid="phone-ram" />

@@ -43,7 +43,7 @@ const JOB_OPTIONS = {
 export function JobsDetailsBox({ form, setForm, tr }) {
     const cf = form.custom_fields || {};
     const set = (patch) => setForm({ ...form, custom_fields: { ...form.custom_fields, ...patch } });
-    const isSeeker = cf.post_type === "باحث عن عمل";
+    const isSeeker = (cf.post_type || cf.job_post_type) === "باحث عن عمل";
 
     return (
         <div className="bg-[var(--surface)] rounded-2xl p-3 border border-[var(--border)] space-y-2" data-testid="jobs-details-box">
@@ -53,7 +53,7 @@ export function JobsDetailsBox({ form, setForm, tr }) {
             <div className="grid grid-cols-2 gap-2">
                 {/* Row 1: job_title (input) | job_type (dropdown) */}
                 <TextCell label={tr("المسمى الوظيفي")} value={cf.job_title} required onChange={(v) => set({ job_title: v })} placeholder={tr("مثال: مهندس برمجيات أول")} testid="job-title" />
-                <SelectCell label={tr("نوع الوظيفة")} value={cf.job_type} options={JOB_OPTIONS.job_type} required onChange={(v) => set({ job_type: v })} testid="job-type" />
+                <SelectCell label={tr("نوع الوظيفة")} value={cf.employment_type || cf.job_type} options={JOB_OPTIONS.job_type} required onChange={(v) => set({ employment_type: v, job_type: v })} testid="job-type" />
 
                 {/* Row 2: salary_range OR expected_salary | experience_level */}
                 {isSeeker ? (
@@ -64,12 +64,12 @@ export function JobsDetailsBox({ form, setForm, tr }) {
                 <SelectCell label={tr("مستوى الخبرة")} value={cf.experience_level} options={JOB_OPTIONS.experience_level} required onChange={(v) => set({ experience_level: v })} testid="job-experience-level" />
 
                 {/* Row 3: education_level | work_schedule */}
-                <SelectCell label={tr("المؤهل العلمي")} value={cf.education_level} options={JOB_OPTIONS.education_level} required onChange={(v) => set({ education_level: v })} testid="job-education-level" />
+                <SelectCell label={tr("المؤهل العلمي")} value={cf.education || cf.education_level} options={JOB_OPTIONS.education_level} required onChange={(v) => set({ education: v, education_level: v })} testid="job-education-level" />
                 <SelectCell label={tr("جدول العمل")} value={cf.work_schedule} options={JOB_OPTIONS.work_schedule} onChange={(v) => set({ work_schedule: v })} testid="job-work-schedule" />
 
                 {/* Row 4: location_type | field */}
                 <SelectCell label={tr("نمط الموقع")} value={cf.location_type} options={JOB_OPTIONS.location_type} required onChange={(v) => set({ location_type: v })} testid="job-location-type" />
-                <SelectCell label={tr("المجال / التخصص")} value={cf.field} options={JOB_OPTIONS.field} required onChange={(v) => set({ field: v })} testid="job-field" />
+                <SelectCell label={tr("المجال / التخصص")} value={cf.industry || cf.field} options={JOB_OPTIONS.field} required onChange={(v) => set({ industry: v, field: v })} testid="job-field" />
 
                 {/* Conditional bottom block — span both cols so the textarea has breathing room
                     while everything above stays strict 2-col. */}
@@ -130,11 +130,11 @@ export function RealEstateDetailsBox({ form, setForm, tr, country }) {
                 <SelectCell label={tr("عدد الحمامات")} value={cf.bathrooms} options={RE_OPTIONS.bathrooms} required onChange={(v) => set({ bathrooms: v })} testid="re-bathrooms" />
 
                 {/* Row 3 */}
-                <NumberCell label={tr("المساحة (م²)")} value={cf.area} required onChange={(v) => set({ area: v })} testid="re-area" suffix="م²" />
+                <NumberCell label={tr("المساحة (م²)")} value={cf.area_m2 || cf.area} required onChange={(v) => set({ area_m2: v, area: v })} testid="re-area" suffix="م²" />
                 <PriceCell label={tr("السعر")} value={form.price} currency={currency} required onChange={(v) => setForm({ ...form, price: v })} testid="re-price" />
 
                 {/* Row 4 */}
-                <SelectCell label={tr("الفرش")} value={cf.furnishing} options={RE_OPTIONS.furnishing} required onChange={(v) => set({ furnishing: v })} testid="re-furnishing" />
+                <SelectCell label={tr("الفرش")} value={cf.furnishing} options={RE_OPTIONS.furnishing} required onChange={(v) => set({ furnishing: v, furnished: v })} testid="re-furnishing" />
                 <SelectCell label={tr("حالة العقار")} value={cf.condition} options={RE_OPTIONS.condition} required onChange={(v) => set({ condition: v })} testid="re-condition" />
 
                 {/* Row 5 */}

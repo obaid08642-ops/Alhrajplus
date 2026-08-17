@@ -283,8 +283,27 @@ export default function PostListing() {
     };
 
 
+    const validateSpecializedFields = () => {
+        const cf = form.custom_fields || {};
+        const required = {
+            cars: [["make", "الماركة"], ["model", "الموديل"], ["year", "سنة الصنع"], ["transmission", "ناقل الحركة"], ["fuel_type", "نوع الوقود"], ["condition", "الحالة"]],
+            phones: [["brand", "الماركة"], ["model", "الموديل"], ["condition", "الحالة"]],
+            electronics: [["brand", "الماركة"], ["model", "الموديل"], ["condition", "الحالة"]],
+            jobs: [["job_title", "المسمى الوظيفي"], ["employment_type", "نوع الوظيفة"], ["experience_level", "مستوى الخبرة"], ["education", "المؤهل العلمي"], ["industry", "المجال"]],
+            realestate: [["property_type", "نوع العقار"], ["listing_type", "نوع الإعلان"], ["rooms", "عدد الغرف"], ["bathrooms", "عدد الحمامات"], ["area_m2", "المساحة"], ["furnishing", "الفرش"], ["condition", "حالة العقار"], ["building_age", "عمر البناء"], ["payment_method", "طريقة الدفع"]],
+        }[form.category] || [];
+        const aliases = { make: ["make", "car_brand"], model: ["model", "car_model"], year: ["year", "car_year"], brand: ["brand", "phone_brand"], employment_type: ["employment_type", "job_type"], education: ["education", "education_level"], industry: ["industry", "field"], area_m2: ["area_m2", "area"] };
+        for (const [key, label] of required) {
+            const value = (aliases[key] || [key]).some((name) => String(cf[name] ?? "").trim());
+            if (!value) return `${tr("حقل مطلوب:")} ${tr(label)}`;
+        }
+        return null;
+    };
+
     const submit = async () => {
         setErr("");
+        const specializedError = validateSpecializedFields();
+        if (specializedError) { setErr(specializedError); return; }
         if (form.show_phone && form.contact_phone) {
             const customDigits = form.contact_phone.replace(/\D/g, "");
             if (customDigits.length < 6) {
@@ -918,9 +937,10 @@ export default function PostListing() {
                         </label>
                         <label className="cursor-pointer bg-[var(--surface-elevated)] hover:bg-cyan-500/10 rounded-2xl border-2 border-dashed border-cyan-500/40 hover:border-cyan-500 py-6 flex flex-col items-center justify-center gap-2 transition-all">
                             <Icons.Box className="w-6 h-6 text-cyan-500" />
-                            <span className="font-arabic font-bold text-xs text-[var(--text)]">{tr("نموذج 3D")}</span>
+                            <span className="font-arabic font-bold text-xs text-[var(--text)]">{form.custom_fields?.model_3d_url ? tr("استبدال نموذج 3D") : tr("نموذج 3D")}</span>
                             <input data-testid="upload-model-3d" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" className="hidden" onChange={(e) => onFiles(e.target.files, "model")} disabled={busy} />
                         </label>
+                        {form.custom_fields?.model_3d_url && <button type="button" data-testid="remove-model-3d" onClick={() => setForm((f) => ({ ...f, custom_fields: { ...f.custom_fields, model_3d_url: "" } }))} className="col-span-2 sm:col-span-1 px-3 py-2 rounded-xl border border-red-300 text-red-600 font-arabic font-bold text-xs hover:bg-red-50">{tr("إزالة نموذج 3D")}</button>}
                     </div>
                     <div className="mt-3 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs font-arabic-body text-[var(--text-muted)]">
                         <div className="font-arabic font-black text-[var(--text)] mb-1">{tr("لا تملك ملف GLB أو GLTF؟")}</div>

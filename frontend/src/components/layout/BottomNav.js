@@ -63,7 +63,7 @@ export default function BottomNav() {
                 aria-label={label}
                 className="relative flex flex-col items-center justify-center gap-0.5 px-3 sm:px-4 py-1.5 rounded-2xl transition-all duration-300"
                 style={{
-                    backgroundColor: active ? "var(--primary-hover)" : "transparent",
+                    backgroundColor: active ? "var(--nav-active-bg)" : "transparent",
                     boxShadow: active ? "0 4px 14px rgba(0,0,0,0.18)" : "none",
                     opacity: 1,
                 }}
@@ -71,7 +71,7 @@ export default function BottomNav() {
                 <div className="relative">
                     <Icon
                         className="w-6 h-6 transition-all"
-                            style={{ color: "var(--primary-fg)", opacity: active ? 1 : 0.75, transform: active ? "scale(1.1)" : "scale(1)" }}
+                            style={{ color: active ? "var(--nav-fg)" : "var(--nav-inactive-fg)", opacity: 1, transform: active ? "scale(1.1)" : "scale(1)" }}
                         strokeWidth={active ? 2.6 : 2}
                         fill={active ? "currentColor" : "none"}
                     />
@@ -82,7 +82,7 @@ export default function BottomNav() {
                     )}
                 </div>
                 <span className="text-[10px] sm:text-[11px] font-arabic font-bold leading-tight"
-                        style={{ color: "var(--primary-fg)", opacity: active ? 1 : 0.75 }}>
+                        style={{ color: active ? "var(--nav-fg)" : "var(--nav-inactive-fg)", opacity: 1 }}>
                     {label}
                 </span>
             </Link>
@@ -116,7 +116,7 @@ export default function BottomNav() {
             <nav data-testid="bottom-nav-pill" className="fixed left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1rem)] sm:w-auto" style={{ bottom: "env(safe-area-inset-bottom, 0px)" }} dir="rtl">
                 <div
                     className="flex items-center justify-around backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(15,27,58,0.35)] px-2 py-2"
-                    style={{ backgroundColor: "var(--primary)", border: "1px solid var(--primary-fg)", borderColor: "color-mix(in srgb, var(--primary-fg) 30%, transparent)" }}
+                    style={{ backgroundColor: "var(--nav-bg)", border: "1px solid color-mix(in srgb, var(--nav-fg) 30%, transparent)" }}
                 >
                     <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
                     <SideItem to="/reels" icon={Film} label={tr("ستوري")} navKey="reels" />

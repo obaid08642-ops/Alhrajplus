@@ -72,32 +72,32 @@ export function CarCascadeMobile({
     }).catch(() => {});
   }, []);
   useEffect(() => {
-    if (!v.car_brand) {
+    if (!(v.make || v.car_brand)) {
       setModels([]);
       return;
     }
     api.get("/meta/car-models", {
       params: {
-        brand: v.car_brand
+        brand: v.make || v.car_brand
       }
     }).then(({
       data
     }) => setModels(data.models || [])).catch(() => setModels([]));
-  }, [v.car_brand]);
+  }, [v.make, v.car_brand]);
   useEffect(() => {
-    if (!v.car_brand || !v.car_model) {
+    if (!(v.make || v.car_brand) || !(v.model || v.car_model)) {
       setTrims([]);
       return;
     }
     api.get("/meta/car-trims", {
       params: {
-        brand: v.car_brand,
-        model: v.car_model
+        brand: v.make || v.car_brand,
+        model: v.model || v.car_model
       }
     }).then(({
       data
     }) => setTrims(data.trims || [])).catch(() => setTrims([]));
-  }, [v.car_brand, v.car_model]);
+  }, [v.make, v.car_brand, v.model, v.car_model]);
   const set = patch => onChange({
     ...v,
     ...patch
@@ -105,29 +105,37 @@ export function CarCascadeMobile({
   return <View style={s.wrap}>
             <Text style={s.title}>🚗 {t("تفاصيل السيارة")}</Text>
             <View style={s.row}>
-                <Lab text={t("الماركة")}><Picker value={v.car_brand || ""} options={brands} placeholder="—" onChange={b => set({
+                <Lab text={t("الماركة")}><Picker value={v.make || v.car_brand || ""} options={brands} placeholder="—" onChange={b => set({
+          make: b,
           car_brand: b,
+          model: "",
           car_model: "",
+          trim: "",
           car_trim: ""
         })} /></Lab>
-                <Lab text={t("الموديل")}><Picker value={v.car_model || ""} options={models} placeholder="—" disabled={!v.car_brand} onChange={m => set({
+                <Lab text={t("الموديل")}><Picker value={v.model || v.car_model || ""} options={models} placeholder="—" disabled={!(v.make || v.car_brand)} onChange={m => set({
+          model: m,
           car_model: m,
+          trim: "",
           car_trim: ""
         })} /></Lab>
             </View>
             <View style={s.row}>
-                <Lab text={t("السنة")}><Picker value={v.car_year || ""} options={years} placeholder="—" onChange={y => set({
+                <Lab text={t("السنة")}><Picker value={v.year || v.car_year || ""} options={years} placeholder="—" onChange={y => set({
+          year: y,
           car_year: y
         })} /></Lab>
-                <Lab text={t("الفئة")}><Picker value={v.car_trim || ""} options={trims} placeholder="—" disabled={!v.car_model} onChange={tx => set({
+                <Lab text={t("الفئة")}><Picker value={v.trim || v.car_trim || ""} options={trims} placeholder="—" disabled={!(v.model || v.car_model)} onChange={tx => set({
+          trim: tx,
           car_trim: tx
         })} /></Lab>
             </View>
             <View style={s.row}>
-                <Lab text={t("الممشى (كم)")}><Picker value={v.mileage || ""} options={CAR_OPTS.mileage} placeholder="—" onChange={x => set({
+                <Lab text={t("الممشى (كم)")}><Picker value={v.kilometers || v.mileage || ""} options={CAR_OPTS.mileage} placeholder="—" onChange={x => set({
+          kilometers: x,
           mileage: x
         })} /></Lab>
-                <Lab text={t("ناقل الحركة")}><Picker value={v.transmission || ""} options={CAR_OPTS.transmission} placeholder="—" onChange={x => set({
+                <Lab text={t("ناقل الحركة")}><Picker value={v.transmission || ""} options={["أوتوماتيك", "عادي"]} placeholder="—" onChange={x => set({
           transmission: x
         })} /></Lab>
             </View>
@@ -166,28 +174,28 @@ export function PhoneCascadeMobile({
     }) => setBrands(data.brands || [])).catch(() => {});
   }, []);
   useEffect(() => {
-    if (!v.phone_brand) {
+    if (!(v.brand || v.phone_brand)) {
       setModels([]);
       return;
     }
     api.get("/meta/phone-models", {
       params: {
-        brand: v.phone_brand
+        brand: v.brand || v.phone_brand
       }
     }).then(({
       data
     }) => setModels(data.models || [])).catch(() => setModels([]));
-  }, [v.phone_brand]);
+  }, [v.brand, v.phone_brand]);
   useEffect(() => {
-    if (!v.phone_brand || !v.phone_model) {
+    if (!(v.brand || v.phone_brand) || !(v.model || v.phone_model)) {
       setStorages([]);
       setPalette([]);
       return;
     }
     api.get("/meta/phone-variants", {
       params: {
-        brand: v.phone_brand,
-        model: v.phone_model
+        brand: v.brand || v.phone_brand,
+        model: v.model || v.phone_model
       }
     }).then(({
       data
@@ -198,7 +206,7 @@ export function PhoneCascadeMobile({
       setStorages([]);
       setPalette([]);
     });
-  }, [v.phone_brand, v.phone_model]);
+  }, [v.brand, v.phone_brand, v.model, v.phone_model]);
   const set = patch => onChange({
     ...v,
     ...patch
@@ -206,23 +214,29 @@ export function PhoneCascadeMobile({
   return <View style={s.wrap}>
             <Text style={s.title}>📱 {t("تفاصيل الجوال")}</Text>
             <View style={s.row}>
-                <Lab text={t("الماركة")}><Picker value={v.phone_brand || ""} options={brands} placeholder="—" onChange={b => set({
+                <Lab text={t("الماركة")}><Picker value={v.brand || v.phone_brand || ""} options={brands} placeholder="—" onChange={b => set({
+          brand: b,
           phone_brand: b,
+          model: "",
           phone_model: "",
+          storage: "",
           phone_storage: "",
           phone_color: ""
         })} /></Lab>
-                <Lab text={t("الموديل")}><Picker value={v.phone_model || ""} options={models} placeholder="—" disabled={!v.phone_brand} onChange={m => set({
+                <Lab text={t("الموديل")}><Picker value={v.model || v.phone_model || ""} options={models} placeholder="—" disabled={!(v.brand || v.phone_brand)} onChange={m => set({
+          model: m,
           phone_model: m,
+          storage: "",
           phone_storage: "",
           phone_color: ""
         })} /></Lab>
             </View>
             <View style={s.row}>
-                <Lab text={t("السعة")}><Picker value={v.phone_storage || ""} options={storages} placeholder="—" disabled={!v.phone_model} onChange={x => set({
+                <Lab text={t("السعة")}><Picker value={v.storage || v.phone_storage || ""} options={storages} placeholder="—" disabled={!(v.model || v.phone_model)} onChange={x => set({
+          storage: x,
           phone_storage: x
         })} /></Lab>
-                <Lab text={t("اللون")}><Picker value={v.phone_color || ""} options={palette} placeholder="—" disabled={!v.phone_model} onChange={x => set({
+                <Lab text={t("اللون")}><Picker value={v.phone_color || ""} options={palette} placeholder="—" disabled={!(v.model || v.phone_model)} onChange={x => set({
           phone_color: x
         })} /></Lab>
             </View>

@@ -245,6 +245,7 @@ export function SettingsScreen({
   const [countryOpen, setCountryOpen] = useState(false);
 
   const LANG_LABELS = {
+    auto: "تلقائي حسب الجهاز",
     ar: "العربية 🇸🇦",
     en: "English 🇬🇧",
     hi: "हिन्दी 🇮🇳",

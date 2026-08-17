@@ -36,7 +36,7 @@ function AuthHeader({ navigation }) {
   const { t, lang, setLang, supported } = useI18n();
   const [open, setOpen] = useState(false);
   const LANG_LABELS = {
-    ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
+    auto: "تلقائي حسب الجهاز", ar: "العربية 🇸🇦", en: "English 🇬🇧", hi: "हिन्दी 🇮🇳",
     ur: "اردو 🇵🇰", bn: "বাংলা 🇧🇩", fr: "Français 🇫🇷"
   };
   return (

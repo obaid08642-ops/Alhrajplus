@@ -65,6 +65,10 @@ export default function ListingDetail() {
     const [commentBusy, setCommentBusy] = useState(false);
     const [loadError, setLoadError] = useState("");
     const [neighbors, setNeighbors] = useState(null);
+    const [showReport, setShowReport] = useState(false);
+    const [reportReason, setReportReason] = useState("fraud");
+    const [reportBusy, setReportBusy] = useState(false);
+    const [reportMessage, setReportMessage] = useState("");
     const swipeStartX = useRef(null);
 
     useEffect(() => {
@@ -209,6 +213,20 @@ export default function ListingDetail() {
             setCommentClientId("");
         } catch (e) { alert(e.response?.data?.detail || tr("تعذر نشر التعليق")); }
         finally { setCommentBusy(false); }
+    };
+
+    const submitReport = async (e) => {
+        e.preventDefault();
+        if (!user) { nav("/login"); return; }
+        setReportBusy(true);
+        setReportMessage("");
+        try {
+            await api.post("/reports", { target_type: "listing", target_id: listing.id, reason: reportReason });
+            setReportMessage(tr("تم استلام بلاغك"));
+            window.setTimeout(() => { setShowReport(false); setReportMessage(""); }, 900);
+        } catch (error) {
+            setReportMessage(error?.response?.data?.detail || tr("تعذر إرسال البلاغ"));
+        } finally { setReportBusy(false); }
     };
 
     const submitOffer = async (e) => {
@@ -619,8 +637,8 @@ export default function ListingDetail() {
                             <button data-testid="chat-with-seller-btn" onClick={startChat} className="w-full bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-2 font-arabic">
                                 <MessageCircle className="w-4 h-4" /> {t("chat_inapp")}
                             </button>
-                            <button data-testid="report-btn" className="w-full bg-[var(--surface-elevated)] hover:bg-red-50 dark:hover:bg-red-900/20 text-[var(--text-muted)] hover:text-red-600 rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic transition-colors">
-                                <Flag className="w-3.5 h-3.5" /> الإبلاغ عن الإعلان
+                            <button data-testid="report-btn" onClick={() => { if (!user) { nav("/login"); return; } setReportMessage(""); setShowReport(true); }} className="w-full bg-[var(--surface-elevated)] hover:bg-red-50 dark:hover:bg-red-900/20 text-[var(--text-muted)] hover:text-red-600 rounded-xl py-2 px-4 font-bold text-xs flex items-center justify-center gap-2 font-arabic transition-colors">
+                                <Flag className="w-3.5 h-3.5" /> {tr("الإبلاغ عن الإعلان")}
                             </button>
                         </div>
 
@@ -638,6 +656,26 @@ export default function ListingDetail() {
                 </div>
             </div>
 
+            {showReport && (
+                <div className="fixed inset-0 z-[75] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr("الإبلاغ عن الإعلان")}>
+                    <form onSubmit={submitReport} className="w-full max-w-md bg-[var(--surface)] rounded-3xl border border-[var(--border)] shadow-2xl p-5 font-arabic">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="font-black text-lg text-[var(--text)]">{tr("الإبلاغ عن الإعلان")}</h2>
+                            <button type="button" onClick={() => setShowReport(false)} className="text-[var(--text-muted)] text-xl" aria-label={tr("إغلاق")}>×</button>
+                        </div>
+                        <label className="block text-xs font-bold text-[var(--text)] mb-1">{tr("اختر سبب الإبلاغ")}</label>
+                        <select value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-3 border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] mb-4">
+                            <option value="fraud">{tr("احتيال أو نصب")}</option>
+                            <option value="prohibited">{tr("محتوى مخالف")}</option>
+                            <option value="spam">{tr("إعلان مكرر أو مزعج")}</option>
+                            <option value="wrong_category">{tr("تصنيف غير صحيح")}</option>
+                            <option value="other">{tr("سبب آخر")}</option>
+                        </select>
+                        {reportMessage && <p className="text-xs text-[var(--primary)] mb-3">{reportMessage}</p>}
+                        <button disabled={reportBusy} className="w-full bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl py-3 font-black disabled:opacity-60">{reportBusy ? tr("جارٍ الإرسال...") : tr("إرسال البلاغ")}</button>
+                    </form>
+                </div>
+            )}
             {showOffer && (
                 <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr("قدم عرض سعر")}>
                     <form onSubmit={submitOffer} className="w-full max-w-md bg-[var(--surface)] rounded-3xl border border-[var(--border)] shadow-2xl p-5 font-arabic">

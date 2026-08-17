@@ -1,2 +1,136 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Haraj Plus Voice Call</title><style>body{margin:0;background:#0f1a35;color:#fff;font-family:system-ui;text-align:center;display:grid;place-items:center;min-height:100vh}main{width:min(360px,90vw);padding:28px;border-radius:28px;background:#17264a;box-shadow:0 20px 70px #0008}#avatar{width:80px;height:80px;border-radius:50%;margin:0 auto 16px;background:#4fb6e6;display:grid;place-items:center;font-size:32px}p{opacity:.75}button{border:0;border-radius:50%;width:52px;height:52px;margin:6px;color:#fff;background:#334466;font-size:20px}#hang{background:#e64747}#mute.active{background:#d08a26}</style></head><body><main><div id="avatar">☎</div><h2 id="title">Voice call</h2><p id="state">Preparing…</p><audio id="remote" autoplay playsinline></audio><div><button id="mute">⌕</button><button id="hang">✕</button></div></main><script>
-(()=>{const q=new URLSearchParams(location.search),to=q.get('to')||'',convo=q.get('convo')||'',callId=q.get('callId')||('call_'+Date.now()),role=q.get('role')||'caller',name=q.get('name')||'Haraj Plus';let ws,pc,stream,muted=false,token='',backend='',started=false;const $=x=>document.getElementById(x),rn=x=>window.ReactNativeWebView?.postMessage(JSON.stringify(x)),state=x=>{$('state').textContent=x;rn({type:'state',value:x})};function send(type,data){if(ws?.readyState===1)ws.send(JSON.stringify({type,to,convo_id:convo,call_id:callId,data:data||{}}))}async function start(cfg){if(started)return;started=true;token=cfg.token||'';backend=(cfg.backend||location.origin).replace(/\/$/,'').replace(/^http/i,'ws');if(!token){state('Authentication required');return}ws=new WebSocket(backend+'/api/ws/chat?token='+encodeURIComponent(token));pc=new RTCPeerConnection({iceServers:Array.isArray(cfg.iceServers)&&cfg.iceServers.length?cfg.iceServers:[{urls:'stun:stun.l.google.com:19302'}]});pc.ontrack=e=>{if(e.streams[0])$('remote').srcObject=e.streams[0]};pc.onicecandidate=e=>{if(e.candidate)send('call_ice',e.candidate)};pc.onconnectionstatechange=()=>{if(pc.connectionState==='connected')state('Connected');if(['failed','disconnected','closed'].includes(pc.connectionState))state('Call ended')};ws.onopen=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});stream.getTracks().forEach(t=>pc.addTrack(t,stream));if(role==='caller'){send('call_invite',{caller_name:name});const offer=await pc.createOffer();await pc.setLocalDescription(offer);send('call_offer',offer);state('Calling…')}else state('Waiting for connection…')}catch(e){state('Microphone unavailable');rn({type:'error',value:String(e)})}};ws.onmessage=async e=>{let ev;try{ev=JSON.parse(e.data)}catch(_){return}if(ev.type==='call_answer'){await pc.setRemoteDescription(ev.data);state('Connected')}if(ev.type==='call_offer'&&role==='receiver'){await pc.setRemoteDescription(ev.data);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);send('call_answer',answer);state('Connected')}if(ev.type==='call_ice'&&ev.data){try{await pc.addIceCandidate(ev.data)}catch(_){}}if(ev.type==='call_hangup')end(false)}}function end(notify){if(notify)send('call_hangup');stream?.getTracks().forEach(t=>t.stop());pc?.close();ws?.close();state('Call ended');rn({type:'hangup'})}window.addEventListener('message',e=>{try{const x=typeof e.data==='string'?JSON.parse(e.data):e.data;if(x?.type==='voice-config')start(x);if(x?.type==='voice-event'&&x.event){const ev=x.event;if(ev.type==='call_offer'&&role==='receiver'&&pc){pc.setRemoteDescription(ev.data).then(()=>pc.createAnswer()).then(answer=>pc.setLocalDescription(answer).then(()=>send('call_answer',answer))).then(()=>state('Connected')).catch(()=>{})}if(ev.type==='call_ice'&&ev.data&&pc)pc.addIceCandidate(ev.data).catch(()=>{});if(ev.type==='call_hangup')end(false)}}catch(_){}});$('mute').onclick=()=>{muted=!muted;stream?.getAudioTracks().forEach(t=>t.enabled=!muted);$('mute').classList.toggle('active',muted);rn({type:'muted',value:muted})};$('hang').onclick=()=>end(true);rn({type:'ready'})})();</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Haraj Plus Voice Call</title>
+  <style>
+    body{margin:0;background:#0f1a35;color:#fff;font-family:system-ui,sans-serif;text-align:center;display:grid;place-items:center;min-height:100vh}
+    main{width:min(360px,90vw);padding:28px;border-radius:28px;background:#17264a;box-shadow:0 20px 70px #0008}
+    #avatar{width:80px;height:80px;border-radius:50%;margin:0 auto 16px;background:#4fb6e6;display:grid;place-items:center;font-size:32px}
+    p{opacity:.75}button{border:0;border-radius:50%;width:52px;height:52px;margin:6px;color:#fff;background:#334466;font-size:20px;cursor:pointer}
+    #hang{background:#e64747}#mute.active{background:#d08a26}
+  </style>
+</head>
+<body>
+  <main>
+    <div id="avatar">☎</div><h2 id="title">Voice call</h2><p id="state">Preparing…</p>
+    <audio id="remote" autoplay playsinline></audio>
+    <div><button id="mute" aria-label="Mute">⌕</button><button id="hang" aria-label="End call">✕</button></div>
+  </main>
+  <script>
+    (() => {
+      const q = new URLSearchParams(location.search);
+      const to = q.get("to") || "", convo = q.get("convo") || "";
+      const callId = q.get("callId") || `call_${Date.now()}`;
+      const role = q.get("role") || "caller", name = q.get("name") || "Haraj Plus";
+      let ws, pc, stream, muted = false, token = "", backend = "", started = false;
+      let remoteDescriptionSet = false, offerApplied = false, ended = false;
+      const pendingIce = [];
+      const $ = (id) => document.getElementById(id);
+      const rn = (payload) => window.ReactNativeWebView?.postMessage(JSON.stringify(payload));
+      const state = (value) => { $("state").textContent = value; rn({ type: "state", value }); };
+      const send = (type, data) => {
+        if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, to, convo_id: convo, call_id: callId, data: data || {} }));
+      };
+      const flushIce = async () => {
+        if (!pc || !remoteDescriptionSet) return;
+        while (pendingIce.length) {
+          const candidate = pendingIce.shift();
+          try { await pc.addIceCandidate(candidate); } catch (_) {}
+        }
+      };
+      const addIce = async (candidate) => {
+        if (!candidate) return;
+        if (!remoteDescriptionSet) { pendingIce.push(candidate); return; }
+        try { await pc.addIceCandidate(candidate); } catch (_) {}
+      };
+      const applyOffer = async (offer) => {
+        if (!pc || !offer || offerApplied || role !== "receiver") return;
+        offerApplied = true;
+        try {
+          await pc.setRemoteDescription(offer);
+          remoteDescriptionSet = true;
+          await flushIce();
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          send("call_answer", answer);
+          state("Connected");
+        } catch (_) {
+          offerApplied = false;
+          state("Could not accept call");
+          rn({ type: "error", value: "set_remote_description_failed" });
+        }
+      };
+      const end = (notify) => {
+        if (ended) return;
+        ended = true;
+        if (notify) send("call_hangup");
+        stream?.getTracks?.().forEach((track) => track.stop());
+        try { pc?.close(); } catch (_) {}
+        try { ws?.close(); } catch (_) {}
+        state("Call ended");
+        rn({ type: "hangup" });
+      };
+      async function start(cfg) {
+        if (started || ended) return;
+        token = cfg.token || "";
+        if (!token) { state("Authentication required"); rn({ type: "error", value: "missing_token" }); return; }
+        started = true;
+        backend = (cfg.backend || location.origin).replace(/\/$/, "").replace(/^http/i, "ws");
+        pc = new RTCPeerConnection({ iceServers: Array.isArray(cfg.iceServers) && cfg.iceServers.length ? cfg.iceServers : [{ urls: "stun:stun.l.google.com:19302" }] });
+        pc.ontrack = (event) => { if (event.streams?.[0]) $("remote").srcObject = event.streams[0]; };
+        pc.onicecandidate = (event) => { if (event.candidate) send("call_ice", event.candidate); };
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === "connected") state("Connected");
+          if (["failed", "disconnected", "closed"].includes(pc.connectionState)) state("Call ended");
+        };
+        ws = new WebSocket(`${backend}/api/ws/chat?token=${encodeURIComponent(token)}`);
+        ws.onerror = () => { state("Connection failed"); rn({ type: "error", value: "signaling_failed" }); };
+        ws.onclose = () => { if (!ended) state("Connection closed"); };
+        ws.onopen = async () => {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+            if (role === "caller") {
+              send("call_invite", { caller_name: name });
+              const offer = await pc.createOffer({ offerToReceiveAudio: true });
+              await pc.setLocalDescription(offer);
+              send("call_offer", offer);
+              state("Calling…");
+            } else state("Waiting for connection…");
+          } catch (error) {
+            state("Microphone unavailable");
+            rn({ type: "error", value: String(error) });
+          }
+        };
+        ws.onmessage = async (event) => {
+          let message; try { message = JSON.parse(event.data); } catch (_) { return; }
+          if (message.call_id && message.call_id !== callId) return;
+          if (message.type === "call_answer" && pc && !remoteDescriptionSet) {
+            try { await pc.setRemoteDescription(message.data); remoteDescriptionSet = true; await flushIce(); state("Connected"); } catch (_) {}
+          } else if (message.type === "call_offer") await applyOffer(message.data);
+          else if (message.type === "call_ice") await addIce(message.data);
+          else if (message.type === "call_hangup") end(false);
+        };
+      }
+      window.addEventListener("message", (event) => {
+        try {
+          const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+          if (message?.type === "voice-config") start(message);
+          if (message?.type === "voice-event" && message.event) {
+            const incoming = message.event;
+            if (incoming.call_id && incoming.call_id !== callId) return;
+            if (incoming.type === "call_offer") applyOffer(incoming.data);
+            else if (incoming.type === "call_ice") addIce(incoming.data);
+            else if (incoming.type === "call_hangup") end(false);
+          }
+        } catch (_) {}
+      });
+      $("mute").onclick = () => { muted = !muted; stream?.getAudioTracks?.().forEach((track) => { track.enabled = !muted; }); $("mute").classList.toggle("active", muted); rn({ type: "muted", value: muted }); };
+      $("hang").onclick = () => end(true);
+      rn({ type: "ready" });
+    })();
+  </script>
+</body>
+</html>

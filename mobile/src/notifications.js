@@ -51,6 +51,12 @@ function _emitReceived(notif) {
     }
 }
 
+function notificationUrlFromData(raw) {
+    const data = raw && typeof raw === "object" ? raw : {};
+    const payload = data.payload && typeof data.payload === "object" ? { ...data.payload, ...data } : data;
+    return payload.url || payload.deep_link || payload.link || "";
+}
+
 function routeFromUrl(url) {
     if (!url) return;
     // Backend normally sends a relative path; tolerate absolute frontend URLs too.
@@ -99,7 +105,13 @@ function routeFromUrl(url) {
     ];
     const topRoute = topLevelRoutes.find(([prefix]) => url === prefix || url.startsWith(`${prefix}?`));
     if (topRoute) {
-        _navigationRef.navigate(topRoute[1]);
+        if (topRoute[0] === "/auctions") {
+            try {
+                const params = new URLSearchParams(url.split("?")[1] || "");
+                const listingId = params.get("openBidFor");
+                _navigationRef.navigate(topRoute[1], listingId ? { openBidFor: listingId } : undefined);
+            } catch (_) { _navigationRef.navigate(topRoute[1]); }
+        } else _navigationRef.navigate(topRoute[1]);
         return;
     }
     // Post listing (abandoned-draft reminder)
@@ -134,7 +146,7 @@ function attachListenersOnce() {
     // Tap on a foreground/background notification
     Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response?.notification?.request?.content?.data || {};
-        routeFromUrl(data.url);
+        routeFromUrl(notificationUrlFromData(data));
     });
     // Fired the moment a notification arrives — let UI badges refresh live.
     Notifications.addNotificationReceivedListener((notif) => {
@@ -143,7 +155,8 @@ function attachListenersOnce() {
     // Cold start — app opened from a notification
     Notifications.getLastNotificationResponseAsync().then((response) => {
         const data = response?.notification?.request?.content?.data || {};
-        if (data?.url) routeFromUrl(data.url);
+        const url = notificationUrlFromData(data);
+        if (url) routeFromUrl(url);
     });
 }
 
