@@ -370,6 +370,7 @@ function ChatThread({
   const [voiceCallVisible, setVoiceCallVisible] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
   const [outgoingCall, setOutgoingCall] = useState(null);
+  const incomingRingtone = useAudioPlayer(require("../../assets/audio/alhrajplus-call-ringtone.mp3"));
   // Reply-to state — was missing in last build which caused
   // "Property 'replyTo' doesn't exist" crash at line 805 when the composer
   // tried to render the reply preview.
@@ -452,6 +453,17 @@ function ChatThread({
   }, [other.id]);
     useEffect(() => { loadHistory(); loadPresence(); }, [loadHistory, loadPresence]);
 
+  useEffect(() => {
+    const shouldRing = !!incomingCall?.call_id && !voiceCallVisible;
+    try {
+      if (shouldRing) {
+        incomingRingtone.loop = true;
+        incomingRingtone.play();
+      } else incomingRingtone.pause();
+    } catch (_) {}
+    return () => { try { incomingRingtone.pause(); } catch (_) {} };
+  }, [incomingCall?.call_id, incomingRingtone, voiceCallVisible]);
+
   // Capture an incoming call offer while the WebView is opening; the latest
   // signaling event is passed into it after its secure token handshake.
   useEffect(() => {
@@ -463,7 +475,7 @@ function ChatThread({
           wsSend({ type: "call_reject", to: event.from, convo_id: convoId, call_id: event.call_id, data: {} });
           setIncomingCall(null);
         } },
-        { text: t("قبول"), onPress: () => setVoiceCallVisible(true) },
+        { text: t("قبول"), onPress: () => { try { incomingRingtone.pause(); } catch (_) {} setVoiceCallVisible(true); } },
       ]);
     });
     const offOffer = subscribe("call_offer", event => {
@@ -483,7 +495,7 @@ function ChatThread({
       }
     });
     return () => { offInvite?.(); offOffer?.(); offHangup?.(); offReject?.(); };
-  }, [convoId, other.id, outgoingCall?.call_id, subscribe, t, wsSend]);
+  }, [convoId, incomingRingtone, other.id, outgoingCall?.call_id, subscribe, t, wsSend]);
 
   // Subscribe to WS events
   useEffect(() => {

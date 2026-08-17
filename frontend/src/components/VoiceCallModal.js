@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Phone, PhoneOff } from "lucide-react";
+import { Mic, MicOff, Phone, PhoneOff, Volume2, VolumeX, Wifi, UserRound } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
 import api from "@/lib/api";
 
@@ -15,12 +15,49 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
     const [muted, setMuted] = useState(false);
     const [error, setError] = useState("");
     const [relayConfigured, setRelayConfigured] = useState(null);
+    const [speaker, setSpeaker] = useState(true);
+    const [elapsed, setElapsed] = useState(0);
     const pcRef = useRef(null);
     const streamRef = useRef(null);
     const audioRef = useRef(null);
     const pendingOfferRef = useRef(null);
     const pendingIceRef = useRef([]);
     const iceServersRef = useRef(DEFAULT_ICE_SERVERS);
+    const ringContextRef = useRef(null);
+    const ringTimerRef = useRef(null);
+
+    const stopRing = useCallback(() => {
+        if (ringTimerRef.current) clearInterval(ringTimerRef.current);
+        ringTimerRef.current = null;
+        try { ringContextRef.current?.close?.(); } catch (_) {}
+        ringContextRef.current = null;
+    }, []);
+
+    const startRing = useCallback(() => {
+        if (ringTimerRef.current || typeof window === "undefined") return;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        try {
+            const context = new Ctx();
+            ringContextRef.current = context;
+            const tone = () => {
+                if (context.state === "closed") return;
+                [0, 0.32].forEach((offset) => {
+                    const oscillator = context.createOscillator();
+                    const gain = context.createGain();
+                    oscillator.frequency.value = 440;
+                    gain.gain.setValueAtTime(0.0001, context.currentTime + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.07, context.currentTime + offset + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + offset + 0.24);
+                    oscillator.connect(gain).connect(context.destination);
+                    oscillator.start(context.currentTime + offset);
+                    oscillator.stop(context.currentTime + offset + 0.27);
+                });
+            };
+            tone();
+            ringTimerRef.current = setInterval(tone, 2200);
+        } catch (_) { stopRing(); }
+    }, [stopRing]);
 
     const cleanup = useCallback((notify = false) => {
         if (notify && call?.call_id && call?.peer_id) {
@@ -36,8 +73,24 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
         setStatus("idle");
         setMuted(false);
         setError("");
+        setElapsed(0);
+        stopRing();
         onActiveChange?.(false);
-    }, [call, onActiveChange, socket]);
+    }, [call, onActiveChange, socket, stopRing]);
+
+    useEffect(() => {
+        if (status === "calling" || status === "incoming") startRing(); else stopRing();
+        return stopRing;
+    }, [startRing, status, stopRing]);
+
+    useEffect(() => {
+        if (status !== "connected") { setElapsed(0); return undefined; }
+        const startedAt = Date.now();
+        const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+        tick();
+        const timer = setInterval(tick, 1000);
+        return () => clearInterval(timer);
+    }, [status]);
 
     const buildPeer = useCallback(async (callInfo) => {
         if (pcRef.current) return pcRef.current;
@@ -66,8 +119,9 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
             });
         };
         pc.onconnectionstatechange = () => {
-            if (["connected"].includes(pc.connectionState)) setStatus("connected");
-            if (["failed", "disconnected", "closed"].includes(pc.connectionState)) setStatus("ended");
+            if (pc.connectionState === "connected") { setStatus("connected"); setError(""); }
+            if (pc.connectionState === "failed") { setStatus("failed"); setError(tr("تعذر الاتصال المباشر. تحتاج هذه الشبكة إلى TURN relay لإتمام المكالمة.")); }
+            if (["disconnected", "closed"].includes(pc.connectionState)) setStatus("ended");
         };
         pcRef.current = pc;
         for (const candidate of pendingIceRef.current.splice(0)) {
@@ -159,6 +213,14 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
         cleanup(false);
     };
 
+    const toggleSpeaker = async () => {
+        const next = !speaker;
+        setSpeaker(next);
+        // Chromium supports the communications/default output selectors. Safari
+        // and mobile browsers may ignore this; their operating system controls output.
+        try { await audioRef.current?.setSinkId?.(next ? "default" : "communications"); } catch (_) {}
+    };
+
     const toggleMute = () => {
         const next = !muted;
         streamRef.current?.getAudioTracks?.().forEach((track) => { track.enabled = !next; });
@@ -167,19 +229,21 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
 
     if (!call && status === "idle") return null;
     const label = status === "incoming" ? tr("مكالمة واردة") : status === "connected" ? tr("المكالمة متصلة") : status === "failed" ? tr("فشلت المكالمة") : tr("جاري الاتصال");
+    const duration = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
     return (
-        <div className="fixed inset-0 z-[100] bg-black/65 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[100] overflow-hidden bg-[#07152f] text-white flex items-center justify-center p-4 font-arabic-body" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(79,182,230,.32),transparent_35%),linear-gradient(160deg,#0a1c3c,#07152f_70%)]" />
             <audio ref={audioRef} autoPlay playsInline />
-            <div className="w-full max-w-sm rounded-3xl bg-[var(--surface)] border border-[var(--border)] shadow-2xl p-6 text-center font-arabic-body">
-                <div className="w-20 h-20 rounded-full mx-auto mb-4 bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]"><Phone className="w-9 h-9" /></div>
-                <h2 className="text-lg font-bold text-[var(--text)]">{other?.name || call?.peer_name || tr("مكالمة صوتية")}</h2>
-                <p className="text-sm text-[var(--text-muted)] mt-1">{label}</p>
-                {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
-                {!error && relayConfigured === false && <p className="text-xs text-amber-600 dark:text-amber-300 mt-3">{tr("بعض الشبكات تحتاج TURN relay لإتمام المكالمة. جرّب شبكة أخرى إذا تعذر الاتصال.")}</p>}
-                <div className="flex justify-center gap-3 mt-6">
-                    {status === "incoming" && <button onClick={acceptIncoming} className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center" aria-label={tr("قبول") }><Phone className="w-5 h-5" /></button>}
-                    {status !== "incoming" && status !== "failed" && <button onClick={toggleMute} className="w-12 h-12 rounded-full bg-[var(--surface-elevated)] text-[var(--text)] flex items-center justify-center" aria-label={muted ? tr("تشغيل الميكروفون") : tr("كتم الميكروفون")}>{muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}</button>}
-                    <button onClick={status === "incoming" ? rejectIncoming : () => cleanup(true)} className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center" aria-label={status === "incoming" ? tr("رفض") : tr("إنهاء المكالمة")}><PhoneOff className="w-5 h-5" /></button>
+            <div className="relative w-full max-w-sm text-center py-8 px-5">
+                <div className={`w-28 h-28 rounded-full mx-auto mb-6 grid place-items-center bg-white/10 ring-1 ring-white/25 shadow-[0_0_0_18px_rgba(79,182,230,.09)] ${status === "calling" || status === "incoming" ? "animate-pulse" : ""}`}><UserRound className="w-12 h-12 text-[#8bd9f4]" /></div>
+                <h2 className="text-2xl font-bold tracking-tight">{other?.name || call?.peer_name || tr("مكالمة صوتية")}</h2>
+                <p className="text-sm text-slate-300 mt-2">{label}{status === "connected" ? ` · ${duration}` : ""}</p>
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-slate-200"><Wifi className="w-3.5 h-3.5 text-[#8bd9f4]" />{relayConfigured === true ? tr("اتصال عبر TURN متاح") : tr("اتصال مباشر عبر STUN")}</div>
+                {error && <p className="text-xs text-red-200 mt-4">{error}</p>}
+                <div className="grid grid-cols-3 gap-4 mt-10 max-w-[280px] mx-auto">
+                    {status === "incoming" ? <button onClick={acceptIncoming} className="h-16 rounded-2xl bg-emerald-500 text-white flex flex-col items-center justify-center gap-1 shadow-lg" aria-label={tr("قبول")}><Phone className="w-5 h-5" /><span className="text-[11px]">{tr("قبول")}</span></button> : <button onClick={toggleMute} disabled={status === "failed"} className={`h-16 rounded-2xl ${muted ? "bg-[#8bd9f4] text-[#07152f]" : "bg-white/10 text-white"} disabled:opacity-40 flex flex-col items-center justify-center gap-1`} aria-label={muted ? tr("تشغيل الميكروفون") : tr("كتم الميكروفون")}>{muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}<span className="text-[11px]">{muted ? tr("تشغيل") : tr("كتم")}</span></button>}
+                    {status !== "incoming" && <button onClick={toggleSpeaker} disabled={status === "failed"} className={`h-16 rounded-2xl ${speaker ? "bg-[#8bd9f4] text-[#07152f]" : "bg-white/10 text-white"} disabled:opacity-40 flex flex-col items-center justify-center gap-1`} aria-label={tr("مخرج الصوت")}>{speaker ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}<span className="text-[11px]">{tr("مكبر الصوت")}</span></button>}
+                    <button onClick={status === "incoming" ? rejectIncoming : () => cleanup(true)} className="h-16 rounded-2xl bg-red-500 text-white flex flex-col items-center justify-center gap-1 shadow-lg" aria-label={status === "incoming" ? tr("رفض") : tr("إنهاء المكالمة")}><PhoneOff className="w-5 h-5" /><span className="text-[11px]">{status === "incoming" ? tr("رفض") : tr("إنهاء")}</span></button>
                 </div>
             </div>
         </div>

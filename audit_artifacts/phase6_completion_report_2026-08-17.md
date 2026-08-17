@@ -44,6 +44,14 @@
 
 **Branches pushed:** `main` and `production-readiness-premium` advanced successfully to the Phase 6 code revision. Vercel reported a successful deployment. Render health returned `{"status":"ok","service":"haraj-plus-backend"}`, but its OpenAPI document did not expose `/api/voice/calls` after three checks; consequently, post-deploy Backend verification is explicitly blocked pending a Render redeploy or log review.
 
+## Post-redeploy repair — UI, ringing, and diagnostic behavior
+
+After the user deployed Render and reported a failed call, OpenAPI confirmed that both `/api/voice/calls` and `/api/voice/ice-servers` are now published. The authenticated ICE behavior remains STUN-only when `TURN_ICE_SERVERS_JSON` is absent; this is an operational limitation, not a client-side exception.
+
+The call surfaces were upgraded in both applications. Web now has a full-screen RTL call view with caller identity, call status and timer, microphone, output/speaker control where the browser supports output-device selection, accept/reject/end actions, and a best-effort local ringing tone. Mobile now plays a bundled 20-second looping incoming ringtone, offers native accept/reject before opening media, exposes speaker/earpiece routing through Expo audio mode, and accepts WebView bridge messages on both Android and iOS event targets. The shared WebView surface includes the same call controls and keeps visible error states instead of closing silently.
+
+The old TURN wording is no longer shown merely because a relay is unavailable. The interface identifies the call as direct/STUN while connecting and displays the TURN-specific error only after WebRTC reports an actual direct-connection failure.
+
 ## Final assessment
 
-The Phase 6 code, authorization boundary, history, lifecycle semantics, Web/Mobile integration, and automated build/test gates are complete. The result is **PASS WITH BLOCKERS** because the plan explicitly forbids marking calls fully proven without physical-device and TURN evidence, and because the latest Backend revision is still awaiting confirmed Render deployment.
+The Phase 6 code, authorization boundary, history, lifecycle semantics, Web/Mobile integration, redesigned call UI, ringtone, and automated build/test gates are complete. The result is **PASS WITH BLOCKERS** because the plan explicitly forbids marking calls fully proven without physical-device and TURN evidence. TURN remains required for reliable calls across all restrictive networks; Render is a signaling host and cannot itself act as a UDP/TCP TURN relay.
