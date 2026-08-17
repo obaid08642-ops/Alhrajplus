@@ -42,3 +42,10 @@ def test_country_policy_is_exact_and_case_normalized():
     query = public_listing_filter_for_country("eg")
     assert {"country_code": "EG"} in query["$and"]
     assert {"country_code": "SA"} not in query["$and"]
+
+
+def test_country_policy_always_adds_exact_country_clause():
+    for code in ("SA", "EG", "AE"):
+        query = public_listing_filter_for_country(code)
+        country_clauses = [clause for clause in query["$and"] if "country_code" in clause]
+        assert country_clauses == [{"country_code": code}]

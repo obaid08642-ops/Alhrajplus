@@ -4355,7 +4355,7 @@ async def listings_map(
     q: dict = public_listing_filter_for_country(country_code, {"lat": {"$ne": None}, "lng": {"$ne": None}})
     if category:
         q["category"] = category
-    items = await db.listings.find(q, {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "category": 1, "city": 1, "lat": 1, "lng": 1, "images": 1}).limit(limit).to_list(length=limit)
+    items = await db.listings.find(q, {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "category": 1, "city": 1, "country_code": 1, "lat": 1, "lng": 1, "images": 1}).limit(limit).to_list(length=limit)
     return items
 
 

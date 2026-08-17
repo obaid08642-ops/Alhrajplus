@@ -4,10 +4,12 @@ import api from "@/lib/api";
 import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft, Clapperboard, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
+import { useCountry } from "@/contexts/CountryContext";
 
 export default function ReelsPage() {
     const nav = useNavigate();
     const { user } = useAuth();
+    const { country, dataVersion } = useCountry();
     const [reels, setReels] = useState([]);
     const [active, setActive] = useState(0);
     const [muted, setMuted] = useState(true);
@@ -16,11 +18,11 @@ export default function ReelsPage() {
 
     useEffect(() => {
         // listings with videos
-        api.get("/listings", { params: { limit: 30 } }).then(({ data }) => {
+        api.get("/listings", { params: { limit: 30, country_code: country || "SA" } }).then(({ data }) => {
             const withVideos = (data.items || []).filter((l) => l.videos?.length > 0);
             setReels(withVideos);
         });
-    }, []);
+    }, [country, dataVersion]);
 
     useEffect(() => {
         refs.current.forEach((v, i) => {
