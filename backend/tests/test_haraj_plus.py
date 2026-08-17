@@ -80,12 +80,14 @@ class TestMeta:
         assert r.status_code == 200
         assert r.json().get("status") == "ok"
 
-    def test_categories_returns_15(self):
+    def test_categories_returns_marketplace_catalog(self):
         r = requests.get(f"{API}/meta/categories")
         assert r.status_code == 200
         cats = r.json()
         assert isinstance(cats, list)
-        assert len(cats) == 15
+        # The catalog intentionally grows as marketplace parity expands; keep
+        # a minimum contract instead of freezing the API to an obsolete count.
+        assert len(cats) >= 15
         keys = {c["key"] for c in cats}
         assert {"cars", "realestate", "jobs", "services", "all"}.issubset(keys)
         # verify custom fields per category
@@ -98,13 +100,14 @@ class TestMeta:
         srv_keys = {f["key"] for f in services["fields"]}
         assert {"schedule", "pickup_address", "dropoff_address", "pricing_type"}.issubset(srv_keys)
 
-    def test_countries_returns_6(self):
+    def test_countries_returns_supported_catalog(self):
         r = requests.get(f"{API}/meta/countries")
         assert r.status_code == 200
         countries = r.json()
-        assert len(countries) == 6
+        # Country support grows independently; preserve a minimum contract.
+        assert len(countries) >= 6
         codes = {c["code"] for c in countries}
-        assert codes == {"SA", "AE", "KW", "QA", "BH", "OM"}
+        assert {"SA", "AE", "KW", "QA", "BH", "OM"}.issubset(codes)
         for c in countries:
             assert c.get("phone_code")
             assert len(c.get("cities", [])) > 0

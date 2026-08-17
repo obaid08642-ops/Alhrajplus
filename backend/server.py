@@ -1148,7 +1148,12 @@ async def get_countries():
 
 @api.get("/meta/theme")
 async def get_theme():
-    doc = await db.settings.find_one({"_key": "theme"}, {"_id": 0})
+    try:
+        doc = await db.settings.find_one({"_key": "theme"}, {"_id": 0})
+    except Exception:
+        # Theme is a public bootstrap endpoint; a temporary database outage
+        # must not blank the entire Web/Mobile shell.
+        return DEFAULT_THEME
     if not doc:
         return DEFAULT_THEME
     return doc.get("value", DEFAULT_THEME)
