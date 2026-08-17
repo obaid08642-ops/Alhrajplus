@@ -44,6 +44,10 @@ class ProviderSpec:
     enabled: bool = True
     weight: int = 1
     daily_limit: int = 0
+    monthly_limit: int = 0
+    rpm_limit: int = 0
+    rpd_limit: int = 0
+    tpm_limit: int = 0
 
     @property
     def configured(self) -> bool:
@@ -81,7 +85,14 @@ def load_provider_specs() -> list[ProviderSpec]:
             daily = max(0, int(os.getenv(f"{prefix}_DAILY_LIMIT", "0")))
         except ValueError:
             daily = 0
-        specs.append(ProviderSpec(name, kind, model, key, base, enabled, weight, daily))
+        def _limit(suffix: str) -> int:
+            try:
+                return max(0, int(os.getenv(f"{prefix}_{suffix}", "0")))
+            except ValueError:
+                return 0
+        specs.append(ProviderSpec(name, kind, model, key, base, enabled, weight, daily,
+                                  _limit("MONTHLY_LIMIT"), _limit("RPM_LIMIT"),
+                                  _limit("RPD_LIMIT"), _limit("TPM_LIMIT")))
     return specs
 
 
@@ -112,16 +123,28 @@ class AIOrchestrator:
                 base_url=item.base_url, enabled=True,
                 weight=max(1, min(int(patch.get("weight", item.weight) or 1), 100)),
                 daily_limit=max(0, int(patch.get("daily_limit", item.daily_limit) or 0)),
+                monthly_limit=max(0, int(patch.get("monthly_limit", item.monthly_limit) or 0)),
+                rpm_limit=max(0, int(patch.get("rpm_limit", item.rpm_limit) or 0)),
+                rpd_limit=max(0, int(patch.get("rpd_limit", item.rpd_limit) or 0)),
+                tpm_limit=max(0, int(patch.get("tpm_limit", item.tpm_limit) or 0)),
             ))
         order = [str(x).strip().lower() for x in (override.get("order") or []) if str(x).strip()]
         if order:
             rank = {name: idx for idx, name in enumerate(order)}
             specs.sort(key=lambda x: (rank.get(x.name, len(rank)), x.name))
+        mode = str(override.get("mode") or "automatic").lower()
+        primary = str(override.get("primary") or "").strip().lower()
+        if mode == "manual" and primary in {x.name for x in specs}:
+            specs.sort(key=lambda x: (0 if x.name == primary else 1, order.index(x.name) if x.name in order else 999, x.name))
+        if not bool(override.get("rotation_enabled", True)) and specs:
+            specs = specs[:1]
         if not specs:
             return []
         async with self._lock:
             start = self._cursor % len(specs)
             self._cursor = (self._cursor + 1) % len(specs)
+        if str(override.get("mode") or "automatic").lower() == "priority" or not bool(override.get("rotation_enabled", True)):
+            return specs
         return specs[start:] + specs[:start]
 
     async def _record(self, request_id: str, operation: str, provider: ProviderSpec,
@@ -137,6 +160,7 @@ class AIOrchestrator:
             "total_tokens": int((prompt_tokens or 0) + (completion_tokens or 0)),
             "duration_ms": duration_ms, "error": (error or "")[:500] or None,
             "created_at": _now(),
+            "error_type": (error or "").split(":", 1)[0][:80] or None,
         }
         try:
             await self.db.ai_usage_events.insert_one(event)
@@ -180,10 +204,20 @@ class AIOrchestrator:
     async def text(self, operation: str, prompt: str, *, image_base64: str | None = None) -> dict[str, Any]:
         request_id = str(uuid.uuid4())
         attempts: list[dict[str, Any]] = []
+        override = await self._admin_config()
         providers = await self._ordered()
         if not providers:
             raise RuntimeError("No configured AI provider")
-        for provider in providers:
+        max_attempts = max(1, min(int(override.get("max_attempts", len(providers)) or len(providers)), len(providers)))
+        fallback_enabled = bool(override.get("fallback_enabled", True))
+        quota_threshold = max(0.0, min(float(override.get("quota_threshold_pct", 100) or 100), 100.0))
+        for provider in providers[:max_attempts]:
+            today = _now()[:10]
+            usage = await self.db.ai_provider_daily.find_one({"provider": provider.name, "day": today}, {"_id": 0}) or {}
+            limit = provider.daily_limit or provider.rpd_limit
+            if limit and (float(usage.get("requests", 0)) / limit * 100) >= quota_threshold:
+                await self._record(request_id, operation, provider, status="quota_skipped", started=time.monotonic(), error="quota_threshold")
+                continue
             started = time.monotonic()
             try:
                 if provider.kind == "gemini":
@@ -193,12 +227,14 @@ class AIOrchestrator:
                 if not text:
                     raise RuntimeError("empty provider response")
                 await self._record(request_id, operation, provider, status="success", started=started, prompt_tokens=pt, completion_tokens=ct)
-                return {"request_id": request_id, "provider": provider.name, "model": provider.model, "text": text, "attempts": attempts + [{"provider": provider.name, "status": "success"}]}
+                return {"request_id": request_id, "provider": provider.name, "model": provider.model, "text": text, "attempts": attempts + [{"provider": provider.name, "status": "success"}], "fallback": bool(attempts), "original_provider": attempts[0]["provider"] if attempts else provider.name}
             except Exception as exc:
                 message = str(exc)
                 attempts.append({"provider": provider.name, "status": "failed", "error": message[:300]})
                 await self._record(request_id, operation, provider, status="failed", started=started, error=message)
                 logger.warning("AI provider %s failed for %s: %s", provider.name, operation, message)
+                if not fallback_enabled:
+                    break
         raise RuntimeError(json.dumps({"request_id": request_id, "attempts": attempts}, ensure_ascii=False))
 
     async def status(self) -> list[dict[str, Any]]:
@@ -210,9 +246,17 @@ class AIOrchestrator:
         for p in specs:
             daily = await self.db.ai_provider_daily.find_one({"provider": p.name, "day": today}, {"_id": 0}) or {}
             patch = provider_overrides.get(p.name) or {}
+            daily_limit = int(patch.get("daily_limit", p.daily_limit) or p.daily_limit)
+            requests = int(daily.get("requests", 0) or 0)
+            errors = int(daily.get("errors", 0) or 0)
             rows.append({"name": p.name, "kind": p.kind, "model": p.model, "enabled": bool(patch.get("enabled", p.enabled)),
-                         "configured": p.configured, "weight": int(patch.get("weight", p.weight) or p.weight), "daily_limit": int(patch.get("daily_limit", p.daily_limit) or p.daily_limit),
-                         "requests": daily.get("requests", 0), "total_tokens": daily.get("total_tokens", 0),
-                         "errors": daily.get("errors", 0), "last_status": daily.get("last_status"),
-                         "last_error": daily.get("last_error")})
+                         "configured": p.configured, "weight": int(patch.get("weight", p.weight) or p.weight),
+                         "daily_limit": daily_limit, "monthly_limit": int(patch.get("monthly_limit", p.monthly_limit) or p.monthly_limit),
+                         "rpm_limit": int(patch.get("rpm_limit", p.rpm_limit) or p.rpm_limit), "rpd_limit": int(patch.get("rpd_limit", p.rpd_limit) or p.rpd_limit),
+                         "tpm_limit": int(patch.get("tpm_limit", p.tpm_limit) or p.tpm_limit), "requests": requests,
+                         "remaining_requests": max(0, daily_limit - requests) if daily_limit else None,
+                         "total_tokens": daily.get("total_tokens", 0), "errors": errors,
+                         "failure_rate": round(errors / requests, 4) if requests else 0.0,
+                         "last_status": daily.get("last_status"), "last_error": daily.get("last_error"),
+                         "health": "healthy" if daily.get("last_status") == "success" else ("degraded" if daily.get("last_status") else "unknown")})
         return rows

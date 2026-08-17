@@ -1,0 +1,611 @@
+== admin route guards ==
+901:async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+902:    if user.get("role") != "admin":
+2799:            admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).limit(10).to_list(length=10)
+2978:                admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).limit(10).to_list(length=10)
+3604:    is_admin = user.get("role") == "admin"
+3605:    if item["user_id"] != user["id"] and not is_admin:
+3612:    if not is_admin and cost:
+3634:    if item["user_id"] != user["id"] and user.get("role") != "admin":
+3811:    if comment.get("user_id") != user["id"] and user.get("role") != "admin":
+3920:    if item["user_id"] != user["id"] and user.get("role") != "admin":
+5077:    query = {"user_id": user["id"]} if user.get("role") != "admin" else {}
+5083:    if user.get("role") != "admin": query["user_id"] = user["id"]
+5091:    if user.get("role") != "admin": query["user_id"] = user["id"]
+5096:    await db.support_tickets.update_one({"id": ticket_id}, {"$push": {"messages": item}, "$set": {"status": "open" if user.get("role") != "admin" else "pending_user", "updated_at": now}})
+5173:async def ai_provider_status(user: dict = Depends(require_admin)):
+5177:@api.get("/admin/ai/config")
+5178:async def get_ai_config(user: dict = Depends(require_admin)):
+5193:@api.put("/admin/ai/config")
+5194:async def update_ai_config(body: dict, user: dict = Depends(require_admin)):
+5538:    if item["user_id"] != user["id"] and user.get("role") != "admin":
+5555:                admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).limit(10).to_list(length=10)
+5878:admin_router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
+5985:async def update_admin_referral_config(body: dict, user: dict = Depends(require_admin)):
+6098:async def admin_approve(lid: str, user: dict = Depends(require_admin)):
+6127:async def admin_reject(lid: str, user: dict = Depends(require_admin)):
+6220:async def admin_ban(uid: str, user: dict = Depends(require_admin)):
+6227:async def admin_unban(uid: str, user: dict = Depends(require_admin)):
+6234:async def admin_verify(uid: str, user: dict = Depends(require_admin)):
+6245:async def admin_close_report(rid: str, user: dict = Depends(require_admin)):
+6267:async def admin_bulk_delete_listings(body: dict, user: dict = Depends(require_admin)):
+6302:async def admin_delete_listing(lid: str, user: dict = Depends(require_admin)):
+6355:async def admin_media_cleanup_delete(body: dict, user: dict = Depends(require_admin)):
+6503:async def admin_banned_words_add(body: dict, user: dict = Depends(require_admin)):
+6521:async def admin_banned_words_remove(word: str, user: dict = Depends(require_admin)):
+6670:async def admin_notification_test(user: dict = Depends(require_admin)):
+7672:# Admin digest test endpoint (placed after admin_router to access require_admin)
+7673:@api.post("/admin/digest/test")
+7674:async def admin_test_digest(user: dict = Depends(require_admin)):
+7679:@api.delete("/admin/demo-listings")
+7680:async def admin_delete_demo_listings(user: dict = Depends(require_admin)):
+7825:async def seo_indexnow_key_view(user: dict = Depends(require_admin)):
+7833:async def seo_resubmit_all_listings(user: dict = Depends(require_admin)):
+8037:async def coins_grant(body: CoinsGrantIn, user: dict = Depends(require_admin)):
+8072:    is_admin = user.get("role") == "admin"
+8073:    target = body.target_user_id if (is_admin and body.target_user_id) else user["id"]
+8074:    if not is_admin:
+9154:            "role": "admin",
+9162:        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD), "role": "admin", "banned": False}})
+== security-sensitive config ==
+backend/ai_validate_locations.py:29:    api_key = os.environ.get("EMERGENT_LLM_KEY", "").strip()
+backend/ai_validate_locations.py:30:    if not api_key:
+backend/ai_validate_locations.py:83:        # Build compact JSON payload (keep tokens low).
+backend/ai_validate_locations.py:108:                api_key=api_key,
+backend/google_indexing.py:17:  a simple per-process token bucket + an in-memory queue with a background
+backend/llm_shim.py:20:    chat = LlmChat(api_key=..., session_id=..., system_message=...)
+backend/llm_shim.py:83:        def __init__(self, api_key: str, session_id: str = "", system_message: str = ""):
+backend/llm_shim.py:84:            if not api_key:
+backend/llm_shim.py:85:                raise ValueError("LlmChat: api_key is required")
+backend/llm_shim.py:86:            if api_key.startswith("sk-emergent-"):
+backend/llm_shim.py:93:                    "  2) Set GEMINI_API_KEY to a real key from https://aistudio.google.com/"
+backend/llm_shim.py:95:            self.api_key = api_key
+backend/llm_shim.py:115:                self._client = genai.Client(api_key=self.api_key)
+backend/locations.py:100:_NOT_ARABIC_TOKENS = re.compile(r"استان|اوستان|صوبہ|صوبه")
+backend/locations.py:121:    if _NOT_ARABIC_TOKENS.search(s):
+backend/locations.py:724:        token: Optional[str] = Query(None, description="Admin token (matches LOCATIONS_ADMIN_TOKEN env var)"),
+backend/locations.py:730:        Security: requires `?token=` to match the `LOCATIONS_ADMIN_TOKEN`
+backend/locations.py:736:                &token=<your-token>
+backend/locations.py:740:        expected = _os.environ.get("LOCATIONS_ADMIN_TOKEN", "")
+backend/locations.py:742:            raise HTTPException(503, "admin GET import disabled (set LOCATIONS_ADMIN_TOKEN to enable)")
+backend/locations.py:743:        if token != expected:
+backend/locations.py:744:            raise HTTPException(403, "invalid admin token")
+backend/master_egypt_parser.py:30:# Lines starting with these tokens are Python contamination → drop them.
+backend/master_egypt_parser.py:110:                            d = ast.literal_eval(cleaned)
+backend/master_gulf_parser.py:109:                        d = ast.literal_eval(cleaned)
+backend/push_service.py:8:The send_push_to_users() helper fans out to both based on the tokens stored
+backend/push_service.py:26:EXPO_ACCESS_TOKEN = os.environ.get("EXPO_ACCESS_TOKEN", "").strip()
+backend/push_service.py:33:async def _send_expo(tokens: list[str], title: str, body: str, data: dict, image: Optional[str] = None) -> int:
+backend/push_service.py:34:    if not tokens:
+backend/push_service.py:38:    chunks = [tokens[i : i + 100] for i in range(0, len(tokens), 100)]
+backend/push_service.py:40:    # (required for enhanced security project tokens; ignored on public projects).
+backend/push_service.py:42:    if EXPO_ACCESS_TOKEN:
+backend/push_service.py:130:    """Fan out push to every Expo + Web token registered for the given users.
+backend/push_service.py:159:    docs = await db.push_tokens.find(
+backend/push_service.py:161:        {"_id": 0, "expo_token": 1, "web_subscription": 1, "kind": 1},
+backend/push_service.py:164:    expo_tokens = [d["expo_token"] for d in docs if d.get("kind") == "expo" and d.get("expo_token")]
+backend/push_service.py:168:        await db.push_tokens.delete_one({"kind": "web", "web_subscription.endpoint": endpoint})
+backend/push_service.py:171:        _send_expo(expo_tokens, title, body, payload_data, image=image),
+backend/search_engine.py:92:def tokenize(text: str) -> List[str]:
+backend/search_engine.py:118:def _regex_for_token(tok: str) -> dict:
+backend/search_engine.py:123:async def _exact_search(db, base_filter: dict, tokens: List[str], sort, skip: int, limit: int):
+backend/search_engine.py:124:    if not tokens:
+backend/search_engine.py:126:    query = {**base_filter, "$and": [_regex_for_token(t) for t in tokens]}
+backend/search_engine.py:149:    q_tokens = [t for t in q_norm.split() if t]
+backend/search_engine.py:158:        # Score 2: best partial_ratio of any query token vs any blob word (rewards 1-letter typos)
+backend/search_engine.py:161:        if words and q_tokens:
+backend/search_engine.py:162:            for qt in q_tokens:
+backend/search_engine.py:188:    tokens = [t for t in q_norm.split() if len(t) >= 2]
+backend/search_engine.py:189:    items, total = await _exact_search(db, base_filter, tokens, sort, skip, limit)
+backend/search_engine.py:192:    # Single-token: maybe partial prefix is enough — expand with looser regex
+backend/search_engine.py:193:    if len(tokens) == 1:
+backend/search_engine.py:194:        loose = {**base_filter, "search_blob": {"$regex": re.escape(tokens[0]), "$options": "i"}}
+backend/seo_submitter.py:44:    key = secrets.token_hex(16)  # 32-char hex, IndexNow spec accepts 8-128
+backend/server.py:128:JWT_SECRET = _env("JWT_SECRET", required=True, default="change-me-in-production")
+backend/server.py:131:ADMIN_PASSWORD = _env("ADMIN_PASSWORD", default="Admin@HarajPlus2026")
+backend/server.py:136:    api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
+backend/server.py:142:RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+backend/server.py:144:if RESEND_API_KEY:
+backend/server.py:145:    resend.api_key = RESEND_API_KEY
+backend/server.py:155:GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+backend/server.py:156:if not EMERGENT_LLM_KEY and GEMINI_API_KEY:
+backend/server.py:157:    EMERGENT_LLM_KEY = GEMINI_API_KEY  # Gemini keys are accepted directly by llm_shim
+backend/server.py:247:    allow_origins=cors_origins if "*" not in cors_origins else ["*"],
+backend/server.py:680:async def send_password_reset_email(to_email: str, reset_url: str, user_name: str = "") -> bool:
+backend/server.py:681:    """Send password reset email via Resend. Returns True if sent, False if no API key."""
+backend/server.py:682:    if not RESEND_API_KEY:
+backend/server.py:724:    if not RESEND_API_KEY:
+backend/server.py:851:def hash_password(pw: str) -> str:
+backend/server.py:854:def verify_password(pw: str, hashed: str) -> bool:
+backend/server.py:864:    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+backend/server.py:866:def create_refresh_token(uid: str) -> str:
+backend/server.py:868:    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+backend/server.py:872:    resp.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="none", max_age=2592000, path="/")
+backend/server.py:876:    resp.delete_cookie("refresh_token", path="/")
+backend/server.py:880:    if not token:
+backend/server.py:883:            token = auth[7:]
+backend/server.py:884:    if not token:
+backend/server.py:887:        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+backend/server.py:889:            raise HTTPException(401, "Invalid token type")
+backend/server.py:890:        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+backend/server.py:897:        raise HTTPException(401, "Token expired")
+backend/server.py:898:    except jwt.InvalidTokenError:
+backend/server.py:899:        raise HTTPException(401, "Invalid token")
+backend/server.py:913:    password: str = Field(min_length=8, max_length=128)
+backend/server.py:921:    password: str
+backend/server.py:1205:        "password_hash": hash_password(body.password),
+backend/server.py:1229:        verify_token = secrets.token_urlsafe(32)
+backend/server.py:1230:        await db.email_verify_tokens.insert_one({
+backend/server.py:1231:            "token": verify_token, "user_id": uid,
+backend/server.py:1236:        await send_verification_email(email, f"{origin}/verify-email?token={verify_token}", user["name"])
+backend/server.py:1240:    user.pop("password_hash", None)
+backend/server.py:1243:    refresh = create_refresh_token(uid)
+backend/server.py:1262:    if not user or not verify_password(body.password, user["password_hash"]):
+backend/server.py:1270:    refresh = create_refresh_token(user["id"])
+backend/server.py:1272:    user.pop("password_hash", None)
+backend/server.py:1336:    new_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+backend/server.py:1353:async def refresh_token(request: Request, response: Response):
+backend/server.py:1355:    token = request.cookies.get("refresh_token", "")
+backend/server.py:1356:    if not token:
+backend/server.py:1359:            token = (body or {}).get("refresh_token", "") or ""
+backend/server.py:1361:            token = ""
+backend/server.py:1362:    if not token:
+backend/server.py:1365:            token = auth[7:].strip()
+backend/server.py:1366:    if not token:
+backend/server.py:1367:        raise HTTPException(401, "No refresh token")
+backend/server.py:1369:        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+backend/server.py:1371:            raise HTTPException(401, "Invalid token")
+backend/server.py:1378:    except jwt.InvalidTokenError:
+backend/server.py:1379:        raise HTTPException(401, "Invalid refresh token")
+backend/server.py:1406:# Forgot Password
+backend/server.py:1412:    token: str
+backend/server.py:1413:    new_password: str = Field(min_length=8, max_length=128)
+backend/server.py:1415:@api.post("/auth/forgot-password")
+backend/server.py:1416:async def forgot_password(body: ForgotIn, request: Request):
+backend/server.py:1422:        token = secrets.token_urlsafe(32)
+backend/server.py:1423:        await db.password_reset_tokens.insert_one({
+backend/server.py:1424:            "token": token, "user_id": user["id"],
+backend/server.py:1432:        reset_url = f"{origin}/reset-password?token={token}"
+backend/server.py:1433:        reset_link = f"/reset-password?token={token}"
+backend/server.py:1435:        email_sent = await send_password_reset_email(email, reset_url, user.get("name", ""))
+backend/server.py:1444:@api.post("/auth/reset-password")
+backend/server.py:1445:async def reset_password(body: ResetIn):
+backend/server.py:1446:    rec = await db.password_reset_tokens.find_one({"token": body.token, "used": False})
+backend/server.py:1456:    await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
+backend/server.py:1457:    await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
+backend/server.py:1474:    state = secrets.token_urlsafe(16)
+backend/server.py:1475:    code_verifier = secrets.token_urlsafe(64)[:96]
+backend/server.py:1528:                "https://api.twitter.com/2/oauth2/token",
+backend/server.py:1539:                logger.error(f"[X token] {tok.status_code} {tok.text[:200]}")
+backend/server.py:1541:            token_data = tok.json()
+backend/server.py:1569:            "password_hash": hash_password(secrets.token_urlsafe(24)),
+backend/server.py:1584:    refresh = create_refresh_token(user["id"])
+backend/server.py:1586:    user.pop("password_hash", None)
+backend/server.py:1593:# scheme so the Expo app receives the token via Linking.
+backend/server.py:1612:                "https://api.twitter.com/2/oauth2/token",
+backend/server.py:1617:                logger.error(f"[X mobile token] {tok.status_code} {tok.text[:200]}")
+backend/server.py:1618:                return RedirectResponse(f"{mob}?error=token_exchange")
+backend/server.py:1641:            "password_hash": hash_password(secrets.token_urlsafe(24)),
+backend/server.py:1654:    refresh = create_refresh_token(user["id"])
+backend/server.py:1662:    state = secrets.token_urlsafe(16)
+backend/server.py:1663:    code_verifier = secrets.token_urlsafe(64)[:96]
+backend/server.py:1723:                logger.error(f"[Snap token] {tok.status_code} {tok.text[:200]}")
+backend/server.py:1751:            "password_hash": hash_password(secrets.token_urlsafe(24)),
+backend/server.py:1765:    refresh = create_refresh_token(user["id"])
+backend/server.py:1767:    user.pop("password_hash", None)
+backend/server.py:1777:    # Decide where to send the final tokens — mobile deep-link or web frontend
+backend/server.py:1783:    # captures tokens from the URL fragment and logs the user in via localStorage.
+backend/server.py:1804:                logger.error(f"[Snap callback token] {tok.status_code} {tok.text[:200]}")
+backend/server.py:1805:                return RedirectResponse(f"{final_target}{sep}error=token_exchange")
+backend/server.py:1830:            "password_hash": hash_password(secrets.token_urlsafe(24)),
+backend/server.py:1843:    refresh = create_refresh_token(user["id"])
+backend/server.py:1846:    # Tokens go in URL fragment for BOTH web and mobile — fragments are not sent to servers
+backend/server.py:1863:class PushTokenIn(BaseModel):
+backend/server.py:1864:    expo_token: str = Field(min_length=10)
+backend/server.py:1884:async def register_push_token(body: PushTokenIn, user: dict = Depends(get_current_user)):
+backend/server.py:1885:    await db.push_tokens.update_one(
+backend/server.py:1886:        {"expo_token": body.expo_token},
+backend/server.py:1890:            "expo_token": body.expo_token,
+backend/server.py:1900:async def unregister_push_token(expo_token: str, user: dict = Depends(get_current_user)):
+backend/server.py:1901:    await db.push_tokens.delete_one({"expo_token": expo_token, "user_id": user["id"]})
+backend/server.py:1914:    await db.push_tokens.update_one(
+backend/server.py:1931:    await db.push_tokens.delete_one({"kind": "web", "web_subscription.endpoint": body.endpoint, "user_id": user["id"]})
+backend/server.py:1973:async def expo_send_push(tokens: list, title: str, body: str, data: Optional[dict] = None):
+backend/server.py:1974:    """Backward-compat shim used by older call sites that pass raw Expo tokens.
+backend/server.py:1979:    if not tokens:
+backend/server.py:1983:        for t in tokens
+backend/server.py:1992:            return {"sent": len(tokens), "status": r.status_code}
+backend/server.py:2012:GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+backend/server.py:2035:            # disabled-password placeholder — user must use Google or password-reset
+backend/server.py:2036:            "password_hash": hash_password(secrets.token_urlsafe(24)),
+backend/server.py:2057:    """Return Google OAuth consent URL with a CSRF state token cookie.
+backend/server.py:2065:    state = secrets.token_urlsafe(32)
+backend/server.py:2089:    Google redirects here with ?code & ?state. We exchange the code for tokens,
+backend/server.py:2104:    # Exchange code → tokens
+backend/server.py:2108:                GOOGLE_TOKEN_URL,
+backend/server.py:2118:            logger.error(f"[GoogleOAuth] token exchange {tok_res.status_code}: {tok_res.text[:300]}")
+backend/server.py:2119:            return RedirectResponse(f"{frontend}/login?error=token_exchange")
+backend/server.py:2120:        tokens = tok_res.json()
+backend/server.py:2147:    # AND pass tokens via URL fragment (#) so the frontend can store them in
+backend/server.py:2151:    refresh = create_refresh_token(user["id"])
+backend/server.py:2177:#      first consent only], [id_token].
+backend/server.py:2179:#      verifies id_token via Apple JWKS (RS256), upserts user, then redirects
+backend/server.py:2183:APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token"
+backend/server.py:2245:            "password_hash": hash_password(secrets.token_urlsafe(24)),
+backend/server.py:2266:    identity_token: str
+backend/server.py:2276:    iOS sends us the `identity_token` (JWT signed by Apple). We verify the
+backend/server.py:2278:    email, then upsert the user and issue OUR JWT tokens.
+backend/server.py:2280:    if not body.identity_token:
+backend/server.py:2281:        raise HTTPException(400, "Missing identity_token")
+backend/server.py:2291:        unverified_header = jwt.get_unverified_header(body.identity_token)
+backend/server.py:2306:            body.identity_token,
+backend/server.py:2316:        logger.warning(f"[apple/native] token verify failed: {e}")
+backend/server.py:2327:    refresh = create_refresh_token(user["id"])
+backend/server.py:2328:    safe_user = {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
+backend/server.py:2334:    """Return Apple OAuth consent URL with a CSRF state token stored in DB.
+backend/server.py:2342:    state = secrets.token_urlsafe(32)
+backend/server.py:2353:        "response_type": "code id_token",
+backend/server.py:2364:    Apple posts back with form-encoded: code, state, [user] (first time only), [id_token].
+backend/server.py:2365:    We verify the id_token via Apple's JWKS, upsert the user, and redirect to FRONTEND/auth/callback#token=...
+backend/server.py:2372:    id_token_form = (form.get("id_token") or "").strip()
+backend/server.py:2383:    # Build client_secret then exchange code for tokens (we still want a fresh id_token).
+backend/server.py:2395:                APPLE_TOKEN_URL,
+backend/server.py:2406:            logger.error(f"[AppleOAuth] token exchange {tok_res.status_code}: {tok_res.text[:300]}")
+backend/server.py:2407:            return RedirectResponse(f"{frontend}/login?error=token_exchange", status_code=303)
+backend/server.py:2408:        tokens = tok_res.json()
+backend/server.py:2413:    id_token = tokens.get("id_token") or id_token_form
+backend/server.py:2414:    if not id_token:
+backend/server.py:2415:        return RedirectResponse(f"{frontend}/login?error=no_id_token", status_code=303)
+backend/server.py:2417:    # Verify id_token signature with Apple JWKS
+backend/server.py:2420:        unverified_header = jwt.get_unverified_header(id_token)
+backend/server.py:2432:            id_token,
+backend/server.py:2438:    except jwt.InvalidTokenError as e:
+backend/server.py:2439:        logger.error(f"[AppleOAuth] invalid id_token: {e}")
+backend/server.py:2440:        return RedirectResponse(f"{frontend}/login?error=invalid_token", status_code=303)
+backend/server.py:2467:    refresh = create_refresh_token(user["id"])
+backend/server.py:2600:    return f"{base}{secrets.token_hex(3).upper()}"
+backend/server.py:2661:        "api_key": os.environ["CLOUDINARY_API_KEY"],
+backend/server.py:2936:            api_key=EMERGENT_LLM_KEY,
+backend/server.py:3830:    # Tokenize title (Arabic-aware): split on whitespace, keep words ≥ 2 chars,
+backend/server.py:3836:    def tokenize(s):
+backend/server.py:3839:    base_tokens = tokenize(base_title)
+backend/server.py:3840:    if not base_tokens:
+backend/server.py:3854:    # Build OR query: any candidate listing whose title contains any base token,
+backend/server.py:3855:    # OR whose description contains any base token, plus same category as a soft filter.
+backend/server.py:3856:    title_re = "|".join(re.escape(t) for t in base_tokens)
+backend/server.py:3869:    base_token_set = set(base_tokens)
+backend/server.py:3870:    base_desc_tokens = set(tokenize(base_desc))
+backend/server.py:3874:        #   - title token overlap (most weight)
+backend/server.py:3875:        #   - description token overlap
+backend/server.py:3879:        c_title_tokens = set(tokenize(c.get("title")))
+backend/server.py:3880:        c_desc_tokens = set(tokenize(c.get("description")))
+backend/server.py:3881:        title_overlap = len(base_token_set & c_title_tokens)
+backend/server.py:3882:        desc_overlap = len(base_desc_tokens & c_desc_tokens) + len(base_token_set & c_desc_tokens) * 0.5
+backend/server.py:3883:        # Phrase match: how many CONSECUTIVE base tokens appear in title
+backend/server.py:3886:        for size in range(min(len(base_tokens), 5), 1, -1):
+backend/server.py:3887:            phrase = " ".join(base_tokens[:size])
+backend/server.py:4563:async def chat_websocket(websocket: WebSocket, token: str = Query("")):
+backend/server.py:4568:    query token is missing.
+backend/server.py:4570:    # Decode token (query first, then cookie)
+backend/server.py:4573:        if token:
+backend/server.py:4574:            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+backend/server.py:4578:            if cookie_token:
+backend/server.py:4579:                payload = jwt.decode(cookie_token, JWT_SECRET, algorithms=["HS256"])
+backend/server.py:4581:    except jwt.InvalidTokenError:
+backend/server.py:5350:        api_key=EMERGENT_LLM_KEY,
+backend/server.py:5447:        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"cat-{title[:30]}", system_message=(
+backend/server.py:5493:        api_key=EMERGENT_LLM_KEY,
+backend/server.py:6171:    return await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+backend/server.py:6177:    u = await db.users.find_one({"id": uid}, {"_id": 0, "password_hash": 0})
+backend/server.py:6666:            "push_devices": await db.push_tokens.count_documents({"user_id": {"$in": user_ids}}) if user_ids else 0}
+backend/server.py:6716:        chat = LlmChat(            api_key=EMERGENT_LLM_KEY,
+backend/server.py:7275:    if not RESEND_API_KEY:
+backend/server.py:7307:async def verify_email(token: str, request: Request):
+backend/server.py:7308:    rec = await db.email_verify_tokens.find_one({"token": token})
+backend/server.py:7328:    await db.email_verify_tokens.delete_one({"token": token})
+backend/server.py:7336:    token = secrets.token_urlsafe(32)
+backend/server.py:7337:    await db.email_verify_tokens.insert_one({
+backend/server.py:7338:        "token": token, "user_id": user["id"],
+backend/server.py:7343:    verify_url = f"{origin}/verify-email?token={token}"
+backend/server.py:7657:        if not token:
+== payment/coin/referral atomicity ==
+backend/server.py:917:    referral_code: Optional[str] = None
+backend/server.py:1190:    # Validate referral code if provided
+backend/server.py:1192:    if body.referral_code:
+backend/server.py:1193:        rcode = body.referral_code.strip().upper()
+backend/server.py:1194:        ref_user = await db.users.find_one({"referral_code": rcode})
+backend/server.py:1214:        "referral_code": gen_referral_code(body.name),
+backend/server.py:1220:        cfg = await db.referral_config.find_one({"id": "default"}, {"_id": 0}) or {"reward_points": 100, "enabled": True}
+backend/server.py:1222:            await db.referral_events.update_one(
+backend/server.py:1335:    await db.users.update_one({"id": user["id"]}, {"$set": update})
+backend/server.py:1456:    await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
+backend/server.py:1457:    await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
+backend/server.py:1573:            "referral_code": gen_referral_code(x_name), "referred_by": None,
+backend/server.py:1578:        await db.users.update_one({"id": user["id"]}, {"$set": {"x_id": x_id, "x_username": x_username, "avatar_url": user.get("avatar_url") or x_avatar}})
+backend/server.py:1600:    rec = await db.x_oauth_states.find_one_and_delete({"state": state})
+backend/server.py:1645:            "referral_code": gen_referral_code(x_name), "referred_by": None,
+backend/server.py:1650:        await db.users.update_one({"id": user["id"]}, {"$set": {"x_id": x_id, "x_username": x_username}})
+backend/server.py:1755:            "referral_code": gen_referral_code(snap_name), "referred_by": None,
+backend/server.py:1760:        await db.users.update_one({"id": user["id"]}, {"$set": {"snap_id": snap_id, "avatar_url": user.get("avatar_url") or snap_avatar}})
+backend/server.py:1778:    rec = await db.snap_oauth_states.find_one_and_delete({"state": state}) if state else None
+backend/server.py:1834:            "referral_code": gen_referral_code(snap_name), "referred_by": None,
+backend/server.py:1839:        await db.users.update_one({"id": user["id"]}, {"$set": {"snap_id": snap_id}})
+backend/server.py:1885:    await db.push_tokens.update_one(
+backend/server.py:1914:    await db.push_tokens.update_one(
+backend/server.py:1956:        await db.users.update_one({"id": user["id"]}, {"$set": update})
+backend/server.py:2024:        await db.users.update_one({"id": user["id"]}, {"$set": upd})
+backend/server.py:2045:            "referral_code": gen_referral_code(g_name or "USER"),
+backend/server.py:2098:    found = await db.google_oauth_states.find_one_and_delete({"state": state})
+backend/server.py:2231:        await db.users.update_one({"id": user["id"]}, {"$set": upd})
+backend/server.py:2255:            "referral_code": gen_referral_code(name or "USER"),
+backend/server.py:2379:    found = await db.apple_oauth_states.find_one_and_delete({"state": state})
+backend/server.py:2598:def gen_referral_code(name: str) -> str:
+backend/server.py:2602:@api.get("/referral/me")
+backend/server.py:2603:async def get_my_referral(user: dict = Depends(get_current_user)):
+backend/server.py:2604:    code = user.get("referral_code")
+backend/server.py:2606:        code = gen_referral_code(user["name"])
+backend/server.py:2607:        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": code}})
+backend/server.py:2609:    referral_events = await db.referral_events.find({"inviter_code": code}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(length=100)
+backend/server.py:2610:    reward_points = sum(int(x.get("reward_points") or 0) for x in referral_events if x.get("status") in {"qualified", "rewarded"})
+backend/server.py:2619:    return {"code": code, "invited_count": invited, "badge": badge, "next_milestone": next_m, "reward_points": reward_points, "qualified_count": sum(1 for x in referral_events if x.get("status") in {"qualified", "rewarded"}), "events": referral_events}
+backend/server.py:2621:@api.get("/referral/leaderboard")
+backend/server.py:2622:async def referral_leaderboard():
+backend/server.py:2631:        u = await db.users.find_one({"referral_code": r["_id"]}, {"_id": 0, "name": 1, "city": 1, "verified": 1})
+backend/server.py:2973:        await db.listings.update_one({"id": listing_id}, {"$set": update})
+backend/server.py:3017:        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": {"amount": offer["amount"], "message": offer["message"], "status": "pending", "updated_at": now, "expires_at": expires_at, "decision_at": None, "decision_by": None}})
+backend/server.py:3065:                await db.listing_offers.update_one({"id": offer_id}, {"$set": {"status": "expired", "updated_at": datetime.now(timezone.utc).isoformat()}})
+backend/server.py:3082:    await db.listing_offers.update_one({"id": offer_id}, {"$set": update})
+backend/server.py:3176:    sort_field = [("is_boosted", -1), ("created_at", -1)]
+backend/server.py:3178:        sort_field = [("is_boosted", -1), ("created_at", 1)]
+backend/server.py:3180:        sort_field = [("is_boosted", -1), ("price", 1)]
+backend/server.py:3182:        sort_field = [("is_boosted", -1), ("price", -1)]
+backend/server.py:3184:        sort_field = [("is_boosted", -1), ("views", -1)]
+backend/server.py:3435:    result = await db.listings.update_one(
+backend/server.py:3456:    await db.recently_viewed.update_one(
+backend/server.py:3519:    await db.saved_searches.update_one(
+backend/server.py:3544:    await db.category_follows.update_one(
+backend/server.py:3591:    await db.users.update_one({"id": user["id"]}, {"$set": prefixed})
+backend/server.py:3597:# Sets is_boosted=true + boost_until=now+7d. Sort uses (-is_boosted, -created_at).
+backend/server.py:3599:@api.post("/listings/{listing_id}/boost")
+backend/server.py:3600:async def boost_listing(listing_id: str, user: dict = Depends(get_current_user)):
+backend/server.py:3601:    item = await db.listings.find_one({"id": listing_id}, {"_id": 0, "user_id": 1, "is_boosted": 1, "boost_until": 1})
+backend/server.py:3608:    if item.get("is_boosted") and item.get("boost_until") and str(item["boost_until"]) > now.isoformat():
+backend/server.py:3609:        return {"ok": True, "is_boosted": True, "boost_until": item["boost_until"], "charged_coins": 0}
+backend/server.py:3613:        changed = await db.users.update_one({"id": user["id"], "coins_balance": {"$gte": cost}}, {"$inc": {"coins_balance": -cost}})
+backend/server.py:3617:    boost_until = (now + timedelta(days=7)).isoformat()
+backend/server.py:3619:        await db.listings.update_one({"id": listing_id}, {"$set": {"is_boosted": True, "boost_until": boost_until}})
+backend/server.py:3621:            await _coins_log(user["id"], "spend", -charged, "listing_boost", listing_id, f"boost:{listing_id}:{boost_until[:10]}")
+backend/server.py:3624:            await db.users.update_one({"id": user["id"]}, {"$inc": {"coins_balance": charged}})
+backend/server.py:3627:    return {"ok": True, "is_boosted": True, "boost_until": boost_until, "charged_coins": charged, "balance": await _coins_balance(user["id"])}
+backend/server.py:3629:@api.delete("/listings/{listing_id}/boost")
+backend/server.py:3630:async def unboost_listing(listing_id: str, user: dict = Depends(get_current_user)):
+backend/server.py:3636:    await db.listings.update_one({"id": listing_id}, {"$set": {"is_boosted": False}})
+backend/server.py:3638:    return {"ok": True, "is_boosted": False}
+backend/server.py:3701:    await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
+backend/server.py:3736:    await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
+backend/server.py:3813:    await db.listing_comments.update_one({"id": comment_id}, {"$set": {"deleted": True, "deleted_at": datetime.now(timezone.utc).isoformat()}})
+backend/server.py:3878:        #   - seller verified small boost
+backend/server.py:4035:                await db.media_cleanup_failed.update_one(
+backend/server.py:4112:                        await db.media_cleanup_failed.update_one(
+backend/server.py:4120:                    await db.media_cleanup_failed.update_one(
+backend/server.py:4170:            await db.listings.update_one({"id": it["id"], "status": "active"}, {"$set": {"status": "ended", "ended_at": now.isoformat()}})
+backend/server.py:4284:        await db.listings.update_one({"id": listing_id, "status": "active"}, {"$set": {"status": "ended", "ended_at": datetime.now(timezone.utc).isoformat()}})
+backend/server.py:4353:                await db.listings.update_one({"id": listing_id}, {"$set": update_doc})
+backend/server.py:4409:        await db.listings.update_one({"id": listing_id, "favorites": {"$gt": 0}}, {"$inc": {"favorites": -1}})
+backend/server.py:4415:    await db.listings.update_one({"id": listing_id}, {"$inc": {"favorites": 1}})
+backend/server.py:4420:    """Explicit unfavorite (idempotent). Mobile ListingCard + ReelsScreen call
+backend/server.py:4426:        await db.listings.update_one({"id": listing_id, "favorites": {"$gt": 0}}, {"$inc": {"favorites": -1}})
+backend/server.py:4467:    await db.price_alerts.update_one(
+backend/server.py:4492:    await db.blocks.update_one(
+backend/server.py:4592:        await db.users.update_one({"id": user_id}, {"$set": {"last_seen": None}})
+backend/server.py:4647:                    await db.conversations.update_one(
+backend/server.py:4734:    await db.conversations.update_one(
+backend/server.py:4755:            await db.messages.update_one({"id": msg["id"]}, {"$set": {"delivered": True, "delivered_at": datetime.now(timezone.utc).isoformat()}})
+backend/server.py:4827:    await db.conversations.update_one({"id": convo_id}, {"$set": {f"unread_{user['id']}": 0}})
+backend/server.py:4839:    await db.messages.update_one(
+backend/server.py:4856:# This keeps reads cheap (no separate collection join) and writes atomic.
+backend/server.py:4889:    await db.messages.update_one({"id": message_id}, {"$set": {"reactions": reactions}})
+backend/server.py:5020:    await db.users.update_one({"id": user["id"]}, {"$set": {"resume": resume, "updated_at": now}})
+backend/server.py:5062:    result = await db.job_applications.update_one({"id": application_id, "owner_id": user["id"]}, {"$set": {"status": status, "updated_at": datetime.now(timezone.utc).isoformat()}})
+backend/server.py:5096:    await db.support_tickets.update_one({"id": ticket_id}, {"$push": {"messages": item}, "$set": {"status": "open" if user.get("role") != "admin" else "pending_user", "updated_at": now}})
+backend/server.py:5127:    await db.ads.update_one({"id": aid}, {"$inc": {"impressions": 1}})
+backend/server.py:5132:    await db.ads.update_one({"id": aid}, {"$inc": {"clicks": 1}})
+backend/server.py:5224:    await db.ai_config.update_one({"id": "default"}, {"$set": doc}, upsert=True)
+backend/server.py:5581:    await db.listings.update_one({"id": listing_id}, {"$set": update_data})
+backend/server.py:5660:    await db.listings.update_one(
+backend/server.py:5682:    await db.listings.update_one(
+backend/server.py:5712:    await db.listings.update_one(
+backend/server.py:5731:    await db.listings.update_one(
+backend/server.py:5798:        await db.location_shares.update_one({"id": share_id}, {"$set": {"active": False}})
+backend/server.py:5809:    await db.location_shares.update_one({"id": share_id}, {"$set": {"active": False}})
+backend/server.py:5973:@admin_router.get("/referrals")
+backend/server.py:5974:async def admin_referrals(status: str = "", limit: int = 200):
+backend/server.py:5977:    return await db.referral_events.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+backend/server.py:5979:@admin_router.get("/referrals/config")
+backend/server.py:5980:async def admin_referral_config():
+backend/server.py:5981:    cfg = await db.referral_config.find_one({"id": "default"}, {"_id": 0})
+backend/server.py:5984:@admin_router.put("/referrals/config")
+backend/server.py:5985:async def update_admin_referral_config(body: dict, user: dict = Depends(require_admin)):
+backend/server.py:5991:    await db.referral_config.update_one({"id": "default"}, {"$set": doc}, upsert=True)
+backend/server.py:5992:    await _admin_log(user["id"], "referral_config_update", "default")
+backend/server.py:6099:    r = await db.listings.update_one({"id": lid}, {"$set": {"moderation": "approved"}})
+backend/server.py:6128:    r = await db.listings.update_one({"id": lid}, {"$set": {"moderation": "rejected", "status": "rejected"}})
+backend/server.py:6191:    referrals_count = await db.referral_events.count_documents({"inviter_code": u.get("referral_code")}) if u.get("referral_code") else 0
+backend/server.py:6192:    referrals_qualified = await db.referral_events.count_documents({"inviter_code": u.get("referral_code"), "status": {"$in": ["qualified", "rewarded"]}}) if u.get("referral_code") else 0
+backend/server.py:6209:            "referrals_count": referrals_count,
+backend/server.py:6210:            "referrals_qualified": referrals_qualified,
+backend/server.py:6211:            "referral_points": int(u.get("referral_points") or 0),
+backend/server.py:6221:    r = await db.users.update_one({"id": uid}, {"$set": {"banned": True}})
+backend/server.py:6228:    r = await db.users.update_one({"id": uid}, {"$set": {"banned": False}})
+backend/server.py:6235:    r = await db.users.update_one({"id": uid}, {"$set": {"verified": True}})
+backend/server.py:6246:    r = await db.reports.update_one({"id": rid}, {"$set": {"status": "closed"}})
+backend/server.py:6439:        await db.listings.update_one({"id": l_doc["id"]}, {"$set": {"country_code": cc}})
+backend/server.py:6451:    await db.settings.update_one({"_key": "theme"}, {"$set": {"_key": "theme", "value": payload}}, upsert=True)
+backend/server.py:6510:    await db.banned_words.update_one(
+backend/server.py:6547:    r = await db.ads.update_one({"id": aid}, {"$set": body.model_dump()})
+backend/server.py:6580:        "total_wallets": 0,
+backend/server.py:6613:    await db.settings.update_one({"_key": "seo"}, {"$set": {"value": payload}}, upsert=True)
+backend/server.py:6756:    await db.notifications.update_one({"id": nid, "user_id": user["id"]}, {"$set": {"read": True}})
+backend/server.py:6792:    await db.draft_listings.update_one(
+backend/server.py:6835:    await db.search_events.update_one(
+backend/server.py:6906:    await db.geo_overrides.update_one(
+backend/server.py:6927:    await db.geo_overrides.update_one(
+backend/server.py:6954:    await db.geo_overrides.update_one(
+backend/server.py:6971:    res = await db.scheduled_broadcasts.update_one(
+backend/server.py:7041:        await db.draft_listings.update_one(
+backend/server.py:7066:            await db.search_events.update_one({"_id": s["_id"]}, {"$set": {"reminded": True}})
+backend/server.py:7079:            await db.search_events.update_one({"_id": s["_id"]}, {"$set": {"reminded": True}})
+backend/server.py:7087:        await db.search_events.update_one(
+backend/server.py:7104:        claim = await db.scheduled_broadcasts.update_one(
+backend/server.py:7124:                await db.scheduled_broadcasts.update_one(
+backend/server.py:7157:        await db.scheduled_broadcasts.update_one(
+backend/server.py:7181:                await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+backend/server.py:7188:                await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+backend/server.py:7192:                await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+backend/server.py:7203:            await db.recently_viewed.update_one({"_id": rv["_id"]}, {"$set": {"reminded": True}})
+backend/server.py:7230:            await db.users.update_one({"id": uid}, {"$set": {"reengaged_at": now_iso}})
+backend/server.py:7318:    await db.users.update_one({"id": rec["user_id"]}, {"$set": {"email_verified": True}})
+backend/server.py:7319:    referral = await db.referral_events.find_one({"invitee_id": rec["user_id"], "status": "pending"}, {"_id": 0})
+backend/server.py:7320:    if referral:
+backend/server.py:7321:        changed = await db.referral_events.update_one({"id": referral["id"], "status": "pending"}, {"$set": {"status": "qualified", "qualified_at": datetime.now(timezone.utc).isoformat()}})
+backend/server.py:7323:            reward = int(referral.get("reward_points") or 0)
+backend/server.py:7324:            referrer = await db.users.find_one({"referral_code": referral["inviter_code"]}, {"_id": 0, "id": 1})
+backend/server.py:7326:                await db.users.update_one({"id": referrer["id"]}, {"$inc": {"referral_points": reward, "coins_balance": reward}})
+backend/server.py:7327:                await _coins_log(referrer["id"], "referral_reward", reward, "qualified_referral", referral.get("invitee_id"), referral.get("id"))
+backend/server.py:7372:    await db.watches.update_one(
+backend/server.py:7473:    await db.users.update_one({"id": user["id"]}, {"$set": update})
+backend/server.py:7564:    await db.ratings.update_one(
+backend/server.py:7589:    await db.search_terms.update_one(
+backend/server.py:7597:        await db.search_history.update_one(
+backend/server.py:7950:# Used for: boosting listings, premium features. Currency = SAR-equivalent credits.
+backend/server.py:7956:    idempotency_key: Optional[str] = Field(default=None, max_length=160)
+backend/server.py:7963:    idempotency_key: Optional[str] = Field(default=None, max_length=160)
+backend/server.py:7974:    ref_id: Optional[str] = None  # e.g. listing_id when boosting
+backend/server.py:7977:async def _wallet_balance(user_id: str) -> float:
+backend/server.py:7982:async def _wallet_log(user_id: str, kind: str, amount: float, description: str, ref_id: Optional[str] = None):
+backend/server.py:7983:    await db.wallet_transactions.insert_one({
+backend/server.py:7995:async def _coins_balance(user_id: str) -> int:
+backend/server.py:7996:    u = await db.users.find_one({"id": user_id}, {"_id": 0, "coins_balance": 1})
+backend/server.py:7997:    return int((u or {}).get("coins_balance") or 0)
+backend/server.py:8000:async def _coins_log(user_id: str, kind: str, amount: int, purpose: str, ref_id: Optional[str] = None, idempotency_key: Optional[str] = None):
+backend/server.py:8001:    if idempotency_key:
+backend/server.py:8002:        existing = await db.coins_ledger.find_one({"user_id": user_id, "idempotency_key": idempotency_key}, {"_id": 0})
+backend/server.py:8005:    doc = {"id": str(uuid.uuid4()), "user_id": user_id, "type": kind, "amount": int(amount), "purpose": purpose[:80], "ref_id": ref_id, "idempotency_key": idempotency_key, "created_at": datetime.now(timezone.utc).isoformat()}
+backend/server.py:8006:    await db.coins_ledger.insert_one(doc)
+backend/server.py:8010:@api.get("/coins/me")
+backend/server.py:8011:async def coins_me(user: dict = Depends(get_current_user)):
+backend/server.py:8012:    balance = await _coins_balance(user["id"])
+backend/server.py:8013:    ledger = await db.coins_ledger.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(length=50)
+backend/server.py:8017:@api.get("/coins/ledger")
+backend/server.py:8018:async def coins_ledger(limit: int = 50, user: dict = Depends(get_current_user)):
+backend/server.py:8020:    return await db.coins_ledger.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+backend/server.py:8023:@api.post("/coins/spend")
+backend/server.py:8024:async def coins_spend(body: CoinsSpendIn, user: dict = Depends(get_current_user)):
+backend/server.py:8025:    if body.idempotency_key:
+backend/server.py:8026:        existing = await db.coins_ledger.find_one({"user_id": user["id"], "idempotency_key": body.idempotency_key}, {"_id": 0})
+backend/server.py:8028:            return {"success": True, "duplicate": True, "balance": await _coins_balance(user["id"]), "transaction": existing}
+backend/server.py:8029:    changed = await db.users.update_one({"id": user["id"], "coins_balance": {"$gte": body.amount}}, {"$inc": {"coins_balance": -body.amount}})
+backend/server.py:8032:    tx = await _coins_log(user["id"], "spend", -body.amount, body.purpose, body.ref_id, body.idempotency_key)
+backend/server.py:8033:    return {"success": True, "balance": await _coins_balance(user["id"]), "transaction": tx}
+backend/server.py:8036:@admin_router.post("/coins/grant")
+backend/server.py:8037:async def coins_grant(body: CoinsGrantIn, user: dict = Depends(require_admin)):
+backend/server.py:8041:    if body.idempotency_key:
+backend/server.py:8042:        existing = await db.coins_ledger.find_one({"user_id": body.user_id, "idempotency_key": body.idempotency_key}, {"_id": 0})
+backend/server.py:8044:            return {"success": True, "duplicate": True, "balance": await _coins_balance(body.user_id), "transaction": existing}
+backend/server.py:8045:    await db.users.update_one({"id": body.user_id}, {"$inc": {"coins_balance": body.amount}})
+backend/server.py:8046:    tx = await _coins_log(body.user_id, "grant", body.amount, body.purpose, None, body.idempotency_key)
+backend/server.py:8047:    await _admin_log(user["id"], "coins_grant", body.user_id, {"amount": body.amount, "purpose": body.purpose})
+backend/server.py:8048:    return {"success": True, "balance": await _coins_balance(body.user_id), "transaction": tx}
+backend/server.py:8051:@api.get("/wallet/me")
+backend/server.py:8052:async def wallet_me(user: dict = Depends(get_current_user)):
+backend/server.py:8053:    bal = await _wallet_balance(user["id"])
+backend/server.py:8054:    txs = await db.wallet_transactions.find(
+backend/server.py:8057:    return {"balance": bal, "currency": "SAR", "transactions": txs}
+backend/server.py:8060:@api.get("/wallet/transactions")
+backend/server.py:8061:async def wallet_transactions(limit: int = 50, user: dict = Depends(get_current_user)):
+backend/server.py:8063:    txs = await db.wallet_transactions.find(
+backend/server.py:8069:@api.post("/wallet/topup")
+backend/server.py:8070:async def wallet_topup(body: WalletTopupIn, user: dict = Depends(get_current_user)):
+backend/server.py:8076:        already = await db.wallet_transactions.find_one({"user_id": user["id"], "type": "bonus"})
+backend/server.py:8086:    await db.users.update_one({"id": target}, {"$inc": {"balance": float(body.amount)}})
+backend/server.py:8087:    await _wallet_log(target, kind, body.amount, desc)
+backend/server.py:8088:    new_bal = await _wallet_balance(target)
+backend/server.py:8092:@api.post("/wallet/claim-welcome-bonus")
+backend/server.py:8093:async def wallet_claim_welcome_bonus(user: dict = Depends(get_current_user)):
+backend/server.py:8098:    already = await db.wallet_transactions.find_one({"user_id": user["id"], "type": "bonus"})
+backend/server.py:8101:    await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": BONUS_AMOUNT}})
+backend/server.py:8102:    await _wallet_log(user["id"], "bonus", BONUS_AMOUNT, BONUS_LABEL)
+backend/server.py:8103:    new_bal = await _wallet_balance(user["id"])
+backend/server.py:8170:@api.post("/wallet/spend")
+backend/server.py:8171:async def wallet_spend(body: WalletSpendIn, user: dict = Depends(get_current_user)):
+backend/server.py:8172:    bal = await _wallet_balance(user["id"])
+backend/server.py:8175:    await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": -float(body.amount)}})
+backend/server.py:8176:    await _wallet_log(user["id"], "spend", -float(body.amount), body.purpose, body.ref_id)
+backend/server.py:8177:    # If purpose is "boost" with a listing_id, also flip is_boosted
+backend/server.py:8178:    if body.purpose == "boost" and body.ref_id:
+backend/server.py:8179:        boost_until = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+backend/server.py:8180:        await db.listings.update_one(
+backend/server.py:8182:            {"$set": {"is_boosted": True, "boost_until": boost_until}},
+backend/server.py:8184:    new_bal = await _wallet_balance(user["id"])
+backend/server.py:8974:    # Category follow + boosted listings
+backend/server.py:8977:    await _safe_index(db.listings, [("is_boosted", -1), ("created_at", -1)])
+backend/server.py:8997:                await db.listings.update_one({"id": l["id"]}, {"$set": {"slug": slug}})
+backend/server.py:9031:            # (no `source: master` rows yet). This makes the deploy idempotent
+backend/server.py:9141:    # Seed admin (idempotent)
+backend/server.py:9162:        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD), "role": "admin", "banned": False}})
+backend/server.py:9166:    # Backfill referral codes for users without one
+backend/server.py:9167:    async for u in db.users.find({"referral_code": {"$exists": False}}, {"_id": 0, "id": 1, "name": 1}):
+backend/server.py:9168:        await db.users.update_one({"id": u["id"]}, {"$set": {"referral_code": gen_referral_code(u.get("name", "USER"))}})
+backend/server.py:9169:    # Backfill search_blob on existing listings (one-time, idempotent)
+backend/server.py:9171:        await db.listings.update_one({"id": l["id"]}, {"$set": {"search_blob": build_search_blob(l)}})
+backend/ai_orchestrator.py:167:            await self.db.ai_provider_daily.update_one(
+backend/chat_hub.py:116:                await db.users.update_one({"id": user_id}, {"$set": {"last_seen": ts}})
+backend/locations.py:712:        # Indexes (idempotent).
+backend/seo_submitter.py:45:    await db.system.update_one(
+backend/server.py:917:    referral_code: Optional[str] = None
+backend/server.py:1190:    # Validate referral code if provided
+backend/server.py:1192:    if body.referral_code:
+backend/server.py:1193:        rcode = body.referral_code.strip().upper()
+backend/server.py:1194:        ref_user = await db.users.find_one({"referral_code": rcode})
+backend/server.py:1214:        "referral_code": gen_referral_code(body.name),
+backend/server.py:1220:        cfg = await db.referral_config.find_one({"id": "default"}, {"_id": 0}) or {"reward_points": 100, "enabled": True}
+backend/server.py:1222:            await db.referral_events.update_one(
+backend/server.py:1335:    await db.users.update_one({"id": user["id"]}, {"$set": update})
+backend/server.py:1456:    await db.users.update_one({"id": rec["user_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
+backend/server.py:1457:    await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
+backend/server.py:1573:            "referral_code": gen_referral_code(x_name), "referred_by": None,
+backend/server.py:1578:        await db.users.update_one({"id": user["id"]}, {"$set": {"x_id": x_id, "x_username": x_username, "avatar_url": user.get("avatar_url") or x_avatar}})
+backend/server.py:1600:    rec = await db.x_oauth_states.find_one_and_delete({"state": state})
+backend/server.py:1645:            "referral_code": gen_referral_code(x_name), "referred_by": None,
+backend/server.py:1650:        await db.users.update_one({"id": user["id"]}, {"$set": {"x_id": x_id, "x_username": x_username}})
+backend/server.py:1755:            "referral_code": gen_referral_code(snap_name), "referred_by": None,
+backend/server.py:1760:        await db.users.update_one({"id": user["id"]}, {"$set": {"snap_id": snap_id, "avatar_url": user.get("avatar_url") or snap_avatar}})
+backend/server.py:1778:    rec = await db.snap_oauth_states.find_one_and_delete({"state": state}) if state else None
+backend/server.py:1834:            "referral_code": gen_referral_code(snap_name), "referred_by": None,
+backend/server.py:1839:        await db.users.update_one({"id": user["id"]}, {"$set": {"snap_id": snap_id}})
+backend/server.py:1885:    await db.push_tokens.update_one(
+backend/server.py:1914:    await db.push_tokens.update_one(
+backend/server.py:1956:        await db.users.update_one({"id": user["id"]}, {"$set": update})
+backend/server.py:2024:        await db.users.update_one({"id": user["id"]}, {"$set": upd})
+backend/server.py:2045:            "referral_code": gen_referral_code(g_name or "USER"),
+backend/server.py:2098:    found = await db.google_oauth_states.find_one_and_delete({"state": state})
+backend/server.py:2231:        await db.users.update_one({"id": user["id"]}, {"$set": upd})
+backend/server.py:2255:            "referral_code": gen_referral_code(name or "USER"),
+backend/server.py:2379:    found = await db.apple_oauth_states.find_one_and_delete({"state": state})
+backend/server.py:2598:def gen_referral_code(name: str) -> str:
+backend/server.py:2602:@api.get("/referral/me")
+backend/server.py:2603:async def get_my_referral(user: dict = Depends(get_current_user)):
+backend/server.py:2604:    code = user.get("referral_code")
+backend/server.py:2606:        code = gen_referral_code(user["name"])
+backend/server.py:2607:        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": code}})
+backend/server.py:2609:    referral_events = await db.referral_events.find({"inviter_code": code}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(length=100)
+backend/server.py:2610:    reward_points = sum(int(x.get("reward_points") or 0) for x in referral_events if x.get("status") in {"qualified", "rewarded"})
+backend/server.py:2619:    return {"code": code, "invited_count": invited, "badge": badge, "next_milestone": next_m, "reward_points": reward_points, "qualified_count": sum(1 for x in referral_events if x.get("status") in {"qualified", "rewarded"}), "events": referral_events}
+backend/server.py:2621:@api.get("/referral/leaderboard")
+backend/server.py:2622:async def referral_leaderboard():
+backend/server.py:2631:        u = await db.users.find_one({"referral_code": r["_id"]}, {"_id": 0, "name": 1, "city": 1, "verified": 1})
+backend/server.py:2973:        await db.listings.update_one({"id": listing_id}, {"$set": update})
+backend/server.py:3017:        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": {"amount": offer["amount"], "message": offer["message"], "status": "pending", "updated_at": now, "expires_at": expires_at, "decision_at": None, "decision_by": None}})
+backend/server.py:3065:                await db.listing_offers.update_one({"id": offer_id}, {"$set": {"status": "expired", "updated_at": datetime.now(timezone.utc).isoformat()}})
+backend/server.py:3082:    await db.listing_offers.update_one({"id": offer_id}, {"$set": update})
+backend/server.py:3176:    sort_field = [("is_boosted", -1), ("created_at", -1)]

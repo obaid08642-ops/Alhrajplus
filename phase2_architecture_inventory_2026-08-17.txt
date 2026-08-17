@@ -1,0 +1,472 @@
+== COUNTS ==
+web_js=113
+mobile_js=49
+backend_py=44
+== WEB ROUTES ==
+path="/"
+path="/about"
+path="/admin"
+path="/auctions"
+path="/auth/callback"
+path="/auth/google/callback"
+path="/auth/snapchat/callback"
+path="/auth/x/callback"
+path="/buy-requests"
+path="/category/:categoryKey"
+path="/chat"
+path="/contact"
+path="/deals"
+path="/download"
+path="/favorites"
+path="/flights"
+path="/following"
+path="/forgot-password"
+path="/listing/:id"
+path="/login"
+path="/map"
+path="/my-listings"
+path="/notifications"
+path="/offers"
+path="/post"
+path="/privacy"
+path="/profile"
+path="/reels"
+path="/register"
+path="/reset-password"
+path="/saved-searches"
+path="/search"
+path="/seller/:sellerId"
+path="/settings"
+path="/support"
+path="/terms"
+path="/verify-email"
+path="/wallet"
+== BACKEND ROUTE PREFIXES ==
+@api.delete("/admin/demo-listings
+@api.delete("/blocks/{target_id}
+@api.delete("/buy-requests/{request_id}
+@api.delete("/chat/messages/{message_id}
+@api.delete("/favorites/{listing_id}
+@api.delete("/follow/category/{name}
+@api.delete("/listing-comments/{comment_id}
+@api.delete("/listings/{listing_id}
+@api.delete("/listings/{listing_id}/boost
+@api.delete("/price-alerts/{listing_id}
+@api.delete("/push/unregister
+@api.delete("/search/history
+@api.delete("/search/saved/{sid}
+@api.delete("/users/me/draft-listing
+@api.delete("/watches/{listing_id}
+@api.get("/
+@api.get("/admin/ai/config
+@api.get("/ads
+@api.get("/ai/assistant/history
+@api.get("/ai/price-badge/{listing_id}
+@api.get("/ai/providers/status
+@api.get("/auctions/active
+@api.get("/auctions/{listing_id}/bids
+@api.get("/auth/apple/start
+@api.get("/auth/google/start
+@api.get("/auth/me
+@api.get("/auth/me/stats
+@api.get("/auth/providers
+@api.get("/auth/snapchat/start
+@api.get("/auth/verify-email
+@api.get("/auth/x/start
+@api.get("/blocks/{target_id}/status
+@api.get("/buy-requests
+@api.get("/buy-requests/mine
+@api.get("/chat/conversations
+@api.get("/chat/location-share/{share_id}
+@api.get("/chat/messages/{convo_id}
+@api.get("/chat/presence/{user_id}
+@api.get("/cloudinary/signature
+@api.get("/coins/ledger
+@api.get("/coins/me
+@api.get("/cron/daily-digest
+@api.get("/deals/today
+@api.get("/favorites
+@api.get("/favorites/{listing_id}/check
+@api.get("/following
+@api.get("/geo/cities
+@api.get("/geo/detect-country
+@api.get("/geo/districts
+@api.get("/geo/reverse
+@api.get("/geo/search
+@api.get("/health
+@api.get("/health/ready
+@api.get("/listings
+@api.get("/listings/by-slug/{slug}
+@api.get("/listings/map/nearby
+@api.get("/listings/me/mine
+@api.get("/listings/recent
+@api.get("/listings/recommended
+@api.get("/listings/trending
+@api.get("/listings/{listing_id}
+@api.get("/listings/{listing_id}/applications
+@api.get("/listings/{listing_id}/comments
+@api.get("/listings/{listing_id}/like/check
+@api.get("/listings/{listing_id}/neighbors
+@api.get("/listings/{listing_id}/offers
+@api.get("/listings/{listing_id}/similar
+@api.get("/meta/car-brands
+@api.get("/meta/car-models
+@api.get("/meta/car-trims
+@api.get("/meta/categories
+@api.get("/meta/countries
+@api.get("/meta/phone-brands
+@api.get("/meta/phone-models
+@api.get("/meta/phone-variants
+@api.get("/meta/theme
+@api.get("/notifications
+@api.get("/notifications/unread-count
+@api.get("/offers/mine
+@api.get("/price-alerts
+@api.get("/push/preferences
+@api.get("/push/web/vapid-public-key
+@api.get("/referral/leaderboard
+@api.get("/referral/me
+@api.get("/robots.txt
+@api.get("/search
+@api.get("/search/history
+@api.get("/search/saved
+@api.get("/search/suggest
+@api.get("/search/trending
+@api.get("/sellers/{seller_id}
+@api.get("/sellers/{seller_id}/follow-status
+@api.get("/sellers/{seller_id}/listings
+@api.get("/sellers/{seller_id}/ratings
+@api.get("/sellers/{seller_id}/trust
+@api.get("/seo/indexnow/key
+@api.get("/seo/listing/{listing_id}
+@api.get("/sitemap.xml
+@api.get("/static-pages/{slug}
+@api.get("/support/tickets
+@api.get("/support/tickets/{ticket_id}
+@api.get("/users/me/notifications/settings
+@api.get("/users/me/resume
+@api.get("/voice/ice-servers
+@api.get("/wallet/me
+@api.get("/wallet/transactions
+@api.get("/watches
+@api.head("/health
+@api.patch("/job-applications/{application_id}
+@api.patch("/listing-offers/{offer_id}
+@api.post("/admin/digest/test
+@api.post("/ads/{aid}/click
+@api.post("/ads/{aid}/impression
+@api.post("/ai/assistant
+@api.post("/ai/image-search
+@api.post("/ai/listing-autofill
+@api.post("/ai/price-suggest
+@api.post("/ai/suggest-category
+@api.post("/ai/transcribe
+@api.post("/ai/translate
+@api.post("/analytics/events
+@api.post("/auctions/{listing_id}/bid
+@api.post("/auth/apple/native
+@api.post("/auth/forgot-password
+@api.post("/auth/google
+@api.post("/auth/login
+@api.post("/auth/logout
+@api.post("/auth/refresh
+@api.post("/auth/register
+@api.post("/auth/request-account-deletion
+@api.post("/auth/resend-verification
+@api.post("/auth/reset-password
+@api.post("/auth/snapchat/callback
+@api.post("/auth/x/callback
+@api.post("/blocks/{target_id}
+@api.post("/buy-requests
+@api.post("/chat/location-share
+@api.post("/chat/location-share/{share_id}/stop
+@api.post("/chat/messages/{message_id}/react
+@api.post("/chat/send
+@api.post("/coins/spend
+@api.post("/contact
+@api.post("/cron/daily-digest
+@api.post("/favorites/{listing_id}
+@api.post("/follow/category/{name}
+@api.post("/listings
+@api.post("/listings/suggest-price
+@api.post("/listings/{listing_id}/applications
+@api.post("/listings/{listing_id}/boost
+@api.post("/listings/{listing_id}/click
+@api.post("/listings/{listing_id}/comments
+@api.post("/listings/{listing_id}/like
+@api.post("/listings/{listing_id}/mark-sold
+@api.post("/listings/{listing_id}/offers
+@api.post("/listings/{listing_id}/pause
+@api.post("/listings/{listing_id}/republish
+@api.post("/listings/{listing_id}/resume
+@api.post("/listings/{listing_id}/view
+@api.post("/notifications/read-all
+@api.post("/notifications/{nid}/read
+@api.post("/price-alerts/{listing_id}
+@api.post("/push/register
+@api.post("/push/test
+@api.post("/push/web/subscribe
+@api.post("/push/web/unsubscribe
+@api.post("/reports
+@api.post("/search/log
+@api.post("/search/save
+@api.post("/sellers/{seller_id}/follow
+@api.post("/sellers/{seller_id}/ratings
+@api.post("/seo/indexnow/resubmit-all
+@api.post("/support/tickets
+@api.post("/support/tickets/{ticket_id}/replies
+@api.post("/users/me/draft-listing
+@api.post("/users/me/search-event
+@api.post("/wallet/claim-welcome-bonus
+@api.post("/wallet/spend
+@api.post("/wallet/topup
+@api.post("/watches
+@api.put("/admin/ai/config
+@api.put("/auth/me
+@api.put("/listings/{listing_id}
+@api.put("/push/preferences
+@api.put("/users/me
+@api.put("/users/me/notifications/settings
+@api.put("/users/me/resume
+@api.put("/users/me/storefront
+== TODO MOCK ALERT ==
+frontend/src/components/AIAssistantWidget.js:277:                            <input data-testid="ai-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder={tr("اكتب رسالتك...")} className="flex-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-full px-4 py-2.5 text-sm font-arabic-body text-[var(--text)] outline-none focus:border-[var(--primary)]" disabled={busy} />
+frontend/src/components/AnimalsEquipmentBoxes.js:143:                <TextCell label={tr("الموديل")} value={cf.model} required onChange={(v) => set({ model: v })} placeholder={tr("مثال: CAT 320D")} testid="eq-model" />
+frontend/src/components/AnimalsEquipmentBoxes.js:191:function TextCell({ label, value, onChange, required, placeholder, testid }) {
+frontend/src/components/AnimalsEquipmentBoxes.js:201:                placeholder={placeholder}
+frontend/src/components/AuctionsServicesBoxes.js:202:                    <TextCell label={tr("نقطة الالتقاط")} value={cf.pickup_location} required onChange={(v) => set({ pickup_location: v })} placeholder={tr("المدينة، الحي")} testid="svc-pickup" />
+frontend/src/components/AuctionsServicesBoxes.js:203:                    <TextCell label={tr("نقطة الوصول")} value={cf.dropoff_location} required onChange={(v) => set({ dropoff_location: v })} placeholder={tr("المدينة، الحي")} testid="svc-dropoff" />
+frontend/src/components/AuctionsServicesBoxes.js:286:function TextCell({ label, value, onChange, required, placeholder, testid }) {
+frontend/src/components/AuctionsServicesBoxes.js:296:                placeholder={placeholder}
+frontend/src/components/CategoryCascades.js:96:                <Field label={tr("اللون")} value={v.color || ""} onChange={(x) => set({ color: x })} placeholder={tr("مثال: أبيض / أسود")} testid="car-color" />
+frontend/src/components/CategoryCascades.js:163:                <Field label={tr("الماركة / المصدر")} value={v.brand || ""} onChange={(x) => set({ brand: x })} placeholder={tr("مثال: IKEA / محلي")} testid="furn-brand" />
+frontend/src/components/CategoryCascades.js:214:function Field({ label, value, onChange, placeholder, testid }) {
+frontend/src/components/CategoryCascades.js:222:                placeholder={placeholder}
+frontend/src/components/CitySelect.js:16:    placeholder,
+frontend/src/components/CitySelect.js:72:    const displayLabel = value || (placeholder || tr(kind === "city" ? "اختر المدينة" : "اختر الحي / المنطقة"));
+frontend/src/components/CitySelect.js:117:                                placeholder={kind === "city" ? tr("اكتب اسم المدينة...") : tr("اكتب اسم الحي...")}
+frontend/src/components/CitySelect.js:118:                                className="flex-1 bg-transparent outline-none text-sm font-arabic-body text-[var(--text)] placeholder:text-[var(--text-muted)]"
+frontend/src/components/GeoAutocomplete.js:16:    placeholder,
+frontend/src/components/GeoAutocomplete.js:96:                placeholder={placeholder || tr(kind === "city" ? "ابحث عن مدينة..." : "ابحث عن حي...")}
+frontend/src/components/JobsRealEstateBoxes.js:55:                <TextCell label={tr("المسمى الوظيفي")} value={cf.job_title} required onChange={(v) => set({ job_title: v })} placeholder={tr("مثال: مهندس برمجيات أول")} testid="job-title" />
+frontend/src/components/JobsRealEstateBoxes.js:60:                    <TextCell label={tr("الراتب المتوقع")} value={cf.expected_salary} onChange={(v) => set({ expected_salary: v })} placeholder={tr("مثال: 8,000 ر.س")} testid="job-expected-salary" />
+frontend/src/components/JobsRealEstateBoxes.js:62:                    <TextCell label={tr("نطاق الراتب")} value={cf.salary_range} onChange={(v) => set({ salary_range: v })} placeholder={tr("مثال: 6,000 - 10,000 ر.س")} testid="job-salary-range" />
+frontend/src/components/JobsRealEstateBoxes.js:77:                    <TextAreaCell colSpan label={tr("المهارات والقدرات")} value={cf.skills} onChange={(v) => set({ skills: v })} placeholder={tr("اذكر مهاراتك، مثال: Python, React, إدارة فرق...")} testid="job-skills" />
+frontend/src/components/JobsRealEstateBoxes.js:79:                    <TextAreaCell colSpan label={tr("المتطلبات والشروط")} value={cf.requirements} onChange={(v) => set({ requirements: v })} placeholder={tr("اذكر المؤهلات والمتطلبات الإلزامية...")} testid="job-requirements" />
+frontend/src/components/JobsRealEstateBoxes.js:170:function TextCell({ label, value, onChange, required, placeholder, testid }) {
+frontend/src/components/JobsRealEstateBoxes.js:180:                placeholder={placeholder}
+frontend/src/components/JobsRealEstateBoxes.js:230:function TextAreaCell({ label, value, onChange, placeholder, colSpan, testid }) {
+frontend/src/components/JobsRealEstateBoxes.js:238:                placeholder={placeholder}
+frontend/src/components/LocationPicker.jsx:150:                            placeholder={tr("ابحث...")}
+frontend/src/components/LocationPicker.jsx:152:                            className="flex-1 bg-transparent outline-none text-sm font-arabic-body text-[var(--text)] placeholder:text-[var(--text-muted)]"
+frontend/src/components/layout/TopBar.js:155:                            placeholder={t("search_placeholder")}
+frontend/src/components/layout/TopBar.js:157:                            className="bg-transparent flex-1 mx-2 outline-none text-xs sm:text-sm placeholder:text-[var(--text-muted)] text-[var(--text)] font-arabic-body min-w-0"
+frontend/src/components/ui/command.jsx:41:        "flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+frontend/src/components/ui/input.jsx:10:        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+frontend/src/components/ui/select.jsx:17:      "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+frontend/src/components/ui/textarea.jsx:9:        "flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+frontend/src/contexts/I18nContext.js:23:        search_placeholder: "ابحث عن أي شيء... (AI)",
+frontend/src/contexts/I18nContext.js:63:        search_placeholder: "Search anything... (AI)",
+frontend/src/contexts/I18nContext.js:103:        search_placeholder: "تلاش کریں...",
+frontend/src/contexts/I18nContext.js:142:        search_placeholder: "कुछ भी खोजें...",
+frontend/src/contexts/I18nContext.js:179:        search_placeholder: "যেকোনো কিছু খুঁজুন...",
+frontend/src/contexts/I18nContext.js:216:        search_placeholder: "Rechercher...",
+frontend/src/hooks/useAuctionLive.js:101:        // No-op manual refresh placeholder so callers used to polling can switch
+frontend/src/lib/imageOptimizer.js:48: * Tiny Low-Quality Image Placeholder (LQIP) for progressive loading.
+frontend/src/pages/AdminPage.js:112:        <div className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-sm space-y-3"><div className="flex flex-wrap items-center gap-2"><b>{tr("ترتيب التدوير")}</b><input value={(config.order || []).join(", ")} onChange={(e) => setConfig({ ...config, order: e.target.value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean) })} placeholder={rotation || "gemini, grok"} className="flex-1 min-w-[220px] bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 font-mono text-xs" /></div><p className="text-xs text-[var(--text-muted)]">{tr("تحكم إداري غير سري؛ مفاتيح API تبقى في متغيرات الخادم ولا تُحفظ هنا")}</p><div className="flex items-center gap-2"><button onClick={saveConfig} disabled={saving} className="bg-[var(--primary)] text-[var(--primary-fg)] rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50">{saving ? tr("حفظ...") : tr("حفظ إعدادات AI")}</button>{saved && <span className="text-xs text-emerald-600">{saved}</span>}</div></div>
+frontend/src/pages/AdminPage.js:166:            <div className="flex flex-wrap gap-2"><select value={device} onChange={(e) => setDevice(e.target.value)} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm"><option value="">كل الأجهزة</option><option value="mobile">Mobile</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select><input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={3} placeholder={tr("الدولة مثل SA")} className="w-36 bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-latin" /></div>
+frontend/src/pages/AdminPage.js:322:            alert(tr("✅ تم حفظ إعدادات SEO"));
+frontend/src/pages/AdminPage.js:323:        } catch (_) { alert(tr("فشل الحفظ")); } finally { setBusy(false); }
+frontend/src/pages/AdminPage.js:532:                <input data-testid="filter-q" placeholder={tr("بحث في العنوان...")} value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} className="col-span-2 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-arabic-body" />
+frontend/src/pages/AdminPage.js:545:                <input data-testid="filter-country" placeholder={tr("الدولة (SA)")} value={filters.country_code} onChange={(e) => { setSkip(0); setFilters({ ...filters, country_code: e.target.value.toUpperCase() }); }} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm uppercase" />
+frontend/src/pages/AdminPage.js:638:        try { const { data } = await api.post("/admin/listings/bulk-delete", explicit.length ? { ids: explicit } : { older_than_days: ageDays, status }); alert(`${tr("تم حذف")} ${data.deleted} ${tr("إعلان")}. ${tr("تمت جدولة")} ${data.media_queued} ${tr("وسيط")}.`); await load(); } catch (e) { alert(e.response?.data?.detail || tr("تعذر الحذف الجماعي")); } finally { setBusy(false); }
+frontend/src/pages/AdminPage.js:640:    const preview = async () => { try { const { data } = await api.post("/admin/listings/bulk-delete", { older_than_days: ageDays, status, dry_run: true }); alert(`${tr("عدد الإعلانات المطابقة")}: ${data.matched}`); } catch (e) { alert(e.response?.data?.detail || tr("تعذر المعاينة")); } };
+frontend/src/pages/AdminPage.js:668:            alert(`${tr("✅ تم إصلاح")}: ${r.users_fixed} ${tr("مستخدم")} • ${r.listings_fixed} ${tr("إعلان")}`);
+frontend/src/pages/AdminPage.js:670:        } catch (e) { alert(tr("فشل الإصلاح")); }
+frontend/src/pages/AdminPage.js:749:                <input data-testid="users-q" placeholder={tr("بحث (اسم / بريد / جوال)")} value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} className="col-span-2 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-arabic-body" />
+frontend/src/pages/AdminPage.js:750:                <input data-testid="users-cc" placeholder={tr("الدولة")} maxLength={3} value={filters.country_code} onChange={(e) => setFilters({ ...filters, country_code: e.target.value.toUpperCase() })} className="bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm uppercase" />
+frontend/src/pages/AdminPage.js:976:        if (!form.title || !form.body) { alert(tr("املأ العنوان والنص")); return; }
+frontend/src/pages/AdminPage.js:977:        if (!schedAt) { alert(tr("اختر تاريخ ووقت الإرسال")); return; }
+frontend/src/pages/AdminPage.js:980:            alert(tr("اختر وقتاً مستقبلياً")); return;
+frontend/src/pages/AdminPage.js:991:            alert(tr("تم جدولة الإشعار ✅"));
+frontend/src/pages/AdminPage.js:993:            alert(e.response?.data?.detail || tr("تعذرت الجدولة"));
+frontend/src/pages/AdminPage.js:1002:        } catch (_) { alert(tr("فشل الإلغاء")); }
+frontend/src/pages/AdminPage.js:1006:        if (!form.title || !form.body) { alert(tr("املأ العنوان والنص")); return; }
+frontend/src/pages/AdminPage.js:1014:            alert(e.response?.data?.detail || "تعذر الإرسال");
+frontend/src/pages/AdminPage.js:1023:            if (!data.suggestions?.length) alert(tr("لم يتم توليد اقتراحات"));
+frontend/src/pages/AdminPage.js:1025:            alert(tr("تعذر توليد الاقتراحات"));
+frontend/src/pages/AdminPage.js:1034:            alert(`${tr("✅ تم إرسال الإشعار التجريبي إلى حسابك")}\n\nExpo: ${data?.push?.expo ?? 0}  •  Web: ${data?.push?.web ?? 0}`);
+frontend/src/pages/AdminPage.js:1036:            alert(e?.response?.data?.detail || tr("تعذر إرسال الإشعار التجريبي"));
+frontend/src/pages/AdminPage.js:1055:                        <input data-testid="notif-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={100} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder={tr("🔥 عرض اليوم!")} />
+frontend/src/pages/AdminPage.js:1059:                        <textarea data-testid="notif-body" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} maxLength={500} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder={tr("اكتشف صفقات حصرية على الإعلانات الجديدة!")} />
+frontend/src/pages/AdminPage.js:1064:                            <input data-testid="notif-url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} maxLength={300} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)] font-latin" placeholder="/listing/abc123  •  /auctions  •  https://..." />
+frontend/src/pages/AdminPage.js:1069:                            <input data-testid="notif-image" type="url" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} maxLength={400} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)] font-latin" placeholder="https://res.cloudinary.com/.../image.jpg" />
+frontend/src/pages/AdminPage.js:1088:                                <input value={form.country_code} onChange={(e) => setForm({ ...form, country_code: e.target.value.toUpperCase() })} maxLength={2} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="SA / AE / KW..." />
+frontend/src/pages/AdminPage.js:1094:                                <input data-testid="notif-category" value={form.category || ""} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] outline-none focus:border-[var(--primary)] text-[var(--text)]" placeholder="cars / electronics ..." />
+frontend/src/pages/AdminPage.js:1208:                    <input data-testid="ad-title-input" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={tr("عنوان الإعلان")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+frontend/src/pages/AdminPage.js:1212:                            <input data-testid="ad-image-input" required value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder={tr("رابط الصورة (https://...)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+frontend/src/pages/AdminPage.js:1213:                            <input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder={tr("رابط عند الضغط (اختياري)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+frontend/src/pages/AdminPage.js:1218:                            <input data-testid="ad-iframe-url-input" required value={form.iframe_url} onChange={(e) => setForm({ ...form, iframe_url: e.target.value })} placeholder={tr("رابط iframe الكامل (https://trip.com/...)")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none ltr-text" dir="ltr" />
+frontend/src/pages/AdminPage.js:1220:                                <input type="number" value={form.iframe_width} onChange={(e) => setForm({ ...form, iframe_width: parseInt(e.target.value) || 300 })} placeholder="العرض (px)" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+frontend/src/pages/AdminPage.js:1221:                                <input type="number" value={form.iframe_height} onChange={(e) => setForm({ ...form, iframe_height: parseInt(e.target.value) || 250 })} placeholder="الارتفاع (px)" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none" />
+frontend/src/pages/AdminPage.js:1304:        } catch (e) { alert(e.response?.data?.detail || tr("فشل الإضافة")); }
+frontend/src/pages/AdminPage.js:1311:        catch (e) { alert(e.response?.data?.detail || tr("فشل الحذف")); }
+frontend/src/pages/AdminPage.js:1322:        } catch (e) { alert(e.response?.data?.detail || tr("فشل")); }
+frontend/src/pages/AdminPage.js:1332:        } catch (e) { alert(e.response?.data?.detail || tr("فشل")); }
+frontend/src/pages/AdminPage.js:1362:                    <input data-testid="new-city-ar" value={newCity.name_ar} onChange={(e) => setNewCity({ ...newCity, name_ar: e.target.value })} placeholder={tr("الاسم بالعربية *")} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none font-arabic-body" />
+frontend/src/pages/AdminPage.js:1363:                    <input data-testid="new-city-en" value={newCity.name_en} onChange={(e) => setNewCity({ ...newCity, name_en: e.target.value })} placeholder={tr("English name (optional)")} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none" dir="ltr" />
+frontend/src/pages/AdminPage.js:1364:                    <input data-testid="new-city-districts" value={newCity.districts} onChange={(e) => setNewCity({ ...newCity, districts: e.target.value })} placeholder={tr("الأحياء (مفصولة بفاصلة)")} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none font-arabic-body" />
+frontend/src/pages/AdminPage.js:1390:                                    <input data-testid="new-district-input" value={newDistrict} onChange={(e) => setNewDistrict(e.target.value)} placeholder={tr("اسم الحي الجديد")} className="flex-1 bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] outline-none font-arabic-body" onKeyDown={(e) => e.key === "Enter" && addDistrict()} />
+frontend/src/pages/AdminPage.js:1477:            alert(err?.response?.data?.detail || tr("تعذرت الإضافة"));
+frontend/src/pages/AdminPage.js:1511:                    <input data-testid="bw-new" placeholder={tr("أضف كلمة محظورة جديدة...")} value={newWord} onChange={(e) => setNewWord(e.target.value)} maxLength={60} className="flex-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-arabic-body" />
+frontend/src/pages/AdminPage.js:1514:                <input data-testid="bw-filter" placeholder={tr("بحث في القائمة...")} value={filter} onChange={(e) => setFilter(e.target.value)} className="w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-arabic-body" />
+frontend/src/pages/AuctionsPage.js:256:                        <input data-testid="bid-amount" type="number" min={minRequired} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`${minRequired}`} className="w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-3 text-base font-bold text-[var(--text)] outline-none focus:border-[var(--primary)] font-latin" />
+frontend/src/pages/Auth.js:52:            alert(tr("تعذر بدء تسجيل الدخول بـ Google"));
+frontend/src/pages/Auth.js:55:        alert(tr("Google OAuth غير مُعد على الخادم. تواصل مع الدعم."));
+frontend/src/pages/Auth.js:72:            alert(tr("تعذر بدء تسجيل الدخول بـ X — تأكد من إعدادات Developer Portal"));
+frontend/src/pages/Auth.js:80:            alert(tr("تعذر بدء تسجيل الدخول بـ Snapchat. تأكد من إعدادات Snap Developer Portal."));
+frontend/src/pages/Auth.js:89:                alert(tr("تعذر بدء تسجيل الدخول بـ Apple"));
+frontend/src/pages/Auth.js:92:            alert(tr("Apple Sign In غير مُعد على الخادم. تواصل مع الدعم."));
+frontend/src/pages/Auth.js:193:                    <Field icon={Mail} type="email" placeholder={t("email")} value={email} onChange={setEmail} testid="login-email" />
+frontend/src/pages/Auth.js:196:                        <input data-testid="login-password" type={showPw ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("password")}
+frontend/src/pages/Auth.js:290:                    <Field icon={User} placeholder={t("name")} value={form.name} onChange={(v) => setForm({ ...form, name: v })} testid="reg-name" />
+frontend/src/pages/Auth.js:291:                    <Field icon={Mail} type="email" placeholder={t("email")} value={form.email} onChange={(v) => setForm({ ...form, email: v })} testid="reg-email" />
+frontend/src/pages/Auth.js:292:                    <PasswordFieldWithStrength value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder={`${t("password")} (8 أحرف على الأقل)`} testid="reg-password" />
+frontend/src/pages/Auth.js:293:                    <PasswordFieldWithStrength value={confirmPw} onChange={setConfirmPw} placeholder={tr("تأكيد كلمة المرور")} testid="reg-confirm-password" />
+frontend/src/pages/Auth.js:306:                            <input data-testid="reg-phone" required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "") })} placeholder={tr("رقم الجوال")} maxLength={cur?.phone_length || 9}
+frontend/src/pages/Auth.js:320:                    <Field icon={Gift} placeholder={tr("كود الإحالة (اختياري)")} value={form.referral_code} onChange={(v) => setForm({ ...form, referral_code: v.toUpperCase() })} testid="reg-referral" />
+frontend/src/pages/Auth.js:381:                        <Field icon={Mail} type="email" placeholder={t("email")} value={email} onChange={setEmail} testid="forgot-email" />
+frontend/src/pages/Auth.js:409:function PasswordFieldWithStrength({ value, onChange, placeholder, testid }) {
+frontend/src/pages/Auth.js:416:                <input data-testid={testid} type={show ? "text" : "password"} required minLength={8} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+frontend/src/pages/Auth.js:473:                        <PasswordFieldWithStrength value={password} onChange={setPassword} placeholder={tr("كلمة المرور الجديدة")} testid="reset-password" />
+frontend/src/pages/Auth.js:474:                        <PasswordFieldWithStrength value={confirmPw} onChange={setConfirmPw} placeholder={tr("تأكيد كلمة المرور")} testid="reset-confirm-password" />
+frontend/src/pages/Auth.js:483:function Field({ icon: Icon, type = "text", placeholder, value, onChange, testid, minLength }) {
+frontend/src/pages/Auth.js:487:            <input data-testid={testid} type={type} minLength={minLength} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+frontend/src/pages/CategoryPage.js:115:                    <input data-testid="filter-min-price" type="number" placeholder={tr("السعر من")} value={filters.min_price} onChange={(e) => updateFilter("min_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+frontend/src/pages/CategoryPage.js:116:                    <input data-testid="filter-max-price" type="number" placeholder={tr("السعر إلى")} value={filters.max_price} onChange={(e) => updateFilter("max_price", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+frontend/src/pages/CategoryPage.js:117:                    <input data-testid="filter-city" type="text" placeholder={tr("المدينة")} value={filters.city} onChange={(e) => updateFilter("city", e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+frontend/src/pages/ChatPage.js:618:        } catch (_) { alert(tr("فشل الرفع")); }
+frontend/src/pages/ChatPage.js:621:        if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }
+frontend/src/pages/ChatPage.js:625:            () => alert(tr("تعذر الوصول للموقع"))
+frontend/src/pages/ChatPage.js:640:        } catch (_) { alert(tr("تعذر الوصول للميكروفون")); }
+frontend/src/pages/ChatPage.js:650:        } catch (_) { alert(tr("تعذرت الترجمة")); }
+frontend/src/pages/ChatPage.js:833:                                    rows={1} placeholder={tr("اكتب رسالتك...")}
+frontend/src/pages/DownloadPage.js:13: *   If the URL is empty we stay on the page and show the QR placeholders.
+frontend/src/pages/DownloadPage.js:16: *   greyed-out placeholder showing "قريباً" so the page is always usable
+frontend/src/pages/FlightsPage.js:153:                            placeholder={tr("ابحث عن مدينة أو مطار أو رمز IATA...")}
+frontend/src/pages/FlightsPage.js:203:        if (!from || !to || !date) { alert(tr("الرجاء اختيار المطار والتاريخ")); return; }
+frontend/src/pages/FlightsPage.js:204:        if (from === to) { alert(tr("لا يمكن أن يكون مطار المغادرة والوصول متشابهين")); return; }
+frontend/src/pages/ListingDetail.js:145:        } catch (_) { alert(tr("تعذر تنفيذ الإجراء")); }
+frontend/src/pages/ListingDetail.js:156:                alert(tr("✅ تم تفعيل تنبيه الأسعار. ستتلقى إشعاراً عند تخفيض السعر."));
+frontend/src/pages/ListingDetail.js:158:        } catch (_) { alert(tr("تعذر تنفيذ الإجراء")); }
+frontend/src/pages/ListingDetail.js:210:        } catch (e) { alert(e.response?.data?.detail || tr("تعذر نشر التعليق")); }
+frontend/src/pages/ListingDetail.js:218:        if (!Number.isFinite(amount) || amount <= 0) return alert(tr("أدخل قيمة عرض صحيحة"));
+frontend/src/pages/ListingDetail.js:225:            alert(tr("تم إرسال عرضك للبائع بنجاح"));
+frontend/src/pages/ListingDetail.js:227:            alert(e.response?.data?.detail || tr("تعذر إرسال العرض"));
+frontend/src/pages/ListingDetail.js:235:            alert(data.message || "تم التجديد");
+frontend/src/pages/ListingDetail.js:239:            alert(e.response?.data?.detail || "تعذر التجديد");
+frontend/src/pages/ListingDetail.js:247:            alert(tr("✅ تم تحديد الإعلان كمباع. شكراً لاستخدامك الحراج بلس!"));
+frontend/src/pages/ListingDetail.js:250:            alert(e.response?.data?.detail || "تعذر التحديث");
+frontend/src/pages/ListingDetail.js:261:            alert(sold ? "✅ شكراً، نتمنى لك بيعاً موفقاً دائماً!" : "تم حذف الإعلان");
+frontend/src/pages/ListingDetail.js:264:            alert(e.response?.data?.detail || "تعذر الحذف");
+frontend/src/pages/ListingDetail.js:292:            alert(isPaused ? tr("✓ تم استئناف الإعلان") : tr("⏸️ تم إيقاف الإعلان مؤقتاً"));
+frontend/src/pages/ListingDetail.js:294:            alert(e.response?.data?.detail || tr("تعذر التحديث"));
+frontend/src/pages/ListingDetail.js:377:                                        alert(tr("✅ تم نسخ رابط الإعلان"));
+frontend/src/pages/ListingDetail.js:412:                                <input data-testid="listing-comment-input" value={commentText} onChange={(e) => setCommentText(e.target.value)} maxLength={1000} placeholder={tr("اكتب تعليقًا عامًا...")} className="flex-1 min-w-0 bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+frontend/src/pages/ListingDetail.js:649:                        <input autoFocus required type="number" min="1" step="0.01" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-3 border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] mb-3" placeholder={listing.price ? String(listing.price) : "0"} />
+frontend/src/pages/ListingDetail.js:651:                        <textarea rows={3} value={offerMessage} onChange={(e) => setOfferMessage(e.target.value)} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-3 border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] mb-4" placeholder={tr("اكتب رسالة للبائع...")} />
+frontend/src/pages/PostListing.js:93:        }).catch(() => alert(tr("تعذر تحميل الإعلان")));
+frontend/src/pages/PostListing.js:339:                alert(`💡 ${data.note}\nنطاق السوق: ${data.suggested_min.toLocaleString()} - ${data.suggested_max.toLocaleString()}`);
+frontend/src/pages/PostListing.js:341:                alert(data.note || "لا توجد بيانات كافية");
+frontend/src/pages/PostListing.js:343:        } catch (_) { alert(tr("تعذر اقتراح السعر")); }
+frontend/src/pages/PostListing.js:414:        if (file.size > 8 * 1024 * 1024) { alert(tr("حجم الصورة كبير جداً (الحد الأقصى 8MB)")); return; }
+frontend/src/pages/PostListing.js:439:            alert(tr("✨ تم تعبئة الإعلان بالذكاء الاصطناعي! راجع التفاصيل وعدّل ما تشاء."));
+frontend/src/pages/PostListing.js:676:                        <input data-testid="post-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={120} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("مثال: تويوتا كامري 2020 — وارد الخليج")} />
+frontend/src/pages/PostListing.js:722:                        <textarea data-testid="post-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={tr("اكتب وصفاً تفصيلياً...")} />
+frontend/src/pages/PostListing.js:797:                                    <input data-testid="post-price" type="number" inputMode="numeric" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="w-full bg-[var(--surface-elevated)] rounded-xl ps-4 pe-16 py-3 text-base border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-latin font-bold tracking-wider" placeholder={tr("اتركه فارغاً للسوم")} style={{ minHeight: "48px" }} />
+frontend/src/pages/PostListing.js:839:                                <input data-testid={`field-${f.key}`} type={f.type} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={f.placeholder || ""} />
+frontend/src/pages/PostListing.js:841:                                <input data-testid={`field-${f.key}`} value={form.custom_fields[f.key] || ""} onChange={(e) => setForm({ ...form, custom_fields: { ...form.custom_fields, [f.key]: e.target.value } })} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" placeholder={f.placeholder || ""} />
+frontend/src/pages/PostListing.js:977:                            if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }
+frontend/src/pages/PostListing.js:980:                                () => alert(tr("تعذر الوصول للموقع. تأكد من السماح بالموقع"))
+frontend/src/pages/PostListing.js:1002:                        placeholder based on the active country (NOT always +966). */}
+frontend/src/pages/PostListing.js:1005:                        const PLACEHOLDER_BY_CC = {
+frontend/src/pages/PostListing.js:1011:                        const ph = PLACEHOLDER_BY_CC[activeCountryCode] || "+9665XXXXXXXX";
+frontend/src/pages/PostListing.js:1062:                                            placeholder={ph}
+frontend/src/pages/ProfilePage.js:103:        } catch (e) { alert(e.response?.data?.detail || tr("تعذر تحديث العرض")); }
+frontend/src/pages/ProfilePage.js:171:                            alert(tr("تم نسخ رابط الدعوة ✅"));
+frontend/src/pages/ProfilePage.js:348:            alert(e.response?.data?.detail || tr("تعذر حفظ الرقم"));
+frontend/src/pages/ProfilePage.js:357:                <input data-testid="profile-phone-input" type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d]/g, ""))} placeholder="5xxxxxxxx" className="flex-1 bg-[var(--surface-elevated)] rounded-lg px-3 py-1.5 text-sm border border-[var(--primary)] outline-none font-latin tracking-wider" autoFocus />
+frontend/src/pages/ReelsPage.js:59:                alert(tr("✅ تم نسخ رابط الإعلان"));
+frontend/src/pages/SearchAndMap.js:162:            alert(tr("المتصفح لا يدعم البحث الصوتي"));
+frontend/src/pages/SearchAndMap.js:186:                    <input data-testid="search-page-input" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && setSearchParams({ q })} placeholder={t("search_placeholder")} className="bg-transparent flex-1 mx-3 outline-none text-sm text-[var(--text)] font-arabic-body" />
+frontend/src/pages/SearchAndMap.js:213:                            <input data-testid="filter-min" type="number" placeholder={tr("السعر من")} value={minPrice} onChange={(e) => setMinPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+frontend/src/pages/SearchAndMap.js:214:                            <input data-testid="filter-max" type="number" placeholder={tr("السعر إلى")} value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="bg-[var(--surface-elevated)] rounded-xl px-3 py-2 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)] font-arabic-body" />
+frontend/src/pages/SearchAndMap.js:281:        if (!navigator.geolocation) { alert(tr("المتصفح لا يدعم تحديد الموقع")); return; }
+frontend/src/pages/SearchAndMap.js:284:            () => alert(tr("تعذر الوصول للموقع"))
+frontend/src/pages/StaticPages.js:28:            alert(tr("تم استلام طلب حذف الحساب. سيتم مراجعته من قبل الإدارة خلال 48 ساعة."));
+frontend/src/pages/StaticPages.js:29:        } catch (_) { alert(tr("تعذر إرسال الطلب")); }
+frontend/src/pages/StaticPages.js:165:                    <input data-testid="contact-subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder={tr("الموضوع")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+frontend/src/pages/StaticPages.js:166:                    <textarea data-testid="contact-message" required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder={tr("اكتب رسالتك...")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]"></textarea>
+frontend/src/pages/WorkflowPage.js:36:      {isBuy ? <><input required minLength={3} value={form.title} onChange={e => set("title", e.target.value)} placeholder={t("عنوان الطلب")} className="field" /><div className="grid sm:grid-cols-2 gap-3"><input required value={form.category} onChange={e => set("category", e.target.value)} placeholder={t("الفئة")} className="field" /><input value={form.city} onChange={e => set("city", e.target.value)} placeholder={t("المدينة")} className="field" /></div><div className="grid sm:grid-cols-2 gap-3"><input type="number" min="0" value={form.budget_min} onChange={e => set("budget_min", e.target.value)} placeholder={t("الميزانية من")} className="field" /><input type="number" min="0" value={form.budget_max} onChange={e => set("budget_max", e.target.value)} placeholder={t("الميزانية إلى")} className="field" /></div><textarea required value={form.description} onChange={e => set("description", e.target.value)} placeholder={t("وصف الطلب")} className="field min-h-28" /></> : <><input required minLength={3} value={form.subject} onChange={e => set("subject", e.target.value)} placeholder={t("موضوع التذكرة")} className="field" /><div className="grid sm:grid-cols-2 gap-3"><select value={form.category} onChange={e => set("category", e.target.value)} className="field"><option value="general">{t("عام")}</option><option value="account">{t("الحساب")}</option><option value="listing">{t("إعلان")}</option><option value="payment">{t("الدفع")}</option><option value="report">{t("بلاغ")}</option></select><select value={form.priority} onChange={e => set("priority", e.target.value)} className="field"><option value="normal">{t("عادي")}</option><option value="high">{t("مرتفع")}</option><option value="urgent">{t("عاجل")}</option></select></div><textarea required value={form.message} onChange={e => set("message", e.target.value)} placeholder={t("اكتب رسالتك")} className="field min-h-28" /></>}
+mobile/src/I18nContext.js:346:        "قريباً": "Coming soon",
+mobile/src/biometric.js:40:        Alert.alert("تعذّر التفعيل", "جهازك لا يدعم البصمة أو لم تُسجّل بصمة/FaceID في الإعدادات.");
+mobile/src/biometric.js:58:        Alert.alert("خطأ", "تعذّر حفظ بيانات الدخول بأمان");
+mobile/src/components/AnimalsEquipmentBoxesMobile.js:105:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AnimalsEquipmentBoxesMobile.js:110:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AnimalsEquipmentBoxesMobile.js:125:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AnimalsEquipmentBoxesMobile.js:139:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AnimalsEquipmentBoxesMobile.js:218:        })} placeholder={t("مثال: CAT 320D")} placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AnimalsEquipmentBoxesMobile.js:232:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AnimalsEquipmentBoxesMobile.js:247:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:85:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:90:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:98:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:103:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:116:        })} placeholder="YYYY-MM-DD HH:mm" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:230:          })} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:242:          })} placeholder={t("المدينة، الحي")} placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:247:          })} placeholder={t("المدينة، الحي")} placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:266:          })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:271:          })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/CategoryCascadesMobile.js:24:  placeholder,
+mobile/src/components/CategoryCascadesMobile.js:34:                <Text style={value ? ps.txt : ps.ph}>{value || placeholder || "—"}</Text>
+mobile/src/components/CategoryCascadesMobile.js:108:                <Lab text={t("الماركة")}><Picker value={v.car_brand || ""} options={brands} placeholder="—" onChange={b => set({
+mobile/src/components/CategoryCascadesMobile.js:113:                <Lab text={t("الموديل")}><Picker value={v.car_model || ""} options={models} placeholder="—" disabled={!v.car_brand} onChange={m => set({
+mobile/src/components/CategoryCascadesMobile.js:119:                <Lab text={t("السنة")}><Picker value={v.car_year || ""} options={years} placeholder="—" onChange={y => set({
+mobile/src/components/CategoryCascadesMobile.js:122:                <Lab text={t("الفئة")}><Picker value={v.car_trim || ""} options={trims} placeholder="—" disabled={!v.car_model} onChange={tx => set({
+mobile/src/components/CategoryCascadesMobile.js:127:                <Lab text={t("الممشى (كم)")}><Picker value={v.mileage || ""} options={CAR_OPTS.mileage} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:130:                <Lab text={t("ناقل الحركة")}><Picker value={v.transmission || ""} options={CAR_OPTS.transmission} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:135:                <Lab text={t("نوع الوقود")}><Picker value={v.fuel_type || ""} options={CAR_OPTS.fuel_type} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:138:                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={CAR_OPTS.condition} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:143:                <Lab text={t("نوع الإعلان")}><Picker value={v.listing_type || ""} options={CAR_OPTS.listing_type} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:146:                <Lab text={t("اللون")}><Picker value={v.color || ""} options={CAR_OPTS.color} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:209:                <Lab text={t("الماركة")}><Picker value={v.phone_brand || ""} options={brands} placeholder="—" onChange={b => set({
+mobile/src/components/CategoryCascadesMobile.js:215:                <Lab text={t("الموديل")}><Picker value={v.phone_model || ""} options={models} placeholder="—" disabled={!v.phone_brand} onChange={m => set({
+mobile/src/components/CategoryCascadesMobile.js:222:                <Lab text={t("السعة")}><Picker value={v.phone_storage || ""} options={storages} placeholder="—" disabled={!v.phone_model} onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:225:                <Lab text={t("اللون")}><Picker value={v.phone_color || ""} options={palette} placeholder="—" disabled={!v.phone_model} onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:230:                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={PHONE_OPTS.condition} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:233:                <Lab text={t("الذاكرة (RAM)")}><Picker value={v.ram || ""} options={PHONE_OPTS.ram} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:238:                <Lab text={t("الضمان")}><Picker value={v.warranty || ""} options={PHONE_OPTS.warranty} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:281:                <Lab text={t("نوع الأثاث")}><Picker value={v.furniture_type || ""} options={FURNITURE_OPTS.type} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:284:                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={FURNITURE_OPTS.condition} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:289:                <Lab text={t("الخامة")}><Picker value={v.material || ""} options={FURNITURE_OPTS.material} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:292:                <Lab text={t("اللون")}><Picker value={v.color || ""} options={FURNITURE_OPTS.color} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:297:                <Lab text={t("مدة الاستخدام")}><Picker value={v.usage_duration || ""} options={FURNITURE_OPTS.usage_duration} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:300:                <Lab text={t("الماركة / المصدر")}><Picker value={v.brand || ""} options={FURNITURE_OPTS.brand} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:305:                <Lab text={t("المقاس")}><Picker value={v.size || ""} options={FURNITURE_OPTS.size} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:308:                <Lab text={t("مكان الاستخدام")}><Picker value={v.location || ""} options={FURNITURE_OPTS.location} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:328:                <Lab text={t("نوع الجهاز")}><Picker value={v.appliance_type || ""} options={APPLIANCE_OPTS.appliance_type} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:331:                <Lab text={t("الماركة")}><Picker value={v.brand || ""} options={APPLIANCE_OPTS.brand} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:336:                <Lab text={t("الحالة")}><Picker value={v.condition || ""} options={APPLIANCE_OPTS.condition} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:339:                <Lab text={t("الضمان")}><Picker value={v.warranty || ""} options={APPLIANCE_OPTS.warranty} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:344:                <Lab text={t("استهلاك الطاقة")}><Picker value={v.power || ""} options={APPLIANCE_OPTS.power} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:347:                <Lab text={t("نوع الاستخدام")}><Picker value={v.usage || ""} options={APPLIANCE_OPTS.usage} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:352:                <Lab text={t("الفولت / الجهد")}><Picker value={v.voltage || ""} options={APPLIANCE_OPTS.voltage} placeholder="—" onChange={x => set({
+mobile/src/components/CategoryCascadesMobile.js:355:                <Lab text={t("بلد المنشأ")}><Picker value={v.origin || ""} options={APPLIANCE_OPTS.origin} placeholder="—" onChange={x => set({
+mobile/src/components/JobsRealEstateBoxesMobile.js:47:        })} placeholder={t("مثال: مهندس برمجيات أول")} placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/JobsRealEstateBoxesMobile.js:61:        })} placeholder={t("مثال: 8,000 ر.س")} placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/JobsRealEstateBoxesMobile.js:65:        })} placeholder={t("مثال: 6,000 - 10,000 ر.س")} placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/JobsRealEstateBoxesMobile.js:109:      })} placeholder={t("اذكر مهاراتك، مثال: Python, React, إدارة فرق...")} placeholderTextColor={colors.textMuted} style={[s.input, {
+mobile/src/components/JobsRealEstateBoxesMobile.js:119:      })} placeholder={t("اذكر المؤهلات والمتطلبات الإلزامية...")} placeholderTextColor={colors.textMuted} style={[s.input, {
+mobile/src/components/JobsRealEstateBoxesMobile.js:191:        })} keyboardType="numeric" placeholderTextColor={colors.textMuted} style={s.input} />
+mobile/src/components/JobsRealEstateBoxesMobile.js:197:        })} keyboardType="numeric" placeholder={t("اتركه فارغاً للسوم")} placeholderTextColor={colors.textMuted} style={s.input} />
