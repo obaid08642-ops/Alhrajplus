@@ -1,0 +1,22 @@
+{
+  "health": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "db": "connected",
+      "uptime": 699
+    }
+  },
+  "SA": {
+    "status": 200,
+    "total": 11,
+    "items_checked": 11,
+    "mismatches": []
+  },
+  "EG": {
+    "status": 200,
+    "total": 4,
+    "items_checked": 4,
+    "mismatches": []
+  }
+}

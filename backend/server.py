@@ -4177,12 +4177,22 @@ def _auction_end_datetime(listing: dict) -> Optional[datetime]:
     meta = listing.get("auction_meta") or {}
     raw = (listing.get("auction_end_at") or listing.get("end_time")
            or listing.get("closes_at") or cf.get("end_time")
-           or meta.get("end_time"))
+           or meta.get("end_time") or cf.get("auction_end_at")
+           or cf.get("end_date"))
     if not raw:
         return None
     try:
-        value = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+        text = str(raw).strip()
+        # Legacy forms stored only YYYY-MM-DD. Treat that date as ending at
+        # 23:59:59 UTC so old auctions cannot remain active indefinitely.
+        if len(text) == 10 and text[4] == "-" and text[7] == "-":
+            value = datetime.strptime(text, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc
+            )
+        else:
+            value = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            value = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+        return value
     except (TypeError, ValueError):
         return None
 

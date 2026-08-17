@@ -1,0 +1,137 @@
+--- key feature markers ---
+### MFA|2FA|TOTP
+backend/server.py:756:        f'<tr><td style="padding:8px;border-bottom:1px solid #E8F2FA">{l["title"][:50]}</td>'
+backend/server.py:757:        f'<td style="padding:8px;text-align:center;border-bottom:1px solid #E8F2FA">👁 {l.get("views", 0)}</td></tr>'
+mobile/src/screens/AuthScreens.js:549:    backgroundColor: "#E8F2FA",
+### auction.*(expire|duration|archive)|duration.*auction
+backend/server.py:2681:    if not cf.get("auction_duration") and not (cf.get("end_time") or cf.get("auction_end_at")):
+backend/server.py:2684:        cf["auction_duration"] = "7 أيام"
+backend/server.py:2693:    raw_duration = cf.get("auction_duration")
+backend/tests/test_auction_submission_policy.py:17:    assert fields["auction_duration"] == "7 أيام"
+backend/tests/test_auction_submission_policy.py:24:    fields, end = _normalize_auction_submission({"auction_duration": duration}, NOW)
+backend/tests/test_auction_submission_policy.py:31:        _normalize_auction_submission({"auction_duration": "10 أيام"}, NOW)
+frontend/src/components/AuctionsServicesBoxes.js:30:    auction_duration: ["3 أيام", "5 أيام", "7 أيام", "حسب التاريخ المحدد"],
+frontend/src/components/AuctionsServicesBoxes.js:43:    // ─── Auto-calculate end_time from auction_duration ────────────────────
+frontend/src/components/AuctionsServicesBoxes.js:45:        const d = cf.auction_duration;
+frontend/src/components/AuctionsServicesBoxes.js:55:    }, [cf.auction_duration]);
+frontend/src/components/AuctionsServicesBoxes.js:85:                <SelectCell label={tr("مدة المزاد")} value={cf.auction_duration} options={AUC_OPTIONS.auction_duration} required onChange={(v) => set({ auction_duration: v })} testid="auc-duration" />
+frontend/src/components/AuctionsServicesBoxes.js:86:                <DateTimeCell label={tr("وقت الانتهاء")} value={cf.end_time} onChange={(v) => set({ end_time: v })} testid="auc-end-time" min={toLocalDateTime(new Date())} max={toLocalDateTime(new Date(Date.now() + 7 * 86400 * 1000))} hint={cf.auction_duration && cf.auction_duration !== "حسب التاريخ المحدد" ? tr("✓ تلقائي من المدة") : tr("حد أقصى 7 أيام من وقت النشر")} />
+mobile/src/components/AuctionsServicesBoxesMobile.js:16:  auction_duration: ["3 أيام", "5 أيام", "7 أيام", "حسب التاريخ المحدد"],
+mobile/src/components/AuctionsServicesBoxesMobile.js:42:    const d = cf.auction_duration;
+mobile/src/components/AuctionsServicesBoxesMobile.js:53:  }, [cf.auction_duration]);
+mobile/src/components/AuctionsServicesBoxesMobile.js:109:                    <PickerCell value={cf.auction_duration} options={AUC_OPTS.auction_duration} onChange={v => set({
+mobile/src/components/AuctionsServicesBoxesMobile.js:110:          auction_duration: v
+mobile/src/components/AuctionsServicesBoxesMobile.js:117:                    {cf.auction_duration && cf.auction_duration !== "حسب التاريخ المحدد" && <Text style={s.hintOk}>✓ {t("تلقائي من المدة")}</Text>}
+### TURN|turnserver|iceServers
+backend/server.py:4569:    Optional TURN credentials are supplied only through TURN_ICE_SERVERS_JSON
+backend/server.py:4573:    raw = (os.environ.get("TURN_ICE_SERVERS_JSON") or "").strip()
+backend/server.py:4588:            logger.warning("Invalid TURN_ICE_SERVERS_JSON; using STUN only")
+frontend/src/components/VoiceCallModal.js:22:    const iceServersRef = useRef(DEFAULT_ICE_SERVERS);
+frontend/src/components/VoiceCallModal.js:45:        if (iceServersRef.current === DEFAULT_ICE_SERVERS) {
+frontend/src/components/VoiceCallModal.js:48:                if (Array.isArray(data?.ice_servers) && data.ice_servers.length) iceServersRef.current = data.ice_servers;
+frontend/src/components/VoiceCallModal.js:51:        const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
+mobile/src/components/VoiceCallWebView.js:23:  const [iceServers, setIceServers] = useState([{ urls: "stun:stun.l.google.com:19302" }]);
+mobile/src/components/VoiceCallWebView.js:33:      ref.current?.postMessage(JSON.stringify({ type: "voice-config", token, backend: BACKEND_URL, iceServers }));
+mobile/src/components/VoiceCallWebView.js:35:  }, [visible, ready, token, iceServers]);
+### backup|restore|disaster
+backend/tests/test_iter16_features.py:77:    def test_restore_admin_phone(self, admin_session):
+backend/tests/test_iter16_features.py:78:        # restore default to not break other tests
+frontend/src/components/AIAssistantWidget.js:180:                data-testid="ai-fab-restore"
+mobile/src/components/AIAssistantFab.js:61:    const [restorePillVisible] = useState(false); // Reserved for future profile-page restore
+mobile/src/components/AIAssistantFab.js:107:        if (restorePillVisible) {
+mobile/src/components/AIAssistantFab.js:109:                <TouchableOpacity onPress={async () => { setHidden(false); try { await AsyncStorage.removeItem(HIDDEN_KEY); } catch (_) {} }} style={styles.restorePill} testID="ai-fab-restore">
+mobile/src/components/AIAssistantFab.js:111:                    <Text style={styles.restorePillText}>{t("إظهار المساعد الذكي")}</Text>
+mobile/src/components/AIAssistantFab.js:199:    restorePill: {
+mobile/src/components/AIAssistantFab.js:212:    restorePillText: {
+### CRM|retention|visitor|device
+backend/server.py:551:  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+backend/server.py:1968:# Test push — useful for users to verify their device receives notifications
+backend/server.py:3070:    # offer id is copied between accounts or devices.
+backend/server.py:4777:    # other devices/tabs get the message so they all stay in sync.
+backend/server.py:5840:# Product analytics — privacy-conscious event collection for visitor funnels.
+backend/server.py:5841:# The client sends a short-lived visitor/session id, route, and allowlisted event
+backend/server.py:5857:    visitor_id = str(body.get("visitor_id") or "").strip()[:80]
+backend/server.py:5859:    if not visitor_id and not session_id:
+backend/server.py:5860:        raise HTTPException(400, "visitor_id or session_id required")
+backend/server.py:5879:        "visitor_id": visitor_id or None,
+backend/server.py:5886:        "device_type": _safe_text("device_type", 24),
+backend/server.py:5928:    visitors = await db.analytics_events.distinct("visitor_id", {**match, "visitor_id": {"$ne": None}})
+backend/server.py:5953:        "unique_visitors": len(visitors),
+backend/server.py:5963:@admin_router.get("/analytics/visitors")
+backend/server.py:5964:async def admin_analytics_visitors(days: int = 7, limit: int = 100, device_type: str = "", country_code: str = ""):
+backend/server.py:5965:    """Return privacy-conscious session summaries for the admin visitor view."""
+backend/server.py:5970:    if device_type:
+backend/server.py:5971:        match["device_type"] = device_type[:24]
+backend/server.py:5977:        {"$group": {"_id": "$session_id", "visitor_id": {"$first": "$visitor_id"}, "user_id": {"$first": "$user_id"}, "last_seen": {"$first": "$created_at"}, "first_seen": {"$last": "$created_at"}, "last_path": {"$first": "$path"}, "country_code": {"$first": "$country_code"}, "device_type": {"$first": "$device_type"}, "os": {"$first": "$os"}, "browser": {"$first": "$browser"}, "source": {"$first": "$source"}, "event_count": {"$sum": 1}, "duration_ms": {"$max": "$duration_ms"}}},
+backend/server.py:5984:async def admin_analytics_breakdown(days: int = 30, dimension: str = "device_type"):
+backend/server.py:5987:    allowed = {"device_type", "os", "browser", "country_code", "source", "referrer_host", "path"}
+backend/server.py:5993:        {"$group": {"_id": f"${dimension}", "events": {"$sum": 1}, "sessions": {"$addToSet": "$session_id"}, "visitors": {"$addToSet": "$visitor_id"}}},
+backend/server.py:5994:        {"$project": {"_id": 0, "key": "$_id", "events": 1, "sessions": {"$size": "$sessions"}, "visitors": {"$size": "$visitors"}}},
+backend/server.py:6223:        {"$group": {"_id": "$session_id", "last_seen": {"$first": "$created_at"}, "device_type": {"$first": "$device_type"}, "os": {"$first": "$os"}, "browser": {"$first": "$browser"}, "last_path": {"$first": "$path"}, "duration_ms": {"$max": "$duration_ms"}}},
+backend/server.py:6279:    """List listings by age for retention review. No automatic expiry is applied."""
+backend/server.py:6658:            return {"sent": 0, "target": body.target, "push_devices": 0}
+backend/server.py:6692:            "push_devices": await db.push_tokens.count_documents({"user_id": {"$in": user_ids}}) if user_ids else 0}
+backend/server.py:9022:    await _safe_index(db.analytics_events, [("visitor_id", 1), ("created_at", -1)])
+backend/tests/test_iter19_push.py:219:        # Counts should be ints >= 0 (admin has no real device — both 0 is fine)
+backend/tests/test_iter19_push.py:237:        assert "push_devices" in d
+backend/tests/test_iteration8_snap_push.py:170:    def test_broadcast_returns_push_devices_count(self, admin_client, user_client, test_user):
+backend/tests/test_iteration8_snap_push.py:171:        # register a push token for our test user so push_devices > 0 for `target=all`
+backend/tests/test_iteration8_snap_push.py:186:        assert "push_devices" in data, f"push_devices missing in response: {data}"
+backend/tests/test_iteration8_snap_push.py:187:        assert isinstance(data["push_devices"], int)
+backend/tests/test_iteration8_snap_push.py:188:        assert data["push_devices"] >= 1, f"expected >=1 push device, got {data}"
+### push token|expo-notifications|fcm
+backend/tests/test_iter19_push.py:133:        "endpoint": "https://fcm.googleapis.com/fcm/send/TEST_endpoint_iter19_" + uuid.uuid4().hex[:8],
+backend/tests/test_iteration8_snap_push.py:171:        # register a push token for our test user so push_devices > 0 for `target=all`
+mobile/src/notifications.js:1:import * as Notifications from "expo-notifications";
+mobile/src/notifications.js:194:        // Get Expo push token
+### saved search|saved_search
+backend/server.py:3458:# Personalization: recently-viewed history + saved searches.
+backend/server.py:3534:    await db.saved_searches.update_one(
+backend/server.py:3543:async def list_saved_searches(user: dict = Depends(get_current_user)):
+backend/server.py:3544:    items = await db.saved_searches.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(length=50)
+backend/server.py:3549:async def delete_saved_search(sid: str, user: dict = Depends(get_current_user)):
+backend/server.py:3550:    await db.saved_searches.delete_one({"id": sid, "user_id": user["id"]})
+backend/server.py:9005:    await _safe_index(db.saved_searches, [("user_id", 1), ("q_lower", 1)], unique=True)
+backend/server.py:9014:    await _safe_index(db.saved_searches, [("user_id", 1), ("created_at", -1)])
+frontend/src/components/NotificationBell.js:31:    saved_search: { Icon: Bell, color: "text-indigo-500" },
+frontend/src/lib/notificationLinks.js:55:  if (["search_alert", "saved_search", "search"].includes(type)) {
+mobile/src/I18nContext.js:359:        "لا توجد أبحاث محفوظة": "No saved searches",
+### draft|autosave
+backend/server.py:5359:    Analyze a product image and return a safe, structured listing draft.
+backend/server.py:6798:# Smart Notifications — abandoned drafts + abandoned searches
+backend/server.py:6814:@api.post("/users/me/draft-listing")
+backend/server.py:6815:async def save_draft_listing(body: DraftListingIn, user: dict = Depends(get_current_user)):
+backend/server.py:6816:    """Upsert the user's current in-progress listing draft."""
+backend/server.py:6818:    await db.draft_listings.update_one(
+backend/server.py:6836:@api.delete("/users/me/draft-listing")
+backend/server.py:6837:async def clear_draft_listing(user: dict = Depends(get_current_user)):
+backend/server.py:6838:    """Called after a successful publish — removes the draft so we don't nudge."""
+backend/server.py:6839:    await db.draft_listings.delete_one({"user_id": user["id"]})
+backend/server.py:7031:async def _process_abandoned_drafts(now_iso: str, cutoff_iso: str) -> int:
+backend/server.py:7036:    cursor = db.draft_listings.find({
+backend/server.py:7044:        # If a real listing was published since, skip + clear draft.
+backend/server.py:7050:            await db.draft_listings.delete_one({"_id": d["_id"]})
+backend/server.py:7062:            ntype="abandoned_draft",
+backend/server.py:7064:            extra_data={"deep_link": "post", "draft_title": title_hint, "dedupe_key": f"abandoned_draft:{uid}:{d.get('_id')}"},
+backend/server.py:7067:        await db.draft_listings.update_one(
+backend/server.py:7265:    - Sends abandoned-draft reminders (>10 min idle, never reminded).
+backend/server.py:7285:            d = await _process_abandoned_drafts(now_iso, d_cutoff)
+backend/server.py:7291:                logger.info(f"[smart-notif] sent drafts={d} searches={s} viewed={v} reengage={i} scheduled={sch}")
+backend/server.py:9049:    # Start the smart notifications worker (abandoned drafts/searches + scheduled).
+frontend/src/pages/PostListing.js:325:                api.delete("/users/me/draft-listing").catch(() => {});
+frontend/src/pages/PostListing.js:329:                api.delete("/users/me/draft-listing").catch(() => {});
+frontend/src/pages/PostListing.js:337:    // Save a lightweight draft snapshot whenever the user makes meaningful progress
+frontend/src/pages/PostListing.js:341:        if (editId) return;            // editing existing — no draft tracking
+frontend/src/pages/PostListing.js:345:            api.post("/users/me/draft-listing", {
+frontend/src/pages/PostListing.js:903:                                // existing backend / draft-listing flow keeps working.
+mobile/src/notifications.js:117:    // Post listing (abandoned-draft reminder)
+mobile/src/screens/PostScreen.js:507:        api.delete("/users/me/draft-listing").catch(() => {});
+mobile/src/screens/PostScreen.js:515:        api.delete("/users/me/draft-listing").catch(() => {});
+mobile/src/screens/PostScreen.js:527:  // Persist a lightweight draft snapshot so the backend can nudge the user
+mobile/src/screens/PostScreen.js:534:      api.post("/users/me/draft-listing", {
+mobile/src/screens/PostScreen.js:1227:                        // backend payload + draft-listing flow stays compatible.
+--- source counts ---
+Web pages: 23
+Mobile screens: 19
+Backend tests: 26
+mock markers: 58

@@ -1,0 +1,18 @@
+--- local decorator inventory ---
+235
+--- public staging status ---
+### https://alhrajplus.onrender.com/api/health
+HTTP 200 bytes 43
+{"status":"ok","db":"connected","uptime":0}
+### https://alhrajplus.onrender.com/openapi.json
+HTTP 200 bytes 150251
+{"openapi":"3.1.0","info":{"title":"Haraj Plus API","version":"1.0"},"paths":{"/api/cron/daily-digest":{"get":{"summary":"Cron Daily Digest","description":"Send daily digest to all active sellers. Protected by CRON_SECRET header.\nSetup with Cloud Scheduler / cron-job.org: HTTP GET or POST every day
+### https://alhrajplus.onrender.com/api/openapi.json
+HTTP 404 bytes 22
+{"detail":"Not Found"}
+### https://alhrajplus.onrender.com/api/listings?country_code=SA&limit=3
+HTTP 200 bytes 1327
+{"total":11,"items":[{"id":"2881db1b-c0ab-4e8e-8e8a-e2f9a54d3b17","user_id":"ba778b52-a8cd-40d9-bb27-1f1a61d2dbc1","title":"ايفون","price":null,"currency":"SAR","category":"electronics","subcategory":"","images":["https://res.cloudinary.com/dnmw7rxgo/image/upload/v1779817970/listings/ba778b52-a
+### https://alhrajplus.onrender.com/api/listings?country_code=EG&limit=3
+HTTP 200 bytes 1764
+{"total":4,"items":[{"id":"f7108a5f-9ca7-41ff-ac14-7d74086ba2d2","user_id":"d6dd0dbc-2b5d-4afb-b6cb-e1136919924b","title":"موبايل","price":null,"currency":"ر.س","category":"phones","subcategory":"","images":["https://res.cloudinary.com/dnmw7rxgo/image/upload/v1779745176/listings/d6dd0dbc-2b5

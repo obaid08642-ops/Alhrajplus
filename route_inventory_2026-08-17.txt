@@ -1,0 +1,202 @@
+--- Web route declarations ---
+frontend/src/App.js:2:import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+frontend/src/App.js:58:function AnalyticsRouteTracker() {
+frontend/src/App.js:83:// AppRouter: handles OAuth callback fragment detection + main routes
+frontend/src/App.js:84:function AppRouter() {
+frontend/src/App.js:95:        <Routes>
+frontend/src/App.js:96:            <Route path="/login" element={<LoginPage />} />
+frontend/src/App.js:97:            <Route path="/register" element={<RegisterPage />} />
+frontend/src/App.js:98:            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+frontend/src/App.js:99:            <Route path="/reset-password" element={<ResetPasswordPage />} />
+frontend/src/App.js:100:            <Route path="/verify-email" element={<VerifyEmailPage />} />
+frontend/src/App.js:101:            <Route path="/download" element={<DownloadPage />} />
+frontend/src/App.js:102:            <Route path="/auth/callback" element={<AuthCallback />} />
+frontend/src/App.js:103:            <Route path="/auth/google/callback" element={<AuthCallback />} />
+frontend/src/App.js:104:            <Route path="/auth/x/callback" element={<XAuthCallback />} />
+frontend/src/App.js:105:            <Route path="/auth/snapchat/callback" element={<SnapAuthCallback />} />
+frontend/src/App.js:106:            <Route path="/" element={<Layout><HomePage /></Layout>} />
+frontend/src/App.js:107:            <Route path="/category/:categoryKey" element={<Layout><CategoryPage /></Layout>} />
+frontend/src/App.js:108:            <Route path="/listing/:id" element={<Layout><ListingDetail /></Layout>} />
+frontend/src/App.js:109:            <Route path="/seller/:sellerId" element={<Layout><SellerStorefrontPage /></Layout>} />
+frontend/src/App.js:110:            <Route path="/post" element={<Layout><PostListing /></Layout>} />
+frontend/src/App.js:111:            <Route path="/chat" element={<Layout><ChatPage /></Layout>} />
+frontend/src/App.js:112:            <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
+frontend/src/App.js:113:            <Route path="/favorites" element={<Layout><AccountCollectionPage /></Layout>} />
+frontend/src/App.js:114:            <Route path="/my-listings" element={<Layout><AccountCollectionPage /></Layout>} />
+frontend/src/App.js:115:            <Route path="/offers" element={<Layout><AccountCollectionPage /></Layout>} />
+frontend/src/App.js:116:            <Route path="/following" element={<Layout><AccountCollectionPage /></Layout>} />
+frontend/src/App.js:117:            <Route path="/saved-searches" element={<Layout><AccountCollectionPage /></Layout>} />
+frontend/src/App.js:118:            <Route path="/buy-requests" element={<Layout><WorkflowPage kind="buy" /></Layout>} />
+frontend/src/App.js:119:            <Route path="/support" element={<Layout><WorkflowPage kind="support" /></Layout>} />
+frontend/src/App.js:120:            <Route path="/notifications" element={<Layout><NotificationsPage /></Layout>} />
+frontend/src/App.js:121:            <Route path="/search" element={<Layout><SearchPage /></Layout>} />
+frontend/src/App.js:122:            <Route path="/map" element={<Layout><MapPage /></Layout>} />
+frontend/src/App.js:123:            <Route path="/admin" element={<Layout><AdminPage /></Layout>} />
+frontend/src/App.js:124:            <Route path="/reels" element={<Layout><ReelsPage /></Layout>} />
+frontend/src/App.js:125:            <Route path="/auctions" element={<Layout><AuctionsPage /></Layout>} />
+frontend/src/App.js:126:            <Route path="/flights" element={<Layout><FlightsPage /></Layout>} />
+frontend/src/App.js:127:            <Route path="/deals" element={<Layout><DealsPage /></Layout>} />
+frontend/src/App.js:128:            <Route path="/wallet" element={<Layout><WalletPage /></Layout>} />
+frontend/src/App.js:129:            <Route path="/settings" element={<Layout><SettingsPage /></Layout>} />
+frontend/src/App.js:130:            <Route path="/terms" element={<Layout><TermsPage /></Layout>} />
+frontend/src/App.js:131:            <Route path="/privacy" element={<Layout><PrivacyPage /></Layout>} />
+frontend/src/App.js:132:            <Route path="/about" element={<Layout><AboutPage /></Layout>} />
+frontend/src/App.js:133:            <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
+frontend/src/App.js:134:        </Routes>
+frontend/src/App.js:164:                            <BrowserRouter>
+frontend/src/App.js:165:                                <AnalyticsRouteTracker />
+frontend/src/App.js:166:                                <AppRouter />
+frontend/src/App.js:170:                            </BrowserRouter>
+frontend/src/components/AuthCallback.js:14: *   1. Capture tokens from window.location.hash IMMEDIATELY (before React Router rewrites)
+frontend/src/components/AuthCallback.js:21:// React Router preserves the hash, but we want zero latency between page arrival
+frontend/src/pages/CategoryPage.js:98:            path={seoPath}
+--- Mobile navigation declarations ---
+mobile/src/components/FloatingTabBar.js:113:    navigation.getParent()?.navigate("Post");
+mobile/src/components/ListingCard.js:47:      nav.navigate("Login");
+mobile/src/components/ListingCard.js:70:    return <TouchableOpacity activeOpacity={0.9} onPress={() => nav.navigate("ListingDetail", {
+mobile/src/components/ListingCard.js:91:  return <TouchableOpacity activeOpacity={0.85} onPress={() => nav.navigate("ListingDetail", {
+mobile/src/components/StandaloneFloatingTabBar.js:58:    nav.navigate("Main", { screen: tabName });
+mobile/src/components/StandaloneFloatingTabBar.js:78:    nav.navigate("Post");
+mobile/src/notifications.js:77:        _navigationRef.navigate("ListingDetail", { id: m[1], focus: isComments ? "comments" : undefined });
+mobile/src/notifications.js:82:    if (m && _navigationRef?.navigate) { _navigationRef.navigate("SellerProfile", { sellerId: m[1] }); return; }
+mobile/src/notifications.js:87:        _navigationRef.navigate("Chat", to ? { to } : {});
+mobile/src/notifications.js:91:        _navigationRef.navigate("Notifications");
+mobile/src/notifications.js:96:        _navigationRef.navigate("Main", { screen: "ReelsTab" });
+mobile/src/notifications.js:119:        if (_navigationRef?.navigate) { _navigationRef.navigate("Post"); return; }
+mobile/src/notifications.js:123:        _navigationRef.navigate("Notifications");
+mobile/src/notifications.js:130:        _navigationRef.navigate("Search", q ? { q } : {});
+mobile/src/notifications.js:135:        _navigationRef.navigate("Search", { category: decodeURIComponent(m[1]) });
+mobile/src/screens/AuctionsScreen.js:101:                <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.createBtn}>
+mobile/src/screens/AuctionsScreen.js:129:            <TouchableOpacity onPress={() => nav.navigate("ListingDetail", {
+mobile/src/screens/AuctionsScreen.js:227:      nav.navigate("Login");
+mobile/src/screens/AuthScreens.js:31:  try { navigation.navigate("Main"); } catch (_) {}
+mobile/src/screens/AuthScreens.js:264:                    <TouchableOpacity onPress={() => navigation.navigate("Register")} style={styles.linkWrap}>
+mobile/src/screens/AuthScreens.js:267:                    <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} style={{
+mobile/src/screens/AuthScreens.js:360:                    <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.linkWrap}>
+mobile/src/screens/ChatScreen.js:182:  // ChatScreen is mounted as <Tab.Screen name="ChatTab">). Setting
+mobile/src/screens/ChatScreen.js:255:                <TouchableOpacity onPress={() => nav.navigate("Login")} style={s.guestBtn}>
+mobile/src/screens/ChatScreen.js:900:            {listing && <TouchableOpacity onPress={() => listing.id && nav.navigate("ListingDetail", {
+mobile/src/screens/HomeScreen.js:209:        nav.navigate("Search", { q });
+mobile/src/screens/HomeScreen.js:243:            <TouchableOpacity onPress={() => nav.navigate("Search")} style={styles.searchBox} testID="home-search-box">
+mobile/src/screens/HomeScreen.js:260:            <TouchableOpacity onPress={() => nav.navigate("AIAssistant")} style={styles.aiPill} testID="home-ai-assistant">
+mobile/src/screens/HomeScreen.js:327:                        <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.heroPrimaryBtn}>
+mobile/src/screens/HomeScreen.js:331:                        <TouchableOpacity onPress={() => nav.navigate("Map")} style={styles.heroSecondaryBtn}>
+mobile/src/screens/HomeScreen.js:423:        return <TouchableOpacity key={c.key} onPress={() => nav.navigate("CategoryListings", {
+mobile/src/screens/HomeScreen.js:456:                <TouchableOpacity onPress={() => nav.navigate("Login")} style={styles.ctaBtn}>
+mobile/src/screens/ListingDetailScreen.js:149:    if (!user) { navigation.navigate("Login"); return; }
+mobile/src/screens/ListingDetailScreen.js:163:    if (!user) { navigation.navigate("Login"); return; }
+mobile/src/screens/ListingDetailScreen.js:227:      navigation.navigate("Login");
+mobile/src/screens/ListingDetailScreen.js:287:          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate("Main")}
+mobile/src/screens/ListingDetailScreen.js:338:                    <TouchableOpacity onPress={() => navigation.navigate("Post", {
+mobile/src/screens/ListingDetailScreen.js:421:                </View> : <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.commentLogin}><Text style={styles.commentLoginText}>{t("سجل الدخول لكتابة تعليق")}</Text></TouchableOpacity>}
+mobile/src/screens/ListingDetailScreen.js:425:                <TouchableOpacity onPress={() => listing.seller?.id && navigation.navigate("SellerProfile", {
+mobile/src/screens/ListingDetailScreen.js:454:          navigation.navigate("Login");
+mobile/src/screens/ListingDetailScreen.js:458:        navigation.navigate("Chat", {
+mobile/src/screens/ListingDetailScreen.js:566:                  if (!user) { navigation.navigate("Login"); return; }
+mobile/src/screens/ListingDetailScreen.js:569:                  navigation.navigate("Auctions", { openBidFor: listing.id });
+mobile/src/screens/ListingDetailScreen.js:582:                    if (!user) { navigation.navigate("Login"); return; }
+mobile/src/screens/ListingDetailScreen.js:583:                    navigation.navigate("Chat", {
+mobile/src/screens/MapScreen.js:63:        nav.navigate("ListingDetail", {
+mobile/src/screens/MoreScreens.js:162:        if (m) { navigation.navigate("ListingDetail", { id: m[1] }); return; }
+mobile/src/screens/MoreScreens.js:164:        if (m) { navigation.navigate("SellerProfile", { sellerId: m[1] }); return; }
+mobile/src/screens/MoreScreens.js:166:        if (m) { navigation.navigate("Chat", m[1] ? { to: m[1] } : {}); return; }
+mobile/src/screens/MoreScreens.js:168:        if (m) { navigation.navigate("Search", { category: decodeURIComponent(m[1]) }); return; }
+mobile/src/screens/MoreScreens.js:169:        if (url.startsWith("/post")) { navigation.navigate("Post"); return; }
+mobile/src/screens/MoreScreens.js:171:        if (m) { navigation.navigate("Search", m[1] ? { q: decodeURIComponent(m[1]) } : {}); return; }
+mobile/src/screens/MoreScreens.js:178:      if (to) { navigation.navigate("Chat", { to }); return; }
+mobile/src/screens/MoreScreens.js:182:      if (id) { navigation.navigate("ListingDetail", { id }); return; }
+mobile/src/screens/MoreScreens.js:186:      if (id) { navigation.navigate("ListingDetail", { id }); return; }
+mobile/src/screens/MoreScreens.js:187:      navigation.navigate("Auctions");
+mobile/src/screens/MoreScreens.js:193:      navigation.navigate("ListingDetail", { id: n.reference_id });
+mobile/src/screens/MoreScreens.js:271:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("SavedSearches")}>
+mobile/src/screens/MoreScreens.js:274:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Following")}>
+mobile/src/screens/MoreScreens.js:277:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("NotifSettings")}>
+mobile/src/screens/MoreScreens.js:280:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Notifications")}>
+mobile/src/screens/MoreScreens.js:283:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", {
+mobile/src/screens/MoreScreens.js:288:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", {
+mobile/src/screens/MoreScreens.js:293:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", {
+mobile/src/screens/MoreScreens.js:298:                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("StaticPage", {
+mobile/src/screens/MoreScreens.js:631:                        <TouchableOpacity onPress={() => navigation.navigate("Search", {
+mobile/src/screens/MoreScreens.js:717:                        <TouchableOpacity onPress={() => navigation.navigate("CategoryListings", {
+mobile/src/screens/MoreScreens.js:750:      return <TouchableOpacity key={s2.seller_id} style={s.menuItem} onPress={() => navigation.navigate("SellerProfile", {
+mobile/src/screens/PasswordReset.js:41:                        <TouchableOpacity onPress={() => navigation.navigate("ResetPassword")} style={styles.btn}>
+mobile/src/screens/PasswordReset.js:50:                <TouchableOpacity onPress={() => navigation.navigate("Login")} style={{
+mobile/src/screens/PasswordReset.js:80:      navigation.navigate("Login");
+mobile/src/screens/PostScreen.js:111:                <TouchableOpacity onPress={() => navigation.navigate("Login")} style={s.guestBtn}>
+mobile/src/screens/ProfileScreen.js:73:                        <TouchableOpacity onPress={() => nav.navigate("Login")} style={s.guestPrimaryBtn}>
+mobile/src/screens/ProfileScreen.js:76:                        <TouchableOpacity onPress={() => nav.navigate("Register")} style={s.guestSecondaryBtn}>
+mobile/src/screens/ProfileScreen.js:117:        nav.navigate("HomeTab");
+mobile/src/screens/ProfileScreen.js:178:            <TouchableOpacity onPress={() => nav.navigate("Wallet")} style={[s.walletCard, shadow.card]}>
+mobile/src/screens/ProfileScreen.js:196:            {coins && <TouchableOpacity onPress={() => nav.navigate("Wallet")} style={[s.coinsCard, shadow.card]} testID="profile-coins-card">
+mobile/src/screens/ProfileScreen.js:204:                <QuickTile icon={ListIcon} label={t("إعلاناتي")} tint="#3B82F6" tintBg="#DBEAFE" onPress={() => nav.navigate("MyListings")} />
+mobile/src/screens/ProfileScreen.js:205:                <QuickTile icon={Heart} label={t("المفضلة")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Favorites")} />
+mobile/src/screens/ProfileScreen.js:206:                <QuickTile icon={Sparkles} label={t("المساعد")} tint={colors.primary} tintBg="rgba(137,207,240,0.18)" onPress={() => nav.navigate("AIAssistant")} />
+mobile/src/screens/ProfileScreen.js:207:                <QuickTile icon={Gavel} label={t("المزادات")} tint="#F59E0B" tintBg="#FEF3C7" onPress={() => nav.navigate("Auctions")} />
+mobile/src/screens/ProfileScreen.js:208:                <QuickTile icon={Tag} label={t("العروض")} tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Offers")} />
+mobile/src/screens/ProfileScreen.js:209:                <QuickTile icon={Plane} label={t("الطيران")} tint="#0EA5E9" tintBg="#E0F2FE" onPress={() => nav.navigate("Flights")} />
+mobile/src/screens/ProfileScreen.js:210:                <QuickTile icon={Flame} label={t("الصفقات")} tint="#EF4444" tintBg="#FEE2E2" onPress={() => nav.navigate("Deals")} />
+mobile/src/screens/ProfileScreen.js:211:                <QuickTile icon={MapPin} label={t("الخريطة")} tint="#10B981" tintBg="#D1FAE5" onPress={() => nav.navigate("Map")} />
+mobile/src/screens/ProfileScreen.js:212:                <QuickTile icon={Bookmark} label={t("محفوظات")} tint="#8B5CF6" tintBg="#EDE9FE" onPress={() => nav.navigate("SavedSearches")} />
+mobile/src/screens/ProfileScreen.js:236:                <MenuRow icon={Bell} label={t("الإشعارات")} onPress={() => nav.navigate("Notifications")} />
+mobile/src/screens/ProfileScreen.js:237:                <MenuRow icon={Settings} label={t("الإعدادات")} onPress={() => nav.navigate("Settings")} />
+mobile/src/screens/ProfileScreen.js:238:                <MenuRow icon={UsersIcon} label={t("متابعاتي")} onPress={() => nav.navigate("Following")} />
+mobile/src/screens/ProfileScreen.js:246:                <MenuRow icon={Info} label={t("عن التطبيق")} onPress={() => nav.navigate("StaticPage", {
+mobile/src/screens/ProfileScreen.js:249:                <MenuRow icon={FileText} label={t("الشروط والأحكام")} onPress={() => nav.navigate("StaticPage", {
+mobile/src/screens/ProfileScreen.js:252:                <MenuRow icon={Shield} label={t("سياسة الخصوصية")} onPress={() => nav.navigate("StaticPage", {
+mobile/src/screens/ProfileScreen.js:255:                <MenuRow icon={Mail} label={t("تواصل معنا")} onPress={() => nav.navigate("StaticPage", {
+mobile/src/screens/ReelsScreen.js:32:  // Tab bar is hidden permanently via `Tab.Screen options` in App.js — no
+mobile/src/screens/ReelsScreen.js:114:          else nav.navigate("HomeTab");
+mobile/src/screens/ReelsScreen.js:126:                <TouchableOpacity onPress={() => nav.navigate("Post")} style={styles.postCta} testID="reels-empty-post-btn">
+mobile/src/screens/ReelsScreen.js:136:              onPress={() => { try { nav.canGoBack?.() ? nav.goBack() : nav.navigate("HomeTab"); } catch (_) {} }}
+mobile/src/screens/ReelsScreen.js:164:              }) => <ReelItem item={item} active={index === activeIndex} muted={muted} onToggleMute={() => setMuted(m => !m)} onOpen={() => nav.navigate("ListingDetail", {
+mobile/src/screens/ReelsScreen.js:232:    if (!user) { nav.navigate("Login"); return; }
+mobile/src/screens/ReelsScreen.js:307:                                if (!user) { nav.navigate("Login"); return; }
+mobile/src/screens/ReelsScreen.js:309:                                nav.navigate("Chat", {
+mobile/src/screens/SellerProfile.js:65:      navigation.navigate("Login");
+mobile/src/screens/SellerProfile.js:120:                        <TouchableOpacity onPress={() => navigation.navigate("Chat", {
+mobile/src/screens/WalletScreen.js:74:                <TouchableOpacity onPress={() => nav.navigate("Login")} style={styles.signInBtn}>
+mobile/src/screens/WalletScreen.js:137:                <TouchableOpacity onPress={() => nav.navigate("MyListings")} style={[styles.quickCard, {
+mobile/src/screens/OffersScreen.js:44:        <TouchableOpacity onPress={() => navigation.navigate("ListingDetail", { id: offer.listing_id })} style={s.cardTop}>
+--- route target existence candidates ---
+AIAssistantScreen.js
+AccountCollectionPage.js
+AdminPage.js
+AuctionsPage.js
+AuctionsScreen.js
+Auth.js
+AuthScreens.js
+CategoryPage.js
+ChatPage.js
+ChatScreen.js
+DealsPage.js
+DownloadPage.js
+FlightsPage.js
+FlightsScreen.js
+HomePage.js
+HomeScreen.js
+ListingDetail.js
+ListingDetailScreen.js
+MapScreen.js
+MoreScreens.js
+NotificationsPage.js
+OffersScreen.js
+OtherScreens.js
+PasswordReset.js
+PostListing.js
+PostScreen.js
+ProfilePage.js
+ProfileScreen.js
+ReelsPage.js
+ReelsScreen.js
+SearchAndMap.js
+SearchScreen.js
+SellerProfile.js
+SellerStorefrontPage.js
+SnapAuthCallback.js
+StaticPages.js
+VerifyEmailPage.js
+WalletPage.js
+WalletScreen.js
+WorkflowPage.js
+WorkflowScreens.js
+XAuthCallback.js

@@ -153,22 +153,36 @@ export function NotificationsScreen({
     // a few specific `type` values and silently failed for everything
     // else. New logic prioritises the explicit `url` field (same one the
     // push payload uses) and falls back to type/reference_id heuristics.
-    const d = n.data || {};
-    const url = n.url || d.url || "";
-    // 1) Use the push-payload `url` field if backend included it.
+    const rawData = n.data && typeof n.data === "object" ? n.data : {};
+    const d = rawData.payload && typeof rawData.payload === "object" ? { ...rawData.payload, ...rawData } : rawData;
+    let url = n.url || d.url || d.deep_link || d.deepLink || d.link || "";
+    try {
+      if (/^https?:\/\//i.test(url)) { const parsed = new URL(url); url = `${parsed.pathname}${parsed.search}${parsed.hash}`; }
+    } catch (_) {}
+    if (url && !url.startsWith("/")) url = `/${url}`;
+    // 1) Use the push-payload deep-link first; support every top-level route.
     if (url) {
       try {
         let m = url.match(/^\/listing\/([^/?#]+)/);
-        if (m) { navigation.navigate("ListingDetail", { id: m[1] }); return; }
+        if (m) { navigation.navigate("ListingDetail", { id: m[1], focus: /(?:#comments|[?&](?:focus|section)=comments)/i.test(url) ? "comments" : undefined }); return; }
         m = url.match(/^\/seller\/([^/?#]+)/);
         if (m) { navigation.navigate("SellerProfile", { sellerId: m[1] }); return; }
         m = url.match(/^\/chat(?:\?to=([^&]+))?/);
-        if (m) { navigation.navigate("Chat", m[1] ? { to: m[1] } : {}); return; }
+        if (m) { navigation.navigate("Chat", m[1] ? { to: decodeURIComponent(m[1]) } : {}); return; }
         m = url.match(/^\/c\/([^/?#]+)/);
         if (m) { navigation.navigate("Search", { category: decodeURIComponent(m[1]) }); return; }
-        if (url.startsWith("/post")) { navigation.navigate("Post"); return; }
         m = url.match(/^\/search(?:\?q=([^&]+))?/);
         if (m) { navigation.navigate("Search", m[1] ? { q: decodeURIComponent(m[1]) } : {}); return; }
+        if (url === "/reels" || url.startsWith("/reels?") || url === "/stories" || url.startsWith("/stories?")) { navigation.navigate("Main", { screen: "ReelsTab" }); return; }
+        if (url === "/notifications" || url.startsWith("/notifications?")) { navigation.navigate("Notifications"); return; }
+        if (url === "/map" || url.startsWith("/map?")) { navigation.navigate("Map"); return; }
+        if (url === "/offers" || url.startsWith("/offers?")) { navigation.navigate("Offers"); return; }
+        if (url === "/auctions" || url.startsWith("/auctions?")) {
+          const params = new URLSearchParams(url.split("?")[1] || "");
+          navigation.navigate("Auctions", params.get("openBidFor") ? { openBidFor: params.get("openBidFor") } : undefined);
+          return;
+        }
+        if (url.startsWith("/post")) { navigation.navigate("Post"); return; }
       } catch (_) {}
     }
     // 2) Type-based fallback (legacy notifications without `url`).

@@ -1,0 +1,26 @@
+{
+  "login": {
+    "status": 200,
+    "ok": true,
+    "keys": [
+      "access_token",
+      "refresh_token",
+      "user"
+    ]
+  },
+  "me": {
+    "status": 200,
+    "ok": true,
+    "country_code": "SA"
+  },
+  "listings_SA": {
+    "status": 200,
+    "items_checked": 11,
+    "mismatches": []
+  },
+  "listings_EG": {
+    "status": 200,
+    "items_checked": 4,
+    "mismatches": []
+  }
+}

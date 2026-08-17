@@ -1,0 +1,244 @@
+--- wallet/coin indexes ---
+2617:    referral_events = await db.referral_events.find({"inviter_code": code}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(length=100)
+6003:    return await db.referral_events.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+8040:    ledger = await db.coins_ledger.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(length=50)
+8047:    return await db.coins_ledger.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
+8956:    await _safe_index(db.coins_ledger, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string", "$ne": ""}})
+8957:    await _safe_index(db.wallet_transactions, [("user_id", 1), ("type", 1)], unique=True, partialFilterExpression={"type": "bonus"})
+--- auction models/expiry ---
+255:# Lightweight perf monitor: logs request duration + 5xx errors only.
+262:    "durations_ms": [],  # rolling window, max 500 entries
+274:    dl = _METRICS["durations_ms"]
+318:    # Add Server-Timing so the browser DevTools shows duration
+616:    dl = list(_METRICS["durations_ms"])
+833:        raise HTTPException(403, "Forbidden — provide a valid X-Cron-Secret header or ?secret= query param")
+957:    voice_duration_ms: Optional[int] = None  # for voice messages — UX waveform/duration label
+1016:    expires_at: Optional[str] = None
+1240:            "expires_at": datetime.now(timezone.utc) + timedelta(hours=24),
+1433:            "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+1457:    expires_at = rec.get("expires_at")
+1458:    if isinstance(expires_at, str):
+1459:        expires_at = datetime.fromisoformat(expires_at)
+1460:    if expires_at and expires_at.tzinfo is None:
+1461:        expires_at = expires_at.replace(tzinfo=timezone.utc)
+1462:    if not expires_at or expires_at < datetime.now(timezone.utc):
+1489:        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+1520:    expires_at = rec.get("expires_at")
+1521:    if isinstance(expires_at, str):
+1522:        expires_at = datetime.fromisoformat(expires_at)
+1523:    if expires_at and expires_at.tzinfo is None:
+1524:        expires_at = expires_at.replace(tzinfo=timezone.utc)
+1525:    if not expires_at or expires_at < datetime.now(timezone.utc):
+1677:        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+1707:    expires_at = rec.get("expires_at")
+1708:    if isinstance(expires_at, str):
+1709:        expires_at = datetime.fromisoformat(expires_at)
+1710:    if expires_at and expires_at.tzinfo is None:
+1711:        expires_at = expires_at.replace(tzinfo=timezone.utc)
+1712:    if not expires_at or expires_at < datetime.now(timezone.utc):
+2078:        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+2354:        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=10),
+2678:def _normalize_auction_submission(custom_fields: Optional[dict], now_dt: Optional[datetime] = None) -> tuple[dict, Optional[str]]:
+2679:    """Normalize a new auction and enforce the one-week maximum server-side."""
+2681:    if not cf.get("auction_duration") and not (cf.get("end_time") or cf.get("auction_end_at")):
+2684:        cf["auction_duration"] = "7 أيام"
+2689:    duration_days = {
+2693:    raw_duration = cf.get("auction_duration")
+2694:    raw_end = cf.get("end_time") or cf.get("auction_end_at")
+2696:    if raw_duration:
+2697:        if isinstance(raw_duration, (int, float)):
+2698:            days = int(raw_duration)
+2700:            normalized_duration = str(raw_duration).strip().lower()
+2701:            days = duration_days.get(normalized_duration)
+2704:                match = re.search(r"(\d+)", normalized_duration)
+2749:    auction_end_at: Optional[str] = None
+2750:    if body.category == "auctions":
+2751:        custom_fields, auction_end_at = _normalize_auction_submission(custom_fields)
+2775:        "auction_end_at": auction_end_at,
+3017:    expires_at = (now_dt + timedelta(hours=body.expires_in_hours)).isoformat()
+3022:        "expires_at": expires_at, "decision_at": None, "decision_by": None,
+3025:        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": {"amount": offer["amount"], "message": offer["message"], "status": "pending", "updated_at": now, "expires_at": expires_at, "decision_at": None, "decision_by": None}})
+3077:    if offer.get("expires_at"):
+3079:            if datetime.fromisoformat(str(offer["expires_at"]).replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+3096:        update.update({"status": "countered", "amount": float(body.counter_amount), "counter_amount": float(body.counter_amount), "expires_at": (now_dt + timedelta(hours=72)).isoformat()})
+4110:        "bids": {"listing_id": listing_id},
+4174:def _auction_end_datetime(listing: dict) -> Optional[datetime]:
+4175:    """Read the legacy and current auction closing fields consistently."""
+4177:    meta = listing.get("auction_meta") or {}
+4178:    raw = (listing.get("auction_end_at") or listing.get("end_time")
+4190:@api.get("/auctions/active")
+4191:async def active_auctions(country_code: Optional[str] = None, limit: int = 30):
+4193:    q: dict = public_listing_filter_for_country(country_code, {"category": "auctions"})
+4198:        end_dt = _auction_end_datetime(it)
+4205:    # Attach top bid for each
+4207:        top = await db.bids.find_one(
+4212:        it["top_bid"] = top
+4213:        it["bid_count"] = await db.bids.count_documents({"listing_id": it["id"]})
+4216:@api.get("/auctions/{listing_id}/bids")
+4217:async def auction_bids(listing_id: str, country_code: Optional[str] = None, limit: int = 20):
+4218:    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id, "category": "auctions"}), {"_id": 0})
+4222:    bids = await db.bids.find({"listing_id": listing_id}, {"_id": 0}).sort("amount", -1).limit(limit).to_list(length=limit)
+4223:    # Mask bidder names
+4224:    for b in bids:
+4228:            b["bidder_name"] = name[:1] + "***" + (name[-1:] if len(name) > 1 else "")
+4230:    return bids
+4233:# Auctions live WebSocket — fan-out new bids to all watchers of a listing.
+4240:async def _broadcast_auction_event(listing_id: str, event: dict) -> None:
+4254:@app.websocket("/api/ws/auctions/{listing_id}")
+4255:async def auctions_ws(websocket: WebSocket, listing_id: str):
+4256:    """Live bid stream. On connect we push the current top bid + bid count so
+4258:    bid placed via POST /auctions/{id}/bid is fanned out as:
+4259:      {type:"bid", amount, user_id, ts, count}
+4262:    listing_guard = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id, "category": "auctions"}), {"_id": 0})
+4271:        top = await db.bids.find_one({"listing_id": listing_id}, {"_id": 0}, sort=[("amount", -1)])
+4272:        count = await db.bids.count_documents({"listing_id": listing_id})
+4273:        listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "price": 1, "auction_end_at": 1, "status": 1})
+4276:            "top_bid": top,
+4277:            "bid_count": count,
+4279:            "auction_end_at": (listing or {}).get("auction_end_at"),
+4298:        logger.warning(f"[auctions.ws] {e}")
+4305:@api.post("/auctions/{listing_id}/bid")
+4306:async def place_bid(listing_id: str, body: BidIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+4307:    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id, "category": "auctions"}), {"_id": 0})
+4312:    end_dt = _auction_end_datetime(listing)
+4318:    # Check current top bid
+4319:    top = await db.bids.find_one({"listing_id": listing_id}, {"_id": 0}, sort=[("amount", -1)])
+4320:    # Owner-defined min increment per bid (e.g. 500 SAR). The owner enters this
+4321:    # under `custom_fields.bid_increment` in the post form. Fall back to a few
+4323:    auction_meta = listing.get("auction_meta") or {}
+4326:        cf.get("bid_increment")
+4328:        or auction_meta.get("min_increment")
+4329:        or auction_meta.get("bid_increment")
+4331:        or listing.get("bid_increment")
+4344:        # notation for large auctions like cars/real-estate.
+4349:    bid_id = str(uuid.uuid4())
+4350:    bid = {
+4351:        "id": bid_id,
+4358:    await db.bids.insert_one(bid)
+4359:    bid.pop("_id", None)
+4360:    # ---- Anti-snipe: if this bid lands within the last 60 seconds of the
+4361:    # auction window, automatically push `end_time` forward by 60 seconds so
+4362:    # other bidders get a fair chance to respond. We update the `custom_fields.
+4366:        end_iso = (cf.get("end_time") or auction_meta.get("end_time")
+4381:                if "end_time" in (auction_meta or {}):
+4382:                    update_doc["auction_meta.end_time"] = extended_to
+4385:        # Anti-snipe is a non-critical enhancement — never block a valid bid.
+4387:    # Live fan-out — every connected watcher sees the new bid within <100ms.
+4388:    count = await db.bids.count_documents({"listing_id": listing_id})
+4390:        "type": "bid",
+4391:        "bid": bid,
+4392:        "bid_count": count,
+4396:    asyncio.create_task(_broadcast_auction_event(listing_id, event))
+4397:    # Notify the previous top bidder they were outbid (best-effort push).
+4404:                ntype="auction_outbid",
+4411:    return {"success": True, "bid": bid, "bid_count": count}
+4747:        "voice_duration_ms": body.voice_duration_ms,
+4996:    expires_at = body.expires_at
+4997:    if expires_at:
+4999:            parsed = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+5003:                raise HTTPException(400, "expires_at must be in the future")
+5004:            expires_at = parsed.isoformat()
+5008:            raise HTTPException(400, "Invalid expires_at")
+5010:        expires_at = (now + timedelta(days=30)).isoformat()
+5017:        "status": "open", "expires_at": expires_at,
+5026:    query = {"country_code": cc, "status": "open", "expires_at": {"$gt": datetime.now(timezone.utc).isoformat()}}
+5677:    anytime, but it is hidden from public listings/search/auctions/stories.
+5774:    duration_minutes: int = Field(default=15, ge=1, le=60)
+5784:    expires = datetime.now(timezone.utc) + timedelta(minutes=body.duration_minutes)
+5790:        "expires_at": expires.isoformat(),
+5802:        "text": f"📍 شارك موقعه الحي ({body.duration_minutes} دقيقة)",
+5804:        "location": {"lat": body.lat, "lng": body.lng, "live_share_id": sid, "expires_at": expires.isoformat()},
+5818:    expires_at = doc["expires_at"]
+5819:    if isinstance(expires_at, str):
+5820:        expires_at = datetime.fromisoformat(expires_at)
+5821:    if expires_at.tzinfo is None:
+5822:        expires_at = expires_at.replace(tzinfo=timezone.utc)
+5823:    if expires_at < datetime.now(timezone.utc):
+5847:    "signup_started", "signup_completed", "login_completed", "auction_bid",
+5869:        duration_ms = max(0, min(int(body.get("duration_ms") or 0), 86_400_000))
+5871:        duration_ms = 0
+5892:        "duration_ms": duration_ms,
+5977:        {"$group": {"_id": "$session_id", "visitor_id": {"$first": "$visitor_id"}, "user_id": {"$first": "$user_id"}, "last_seen": {"$first": "$created_at"}, "first_seen": {"$last": "$created_at"}, "last_path": {"$first": "$path"}, "country_code": {"$first": "$country_code"}, "device_type": {"$first": "$device_type"}, "os": {"$first": "$os"}, "browser": {"$first": "$browser"}, "source": {"$first": "$source"}, "event_count": {"$sum": 1}, "duration_ms": {"$max": "$duration_ms"}}},
+6223:        {"$group": {"_id": "$session_id", "last_seen": {"$first": "$created_at"}, "device_type": {"$first": "$device_type"}, "os": {"$first": "$os"}, "browser": {"$first": "$browser"}, "last_path": {"$first": "$path"}, "duration_ms": {"$max": "$duration_ms"}}},
+6588:    # /chat, /auctions, or an absolute https URL). Mobile uses Linking, web uses
+6738:    active_auctions = await db.listings.count_documents({"category": "auctions", "status": "active"})
+6751:        prompt = f"إحصائيات اليوم: {total_users} مستخدم، {new_listings_24h} إعلان جديد آخر 24 ساعة، {active_auctions} مزاد نشط. اقترح 3 إشعارات."
+6882:    send_at: str  # ISO-8601 UTC timestamp
+6893:        send_at_dt = datetime.fromisoformat(body.send_at.replace("Z", "+00:00"))
+6895:        raise HTTPException(400, "send_at must be ISO-8601 datetime")
+6896:    if send_at_dt <= datetime.now(timezone.utc):
+6897:        raise HTTPException(400, "send_at must be in the future")
+6902:        "send_at": send_at_dt.isoformat(),
+6991:    items = await db.scheduled_broadcasts.find(q, {"_id": 0}).sort("send_at", 1).to_list(length=200)
+7122:    """Send any admin-scheduled broadcasts whose send_at has passed."""
+7126:        "send_at": {"$lte": now_iso},
+7337:    expires_at = rec.get("expires_at")
+7338:    if isinstance(expires_at, str):
+7339:        expires_at = datetime.fromisoformat(expires_at)
+7340:    if expires_at and expires_at.tzinfo is None:
+7341:        expires_at = expires_at.replace(tzinfo=timezone.utc)
+7342:    if not expires_at or expires_at < datetime.now(timezone.utc):
+7365:        "expires_at": datetime.now(timezone.utc) + timedelta(hours=24),
+7724:        ("/auctions", 0.9, "daily"),
+8258:        f"how to post, flights, and auctions.\n\n"
+8954:    await _safe_index(db.google_oauth_states, "expires_at", expireAfterSeconds=0)
+8961:    await db.bids.create_index([("listing_id", 1), ("amount", -1)])
+8962:    await db.bids.create_index("ts")
+8963:    await db.location_shares.create_index("expires_at", expireAfterSeconds=0)
+8967:    await db.x_oauth_states.create_index("expires_at", expireAfterSeconds=0)
+8968:    await db.snap_oauth_states.create_index("expires_at", expireAfterSeconds=0)
+--- production demo/admin cleanup ---
+backend/server.py:453:    sample = None
+backend/server.py:457:        sample = await db.listings.find_one({}, {"_id": 0, "id": 1, "title": 1, "status": 1, "moderation": 1, "country_code": 1, "category": 1, "is_demo": 1, "created_at": 1})
+backend/server.py:472:        "sample_listing": sample,
+backend/server.py:668:            "samples": n,
+backend/server.py:1569:    # X does not return email by default; use x_id@x.local as placeholder
+backend/server.py:1570:    placeholder_email = f"x_{x_id}@x.local"
+backend/server.py:1571:    user = await db.users.find_one({"$or": [{"x_id": x_id}, {"email": placeholder_email}]})
+backend/server.py:1575:            "id": uid, "name": x_name, "email": placeholder_email,
+backend/server.py:1639:    placeholder_email = f"x_{x_id}@x.local"
+backend/server.py:1640:    user = await db.users.find_one({"$or": [{"x_id": x_id}, {"email": placeholder_email}]})
+backend/server.py:1647:            "id": uid, "name": x_name, "email": placeholder_email,
+backend/server.py:1752:    placeholder_email = f"snap_{snap_id}@snapchat.local"
+backend/server.py:1753:    user = await db.users.find_one({"$or": [{"snap_id": snap_id}, {"email": placeholder_email}]})
+backend/server.py:1757:            "id": uid, "name": snap_name, "email": placeholder_email,
+backend/server.py:1831:    placeholder_email = f"snap_{snap_id}@snapchat.local"
+backend/server.py:1832:    user = await db.users.find_one({"$or": [{"snap_id": snap_id}, {"email": placeholder_email}]})
+backend/server.py:1836:            "id": uid, "name": snap_name, "email": placeholder_email,
+backend/server.py:2043:            # disabled-password placeholder — user must use Google or password-reset
+backend/server.py:2242:        # Apple may not return an email if the user chose private relay; fall back to placeholder.
+backend/server.py:2504:        return {"suggested_min": None, "suggested_max": None, "average": None, "samples": len(items),
+backend/server.py:2511:            "average": round(avg, 2), "samples": len(prices),
+backend/server.py:2547:                "color": "emerald", "icon": "🔥", "samples": len(prices)}
+backend/server.py:2551:                "color": "amber", "icon": "⚡", "samples": len(prices)}
+backend/server.py:2554:            "color": "blue", "icon": "✓", "samples": len(prices)}
+backend/server.py:2729:    """Accept only an uploaded/hosted GLB or GLTF asset; no fake conversion."""
+backend/server.py:2950:                "categories ممكن أن تحتوي: scam, drugs, adult, fraud, weapons, hate, fake, prohibited. "
+backend/server.py:3158:    # rejected, demo, and test-seeded records stay out of public discovery.
+backend/server.py:3208:        "views": 1, "favorites": 1, "is_demo": 1, "demo_label": 1,
+backend/server.py:3375:        "images": {"$slice": 1}, "created_at": 1, "views": 1, "clicks": 1, "is_demo": 1,
+backend/server.py:3420:        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+backend/server.py:3497:        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+backend/server.py:3701:        "images": {"$slice": 1}, "created_at": 1, "views": 1, "is_demo": 1,
+backend/server.py:4983:# These are first-class persisted workflows; no mock cards or fake success.
+backend/server.py:5278:    Returns p25/median/p75 + sample size + a confidence flag. No LLM guess —
+backend/server.py:5294:    # Try narrow → wider fallback if too few samples (<5).
+backend/server.py:5295:    samples = []
+backend/server.py:5298:        samples = await cursor.to_list(length=400)
+backend/server.py:5299:        if len(samples) >= 5:
+backend/server.py:5318:    if not samples:
+backend/server.py:5319:        return {"confidence": "none", "sample_size": 0,
+backend/server.py:5325:    prices = sorted(float(s["price"]) for s in samples)
+backend/server.py:5337:    currency = samples[0].get("currency") or "SAR"
+backend/server.py:5338:    # confidence based on sample size
+backend/server.py:5345:        "sample_size": n,
+backend/server.py:6430:    # Show a sample of offenders so the admin can act quickly.
+backend/server.py:6431:    sample_listings = await db.listings.find(
+backend/server.py:6438:        "sample_offending_listings": sample_listings,
+backend/server.py:7706:@api.delete("/admin/demo-listings")
+backend/server.py:7707:async def admin_delete_demo_listings(user: dict = Depends(require_admin)):
+backend/server.py:7708:    """Bulk-remove all listings flagged `is_demo: true`. Demo seller is preserved."""
+backend/server.py:7709:    res = await db.listings.delete_many({"is_demo": True})
+backend/server.py:8947:    await _safe_index(db.listings, "is_demo")  # NEW: fast demo filter / bulk delete
+backend/server.py:9214:    # campaign integration. Do not seed sample or affiliate ads at startup:
+backend/server.py:9215:    # an empty ads collection must render an honest empty state, not fake data.

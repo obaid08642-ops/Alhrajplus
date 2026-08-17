@@ -8,6 +8,7 @@ import { theme } from "../theme";
 import { useNavigation, useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
 import { useAuth } from "../AuthContext";
+import { useCountry } from "../CountryContext";
 const {
   height: SCREEN_H,
   width: SCREEN_W
@@ -24,20 +25,22 @@ export default function ReelsScreen() {
   } = useI18n();
   const nav = useNavigation();
   const { user } = useAuth();
+  const { country } = useCountry();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(false);
 
   // Tab bar is hidden permanently via `Tab.Screen options` in App.js — no
   // need for runtime focus-effect hacks here. Reels screen is full-immersive.
-  useEffect(() => {
-    (async () => {
-      try {
-        // STRICT country isolation: only show stories/videos posted in the
-        // currently-selected country. AsyncStorage is the source of truth
-        // (matches CountryContext key).
-        const cc = (await AsyncStorage.getItem("hp_country").catch(() => null)) || "";
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+        // STRICT country isolation: use CountryContext as the source of truth;
+        // AsyncStorage fallback keeps cold start compatible with older builds.
+        const cc = country || (await AsyncStorage.getItem("hp_country").catch(() => null)) || "";
         const baseParams = {
           limit: 50,
           sort: "newest"
@@ -54,7 +57,7 @@ export default function ReelsScreen() {
               subcategory: "story"
             }
           });
-          storyItems = (data.items || []).filter(i => (i.videos?.length || 0) > 0);
+          storyItems = (data.items || []).map(i => ({ ...i, videos: Array.isArray(i.videos) && i.videos.length ? i.videos : [i.video_url || i.video].filter(Boolean) })).filter(i => i.videos.length > 0);
         } catch (_) {}
         let withVideos = [];
         try {
@@ -63,7 +66,7 @@ export default function ReelsScreen() {
           } = await api.get("/listings", {
             params: baseParams
           });
-          withVideos = (data.items || []).filter(i => (i.videos?.length || 0) > 0 && i.subcategory !== "story");
+          withVideos = (data.items || []).map(i => ({ ...i, videos: Array.isArray(i.videos) && i.videos.length ? i.videos : [i.video_url || i.video].filter(Boolean) })).filter(i => i.videos.length > 0 && i.subcategory !== "story");
         } catch (_) {}
         let imageOnly = [];
         try {
@@ -88,10 +91,15 @@ export default function ReelsScreen() {
           }
         }
         setItems(merged);
-      } catch (_) {}
-      setLoading(false);
-    })();
-  }, []);
+      } catch (_) {
+        setItems([]);
+        setLoadError(t("تعذر تحميل الفيديوهات"));
+      } finally {
+        setLoading(false);
+      }
+  }, [country, t]);
+
+  useEffect(() => { loadItems(); }, [loadItems]);
   const onViewable = useCallback(({
     viewableItems
   }) => {
@@ -118,6 +126,15 @@ export default function ReelsScreen() {
   })).current;
   if (loading) {
     return <View style={styles.center}><ActivityIndicator color="#fff" /></View>;
+  }
+  if (loadError) {
+    return <View style={styles.center}>
+                <Film size={48} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.emptyText}>{loadError}</Text>
+                <TouchableOpacity onPress={loadItems} style={styles.postCta} testID="reels-retry-btn">
+                    <Text style={styles.postCtaText}>{t("إعادة المحاولة")}</Text>
+                </TouchableOpacity>
+            </View>;
   }
   if (items.length === 0) {
     return <View style={styles.center}>

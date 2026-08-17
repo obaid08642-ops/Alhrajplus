@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft, Clapperboard, Plus } from "lucide-react";
@@ -11,18 +11,41 @@ export default function ReelsPage() {
     const { user } = useAuth();
     const { country, dataVersion } = useCountry();
     const [reels, setReels] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [active, setActive] = useState(0);
     const [muted, setMuted] = useState(true);
     const [favs, setFavs] = useState({}); // {listingId: bool}
     const refs = useRef([]);
 
-    useEffect(() => {
-        // listings with videos
-        api.get("/listings", { params: { limit: 30, country_code: country || "SA" } }).then(({ data }) => {
-            const withVideos = (data.items || []).filter((l) => l.videos?.length > 0);
+    const loadReels = useCallback(async (signal) => {
+        setLoading(true);
+        setLoadError("");
+        try {
+            const { data } = await api.get("/listings", { params: { limit: 30, country_code: country || "SA" }, signal });
+            const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+            const withVideos = items.map((listing) => {
+                const videos = Array.isArray(listing?.videos) && listing.videos.length
+                    ? listing.videos
+                    : [listing?.video_url || listing?.video].filter(Boolean);
+                return videos.length ? { ...listing, videos } : null;
+            }).filter(Boolean);
             setReels(withVideos);
-        });
-    }, [country, dataVersion]);
+            setActive(0);
+        } catch (err) {
+            if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError" || err?.name === "AbortError") return;
+            setReels([]);
+            setLoadError(tr("تعذر تحميل الفيديوهات"));
+        } finally {
+            if (!signal?.aborted) setLoading(false);
+        }
+    }, [country]);
+
+    useEffect(() => {
+        const ctrl = new AbortController();
+        loadReels(ctrl.signal);
+        return () => ctrl.abort();
+    }, [loadReels, dataVersion]);
 
     useEffect(() => {
         refs.current.forEach((v, i) => {
@@ -60,6 +83,25 @@ export default function ReelsPage() {
             }
         } catch (_) {}
     };
+
+    if (loading) return (
+        <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-live="polite">
+            <div className="text-center max-w-md px-4">
+                <Clapperboard className="w-16 h-16 text-[var(--primary)] mx-auto mb-3 animate-pulse" strokeWidth={1.7} />
+                <p className="font-arabic font-bold text-[var(--text)]">{tr("جاري تحميل الفيديوهات...")}</p>
+            </div>
+        </div>
+    );
+
+    if (loadError) return (
+        <div className="min-h-[60vh] flex items-center justify-center">
+            <div className="text-center max-w-md px-4">
+                <Clapperboard className="w-16 h-16 text-[var(--danger)] mx-auto mb-3" strokeWidth={1.7} />
+                <p className="font-arabic font-bold text-[var(--text)] mb-4">{loadError}</p>
+                <button onClick={() => loadReels()} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-arabic font-bold text-sm">{tr("إعادة المحاولة")}</button>
+            </div>
+        </div>
+    );
 
     if (reels.length === 0) return (
         <div className="min-h-[60vh] flex items-center justify-center">

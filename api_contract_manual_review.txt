@@ -1,0 +1,114 @@
+--- admin route declarations ---
+5207:@api.get("/admin/ai/config")
+5223:@api.put("/admin/ai/config")
+5904:admin_router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
+5907:@admin_router.get("/analytics/overview")
+5963:@admin_router.get("/analytics/visitors")
+5983:@admin_router.get("/analytics/breakdown")
+5999:@admin_router.get("/referrals")
+6005:@admin_router.get("/referrals/config")
+6010:@admin_router.put("/referrals/config")
+6021:@admin_router.get("/stats")
+6076:@admin_router.get("/listings/pending")
+6081:@admin_router.get("/listings")
+6123:@admin_router.post("/listings/{lid}/approve")
+6152:@admin_router.post("/listings/{lid}/reject")
+6180:@admin_router.get("/users")
+6200:@admin_router.get("/users/{uid}")
+6245:@admin_router.post("/users/{uid}/ban")
+6252:@admin_router.post("/users/{uid}/unban")
+6259:@admin_router.post("/users/{uid}/verify")
+6266:@admin_router.get("/reports")
+6270:@admin_router.post("/reports/{rid}/close")
+6277:@admin_router.get("/listings/lifecycle")
+6292:@admin_router.post("/listings/bulk-delete")
+6327:@admin_router.delete("/listings/{lid}")
+6344:@admin_router.get("/media-cleanup/log")
+6351:@admin_router.post("/media-cleanup/scan")
+6380:@admin_router.post("/media-cleanup/delete")
+6412:@admin_router.get("/data-integrity")
+6442:@admin_router.post("/data-integrity/fix")
+6471:@admin_router.post("/theme")
+6481:@admin_router.get("/ads")
+6511:@admin_router.get("/logs")
+6518:@admin_router.get("/banned-words")
+6528:@admin_router.post("/banned-words")
+6546:@admin_router.delete("/banned-words/{word}")
+6556:@admin_router.post("/ads")
+6566:@admin_router.delete("/ads/{aid}")
+6571:@admin_router.put("/ads/{aid}")
+6598:@admin_router.get("/finance/summary")
+6613:@admin_router.get("/seo")
+6636:@admin_router.post("/seo")
+6643:@admin_router.post("/notifications/broadcast")
+6695:@admin_router.post("/notifications/test")
+6728:@admin_router.get("/notifications/ai-suggest")
+6890:@admin_router.post("/notifications/schedule")
+6916:@admin_router.get("/geo/overrides")
+6929:@admin_router.post("/geo/cities/add")
+6950:@admin_router.post("/geo/cities/remove")
+6969:@admin_router.post("/geo/districts/update")
+6988:@admin_router.get("/notifications/schedule")
+6995:@admin_router.delete("/notifications/schedule/{sid}")
+7700:@api.post("/admin/digest/test")
+7706:@api.delete("/admin/demo-listings")
+8068:@admin_router.post("/coins/grant")
+--- client admin calls ---
+frontend/src/pages/AdminPage.js:95:            const [r, c] = await Promise.all([api.get("/ai/providers/status"), api.get("/admin/ai/config")]);
+frontend/src/pages/AdminPage.js:105:    const saveConfig = async () => { setSaving(true); setSaved(""); try { await api.put("/admin/ai/config", config); setSaved(tr("تم حفظ إعدادات AI")); await load(); } catch (e) { setError(e?.response?.data?.detail || tr("تعذر حفظ إعدادات AI")); } finally { setSaving(false); } };
+frontend/src/pages/AdminPage.js:145:                api.get("/admin/analytics/visitors", { params: { days, limit: 200, device_type: device, country_code: country } }),
+frontend/src/pages/AdminPage.js:146:                api.get("/admin/analytics/breakdown", { params: { days, dimension: "device_type" } }),
+frontend/src/pages/AdminPage.js:147:                api.get("/admin/analytics/breakdown", { params: { days, dimension: "path" } }),
+frontend/src/pages/AdminPage.js:179:        try { const [r, c] = await Promise.all([api.get("/admin/referrals", { params: { status, limit: 300 } }), api.get("/admin/referrals/config")]); setRows(r.data || []); setConfig(c.data || { reward_points: 100, enabled: true }); } catch (_) { setRows([]); }
+frontend/src/pages/AdminPage.js:182:    const save = async () => { setBusy(true); try { await api.put("/admin/referrals/config", { reward_points: Number(config.reward_points), enabled: !!config.enabled }); await load(); } finally { setBusy(false); } };
+frontend/src/pages/AdminPage.js:200:        api.get("/admin/analytics/overview", { params: { days } })
+frontend/src/pages/AdminPage.js:269:        api.get("/admin/finance/summary").then(({ data }) => setFinance(data)).catch(() => setFinance({}));
+frontend/src/pages/AdminPage.js:308:        api.get("/admin/seo").then(({ data }) => setSeo(data)).catch(() => setSeo({
+frontend/src/pages/AdminPage.js:321:            await api.post("/admin/seo", seo);
+frontend/src/pages/AdminPage.js:357:    useEffect(() => { api.get("/admin/stats").then(({ data }) => setStats(data)); }, []);
+frontend/src/pages/AdminPage.js:449:        api.get("/admin/listings/pending")
+frontend/src/pages/AdminPage.js:456:    const approve = async (id) => { await api.post(`/admin/listings/${id}/approve`); reload(); };
+frontend/src/pages/AdminPage.js:457:    const reject = async (id) => { await api.post(`/admin/listings/${id}/reject`); reload(); };
+frontend/src/pages/AdminPage.js:460:        await api.delete(`/admin/listings/${id}`); reload();
+frontend/src/pages/AdminPage.js:513:            const { data } = await api.get("/admin/listings", { params });
+frontend/src/pages/AdminPage.js:525:        await api.delete(`/admin/listings/${id}`); load();
+frontend/src/pages/AdminPage.js:527:    const approve = async (id) => { await api.post(`/admin/listings/${id}/approve`); load(); };
+frontend/src/pages/AdminPage.js:629:        try { const { data } = await api.get("/admin/listings/lifecycle", { params: { age_days: ageDays, status, limit: 500 } }); setItems(data?.items || []); setTotal(data?.total || 0); setSelected(new Set()); } catch (_) { setItems([]); setTotal(0); } finally { setLoading(false); }
+frontend/src/pages/AdminPage.js:638:        try { const { data } = await api.post("/admin/listings/bulk-delete", explicit.length ? { ids: explicit } : { older_than_days: ageDays, status }); alert(`${tr("تم حذف")} ${data.deleted} ${tr("إعلان")}. ${tr("تمت جدولة")} ${data.media_queued} ${tr("وسيط")}.`); await load(); } catch (e) { alert(e.response?.data?.detail || tr("تعذر الحذف الجماعي")); } finally { setBusy(false); }
+frontend/src/pages/AdminPage.js:640:    const preview = async () => { try { const { data } = await api.post("/admin/listings/bulk-delete", { older_than_days: ageDays, status, dry_run: true }); alert(`${tr("عدد الإعلانات المطابقة")}: ${data.matched}`); } catch (e) { alert(e.response?.data?.detail || tr("تعذر المعاينة")); } };
+frontend/src/pages/AdminPage.js:657:        return api.get("/admin/data-integrity")
+frontend/src/pages/AdminPage.js:667:            const { data: r } = await api.post("/admin/data-integrity/fix", null, { params: { default_country: defaultCC } });
+frontend/src/pages/AdminPage.js:738:            const { data } = await api.get("/admin/users", { params });
+frontend/src/pages/AdminPage.js:786:                                        {!u.verified && <button data-testid={`user-verify-${u.id}`} onClick={async () => { await api.post(`/admin/users/${u.id}/verify`); reload(); }} className="bg-[var(--primary)]/15 text-[var(--primary)] px-2 py-1 rounded-full text-xs font-bold">{tr("توثيق")}</button>}
+frontend/src/pages/AdminPage.js:788:                                            <button data-testid={`user-unban-${u.id}`} onClick={async () => { await api.post(`/admin/users/${u.id}/unban`); reload(); }} className="bg-[var(--success)]/15 text-[var(--success)] px-2 py-1 rounded-full text-xs font-bold">{tr("إلغاء حظر")}</button>
+frontend/src/pages/AdminPage.js:790:                                            <button data-testid={`user-ban-${u.id}`} onClick={async () => { await api.post(`/admin/users/${u.id}/ban`); reload(); }} className="bg-red-500/15 text-red-500 px-2 py-1 rounded-full text-xs font-bold">{tr("حظر")}</button>
+frontend/src/pages/AdminPage.js:810:        api.get(`/admin/users/${userId}`).then(({ data }) => { if (!cancelled) setData(data); }).catch(() => { if (!cancelled) setData({ error: true }); });
+frontend/src/pages/AdminPage.js:817:            await api.post(`/admin/users/${userId}/${action}`);
+frontend/src/pages/AdminPage.js:818:            const { data: fresh } = await api.get(`/admin/users/${userId}`);
+frontend/src/pages/AdminPage.js:913:    const reload = () => api.get("/admin/reports").then(({ data }) => setReports(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setReports([]));
+frontend/src/pages/AdminPage.js:935:                            {r.status === "open" && <button onClick={async () => { await api.post(`/admin/reports/${r.id}/close`); reload(); }} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-full text-xs font-bold">{tr("إغلاق")}</button>}
+frontend/src/pages/AdminPage.js:969:            const { data } = await api.get("/admin/notifications/schedule");
+frontend/src/pages/AdminPage.js:984:            await api.post("/admin/notifications/schedule", {
+frontend/src/pages/AdminPage.js:1000:            await api.delete(`/admin/notifications/schedule/${sid}`);
+frontend/src/pages/AdminPage.js:1010:            const { data } = await api.post("/admin/notifications/broadcast", form);
+frontend/src/pages/AdminPage.js:1021:            const { data } = await api.get("/admin/notifications/ai-suggest");
+frontend/src/pages/AdminPage.js:1033:            const { data } = await api.post("/admin/notifications/test");
+frontend/src/pages/AdminPage.js:1184:    const reload = () => api.get("/admin/ads").then(({ data }) => setAds(Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []))).catch(() => setAds([]));
+frontend/src/pages/AdminPage.js:1189:        await api.post("/admin/ads", payload);
+frontend/src/pages/AdminPage.js:1197:    const remove = async (id) => { if (!window.confirm(tr("حذف الإعلان؟"))) return; await api.delete(`/admin/ads/${id}`); reload(); };
+frontend/src/pages/AdminPage.js:1279:                api.get("/admin/geo/overrides"),
+frontend/src/pages/AdminPage.js:1296:            await api.post("/admin/geo/cities/add", {
+frontend/src/pages/AdminPage.js:1310:        try { await api.post("/admin/geo/cities/remove", { country_code: selCountry, name_ar: name }); await load(); }
+frontend/src/pages/AdminPage.js:1317:            await api.post("/admin/geo/districts/update", {
+frontend/src/pages/AdminPage.js:1328:            await api.post("/admin/geo/districts/update", {
+frontend/src/pages/AdminPage.js:1422:        api.get("/admin/logs", { params: { limit: 200 } }).then(({ data }) => setLogs(data || [])).finally(() => setLoading(false));
+frontend/src/pages/AdminPage.js:1458:            const { data } = await api.get("/admin/banned-words");
+frontend/src/pages/AdminPage.js:1473:            await api.post("/admin/banned-words", { word: w });
+frontend/src/pages/AdminPage.js:1485:            await api.delete(`/admin/banned-words/${encodeURIComponent(word)}`);
+frontend/src/pages/AdminPage.js:1556:            await api.post("/admin/theme", theme);
+--- geo declarations ---
+8391:@api.get("/geo/detect-country")
+8445:@api.get("/geo/reverse")
+8515:@api.get("/geo/search")
+8634:@api.get("/geo/districts")
+8768:@api.get("/geo/cities")

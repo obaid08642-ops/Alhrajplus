@@ -1,0 +1,32 @@
+
+### GET /listings/5981a27f-f722-4290-bf77-b808426873ef?country_code=SA
+HTTP 200 bytes 1429
+{"id":"5981a27f-f722-4290-bf77-b808426873ef","user_id":"d6dd0dbc-2b5d-4afb-b6cb-e1136919924b","title":"سيارة","description":"زر\nرزا\nتا","price":45000.0,"currency":"ر.س","category":"auctions","subcategory":"","post_type":null,"custom_fields":{"starting_bid":"40000","min_increment":"500","end_date":"2026-06-10","item_type":"F"},"images":["https://res.cloudinary.com/dnmw7rxgo/image/upload/v1779686877/listings/d6dd0dbc-2b5d-4afb-b6cb-e1136919924b/tl8cj3mbk8mcyzdbuhh4.png"],"videos":[
+
+### GET /listings/5981a27f-f722-4290-bf77-b808426873ef/comments?country_code=SA
+HTTP 200 bytes 22
+{"items":[],"total":0}
+
+### GET /listings/5981a27f-f722-4290-bf77-b808426873ef/similar?country_code=SA
+HTTP 200 bytes 1194
+[{"id":"ad0ad088-5d8b-4ab6-bdec-75f878710857","user_id":"d6dd0dbc-2b5d-4afb-b6cb-e1136919924b","title":"سيارة","description":"ازر\nااا\nترا\nتتت","price":null,"currency":"ر.س","category":"cars","subcategory":"","post_type":null,"custom_fields":{"make":"لكزس","model":"2017","transmission":"أوتوماتيك","fuel_type":"كهرباء","condition":"جيد جداً","body_type":"سيدان","color":"بني","seller_type":"فرد","seal_status":"مدفوع"},"images":[],"vide
+
+### GET /listings/5981a27f-f722-4290-bf77-b808426873ef/neighbors?country_code=SA
+HTTP 200 bytes 71
+{"next":null,"previous":null,"country_code":"SA","category":"auctions"}
+
+### GET /auctions/active?country_code=SA&limit=10
+HTTP 200 bytes 1335
+[{"id":"5981a27f-f722-4290-bf77-b808426873ef","user_id":"d6dd0dbc-2b5d-4afb-b6cb-e1136919924b","title":"سيارة","description":"زر\nرزا\nتا","price":45000.0,"currency":"ر.س","category":"auctions","subcategory":"","post_type":null,"custom_fields":{"starting_bid":"40000","min_increment":"500","end_date":"2026-06-10","item_type":"F"},"images":["https://res.cloudinary.com/dnmw7rxgo/image/upload/v1779686877/listings/d6dd0dbc-2b5d-4afb-b6cb-e1136919924b/tl8cj3mbk8mcyzdbuhh4.png"],"videos":
+
+### GET /auctions/5981a27f-f722-4290-bf77-b808426873ef/bids?country_code=SA
+HTTP 200 bytes 786
+[{"id":"58f06f02-d4d2-46ff-b7e9-7b8b4e54ae26","listing_id":"5981a27f-f722-4290-bf77-b808426873ef","user_id":"b4f91987-9ff7-4480-9c6f-14d8c9b6ba80","amount":46900.0,"currency":"ر.س","ts":"2026-06-03T09:19:46.154601+00:00","bidder_name":"A***d","verified":false},{"id":"0ea041b9-cc47-49d5-a446-57bd77f5fdb1","listing_id":"5981a27f-f722-4290-bf77-b808426873ef","user_id":"ba778b52-a8cd-40d9-bb27-1f1a61d2dbc1","amount":46001.0,"currency":"ر.س","ts":"2026-05-30T13:48:57.617215+00:00","bidder_name":"
+
+### GET /listings/5981a27f-f722-4290-bf77-b808426873ef/offers?country_code=SA
+HTTP 401 bytes 30
+{"detail":"Not authenticated"}
+
+### GET /notifications/unread-count
+HTTP 401 bytes 30
+{"detail":"Not authenticated"}
