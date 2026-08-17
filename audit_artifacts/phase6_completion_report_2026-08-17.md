@@ -54,6 +54,12 @@ The old TURN wording is no longer shown merely because a relay is unavailable. T
 
 A staging investigation also found that the bare `/voice-call.html` path was still served from a Vercel CDN cache with the preceding call page although the revision deployment was marked successful. The same URL with a version query returned the new interface. The Mobile WebView now uses a versioned query (`v=phase6_call_ui_2`) so it cannot execute that stale page or its obsolete signaling bridge.
 
+## Speaker-route truth audit
+
+A further audit found that the prior speaker button had no verifiable effect in the sandbox browser because the required Web output-device APIs were absent. It has been corrected. The Web client renders an output control only when `HTMLMediaElement.setSinkId` exists and calls that API directly. The Mobile client renders the control only on Android, where the installed Expo Audio package exposes `shouldRouteThroughEarpiece`; it maps the control to that native route switch. On iOS and unsupported WebView/browser environments the button is deliberately hidden, not simulated.
+
+A local two-peer WebRTC check completed the complete offer/answer and ICE lifecycle with both peers in `connected` state and a `datachannel-open` result. The final visual check also confirmed that unsupported environments render only the mute and end-call controls. Web tests passed (4 suites / 15 tests), the production Web build passed, and Expo export passed for Web, Android, and iOS.
+
 ## Final assessment
 
 The Phase 6 code, authorization boundary, history, lifecycle semantics, Web/Mobile integration, redesigned call UI, ringtone, and automated build/test gates are complete. The result is **PASS WITH BLOCKERS** because the plan explicitly forbids marking calls fully proven without physical-device and TURN evidence. TURN remains required for reliable calls across all restrictive networks; Render is a signaling host and cannot itself act as a UDP/TCP TURN relay.

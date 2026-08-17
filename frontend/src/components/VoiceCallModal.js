@@ -16,6 +16,7 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
     const [error, setError] = useState("");
     const [relayConfigured, setRelayConfigured] = useState(null);
     const [speaker, setSpeaker] = useState(true);
+    const [speakerOutputSupported, setSpeakerOutputSupported] = useState(false);
     const [elapsed, setElapsed] = useState(0);
     const pcRef = useRef(null);
     const streamRef = useRef(null);
@@ -25,6 +26,12 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
     const iceServersRef = useRef(DEFAULT_ICE_SERVERS);
     const ringContextRef = useRef(null);
     const ringTimerRef = useRef(null);
+
+    useEffect(() => {
+        // A speaker/output control is valid on the Web only if the browser
+        // exposes HTMLMediaElement.setSinkId. Never render a decorative toggle.
+        setSpeakerOutputSupported(typeof HTMLMediaElement !== "undefined" && typeof HTMLMediaElement.prototype.setSinkId === "function");
+    }, []);
 
     const stopRing = useCallback(() => {
         if (ringTimerRef.current) clearInterval(ringTimerRef.current);
@@ -214,11 +221,17 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
     };
 
     const toggleSpeaker = async () => {
+        if (!audioRef.current?.setSinkId) return;
         const next = !speaker;
-        setSpeaker(next);
-        // Chromium supports the communications/default output selectors. Safari
-        // and mobile browsers may ignore this; their operating system controls output.
-        try { await audioRef.current?.setSinkId?.(next ? "default" : "communications"); } catch (_) {}
+        try {
+            // Browser-provided virtual output IDs; a browser may reject one if
+            // the corresponding output is not available, which we expose clearly.
+            await audioRef.current.setSinkId(next ? "default" : "communications");
+            setSpeaker(next);
+            setError("");
+        } catch (_) {
+            setError(tr("تعذر تغيير مخرج الصوت في هذا المتصفح. استخدم إعدادات الصوت في الجهاز."));
+        }
     };
 
     const toggleMute = () => {
@@ -240,9 +253,9 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
                 <p className="text-sm text-slate-300 mt-2">{label}{status === "connected" ? ` · ${duration}` : ""}</p>
                 <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-slate-200"><Wifi className="w-3.5 h-3.5 text-[#8bd9f4]" />{relayConfigured === true ? tr("اتصال عبر TURN متاح") : tr("اتصال مباشر عبر STUN")}</div>
                 {error && <p className="text-xs text-red-200 mt-4">{error}</p>}
-                <div className="grid grid-cols-3 gap-4 mt-10 max-w-[280px] mx-auto">
+                <div className={`grid ${speakerOutputSupported ? "grid-cols-3" : "grid-cols-2"} gap-4 mt-10 max-w-[280px] mx-auto`}>
                     {status === "incoming" ? <button onClick={acceptIncoming} className="h-16 rounded-2xl bg-emerald-500 text-white flex flex-col items-center justify-center gap-1 shadow-lg" aria-label={tr("قبول")}><Phone className="w-5 h-5" /><span className="text-[11px]">{tr("قبول")}</span></button> : <button onClick={toggleMute} disabled={status === "failed"} className={`h-16 rounded-2xl ${muted ? "bg-[#8bd9f4] text-[#07152f]" : "bg-white/10 text-white"} disabled:opacity-40 flex flex-col items-center justify-center gap-1`} aria-label={muted ? tr("تشغيل الميكروفون") : tr("كتم الميكروفون")}>{muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}<span className="text-[11px]">{muted ? tr("تشغيل") : tr("كتم")}</span></button>}
-                    {status !== "incoming" && <button onClick={toggleSpeaker} disabled={status === "failed"} className={`h-16 rounded-2xl ${speaker ? "bg-[#8bd9f4] text-[#07152f]" : "bg-white/10 text-white"} disabled:opacity-40 flex flex-col items-center justify-center gap-1`} aria-label={tr("مخرج الصوت")}>{speaker ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}<span className="text-[11px]">{tr("مكبر الصوت")}</span></button>}
+                    {status !== "incoming" && speakerOutputSupported && <button onClick={toggleSpeaker} disabled={status === "failed"} className={`h-16 rounded-2xl ${speaker ? "bg-[#8bd9f4] text-[#07152f]" : "bg-white/10 text-white"} disabled:opacity-40 flex flex-col items-center justify-center gap-1`} aria-label={tr("مخرج الصوت")}>{speaker ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}<span className="text-[11px]">{tr("مخرج الصوت")}</span></button>}
                     <button onClick={status === "incoming" ? rejectIncoming : () => cleanup(true)} className="h-16 rounded-2xl bg-red-500 text-white flex flex-col items-center justify-center gap-1 shadow-lg" aria-label={status === "incoming" ? tr("رفض") : tr("إنهاء المكالمة")}><PhoneOff className="w-5 h-5" /><span className="text-[11px]">{status === "incoming" ? tr("رفض") : tr("إنهاء")}</span></button>
                 </div>
             </div>
