@@ -40,6 +40,13 @@ from pymongo.errors import DuplicateKeyError
 from cryptography.fernet import Fernet, InvalidToken
 
 from seed_data import COUNTRIES, CATEGORIES, DEFAULT_THEME
+from country_policy import (
+    country_code_or_default,
+    supported_country_codes,
+    normalize_location,
+    normalize_currency,
+    is_city_known_for_country,
+)
 from i18n_data import localize_categories, t_option, t_category
 from search_engine import (
     normalize_arabic,
@@ -111,6 +118,19 @@ async def _unique_slug(base: str, listing_id: str) -> str:
     return candidate
 
 logger = logging.getLogger("haraj_plus")
+
+_COUNTRY_POLICY_ERRORS = {
+    "unsupported_country": "يرجى اختيار دولة مدعومة",
+    "city_required": "يرجى اختيار مدينة من الدولة المحددة",
+    "city_not_in_country": "المدينة لا تنتمي إلى الدولة المحددة",
+    "district_not_in_city": "الحي لا ينتمي إلى المدينة المحددة",
+    "currency_not_in_country": "العملة لا تطابق الدولة المحددة",
+}
+
+
+def _country_policy_http_error(error: ValueError) -> HTTPException:
+    """Convert pure country-policy validation errors into safe API responses."""
+    return HTTPException(422, _COUNTRY_POLICY_ERRORS.get(str(error), "بيانات الدولة أو الموقع غير صالحة"))
 
 # ============================================================
 # Configuration — fail-soft: missing env vars log a warning but
@@ -1439,6 +1459,12 @@ class MeUpdateIn(BaseModel):
 @api.put("/auth/me")
 async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
     update = {}
+    requested_cc = str(body.country_code or "").strip().upper() if body.country_code is not None else ""
+    if body.country_code is not None and requested_cc not in supported_country_codes():
+        raise HTTPException(422, "يرجى اختيار دولة مدعومة")
+    target_cc = requested_cc or country_code_or_default(user.get("country_code"), "SA")
+    if body.country_code is not None:
+        update["country_code"] = target_cc
     if body.name is not None:
         n = body.name.strip()
         if len(n) >= 2:
@@ -1446,7 +1472,7 @@ async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
     if body.phone is not None:
         p = (body.phone or "").strip().replace(" ", "").replace("-", "")
         if p:
-            cc = (body.country_code or user.get("country_code", "SA")).upper()
+            cc = target_cc
             rule = PHONE_RULES.get(cc)
             if rule:
                 pref = rule["prefix"] if isinstance(rule["prefix"], list) else [rule["prefix"]]
@@ -1463,11 +1489,17 @@ async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
             }
             update["phone_full"] = f"{country_phone_codes.get(cc, '+966')}{p.lstrip('0')}"
     if body.city is not None:
-        update["city"] = body.city.strip()
-    if body.country_code is not None:
-        cc = (body.country_code or "").strip().upper()
-        if cc in {"SA", "AE", "KW", "QA", "BH", "OM", "EG"}:
-            update["country_code"] = cc
+        raw_city = body.city.strip()
+        if raw_city:
+            try:
+                update["city"] = normalize_location(target_cc, raw_city, None)[0]
+            except ValueError as exc:
+                raise _country_policy_http_error(exc)
+        else:
+            update["city"] = ""
+    elif body.country_code is not None and user.get("city") and not is_city_known_for_country(target_cc, user.get("city")):
+        # Country changes do not carry a location across borders implicitly.
+        update["city"] = ""
     if body.avatar_url is not None:
         update["avatar_url"] = body.avatar_url
     if body.show_phone is not None:
@@ -3022,15 +3054,21 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
     auction_end_at: Optional[str] = None
     if body.category == "auctions":
         custom_fields, auction_end_at = _normalize_auction_submission(custom_fields)
-    # The active country selected in the posting flow is authoritative. It must
-    # be a supported marketplace country; otherwise a listing could be stored
-    # under an unsupported code and disappear from every isolated feed.
-    profile_cc = (user.get("country_code") or "").upper().strip()
-    requested_cc = (body.country_code or "").upper().strip()
-    supported_cc = {str(item.get("code") or "").upper() for item in COUNTRIES}
-    effective_cc = requested_cc or profile_cc
-    if effective_cc not in supported_cc:
-        raise HTTPException(400, "يرجى اختيار دولة مدعومة قبل النشر")
+    # The account's persisted country is the server-side active-country boundary.
+    # A client may echo it in body.country_code, but cannot use that field to post
+    # into a different marketplace without first switching its account preference.
+    profile_cc = country_code_or_default(user.get("country_code"), "SA")
+    requested_cc = str(body.country_code or "").upper().strip()
+    if requested_cc and requested_cc not in supported_country_codes():
+        raise HTTPException(422, "يرجى اختيار دولة مدعومة قبل النشر")
+    if requested_cc and requested_cc != profile_cc and user.get("role") != "admin":
+        raise HTTPException(409, "غيّر الدولة النشطة أولاً قبل نشر الإعلان")
+    effective_cc = requested_cc if user.get("role") == "admin" and requested_cc else profile_cc
+    try:
+        canonical_city, canonical_district = normalize_location(effective_cc, body.city, body.district)
+        canonical_currency, canonical_currency_code = normalize_currency(effective_cc, body.currency)
+    except ValueError as exc:
+        raise _country_policy_http_error(exc)
     listing_id = str(uuid.uuid4())
     mod_flags = detect_moderation_flags(f"{body.title} {body.description}")
     is_banned = bool(mod_flags)
@@ -3040,7 +3078,8 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "title": body.title.strip(),
         "description": body.description.strip(),
         "price": body.price,
-        "currency": body.currency or "ر.س",
+        "currency": canonical_currency,
+        "currency_code": canonical_currency_code,
         "category": body.category,
         "subcategory": body.subcategory,
         "post_type": body.post_type,
@@ -3049,8 +3088,8 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "images": body.images,
         "videos": body.videos,
         "country_code": effective_cc,
-        "city": body.city,
-        "district": body.district,
+        "city": canonical_city,
+        "district": canonical_district or None,
         "lat": body.lat,
         "lng": body.lng,
         "show_phone": body.show_phone,
@@ -5810,6 +5849,9 @@ async def ai_translate(body: AITranslateIn):
 # Listing Edit / Republish / Sold
 # ============================================================
 class ListingUpdateIn(BaseModel):
+    # Echoed by Web/Mobile from the active country. A listing may not be moved
+    # across country boundaries through an edit request.
+    country_code: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
@@ -5835,6 +5877,32 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     update_data = body.model_dump(exclude_unset=True, exclude_none=True)
     if not update_data:
         raise HTTPException(400, "لا يوجد بيانات للتعديل")
+    listing_cc = country_code_or_default(item.get("country_code"), "SA")
+    profile_cc = country_code_or_default(user.get("country_code"), "SA")
+    requested_cc = str(update_data.pop("country_code", "") or "").upper().strip()
+    if requested_cc and requested_cc not in supported_country_codes():
+        raise HTTPException(422, "يرجى اختيار دولة مدعومة")
+    if requested_cc and requested_cc != listing_cc:
+        raise HTTPException(409, "لا يمكن تغيير دولة الإعلان عبر التعديل")
+    if user.get("role") != "admin" and profile_cc != listing_cc:
+        raise HTTPException(409, "غيّر الدولة النشطة إلى دولة الإعلان قبل تعديله")
+    try:
+        if "city" in update_data or "district" in update_data:
+            canonical_city, canonical_district = normalize_location(
+                listing_cc,
+                update_data.get("city", item.get("city")),
+                update_data.get("district", item.get("district")),
+            )
+            update_data["city"] = canonical_city
+            update_data["district"] = canonical_district or None
+        if "currency" in update_data:
+            canonical_currency, canonical_currency_code = normalize_currency(
+                listing_cc, update_data.get("currency"), item.get("currency_code")
+            )
+            update_data["currency"] = canonical_currency
+            update_data["currency_code"] = canonical_currency_code
+    except ValueError as exc:
+        raise _country_policy_http_error(exc)
     old_images = list(item.get("images") or [])
     old_videos = list(item.get("videos") or [])
     old_model_url = (item.get("custom_fields") or {}).get("model_3d_url")
@@ -6722,7 +6790,7 @@ async def _country_integrity_snapshot(limit: int = 10000) -> dict:
     listings_no_cc = await db.listings.count_documents(missing_country_query)
     issues: list[dict] = []
     scanned = 0
-    projection = {"_id": 0, "id": 1, "title": 1, "country_code": 1, "city": 1, "district": 1, "currency": 1, "currency_code": 1, "user_id": 1, "created_at": 1}
+    projection = {"_id": 0, "id": 1, "title": 1, "country_code": 1, "city": 1, "district": 1, "currency": 1, "currency_code": 1, "location_needs_review": 1, "search_blob": 1, "user_id": 1, "created_at": 1}
     cursor = db.listings.find({}, projection).sort("created_at", -1).limit(max(1, min(limit, 50000)))
     async for listing in cursor:
         scanned += 1
@@ -6730,8 +6798,16 @@ async def _country_integrity_snapshot(limit: int = 10000) -> dict:
         kinds: list[str] = []
         city = str(listing.get("city") or "").strip()
         city_countries = city_to_countries.get(city.casefold(), set()) if city else set()
+        if not cc:
+            kinds.append("country_code_missing")
+        elif cc not in countries:
+            kinds.append("country_code_unsupported")
         if cc and cc in countries and city_countries and cc not in city_countries:
             kinds.append("city_country_mismatch")
+        elif cc in countries and city and not city_countries:
+            # Do not infer a country from free text. Preserve it for manual review
+            # while making the uncertain location visible in the integrity report.
+            kinds.append("city_not_in_reference")
         expected = countries.get(cc) or {}
         expected_currencies = {str(v).strip().upper() for v in (expected.get("currency"), expected.get("currency_code")) if v}
         supplied = {str(v).strip().upper() for v in (listing.get("currency"), listing.get("currency_code")) if v}
@@ -6739,7 +6815,13 @@ async def _country_integrity_snapshot(limit: int = 10000) -> dict:
             kinds.append("currency_country_mismatch")
         if kinds:
             issues.append({**listing, "issue_types": kinds, "expected_currency": expected.get("currency"), "expected_currency_code": expected.get("currency_code")})
-    summary = {"city_country_mismatch": 0, "currency_country_mismatch": 0}
+    summary = {
+        "country_code_missing": 0,
+        "country_code_unsupported": 0,
+        "city_country_mismatch": 0,
+        "city_not_in_reference": 0,
+        "currency_country_mismatch": 0,
+    }
     for item in issues:
         for kind in item["issue_types"]:
             summary[kind] = summary.get(kind, 0) + 1
@@ -6781,6 +6863,7 @@ async def admin_data_integrity_repair(body: dict, user: dict = Depends(require_a
         raise HTTPException(400, "يلزم تأكيد REPAIR_COUNTRY_INTEGRITY قبل التطبيق")
     repair_currency = bool(body.get("repair_currency", True))
     clear_invalid_city = bool(body.get("clear_invalid_city", True))
+    flag_unknown_city = bool(body.get("flag_unknown_city", True))
     batch_id = str(uuid.uuid4())
     changes: list[dict] = []
     for issue in snapshot.get("_actionable_issues", []):
@@ -6790,14 +6873,23 @@ async def admin_data_integrity_repair(body: dict, user: dict = Depends(require_a
             patch.update({"currency": issue.get("expected_currency"), "currency_code": issue.get("expected_currency_code")})
         if clear_invalid_city and "city_country_mismatch" in types:
             patch.update({"city": "", "district": "", "location_needs_review": True})
+        elif flag_unknown_city and "city_not_in_reference" in types:
+            # Preserve ambiguous free text for a human, but make the record
+            # discoverable to Admin as needing a location review.
+            patch["location_needs_review"] = True
+        if "city" in patch or "district" in patch:
+            patch["search_blob"] = build_search_blob({**issue, **patch})
         if not patch:
             continue
-        before = {key: issue.get(key) for key in ("city", "district", "currency", "currency_code", "location_needs_review")}
+        before = {
+            key: {"present": key in issue, "value": issue.get(key)}
+            for key in patch.keys()
+        }
         await db.listings.update_one({"id": issue["id"]}, {"$set": patch})
         changes.append({"listing_id": issue["id"], "before": before, "after": patch, "issue_types": issue.get("issue_types")})
     repair_doc = {"id": batch_id, "kind": "country_integrity_repair", "created_at": datetime.now(timezone.utc).isoformat(), "created_by": user["id"], "changes": changes}
     await db.data_integrity_repairs.insert_one(repair_doc)
-    await _admin_log(user["id"], "data_integrity_repair", batch_id, {"changes": len(changes), "repair_currency": repair_currency, "clear_invalid_city": clear_invalid_city})
+    await _admin_log(user["id"], "data_integrity_repair", batch_id, {"changes": len(changes), "repair_currency": repair_currency, "clear_invalid_city": clear_invalid_city, "flag_unknown_city": flag_unknown_city})
     _cache_invalidate()
     return {"dry_run": False, "batch_id": batch_id, "changed": len(changes), "changes": changes[:100]}
 
@@ -6812,7 +6904,21 @@ async def admin_data_integrity_rollback(body: dict, user: dict = Depends(require
         raise HTTPException(404, "دفعة الإصلاح غير موجودة")
     restored = 0
     for change in repair.get("changes") or []:
-        result = await db.listings.update_one({"id": change.get("listing_id")}, {"$set": change.get("before") or {}})
+        before = change.get("before") or {}
+        # New repair batches record field presence so rollback restores a truly
+        # absent field with $unset rather than converting it into a null value.
+        if before and all(isinstance(value, dict) and "present" in value for value in before.values()):
+            restore_set = {key: value.get("value") for key, value in before.items() if value.get("present")}
+            restore_unset = {key: "" for key, value in before.items() if not value.get("present")}
+            operation = {}
+            if restore_set:
+                operation["$set"] = restore_set
+            if restore_unset:
+                operation["$unset"] = restore_unset
+        else:
+            # Compatibility with batches created by the earlier repair endpoint.
+            operation = {"$set": before}
+        result = await db.listings.update_one({"id": change.get("listing_id")}, operation)
         restored += int(result.modified_count or 0)
     await db.data_integrity_repairs.update_one({"id": batch_id}, {"$set": {"rolled_back_at": datetime.now(timezone.utc).isoformat(), "rolled_back_by": user["id"]}})
     await _admin_log(user["id"], "data_integrity_rollback", batch_id, {"restored": restored})
@@ -7961,42 +8067,46 @@ async def rate_seller(seller_id: str, body: RatingIn, user: dict = Depends(get_c
 # ============================================================
 class SearchLogIn(BaseModel):
     query: str
+    country_code: Optional[str] = None
 
 
 @api.post("/search/log")
-async def log_search(body: SearchLogIn, request: Request):
+async def log_search(body: SearchLogIn, request: Request, country_code: Optional[str] = None):
     """Log a search. Increments global counter; if logged-in user, also adds to history."""
     q = (body.query or "").strip()
     if not q or len(q) > 100:
         return {"ok": True}
     now = datetime.now(timezone.utc).isoformat()
-    # global counter
+    cc = country_code_or_default(body.country_code or country_code)
+    # Trending is market-scoped. Never aggregate a query from one country into
+    # another country's discovery surface.
     await db.search_terms.update_one(
-        {"q_lower": q.lower()},
-        {"$inc": {"count": 1}, "$set": {"last_seen": now, "q": q}},
+        {"country_code": cc, "q_lower": q.lower()},
+        {"$inc": {"count": 1}, "$set": {"last_seen": now, "q": q, "country_code": cc}},
         upsert=True,
     )
     # personal history (if authed)
     user = await _get_user_from_cookie(request)
     if user:
         await db.search_history.update_one(
-            {"user_id": user["id"], "q_lower": q.lower()},
-            {"$set": {"q": q, "ts": now, "user_id": user["id"], "q_lower": q.lower()}},
+            {"user_id": user["id"], "country_code": cc, "q_lower": q.lower()},
+            {"$set": {"q": q, "ts": now, "user_id": user["id"], "country_code": cc, "q_lower": q.lower()}},
             upsert=True,
         )
-        # Trim to last 20 per user
-        cur = db.search_history.find({"user_id": user["id"]}, {"_id": 0, "q_lower": 1, "ts": 1}).sort("ts", -1)
+        # Trim to last 20 per user and market.
+        cur = db.search_history.find({"user_id": user["id"], "country_code": cc}, {"_id": 0, "q_lower": 1, "ts": 1}).sort("ts", -1)
         all_items = await cur.to_list(length=200)
         if len(all_items) > 20:
             old_lowers = [it["q_lower"] for it in all_items[20:]]
-            await db.search_history.delete_many({"user_id": user["id"], "q_lower": {"$in": old_lowers}})
+            await db.search_history.delete_many({"user_id": user["id"], "country_code": cc, "q_lower": {"$in": old_lowers}})
     return {"ok": True}
 
 
 @api.get("/search/trending")
-async def trending_searches(limit: int = 10):
+async def trending_searches(country_code: Optional[str] = None, limit: int = 10):
+    cc = country_code_or_default(country_code)
     items = await db.search_terms.find(
-        {}, {"_id": 0, "q": 1, "count": 1}
+        {"country_code": cc}, {"_id": 0, "q": 1, "count": 1}
     ).sort("count", -1).limit(max(1, min(limit, 30))).to_list(length=30)
     return [{"query": it["q"], "count": it.get("count", 0)} for it in items]
 
@@ -8011,12 +8121,13 @@ async def search_suggest(q: str, country_code: Optional[str] = None, limit: int 
 
 
 @api.get("/search/history")
-async def search_history(request: Request, limit: int = 10):
+async def search_history(request: Request, country_code: Optional[str] = None, limit: int = 10):
     user = await _get_user_from_cookie(request)
     if not user:
         return []
+    cc = country_code_or_default(country_code)
     items = await db.search_history.find(
-        {"user_id": user["id"]}, {"_id": 0, "q": 1, "ts": 1, "q_lower": 1}
+        {"user_id": user["id"], "country_code": cc}, {"_id": 0, "q": 1, "ts": 1, "q_lower": 1}
     ).sort("ts", -1).limit(max(1, min(limit, 50))).to_list(length=50)
     return [{"query": it["q"], "ts": it["ts"], "id": it["q_lower"]} for it in items]
 
@@ -8027,11 +8138,12 @@ class SearchHistoryDeleteIn(BaseModel):
 
 
 @api.delete("/search/history")
-async def delete_search_history(body: SearchHistoryDeleteIn, user: dict = Depends(get_current_user)):
+async def delete_search_history(body: SearchHistoryDeleteIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    cc = country_code_or_default(country_code)
     if body.all or body.query is None:
-        await db.search_history.delete_many({"user_id": user["id"]})
+        await db.search_history.delete_many({"user_id": user["id"], "country_code": cc})
         return {"ok": True, "cleared": "all"}
-    await db.search_history.delete_one({"user_id": user["id"], "q_lower": body.query.lower()})
+    await db.search_history.delete_one({"user_id": user["id"], "country_code": cc, "q_lower": body.query.lower()})
     return {"ok": True, "cleared": body.query}
 
 

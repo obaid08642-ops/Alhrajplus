@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from typing import Optional, List, Tuple
 from rapidfuzz import process as _rf_process, fuzz as _rf_fuzz
+from country_policy import country_code_or_default
 
 
 # Public listing visibility policy. Legacy records may not have a moderation
@@ -53,7 +54,7 @@ def public_listing_filter_for_country(country_code: Optional[str] = None, extra:
     explicitly request another ISO-2 country, in which case Mongo returns only
     records whose stored country_code is exactly that value.
     """
-    cc = str(country_code or "SA").strip().upper()
+    cc = country_code_or_default(country_code)
     merged = dict(extra or {})
     merged["country_code"] = cc
     return public_listing_filter(merged)
@@ -208,9 +209,9 @@ async def suggest(db, q: str, country_code: Optional[str], limit: int = 8) -> Li
     if len(q_norm) < 1:
         return []
     extra = {"search_blob": {"$regex": re.escape(q_norm), "$options": "i"}}
-    if country_code:
-        extra["country_code"] = country_code
-    base = public_listing_filter(extra)
+    # Suggestions are a public discovery surface, never a global corpus.
+    # Missing/unsupported country selection follows the marketplace SA default.
+    base = public_listing_filter_for_country(country_code, extra)
     cursor = db.listings.find(base, {"_id": 0, "title": 1}).sort([("created_at", -1)]).limit(limit * 4)
     seen = set()
     out: List[str] = []

@@ -98,6 +98,14 @@ export default function PostListing() {
         if (user?.city) setForm((f) => ({ ...f, city: user.city }));
     }, [user]);
 
+    // Keep a new listing's display currency aligned with the selected market.
+    // Existing listings retain their stored value and can only be edited after
+    // the user switches back to that listing's country.
+    useEffect(() => {
+        if (editId || !country?.currency) return;
+        setForm((f) => f.currency === country.currency ? f : ({ ...f, currency: country.currency }));
+    }, [country?.currency, editId]);
+
     // When user switches active country, clear stale city/district from previous country.
     useEffect(() => {
         if (!activeCountryCode) return;
