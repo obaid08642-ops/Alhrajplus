@@ -40,7 +40,7 @@ import { ThemeModeProvider, useThemeMode } from "./src/ThemeContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
 import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/PasswordReset";
-import { CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen } from "./src/screens/MoreScreens";
+import { CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen, MfaSecurityScreen } from "./src/screens/MoreScreens";
 import SearchScreen from "./src/screens/SearchScreen";
 import SellerProfileScreen from "./src/screens/SellerProfile";
 import OffersScreen from "./src/screens/OffersScreen";
@@ -141,6 +141,7 @@ function Navigation() {
                 Post: "post",
                 AIAssistant: "ai",
                 Settings: "settings",
+                MfaSecurity: "settings/mfa",
                 NotifSettings: "settings/notifications",
                 SavedSearches: "saved-searches",
                 Following: "following",
@@ -191,6 +192,7 @@ function Navigation() {
                 <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: t("الأبحاث المحفوظة") }} />
                 <Stack.Screen name="Following" component={FollowingScreen} options={{ title: t("متابعاتي") }} />
                 <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("الإعدادات") }} />
+                <Stack.Screen name="MfaSecurity" component={MfaSecurityScreen} options={{ title: t("التحقق بخطوتين") }} />
                 <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
                 <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: t("الملف الشخصي للبائع") }} />
                 <Stack.Screen name="Offers" component={OffersScreen} options={{ title: t("العروض والمفاوضات") }} />

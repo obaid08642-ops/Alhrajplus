@@ -3,7 +3,7 @@
  * lightweight screens to bring the mobile app to feature parity with the web.
  */
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, TextInput } from "react-native";
 import api from "../api";
 import { theme, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
@@ -288,6 +288,7 @@ export function SettingsScreen({
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("Following")}>
                     <Users size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("متابعاتي")}</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("MfaSecurity")} testID="mobile-mfa-settings"><Settings size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("التحقق بخطوتين")}</Text></TouchableOpacity>
                 <TouchableOpacity style={s.menuItem} onPress={() => navigation.navigate("NotifSettings")}>
                     <Bell size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{t("إعدادات الإشعارات")}</Text>
                 </TouchableOpacity>
@@ -344,6 +345,22 @@ export function SettingsScreen({
                 </TouchableOpacity>
             </Modal>
         </ScrollView>;
+}
+
+export function MfaSecurityScreen() {
+  const { t } = useI18n();
+  const { palette } = useThemeMode();
+  const [status, setStatus] = useState(null);
+  const [setup, setSetup] = useState(null);
+  const [code, setCode] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => { try { const { data } = await api.get("/auth/mfa/status"); setStatus(data); } catch { setStatus(null); } }, []);
+  useEffect(() => { load(); }, [load]);
+  const enroll = async () => { setBusy(true); setNotice(""); try { const { data } = await api.post("/auth/mfa/enroll"); setSetup(data); } catch (e) { setNotice(e.response?.data?.detail || t("تعذر بدء التحقق الثنائي")); } finally { setBusy(false); } };
+  const verify = async () => { setBusy(true); setNotice(""); try { const { data } = await api.post("/auth/mfa/enroll/verify", { code }); setSetup({ ...setup, recovery_codes: data.recovery_codes }); setCode(""); await load(); } catch (e) { setNotice(e.response?.data?.detail || t("رمز التحقق غير صحيح")); } finally { setBusy(false); } };
+  const disable = async () => { setBusy(true); setNotice(""); try { await api.post("/auth/mfa/disable", { code }); setSetup(null); setCode(""); await load(); setNotice(t("تم تعطيل التحقق الثنائي. سجّل الدخول مجددًا.")); } catch (e) { setNotice(e.response?.data?.detail || t("رمز التحقق غير صحيح")); } finally { setBusy(false); } };
+  return <ScrollView style={[s.wrap, { backgroundColor: palette.bg }]} contentContainerStyle={{ padding: 18 }}><Text style={s.pageTitle}>{t("التحقق بخطوتين")}</Text><Text style={s.staticBody}>{status?.enabled ? t("الحماية مفعّلة لحسابك.") : t("أضف تطبيق مصادقة لحماية تسجيل الدخول.")}</Text>{notice ? <Text style={s.errorText}>{notice}</Text> : null}{setup?.recovery_codes ? <View style={s.enableBioBox}><Text style={s.enableBioText}>{t("احفظ رموز الاسترداد الآن؛ لن تظهر مرة أخرى.")}</Text><Text selectable style={s.staticBody}>{setup.recovery_codes.join("\n")}</Text></View> : setup ? <View style={s.enableBioBox}><Text style={s.enableBioText}>{t("أضف المفتاح التالي في تطبيق المصادقة ثم أدخل الرمز:")}</Text><Text selectable style={s.staticBody}>{setup.secret}</Text><TextInput placeholder={t("رمز من 6 أرقام")} value={code} onChangeText={setCode} style={s.input} testID="mobile-mfa-enroll-code" /><TouchableOpacity onPress={verify} disabled={busy} style={[s.btn, busy && s.btnDisabled]} testID="mobile-mfa-enroll-verify"><Text style={s.btnText}>{t("تأكيد وتفعيل")}</Text></TouchableOpacity></View> : status?.enabled ? <View style={s.enableBioBox}><TextInput placeholder={t("رمز لتعطيل الحماية")} value={code} onChangeText={setCode} style={s.input} testID="mobile-mfa-disable-code" /><TouchableOpacity onPress={disable} disabled={busy} style={s.enableBioNo}><Text style={s.enableBioNoText}>{t("تعطيل التحقق بخطوتين")}</Text></TouchableOpacity></View> : <TouchableOpacity onPress={enroll} disabled={busy} style={[s.btn, busy && s.btnDisabled]} testID="mobile-mfa-enroll"><Text style={s.btnText}>{t("تفعيل التحقق بخطوتين")}</Text></TouchableOpacity>}</ScrollView>;
 }
 
 // Local fallback used only when the network call fails — keeps UX intact offline.

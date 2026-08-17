@@ -122,13 +122,17 @@ export function LoginScreen({
   const {
     user,
     login,
-    refresh
+    refresh,
+    mfaChallenge,
+    verifyMfa,
+    clearMfaChallenge
   } = useAuth();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioEnabled, setBioEnabled] = useState(false);
   const [bioLabel, setBioLabel] = useState(t("البصمة"));
@@ -169,8 +173,9 @@ export function LoginScreen({
     setErr("");
     setBusy(true);
     try {
-      await login(email, password);
-      // CRITICAL: navigate to Main IMMEDIATELY after a successful login so
+      const result = await login(email, password);
+      if (result?.mfaRequired) return;
+      // Navigate only after authentication is complete.
       // the user never gets stranded on this screen. The biometric enrollment
       // prompt (if available) is shown AFTER navigation via Alert.alert so
       // it never blocks the redirect.
@@ -196,6 +201,12 @@ export function LoginScreen({
     } finally {
       setBusy(false);
     }
+  };
+  const submitMfa = async () => {
+    setErr(""); setBusy(true);
+    try { await verifyMfa(mfaCode); goHome(navigation); }
+    catch (e) { setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى.")); }
+    finally { setBusy(false); }
   };
   const doEnableBio = async () => {
     const ok = await enableBiometric(email, password);
@@ -234,17 +245,14 @@ export function LoginScreen({
 
                     {err ? <View style={styles.errorBox}><Text style={styles.errorText}>{err}</Text></View> : null}
 
-                    <TextInput placeholder={t("البريد الإلكتروني")} placeholderTextColor={theme.colors.textMuted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input} testID="mobile-login-email" />
+                    {mfaChallenge ? <><Text style={[styles.enableBioText, { textAlign: "center", marginBottom: 10 }]}>{t("أدخل رمز تطبيق المصادقة أو أحد رموز الاسترداد لإتمام تسجيل الدخول")}</Text>
+                        <TextInput placeholder={t("رمز التحقق أو رمز الاسترداد")} placeholderTextColor={theme.colors.textMuted} value={mfaCode} onChangeText={setMfaCode} autoCapitalize="characters" style={styles.input} testID="mobile-mfa-code" />
+                        <TouchableOpacity onPress={submitMfa} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]} testID="mobile-mfa-submit"><Text style={styles.btnText}>{busy ? "..." : t("تأكيد التحقق")}</Text></TouchableOpacity>
+                        <TouchableOpacity onPress={() => { clearMfaChallenge(); setMfaCode(""); }} style={styles.linkWrap} testID="mobile-mfa-back"><Text style={styles.linkText}>{t("العودة إلى تسجيل الدخول")}</Text></TouchableOpacity>
+                    </> : <><TextInput placeholder={t("البريد الإلكتروني")} placeholderTextColor={theme.colors.textMuted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={styles.input} testID="mobile-login-email" />
                     <TextInput placeholder={t("كلمة المرور")} placeholderTextColor={theme.colors.textMuted} value={password} onChangeText={setPassword} secureTextEntry style={styles.input} testID="mobile-login-password" />
-
-                    <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]} testID="mobile-login-submit">
-                        <Text style={styles.btnText}>{busy ? "..." : t("تسجيل الدخول")}</Text>
-                    </TouchableOpacity>
-
-                    {bioEnabled && bioAvailable && <TouchableOpacity onPress={doBiometricLogin} disabled={busy} style={[styles.bioBtn]} testID="mobile-biometric-btn">
-                            <Text style={styles.bioIcon}>🔐</Text>
-                            <Text style={styles.bioText}>{t("الدخول بـ")}{bioLabel}</Text>
-                        </TouchableOpacity>}
+                    <TouchableOpacity onPress={submit} disabled={busy} style={[styles.btn, busy && styles.btnDisabled]} testID="mobile-login-submit"><Text style={styles.btnText}>{busy ? "..." : t("تسجيل الدخول")}</Text></TouchableOpacity>
+                    {bioEnabled && bioAvailable && <TouchableOpacity onPress={doBiometricLogin} disabled={busy} style={[styles.bioBtn]} testID="mobile-biometric-btn"><Text style={styles.bioIcon}>🔐</Text><Text style={styles.bioText}>{t("الدخول بـ")}{bioLabel}</Text></TouchableOpacity>}</>}
 
                     {askEnable && <View style={styles.enableBioBox}>
                             <Text style={styles.enableBioText}>{t("تفعيل الدخول بـ")}{bioLabel}{t("في المرات القادمة؟")}</Text>

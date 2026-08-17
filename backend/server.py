@@ -10,6 +10,10 @@ import uuid
 import time
 import asyncio
 import json
+import base64
+import hashlib
+import hmac
+from urllib.parse import quote
 from html import escape as html_escape
 import logging
 import secrets
@@ -33,6 +37,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
+from cryptography.fernet import Fernet, InvalidToken
 
 from seed_data import COUNTRIES, CATEGORIES, DEFAULT_THEME
 from i18n_data import localize_categories, t_option, t_category
@@ -129,6 +134,11 @@ JWT_SECRET = _env("JWT_SECRET", required=True, default="change-me-in-production"
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = _env("ADMIN_EMAIL", default="admin@harajplus.com")
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD", default="Admin@HarajPlus2026")
+# MFA secrets are encrypted at rest. Set a dedicated Fernet key in production;
+# a deterministic JWT-derived key preserves backward-compatible startup but is
+# logged as an operational hardening gap at startup.
+MFA_ENCRYPTION_KEY = os.environ.get("MFA_ENCRYPTION_KEY", "").strip()
+MFA_ISSUER = os.environ.get("MFA_ISSUER", "Alhraj Plus").strip() or "Alhraj Plus"
 
 # Cloudinary — config is lazy; missing keys only fail when an upload is attempted
 cloudinary.config(
@@ -865,15 +875,105 @@ def verify_password(pw: str, hashed: str) -> bool:
     except Exception:
         return False
 
-def create_access_token(uid: str, email: str, role: str) -> str:
+def _mfa_fernet() -> Fernet:
+    # Dedicated MFA_ENCRYPTION_KEY is preferred. The fallback is key-derived
+    # from the existing production JWT secret so MFA is never stored plaintext.
+    source = MFA_ENCRYPTION_KEY or JWT_SECRET
+    key = base64.urlsafe_b64encode(hashlib.sha256(source.encode()).digest())
+    return Fernet(key)
+
+
+def _mfa_encrypt(secret: str) -> str:
+    return _mfa_fernet().encrypt(secret.encode()).decode()
+
+
+def _mfa_decrypt(ciphertext: str) -> str:
+    try:
+        return _mfa_fernet().decrypt(ciphertext.encode()).decode()
+    except (InvalidToken, ValueError, TypeError):
+        raise HTTPException(500, "تعذر قراءة إعدادات التحقق الثنائي. تواصل مع الدعم")
+
+
+def _totp_secret() -> str:
+    return base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
+
+
+def _totp_code(secret: str, counter: int) -> str:
+    padded = secret.upper() + ("=" * ((8 - len(secret) % 8) % 8))
+    key = base64.b32decode(padded, casefold=True)
+    digest = hmac.new(key, int(counter).to_bytes(8, "big"), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    value = ((digest[offset] & 0x7F) << 24) | ((digest[offset + 1] & 0xFF) << 16) | ((digest[offset + 2] & 0xFF) << 8) | (digest[offset + 3] & 0xFF)
+    return f"{value % 1_000_000:06d}"
+
+
+def _verify_totp(secret: str, code: str, window: int = 1) -> bool:
+    candidate = str(code or "").strip().replace(" ", "")
+    if not re.fullmatch(r"\d{6}", candidate):
+        return False
+    counter = int(time.time() // 30)
+    return any(hmac.compare_digest(_totp_code(secret, counter + drift), candidate) for drift in range(-window, window + 1))
+
+
+def _recovery_code_hash(code: str) -> str:
+    return hashlib.sha256(str(code or "").strip().upper().encode()).hexdigest()
+
+
+def _new_recovery_codes(count: int = 8) -> list[str]:
+    return [f"{secrets.token_hex(4).upper()}-{secrets.token_hex(4).upper()}" for _ in range(count)]
+
+
+def _request_ip(request: Request) -> str:
+    return (request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else ""))[:64]
+
+
+def _session_metadata(request: Request) -> dict:
+    return {"ip": _request_ip(request), "user_agent": (request.headers.get("user-agent") or "")[:300]}
+
+
+def create_access_token(uid: str, email: str, role: str, session_id: Optional[str] = None, mfa: bool = False) -> str:
     payload = {"sub": uid, "email": email, "role": role,
                "exp": datetime.now(timezone.utc) + timedelta(minutes=60),
-               "type": "access"}
+               "type": "access", "mfa": bool(mfa)}
+    if session_id:
+        payload["sid"] = session_id
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-def create_refresh_token(uid: str) -> str:
-    payload = {"sub": uid, "exp": datetime.now(timezone.utc) + timedelta(days=30), "type": "refresh"}
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def create_refresh_token(uid: str, session_id: Optional[str] = None):
+    jti = str(uuid.uuid4())
+    payload = {"sub": uid, "exp": datetime.now(timezone.utc) + timedelta(days=30), "type": "refresh", "jti": jti}
+    if not session_id:
+        # Legacy social callbacks remain usable while they are migrated to
+        # first-party sessions. Password/MFA flows always pass a session id.
+        return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    payload["sid"] = session_id
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM), jti
+
+
+async def _create_auth_session(user: dict, request: Request, *, mfa_verified: bool) -> tuple[str, str, str]:
+    session_id = str(uuid.uuid4())
+    refresh, refresh_jti = create_refresh_token(user["id"], session_id)
+    now = datetime.now(timezone.utc)
+    await db.auth_sessions.insert_one({
+        "id": session_id, "user_id": user["id"], "refresh_jti": refresh_jti,
+        "mfa_verified": bool(mfa_verified), "created_at": now, "last_seen_at": now,
+        "expires_at": now + timedelta(days=30), "revoked_at": None, **_session_metadata(request),
+    })
+    access = create_access_token(user["id"], user["email"], user.get("role", "user"), session_id, mfa_verified)
+    return access, refresh, session_id
+
+
+async def _rotate_auth_session(user: dict, request: Request, session_id: str, old_jti: str) -> tuple[str, str]:
+    now = datetime.now(timezone.utc)
+    refresh, new_jti = create_refresh_token(user["id"], session_id)
+    changed = await db.auth_sessions.update_one(
+        {"id": session_id, "user_id": user["id"], "refresh_jti": old_jti, "revoked_at": None, "expires_at": {"$gt": now}},
+        {"$set": {"refresh_jti": new_jti, "last_seen_at": now, **_session_metadata(request)}},
+    )
+    if not changed.modified_count:
+        raise HTTPException(401, "جلسة التحديث غير صالحة أو انتهت")
+    return create_access_token(user["id"], user["email"], user.get("role", "user"), session_id, bool(user.get("mfa_enabled"))), refresh
 
 def set_auth_cookies(resp: Response, access: str, refresh: str):
     resp.set_cookie("access_token", access, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
@@ -895,9 +995,14 @@ async def get_current_user(request: Request) -> dict:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "access":
             raise HTTPException(401, "Invalid token type")
-        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0, "mfa_secret": 0, "mfa_recovery_hashes": 0})
         if not user:
             raise HTTPException(401, "User not found")
+        session_id = payload.get("sid")
+        if session_id:
+            active_session = await db.auth_sessions.find_one({"id": session_id, "user_id": user["id"], "revoked_at": None, "expires_at": {"$gt": datetime.now(timezone.utc)}}, {"_id": 0, "id": 1})
+            if not active_session:
+                raise HTTPException(401, "Session revoked or expired")
         if user.get("banned"):
             raise HTTPException(403, "Account banned")
         return user
@@ -927,6 +1032,19 @@ class RegisterIn(BaseModel):
 class LoginIn(BaseModel):
     email: EmailStr
     password: str
+
+class MfaVerifyIn(BaseModel):
+    challenge_id: str = Field(min_length=16, max_length=128)
+    code: str = Field(min_length=6, max_length=32)
+
+class MfaEnrollmentVerifyIn(BaseModel):
+    code: str = Field(min_length=6, max_length=16)
+
+class MfaDisableIn(BaseModel):
+    code: str = Field(min_length=6, max_length=32)
+
+class SessionRevokeIn(BaseModel):
+    session_id: str = Field(min_length=16, max_length=128)
 
 class ListingIn(BaseModel):
     title: str = Field(min_length=4, max_length=120)
@@ -1245,11 +1363,12 @@ async def register(body: RegisterIn, request: Request, response: Response):
     except Exception as e:
         logger.error(f"[Register verify-email] {e}")
 
+    access, refresh, _ = await _create_auth_session(user, request, mfa_verified=False)
+    set_auth_cookies(response, access, refresh)
     user.pop("password_hash", None)
     user.pop("_id", None)
-    access = create_access_token(uid, email, "user")
-    refresh = create_refresh_token(uid)
-    set_auth_cookies(response, access, refresh)
+    user.pop("mfa_secret", None)
+    user.pop("mfa_recovery_hashes", None)
     return {"user": user, "access_token": access, "refresh_token": refresh}
 
 @api.post("/auth/login")
@@ -1274,15 +1393,31 @@ async def login(body: LoginIn, request: Request, response: Response):
         raise HTTPException(403, "تم حظر حسابك")
     # success, clear attempts
     await db.login_attempts.delete_many({"identifier": identifier})
-    access = create_access_token(user["id"], email, user.get("role", "user"))
-    refresh = create_refresh_token(user["id"])
-    set_auth_cookies(response, access, refresh)
+    if user.get("mfa_enabled"):
+        challenge_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        await db.mfa_login_challenges.insert_one({
+            "id": challenge_id, "user_id": user["id"], "created_at": now,
+            "expires_at": now + timedelta(minutes=5), "used_at": None, **_session_metadata(request),
+        })
+        return {"mfa_required": True, "challenge_id": challenge_id, "expires_in": 300}
+    access, refresh, _ = await _create_auth_session(user, request, mfa_verified=False)
     user.pop("password_hash", None)
     user.pop("_id", None)
+    user.pop("mfa_secret", None)
+    user.pop("mfa_recovery_hashes", None)
+    set_auth_cookies(response, access, refresh)
     return {"user": user, "access_token": access, "refresh_token": refresh}
 
 @api.post("/auth/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    token = request.cookies.get("access_token") or request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM]) if token else {}
+        if payload.get("sid"):
+            await db.auth_sessions.update_one({"id": payload["sid"], "user_id": payload.get("sub"), "revoked_at": None}, {"$set": {"revoked_at": datetime.now(timezone.utc), "revoked_reason": "logout"}})
+    except jwt.InvalidTokenError:
+        pass
     clear_auth_cookies(response)
     return {"success": True}
 
@@ -1357,6 +1492,140 @@ async def get_me_stats(user: dict = Depends(get_current_user)):
         "joined_at": user.get("created_at"),
     }
 
+async def _security_event(user_id: str, event: str, request: Optional[Request] = None, meta: Optional[dict] = None):
+    data = {"id": str(uuid.uuid4()), "user_id": user_id, "event": event, "at": datetime.now(timezone.utc), "meta": meta or {}}
+    if request:
+        data.update(_session_metadata(request))
+    try:
+        await db.security_events.insert_one(data)
+    except Exception:
+        logger.warning("security event write failed: %s", event)
+
+
+@api.get("/auth/mfa/status")
+async def mfa_status(user: dict = Depends(get_current_user)):
+    secure = await db.users.find_one({"id": user["id"]}, {"_id": 0, "mfa_enabled": 1, "mfa_recovery_hashes": 1}) or {}
+    return {"enabled": bool(secure.get("mfa_enabled")), "recovery_codes_remaining": len(secure.get("mfa_recovery_hashes") or [])}
+
+
+@api.post("/auth/mfa/enroll")
+async def mfa_enroll(request: Request, user: dict = Depends(get_current_user)):
+    existing = await db.users.find_one({"id": user["id"]}, {"_id": 0, "mfa_enabled": 1}) or {}
+    if existing.get("mfa_enabled"):
+        raise HTTPException(409, "التحقق الثنائي مفعّل بالفعل؛ عطّله أولاً بعد التحقق")
+    secret = _totp_secret()
+    now = datetime.now(timezone.utc)
+    await db.mfa_pending_enrollments.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"id": str(uuid.uuid4()), "user_id": user["id"], "secret": _mfa_encrypt(secret), "created_at": now, "expires_at": now + timedelta(minutes=10), **_session_metadata(request)}},
+        upsert=True,
+    )
+    label = quote(f"{MFA_ISSUER}:{user.get('email') or user['id']}")
+    uri = f"otpauth://totp/{label}?secret={secret}&issuer={quote(MFA_ISSUER)}&algorithm=SHA1&digits=6&period=30"
+    return {"secret": secret, "otpauth_uri": uri, "expires_in": 600}
+
+
+@api.post("/auth/mfa/enroll/verify")
+async def mfa_enroll_verify(body: MfaEnrollmentVerifyIn, request: Request, user: dict = Depends(get_current_user)):
+    pending = await db.mfa_pending_enrollments.find_one({"user_id": user["id"], "expires_at": {"$gt": datetime.now(timezone.utc)}}, {"_id": 0})
+    if not pending:
+        raise HTTPException(400, "انتهت جلسة إعداد التحقق الثنائي؛ ابدأ من جديد")
+    secret = _mfa_decrypt(pending.get("secret", ""))
+    if not _verify_totp(secret, body.code):
+        await _security_event(user["id"], "mfa_enrollment_failed", request)
+        raise HTTPException(400, "رمز التحقق غير صحيح")
+    recovery_codes = _new_recovery_codes()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"mfa_enabled": True, "mfa_secret": _mfa_encrypt(secret), "mfa_recovery_hashes": [_recovery_code_hash(c) for c in recovery_codes], "mfa_enabled_at": datetime.now(timezone.utc)}})
+    await db.mfa_pending_enrollments.delete_many({"user_id": user["id"]})
+    await _security_event(user["id"], "mfa_enabled", request)
+    return {"enabled": True, "recovery_codes": recovery_codes}
+
+
+@api.post("/auth/mfa/login/verify")
+async def mfa_login_verify(body: MfaVerifyIn, request: Request, response: Response):
+    now = datetime.now(timezone.utc)
+    attempts = await db.mfa_attempts.count_documents({"challenge_id": body.challenge_id, "at": {"$gt": now - timedelta(minutes=15)}})
+    if attempts >= 5:
+        raise HTTPException(429, "تم قفل التحقق الثنائي مؤقتًا. حاول لاحقًا")
+    challenge = await db.mfa_login_challenges.find_one({"id": body.challenge_id, "expires_at": {"$gt": now}, "used_at": None}, {"_id": 0})
+    if not challenge:
+        raise HTTPException(401, "رمز التحقق انتهى أو تم استخدامه")
+    user = await db.users.find_one({"id": challenge["user_id"], "mfa_enabled": True}, {"_id": 0})
+    if not user or not user.get("mfa_secret"):
+        raise HTTPException(401, "التحقق الثنائي غير متاح للحساب")
+    recovery_hash = _recovery_code_hash(body.code)
+    used_recovery = recovery_hash in (user.get("mfa_recovery_hashes") or [])
+    valid_totp = _verify_totp(_mfa_decrypt(user["mfa_secret"]), body.code) if not used_recovery else False
+    if not (used_recovery or valid_totp):
+        await db.mfa_attempts.insert_one({"challenge_id": body.challenge_id, "user_id": user["id"], "at": now, **_session_metadata(request)})
+        await _security_event(user["id"], "mfa_login_failed", request)
+        raise HTTPException(401, "رمز التحقق غير صحيح")
+    used = await db.mfa_login_challenges.update_one({"id": body.challenge_id, "used_at": None}, {"$set": {"used_at": now}})
+    if not used.modified_count:
+        raise HTTPException(401, "تم استخدام طلب التحقق بالفعل")
+    if used_recovery:
+        await db.users.update_one({"id": user["id"]}, {"$pull": {"mfa_recovery_hashes": recovery_hash}})
+    access, refresh, _ = await _create_auth_session(user, request, mfa_verified=True)
+    set_auth_cookies(response, access, refresh)
+    public_user = {k: v for k, v in user.items() if k not in {"_id", "password_hash", "mfa_secret", "mfa_recovery_hashes"}}
+    await _security_event(user["id"], "mfa_login_success", request, {"recovery_code": used_recovery})
+    return {"user": public_user, "access_token": access, "refresh_token": refresh, "mfa_verified": True, "recovery_codes_remaining": len(user.get("mfa_recovery_hashes") or []) - int(used_recovery)}
+
+
+@api.post("/auth/mfa/disable")
+async def mfa_disable(body: MfaDisableIn, request: Request, user: dict = Depends(get_current_user)):
+    secure = await db.users.find_one({"id": user["id"], "mfa_enabled": True}, {"_id": 0, "mfa_secret": 1, "mfa_recovery_hashes": 1})
+    if not secure:
+        raise HTTPException(409, "التحقق الثنائي غير مفعّل")
+    is_recovery = _recovery_code_hash(body.code) in (secure.get("mfa_recovery_hashes") or [])
+    if not is_recovery and not _verify_totp(_mfa_decrypt(secure.get("mfa_secret", "")), body.code):
+        await _security_event(user["id"], "mfa_disable_failed", request)
+        raise HTTPException(401, "رمز التحقق غير صحيح")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"mfa_enabled": False, "mfa_disabled_at": datetime.now(timezone.utc)}, "$unset": {"mfa_secret": "", "mfa_recovery_hashes": ""}})
+    await db.auth_sessions.update_many({"user_id": user["id"], "revoked_at": None}, {"$set": {"revoked_at": datetime.now(timezone.utc), "revoked_reason": "mfa_disabled"}})
+    await _security_event(user["id"], "mfa_disabled", request)
+    return {"enabled": False, "reauth_required": True}
+
+
+@api.post("/auth/mfa/recovery-codes")
+async def mfa_recovery_codes(body: MfaDisableIn, request: Request, user: dict = Depends(get_current_user)):
+    secure = await db.users.find_one({"id": user["id"], "mfa_enabled": True}, {"_id": 0, "mfa_secret": 1})
+    if not secure or not _verify_totp(_mfa_decrypt(secure.get("mfa_secret", "")), body.code):
+        raise HTTPException(401, "يلزم رمز التحقق الحالي لإنشاء رموز استرداد جديدة")
+    recovery_codes = _new_recovery_codes()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"mfa_recovery_hashes": [_recovery_code_hash(c) for c in recovery_codes], "mfa_recovery_rotated_at": datetime.now(timezone.utc)}})
+    await _security_event(user["id"], "mfa_recovery_codes_rotated", request)
+    return {"recovery_codes": recovery_codes}
+
+
+@api.get("/auth/sessions")
+async def auth_sessions(request: Request, user: dict = Depends(get_current_user)):
+    token = request.cookies.get("access_token") or request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    current_sid = ""
+    try:
+        current_sid = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM]).get("sid", "") if token else ""
+    except jwt.InvalidTokenError:
+        pass
+    sessions = await db.auth_sessions.find({"user_id": user["id"], "revoked_at": None}, {"_id": 0, "refresh_jti": 0}).sort("last_seen_at", -1).to_list(length=100)
+    return {"sessions": [{**s, "current": s.get("id") == current_sid} for s in sessions]}
+
+
+@api.delete("/auth/sessions/{session_id}")
+async def auth_session_revoke(session_id: str, request: Request, user: dict = Depends(get_current_user)):
+    changed = await db.auth_sessions.update_one({"id": session_id, "user_id": user["id"], "revoked_at": None}, {"$set": {"revoked_at": datetime.now(timezone.utc), "revoked_reason": "user_revoked"}})
+    if not changed.modified_count:
+        raise HTTPException(404, "الجلسة غير موجودة أو منتهية")
+    await _security_event(user["id"], "session_revoked", request, {"session_id": session_id})
+    return {"success": True}
+
+
+@api.post("/auth/sessions/logout-all")
+async def auth_sessions_logout_all(request: Request, user: dict = Depends(get_current_user)):
+    result = await db.auth_sessions.update_many({"user_id": user["id"], "revoked_at": None}, {"$set": {"revoked_at": datetime.now(timezone.utc), "revoked_reason": "logout_all"}})
+    await _security_event(user["id"], "logout_all", request, {"sessions": result.modified_count})
+    return {"success": True, "revoked": result.modified_count}
+
+
 @api.post("/auth/refresh")
 async def refresh_token(request: Request, response: Response):
     # Accept refresh from: (1) cookie, (2) JSON body { refresh_token }, (3) Authorization header
@@ -1377,12 +1646,16 @@ async def refresh_token(request: Request, response: Response):
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "refresh":
             raise HTTPException(401, "Invalid token")
-        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
+        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "mfa_secret": 0, "mfa_recovery_hashes": 0})
         if not user:
             raise HTTPException(401, "User not found")
-        access = create_access_token(user["id"], user["email"], user.get("role", "user"))
-        response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none", max_age=3600, path="/")
-        return {"access_token": access}
+        session_id = payload.get("sid")
+        refresh_jti = payload.get("jti")
+        if not session_id or not refresh_jti:
+            raise HTTPException(401, "جلسة قديمة؛ سجّل الدخول مجددًا")
+        access, new_refresh = await _rotate_auth_session(user, request, session_id, refresh_jti)
+        set_auth_cookies(response, access, new_refresh)
+        return {"access_token": access, "refresh_token": new_refresh}
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid refresh token")
 
@@ -9010,6 +9283,7 @@ async def startup():
         "EXPO_ACCESS_TOKEN": "Optional, only needed for Expo Push v2 enhanced rate limits.",
         "VAPID_PUBLIC_KEY": "Web Push public key — required for browser push subscriptions.",
         "VAPID_PRIVATE_KEY": "Web Push private key — required to actually deliver browser push.",
+        "MFA_ENCRYPTION_KEY": "Dedicated Fernet key for encrypting TOTP secrets at rest; JWT-derived fallback is used only until configured.",
         "CLOUDINARY_CLOUD_NAME": "Cloudinary cloud name — required for image/video uploads.",
         "CLOUDINARY_API_KEY": "Cloudinary API key — required for signed uploads.",
         "CLOUDINARY_API_SECRET": "Cloudinary API secret — required for signed uploads.",
@@ -9085,6 +9359,15 @@ async def startup():
     await db.push_tokens.create_index("web_subscription.endpoint", unique=True, partialFilterExpression={"web_subscription.endpoint": {"$type": "string"}})
     await db.push_tokens.create_index("user_id")
     await db.login_attempts.create_index("ts", expireAfterSeconds=900)
+    await _safe_index(db.auth_sessions, "id", unique=True)
+    await _safe_index(db.auth_sessions, [("user_id", 1), ("revoked_at", 1), ("last_seen_at", -1)])
+    await _safe_index(db.auth_sessions, "expires_at", expireAfterSeconds=0)
+    await _safe_index(db.mfa_login_challenges, "id", unique=True)
+    await _safe_index(db.mfa_login_challenges, "expires_at", expireAfterSeconds=0)
+    await _safe_index(db.mfa_pending_enrollments, "user_id", unique=True)
+    await _safe_index(db.mfa_pending_enrollments, "expires_at", expireAfterSeconds=0)
+    await _safe_index(db.mfa_attempts, "at", expireAfterSeconds=900)
+    await _safe_index(db.security_events, [("user_id", 1), ("at", -1)])
     await db.reports.create_index("status")
     await db.search_terms.create_index("q_lower", unique=True)
     await db.search_terms.create_index([("count", -1)])
@@ -9304,8 +9587,11 @@ async def startup():
             "language": "ar",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
-    elif not verify_password(ADMIN_PASSWORD, existing["password_hash"]):
-        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD), "role": "admin", "banned": False}})
+    else:
+        # Canonical admin is configured in ADMIN_EMAIL on the server. Never
+        # overwrite a real administrator's password during startup; only keep
+        # their role and ban status aligned with the canonical account.
+        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"role": "admin", "banned": False, "admin_canonical": True}})
     # Seed default theme
     if await db.settings.find_one({"_key": "theme"}) is None:
         await db.settings.insert_one({"_key": "theme", "value": DEFAULT_THEME})

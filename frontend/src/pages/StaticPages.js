@@ -3,9 +3,24 @@ import { ArrowLeft, ChevronLeft, Bell, Globe, Shield, FileText, Info, Mail, Help
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import NotificationsPanel from "@/components/NotificationsPanel";
+
+function MfaSecurityPanel() {
+    const { tr } = useI18n();
+    const [status, setStatus] = useState(null);
+    const [setup, setSetup] = useState(null);
+    const [code, setCode] = useState("");
+    const [notice, setNotice] = useState("");
+    const [busy, setBusy] = useState(false);
+    const refresh = async () => { try { const { data } = await api.get("/auth/mfa/status"); setStatus(data); } catch { setStatus(null); } };
+    useEffect(() => { refresh(); }, []);
+    const enroll = async () => { setBusy(true); setNotice(""); try { const { data } = await api.post("/auth/mfa/enroll"); setSetup(data); } catch (e) { setNotice(e.response?.data?.detail || tr("تعذر بدء التحقق الثنائي")); } finally { setBusy(false); } };
+    const verify = async () => { setBusy(true); setNotice(""); try { const { data } = await api.post("/auth/mfa/enroll/verify", { code }); setSetup({ ...setup, recovery_codes: data.recovery_codes, done: true }); setCode(""); await refresh(); } catch (e) { setNotice(e.response?.data?.detail || tr("رمز التحقق غير صحيح")); } finally { setBusy(false); } };
+    const disable = async () => { setBusy(true); setNotice(""); try { await api.post("/auth/mfa/disable", { code }); setCode(""); setSetup(null); await refresh(); setNotice(tr("تم تعطيل التحقق الثنائي. سجّل الدخول مرة أخرى.")); } catch (e) { setNotice(e.response?.data?.detail || tr("رمز التحقق غير صحيح")); } finally { setBusy(false); } };
+    return <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4 mb-3" data-testid="mfa-security-panel"><div className="flex items-center gap-3 mb-2"><Shield className="w-5 h-5 text-[var(--primary)]" /><div><h2 className="font-arabic font-bold text-sm text-[var(--text)]">{tr("التحقق بخطوتين")}</h2><p className="text-xs text-[var(--text-muted)] font-arabic-body">{status?.enabled ? tr("مفعّل لحماية تسجيل الدخول") : tr("أضف تطبيق مصادقة لحماية حسابك")}</p></div></div>{notice && <p className="text-xs text-[var(--danger)] mb-2">{notice}</p>}{setup?.recovery_codes ? <div className="rounded-xl bg-[var(--warning)]/10 p-3 text-xs text-[var(--text)]"><b>{tr("احفظ رموز الاسترداد الآن؛ لن تظهر مرة أخرى.")}</b><p className="mt-2 break-all font-mono">{setup.recovery_codes.join(" · ")}</p></div> : setup ? <div className="space-y-2"><p className="text-xs text-[var(--text-muted)]">{tr("أضف هذا المفتاح في تطبيق المصادقة ثم أدخل الرمز:")}</p><code className="block break-all rounded-lg bg-[var(--surface-elevated)] p-2 text-xs">{setup.secret}</code><input value={code} onChange={(e) => setCode(e.target.value)} placeholder={tr("رمز من 6 أرقام")} className="w-full rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] px-3 py-2 text-sm" /><button disabled={busy} onClick={verify} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-xl text-xs font-bold">{tr("تأكيد وتفعيل")}</button></div> : status?.enabled ? <div className="flex gap-2"><input value={code} onChange={(e) => setCode(e.target.value)} placeholder={tr("رمز للتحكم بالحماية")} className="flex-1 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border)] px-3 py-2 text-sm" /><button disabled={busy} onClick={disable} className="text-red-600 border border-red-500/40 px-3 rounded-xl text-xs font-bold">{tr("تعطيل")}</button></div> : <button disabled={busy} onClick={enroll} className="bg-[var(--primary)] text-[var(--primary-fg)] px-4 py-2 rounded-xl text-xs font-bold">{tr("تفعيل التحقق بخطوتين")}</button>}</section>;
+}
 
 export function SettingsPage() {
     const { user, logout } = useAuth();
@@ -62,6 +77,8 @@ export function SettingsPage() {
                     </select>
                 </div>
             </div>
+
+            {user && <MfaSecurityPanel />}
 
             <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)] mb-3 overflow-hidden">
                 {items.map((it) => (

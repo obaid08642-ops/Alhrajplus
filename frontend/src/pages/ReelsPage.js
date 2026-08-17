@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft, Clapperboard, Plus } from "lucide-react";
+import { Heart, MessageCircle, Share2, ChevronUp, ChevronDown, Volume2, VolumeX, ArrowLeft, Clapperboard, Plus, Pause, Play } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
@@ -16,7 +16,10 @@ export default function ReelsPage() {
     const [active, setActive] = useState(0);
     const [muted, setMuted] = useState(true);
     const [favs, setFavs] = useState({}); // {listingId: bool}
+    const [paused, setPaused] = useState(false);
+    const [progress, setProgress] = useState({});
     const refs = useRef([]);
+    const scrollerRef = useRef(null);
 
     const loadReels = useCallback(async (signal) => {
         setLoading(true);
@@ -50,13 +53,18 @@ export default function ReelsPage() {
     useEffect(() => {
         refs.current.forEach((v, i) => {
             if (!v) return;
-            if (i === active) v.play().catch(() => {}); else v.pause();
+            if (i === active && !paused) v.play().catch(() => {}); else v.pause();
         });
-    }, [active, reels]);
+    }, [active, reels, paused]);
 
     const onScroll = (e) => {
         const idx = Math.round(e.target.scrollTop / e.target.clientHeight);
-        if (idx !== active) setActive(idx);
+        if (idx !== active) { setActive(idx); setPaused(false); }
+    };
+    const goTo = (index) => {
+        const next = Math.max(0, Math.min(reels.length - 1, index));
+        scrollerRef.current?.scrollTo({ top: next * scrollerRef.current.clientHeight, behavior: "smooth" });
+        setActive(next); setPaused(false);
     };
 
     const toggleFav = async (l) => {
@@ -130,10 +138,11 @@ export default function ReelsPage() {
                 <span className="text-xs font-arabic font-bold">{tr("ارفع ستوري")}</span>
             </Link>
 
-            <div onScroll={onScroll} className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
+            <div ref={scrollerRef} onScroll={onScroll} className="h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar">
                 {reels.map((l, i) => (
                     <div key={l.id} className="h-full w-full snap-start relative flex items-center justify-center">
-                        <video ref={(el) => (refs.current[i] = el)} src={l.videos[0]} loop muted={muted} playsInline className="w-full h-full object-cover" />
+                        <video ref={(el) => (refs.current[i] = el)} src={l.videos[0]} muted={muted} playsInline preload={i === active ? "metadata" : "none"} poster={l.images?.[0] || undefined} onTimeUpdate={(e) => setProgress((p) => ({ ...p, [i]: e.currentTarget.duration ? e.currentTarget.currentTime / e.currentTarget.duration : 0 }))} onEnded={() => i < reels.length - 1 ? goTo(i + 1) : goTo(0)} onError={() => setLoadError(tr("تعذر تشغيل الفيديو"))} className="w-full h-full object-cover" />
+                        <div className="absolute top-[max(4rem,calc(env(safe-area-inset-top)+3.25rem))] inset-x-4 z-20 flex gap-1" aria-label={tr("تقدم الفيديوهات")}>{reels.map((_, bar) => <button key={bar} onClick={() => goTo(bar)} className="h-1 flex-1 rounded-full bg-white/30 overflow-hidden" aria-label={`${tr("فيديو")} ${bar + 1}`}><span className="block h-full bg-white" style={{ width: `${bar < active ? 100 : bar === active ? (progress[active] || 0) * 100 : 0}%` }} /></button>)}</div>
                         {/* Overlay info */}
                         <div className="absolute inset-x-0 bottom-0 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/90 via-black/60 to-transparent">
                             <Link to={`/listing/${l.id}`} className="block text-white mb-3">
@@ -166,7 +175,10 @@ export default function ReelsPage() {
                             <button data-testid={`reel-fav-${l.id}`} onClick={() => toggleFav(l)} className="flex flex-col items-center gap-1"><div className={`w-11 h-11 rounded-full backdrop-blur flex items-center justify-center ${favs[l.id] ? "bg-red-500" : "bg-white/15"}`}><Heart className={`w-5 h-5 ${favs[l.id] ? "fill-white" : ""}`} /></div><span className="text-[10px]">{tr("مفضلة")}</span></button>
                             <button data-testid={`reel-msg-${l.id}`} onClick={() => messageSeller(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><MessageCircle className="w-5 h-5" /></div><span className="text-[10px]">{tr("رسالة")}</span></button>
                             <button data-testid={`reel-share-${l.id}`} onClick={() => shareReel(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Share2 className="w-5 h-5" /></div><span className="text-[10px]">{tr("شارك")}</span></button>
+                            <button onClick={() => goTo(active - 1)} disabled={active === 0} className="flex flex-col items-center gap-1 disabled:opacity-35" aria-label={tr("السابق")}><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><ChevronUp className="w-5 h-5" /></div></button>
+                            <button onClick={() => setPaused((v) => !v)} className="flex flex-col items-center gap-1" aria-label={paused ? tr("تشغيل") : tr("إيقاف مؤقت")}><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center">{paused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}</div></button>
                             <button onClick={() => setMuted(!muted)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center">{muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</div></button>
+                            <button onClick={() => goTo(active + 1)} disabled={active === reels.length - 1} className="flex flex-col items-center gap-1 disabled:opacity-35" aria-label={tr("التالي")}><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><ChevronDown className="w-5 h-5" /></div></button>
                         </div>
                     </div>
                 ))}

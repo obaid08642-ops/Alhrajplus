@@ -153,7 +153,7 @@ function SocialLoginButtons() {
 }
 
 export function LoginPage() {
-    const { login } = useAuth();
+    const { login, mfaChallenge, verifyMfa, clearMfaChallenge } = useAuth();
     const { t, tr } = useI18n();
     const nav = useNavigate();
     const [email, setEmail] = useState("");
@@ -161,16 +161,24 @@ export function LoginPage() {
     const [showPw, setShowPw] = useState(false);
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
+    const [mfaCode, setMfaCode] = useState("");
 
     const submit = async (e) => {
         e.preventDefault();
         setErr(""); setBusy(true);
         try {
-            await login(email, password);
-            nav("/");
+            const result = await login(email, password);
+            if (!result?.mfaRequired) nav("/");
         } catch (e) {
             setErr(formatApiError(e.response?.data?.detail) || e.message);
         } finally { setBusy(false); }
+    };
+    const submitMfa = async (e) => {
+        e.preventDefault();
+        setErr(""); setBusy(true);
+        try { await verifyMfa(mfaCode); nav("/"); }
+        catch (e) { setErr(formatApiError(e.response?.data?.detail) || e.message); }
+        finally { setBusy(false); }
     };
 
     return (
@@ -189,25 +197,21 @@ export function LoginPage() {
 
                 {err && <div data-testid="login-error" className="bg-red-50 dark:bg-red-900/20 text-red-600 text-sm rounded-xl p-3 mb-4 font-arabic-body">{err}</div>}
 
-                <form onSubmit={submit} className="space-y-3">
+                {mfaChallenge ? <form onSubmit={submitMfa} className="space-y-3" data-testid="mfa-login-form">
+                    <div className="rounded-xl bg-[var(--accent)]/10 border border-[var(--accent)]/30 p-3 text-xs text-[var(--text)] font-arabic-body">{tr("أدخل رمز تطبيق المصادقة المكوّن من 6 أرقام أو أحد رموز الاسترداد. ينتهي الطلب خلال 5 دقائق.")}</div>
+                    <input data-testid="mfa-login-code" autoFocus required value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} placeholder={tr("رمز التحقق أو رمز الاسترداد")} className="w-full bg-[var(--surface-elevated)] rounded-xl border border-[var(--border)] px-3 py-3 text-center tracking-[0.15em] text-sm text-[var(--text)] outline-none focus:border-[var(--primary)]" />
+                    <button data-testid="mfa-login-submit" disabled={busy} className="w-full bg-[var(--primary)] text-[var(--primary-fg)] py-3 rounded-xl font-bold text-sm font-arabic disabled:opacity-50">{busy ? t("loading") : tr("تأكيد التحقق")}</button>
+                    <button type="button" onClick={() => { clearMfaChallenge(); setMfaCode(""); }} className="w-full text-xs text-[var(--text-muted)] font-arabic-body">{tr("العودة إلى تسجيل الدخول")}</button>
+                </form> : <><form onSubmit={submit} className="space-y-3">
                     <Field icon={Mail} type="email" placeholder={t("email")} value={email} onChange={setEmail} testid="login-email" />
                     <div className="flex items-center bg-[var(--surface-elevated)] rounded-xl border border-[var(--border)] focus-within:border-[var(--primary)] px-3">
                         <Lock className="w-4 h-4 text-[var(--text-muted)]" />
-                        <input data-testid="login-password" type={showPw ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("password")}
-                            className="flex-1 bg-transparent outline-none px-3 py-3 text-sm text-[var(--text)] font-arabic-body" />
-                        <button type="button" onClick={() => setShowPw(!showPw)} className="text-[var(--text-muted)]">
-                            {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
+                        <input data-testid="login-password" type={showPw ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("password")} className="flex-1 bg-transparent outline-none px-3 py-3 text-sm text-[var(--text)] font-arabic-body" />
+                        <button type="button" onClick={() => setShowPw(!showPw)} className="text-[var(--text-muted)]">{showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                     </div>
-                    <div className="flex justify-end">
-                        <Link to="/forgot-password" data-testid="forgot-password-link" className="text-xs text-[var(--primary)] font-bold font-arabic-body">{t("forgot_password")}</Link>
-                    </div>
-                    <button data-testid="login-submit" disabled={busy} className="w-full bg-[var(--primary)] text-[var(--primary-fg)] py-3 rounded-xl font-bold text-sm hover:bg-[var(--primary-hover)] transition-all font-arabic disabled:opacity-50">
-                        {busy ? t("loading") : t("login")}
-                    </button>
-                </form>
-
-                <SocialLoginButtons />
+                    <div className="flex justify-end"><Link to="/forgot-password" data-testid="forgot-password-link" className="text-xs text-[var(--primary)] font-bold font-arabic-body">{t("forgot_password")}</Link></div>
+                    <button data-testid="login-submit" disabled={busy} className="w-full bg-[var(--primary)] text-[var(--primary-fg)] py-3 rounded-xl font-bold text-sm hover:bg-[var(--primary-hover)] transition-all font-arabic disabled:opacity-50">{busy ? t("loading") : t("login")}</button>
+                </form><SocialLoginButtons /></>}
 
                 <div className="text-center mt-5 text-sm font-arabic-body text-[var(--text-muted)]">
                     {t("no_account")} <Link to="/register" data-testid="goto-register" className="text-[var(--primary)] font-bold">{t("register")}</Link>

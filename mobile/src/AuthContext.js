@@ -7,6 +7,7 @@ const AuthCtx = createContext(null);
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [mfaChallenge, setMfaChallenge] = useState(null);
 
     const fetchMe = useCallback(async () => {
         try {
@@ -45,8 +46,22 @@ export function AuthProvider({ children }) {
 
     const login = async (email, password) => {
         const { data } = await api.post("/auth/login", { email, password });
+        if (data.mfa_required) {
+            const challenge = { id: data.challenge_id, expiresIn: data.expires_in || 300 };
+            setMfaChallenge(challenge);
+            return { mfaRequired: true, challenge };
+        }
         if (data.access_token) await saveToken(data.access_token, data.refresh_token);
         setUser(data.user);
+        setMfaChallenge(null);
+        return data.user;
+    };
+    const verifyMfa = async (code) => {
+        if (!mfaChallenge?.id) throw new Error("لا يوجد طلب تحقق ثنائي نشط");
+        const { data } = await api.post("/auth/mfa/login/verify", { challenge_id: mfaChallenge.id, code });
+        if (data.access_token) await saveToken(data.access_token, data.refresh_token);
+        setUser(data.user);
+        setMfaChallenge(null);
         return data.user;
     };
     const register = async (payload) => {
@@ -59,10 +74,11 @@ export function AuthProvider({ children }) {
         await clearToken();
         try { await api.post("/auth/logout"); } catch (_) {}
         setUser(false);
+        setMfaChallenge(null);
     };
 
     return (
-        <AuthCtx.Provider value={{ user, loading, login, register, logout, refresh: fetchMe }}>
+        <AuthCtx.Provider value={{ user, loading, login, register, logout, refresh: fetchMe, mfaChallenge, verifyMfa, clearMfaChallenge: () => setMfaChallenge(null) }}>
             {children}
         </AuthCtx.Provider>
     );
