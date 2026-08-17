@@ -4496,6 +4496,34 @@ async def _check_price_alerts(listing_id: str, new_price: Optional[float]):
 from chat_hub import hub as _chat_hub
 
 
+@api.get("/voice/ice-servers")
+async def voice_ice_servers(user: dict = Depends(get_current_user)):
+    """Return WebRTC ICE servers for authenticated callers.
+
+    Render hosts signaling. STUN is always available for direct P2P calls.
+    Optional TURN credentials are supplied only through TURN_ICE_SERVERS_JSON
+    on the backend, never committed to source or exposed to anonymous users.
+    """
+    servers = [{"urls": "stun:stun.l.google.com:19302"}]
+    raw = (os.environ.get("TURN_ICE_SERVERS_JSON") or "").strip()
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if not isinstance(item, dict) or not item.get("urls"):
+                        continue
+                    safe = {"urls": item["urls"]}
+                    if item.get("username") is not None:
+                        safe["username"] = item["username"]
+                    if item.get("credential") is not None:
+                        safe["credential"] = item["credential"]
+                    servers.append(safe)
+        except Exception:
+            logger.warning("Invalid TURN_ICE_SERVERS_JSON; using STUN only")
+    return {"ice_servers": servers}
+
+
 @app.websocket("/api/ws/chat")
 async def chat_websocket(websocket: WebSocket, token: str = Query("")):
     """Single per-user real-time chat channel.

@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Phone, PhoneOff } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
+import api from "@/lib/api";
 
-const RTC_CONFIG = {
-    // Free public STUN helps direct peer-to-peer calls. It does not provide a
-    // TURN relay, so restrictive corporate/mobile NATs may still fail.
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-};
+const DEFAULT_ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
 
 function makeCallId() {
     return `call_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -22,6 +19,7 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
     const audioRef = useRef(null);
     const pendingOfferRef = useRef(null);
     const pendingIceRef = useRef([]);
+    const iceServersRef = useRef(DEFAULT_ICE_SERVERS);
 
     const cleanup = useCallback((notify = false) => {
         if (notify && call?.call_id && call?.peer_id) {
@@ -44,7 +42,13 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
         if (pcRef.current) return pcRef.current;
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         streamRef.current = stream;
-        const pc = new RTCPeerConnection(RTC_CONFIG);
+        if (iceServersRef.current === DEFAULT_ICE_SERVERS) {
+            try {
+                const { data } = await api.get("/voice/ice-servers");
+                if (Array.isArray(data?.ice_servers) && data.ice_servers.length) iceServersRef.current = data.ice_servers;
+            } catch (_) { /* STUN-only fallback remains usable */ }
+        }
+        const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
         pc.ontrack = (event) => {
             const [remote] = event.streams || [];

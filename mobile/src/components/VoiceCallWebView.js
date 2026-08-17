@@ -3,7 +3,7 @@ import { Modal, View, ActivityIndicator, TouchableOpacity, Text } from "react-na
 import { WebView } from "react-native-webview";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { BACKEND_URL } from "../api";
+import api, { BACKEND_URL } from "../api";
 import { X } from "lucide-react-native";
 
 async function getToken() {
@@ -20,12 +20,19 @@ export default function VoiceCallWebView({ visible, role = "caller", to, convoId
   const ref = useRef(null);
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState("");
-  useEffect(() => { if (visible) getToken().then(setToken); else setReady(false); }, [visible]);
+  const [iceServers, setIceServers] = useState([{ urls: "stun:stun.l.google.com:19302" }]);
+  useEffect(() => {
+    if (!visible) { setReady(false); return; }
+    getToken().then(setToken);
+    api.get("/voice/ice-servers").then(({ data }) => {
+      if (Array.isArray(data?.ice_servers) && data.ice_servers.length) setIceServers(data.ice_servers);
+    }).catch(() => {});
+  }, [visible]);
   useEffect(() => {
     if (visible && ready && token) {
-      ref.current?.postMessage(JSON.stringify({ type: "voice-config", token, backend: BACKEND_URL }));
+      ref.current?.postMessage(JSON.stringify({ type: "voice-config", token, backend: BACKEND_URL, iceServers }));
     }
-  }, [visible, ready, token]);
+  }, [visible, ready, token, iceServers]);
   useEffect(() => {
     if (visible && ready && signalingEvent) {
       ref.current?.postMessage(JSON.stringify({ type: "voice-event", event: signalingEvent }));
