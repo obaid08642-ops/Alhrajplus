@@ -4558,10 +4558,11 @@ async def chat_websocket(websocket: WebSocket, token: str = Query("")):
                 convo_id = event.get("convo_id")
                 if not isinstance(to, str) or not to or to == user_id:
                     continue
-                if convo_id:
-                    parts = str(convo_id).split("_")
-                    if user_id not in parts or to not in parts:
-                        continue
+                if not isinstance(convo_id, str) or not convo_id:
+                    continue
+                parts = convo_id.split("_")
+                if user_id not in parts or to not in parts:
+                    continue
                 await _chat_hub.send_to_user(to, {
                     "type": etype,
                     "from": user_id,
