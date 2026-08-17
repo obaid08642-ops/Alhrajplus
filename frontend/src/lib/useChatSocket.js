@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { tokenStore } from "@/lib/api";
 
 /**
  * Single shared WebSocket connection for chat real-time events.
@@ -45,13 +46,14 @@ export function useChatSocket() {
 
     const connect = useCallback(() => {
         if (!userId) return;
-        const token = (() => {
-            try { return localStorage.getItem("hp_access_token") || ""; } catch (_) { return ""; }
-        })();
+        const token = tokenStore.getAccess();
         if (!token) return;
 
-        // Build wss:// URL from REACT_APP_BACKEND_URL (https://...) → wss://
-        const base = (process.env.REACT_APP_BACKEND_URL || "").replace(/^http/i, "ws");
+        // Build a valid ws/wss URL both when a separate backend host is
+        // configured and when the Web app is served from the same origin.
+        const configured = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/+$/, "");
+        const origin = configured || (typeof window !== "undefined" ? window.location.origin : "");
+        const base = origin.replace(/^http/i, "ws");
         const url = `${base}/api/ws/chat?token=${encodeURIComponent(token)}`;
         let ws;
         try {

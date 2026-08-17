@@ -374,18 +374,26 @@ export default function ChatPage() {
     // ----------- Load conversations -----------
     useEffect(() => {
         if (!user) return;
-        api.get("/chat/conversations").then(({ data }) => {
-            const list = Array.isArray(data) ? data : (Array.isArray(data?.conversations) ? data.conversations : (Array.isArray(data?.items) ? data.items : []));
-            setConvos(list);
-            if (initialTo) {
-                const cid = [user.id, initialTo].sort().join("_");
-                setActiveConvoId(cid);
-                const found = list.find((c) => c.id === cid);
-                if (found) setActiveOther(found.other);
-                else setActiveOther({ id: initialTo, name: tr("البائع") });
-            }
-        }).catch(() => {});
-    }, [user, initialTo, tr]);
+        const loadConversations = async () => {
+            try {
+                const { data } = await api.get("/chat/conversations");
+                const list = Array.isArray(data) ? data : (Array.isArray(data?.conversations) ? data.conversations : (Array.isArray(data?.items) ? data.items : []));
+                setConvos(list);
+                if (initialTo) {
+                    const cid = [user.id, initialTo].sort().join("_");
+                    setActiveConvoId(cid);
+                    const found = list.find((c) => c.id === cid);
+                    if (found) setActiveOther(found.other);
+                    else setActiveOther({ id: initialTo, name: tr("البائع") });
+                }
+            } catch (_) { /* WS events remain authoritative when available */ }
+        };
+        loadConversations();
+        // REST fallback keeps the inbox live on hosts that do not provide
+        // Redis fan-out or when a browser/network blocks WebSocket upgrades.
+        const timer = setInterval(() => { if (!connected) loadConversations(); }, 8000);
+        return () => clearInterval(timer);
+    }, [user, initialTo, tr, connected]);
 
     // ----------- Load messages once when convo opens -----------
     const [loadingOlder, setLoadingOlder] = useState(false);
@@ -398,10 +406,18 @@ export default function ChatPage() {
         // it's OK to jump to the latest message ONCE". Subsequent loads must
         // preserve whatever position the user has scrolled to.
         initialLoadRef.current = true;
-        api.get(`/chat/messages/${activeConvoId}`).then(({ data }) => {
+        const applyServerMessages = (data) => {
             if (cancelled) return;
             const list = Array.isArray(data) ? data : (Array.isArray(data?.messages) ? data.messages : (Array.isArray(data?.items) ? data.items : []));
-            setMessages(list);
+            setMessages((current) => {
+                const pending = current.filter((m) => m.pending || String(m.id).startsWith("tmp_"));
+                const merged = new Map(list.map((m) => [m.id, m]));
+                pending.forEach((m) => merged.set(m.id, m));
+                return Array.from(merged.values()).sort((a, b) => new Date(a.ts || a.created_at || 0) - new Date(b.ts || b.created_at || 0));
+            });
+        };
+        api.get(`/chat/messages/${activeConvoId}`).then(({ data }) => {
+            applyServerMessages(data);
             // One-time jump to latest message when the thread first opens.
             // After this, the user controls the scroll completely — no more
             // forced scrolls from incoming messages, image loads, or keyboard.
@@ -413,8 +429,13 @@ export default function ChatPage() {
             setTimeout(() => inputRef.current?.focus(), 80);
             wsSend({ type: "read", convo_id: activeConvoId });
         }).catch(() => {});
-        return () => { cancelled = true; };
-    }, [activeConvoId, wsSend]);
+        // If WebSocket upgrades are blocked, reconcile recent messages without
+        // reloading the page. The merge above preserves optimistic outbox rows.
+        const fallback = setInterval(() => {
+            if (!connected) api.get(`/chat/messages/${activeConvoId}`).then(({ data }) => applyServerMessages(data)).catch(() => {});
+        }, 7000);
+        return () => { cancelled = true; clearInterval(fallback); };
+    }, [activeConvoId, wsSend, connected]);
 
     // Load older messages (cursor pagination) when user scrolls to the top
     const loadOlderMessages = useCallback(async () => {

@@ -4550,6 +4550,26 @@ async def chat_websocket(websocket: WebSocket, token: str = Query("")):
                         "is_typing": bool(event.get("is_typing")),
                     })
                 continue
+            if etype in {"call_invite", "call_offer", "call_answer", "call_ice", "call_hangup"}:
+                # WebRTC signaling only: media never passes through the API.
+                # The target must be a participant of the supplied conversation
+                # when convo_id is present, preventing arbitrary user fan-out.
+                to = event.get("to")
+                convo_id = event.get("convo_id")
+                if not isinstance(to, str) or not to or to == user_id:
+                    continue
+                if convo_id:
+                    parts = str(convo_id).split("_")
+                    if user_id not in parts or to not in parts:
+                        continue
+                await _chat_hub.send_to_user(to, {
+                    "type": etype,
+                    "from": user_id,
+                    "convo_id": convo_id,
+                    "call_id": event.get("call_id"),
+                    "data": event.get("data") or {},
+                })
+                continue
             if etype == "read":
                 convo_id = event.get("convo_id")
                 if convo_id and isinstance(convo_id, str):

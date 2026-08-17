@@ -65,7 +65,8 @@
     background-image: url("./chat-bg.svg");
     background-repeat: repeat;
     background-size: 390px 844px;
-    background-attachment: local;
+    background-attachment: fixed;
+    background-position: center top;
     padding: 8px 10px;
     display: flex;
     flex-direction: column;

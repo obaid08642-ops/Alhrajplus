@@ -111,9 +111,8 @@ export default function ChatScreen() {
   
   const route = useRoute();
   const nav = useNavigation();
-  const {
-    user
-  } = useAuth();
+    const { user } = useAuth();
+  const chatSocket = useChatSocket();
   const insets = useSafeAreaInsets();
   const initialTo = route.params?.to;
   const initialListing = route.params?.listing;
@@ -157,6 +156,25 @@ export default function ChatScreen() {
   }, [user]);
   const onConvosFocus = useCallback(() => { loadConvos(); }, [loadConvos]);
   useFocusEffect(onConvosFocus);
+
+  // Keep the inbox live while it is open. The payload is normalized for both
+  // current backend (`data`) and legacy mobile (`message`) shapes.
+  useEffect(() => {
+    if (!user) return undefined;
+    const off = chatSocket.subscribe("message", event => {
+      const message = event?.data || event?.message;
+      if (!message?.convo_id) return;
+      setConvos(current => {
+        const index = current.findIndex(c => c.id === message.convo_id);
+        const existing = index >= 0 ? current[index] : { id: message.convo_id, other_id: message.sender_id, other_name: message.sender?.name || t("مستخدم"), unread: 0 };
+        const unread = message.sender_id !== user.id && message.convo_id !== activeConvoId ? (existing.unread || 0) + 1 : 0;
+        const updated = { ...existing, last_message: message.text || "[وسائط]", last_ts: message.ts || message.created_at, unread };
+        const rest = index >= 0 ? current.filter((_, i) => i !== index) : current;
+        return [updated, ...rest];
+      });
+    });
+    return () => off?.();
+  }, [chatSocket.subscribe, user, activeConvoId, t]);
 
   // Hide the bottom tab bar whenever a 1:1 chat thread is open.
   // `nav` here IS the Tab navigator's screen-options interface (because
@@ -239,7 +257,7 @@ export default function ChatScreen() {
             </View>;
   }
   if (activeConvoId && activeOther) {
-    return <ChatThread convoId={activeConvoId} other={activeOther} listing={activeListing} onBack={closeThread} />;
+    return <ChatThread convoId={activeConvoId} other={activeOther} listing={activeListing} socket={chatSocket} onBack={closeThread} />;
   }
   return <View style={{
     flex: 1,
@@ -300,7 +318,7 @@ function ConvoRow({
     }}>
                 <View style={s.convoTop}>
                     <Text style={s.convoName} numberOfLines={1}>{convo.other_name || t("مستخدم")}</Text>
-                    <Text style={s.convoTime}>{fmtTime(convo.last_message_at)}</Text>
+                    <Text style={s.convoTime}>{fmtTime(convo.last_message_at || convo.last_ts)}</Text>
                 </View>
                 <View style={s.convoBottom}>
                     <Text style={[s.convoMsg, unread > 0 && {
@@ -322,6 +340,7 @@ function ChatThread({
   convoId,
   other,
   listing,
+  socket,
   onBack
 }) {
   const { t } = useI18n();
@@ -336,7 +355,7 @@ function ChatThread({
     send: wsSend,
     subscribe,
     connected
-  } = useChatSocket();
+  } = socket;
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -360,6 +379,8 @@ function ChatThread({
   // Missing useState caused "Property 'lightbox' doesn't exist" crash.
   const [lightbox, setLightbox] = useState(null);
   const listRef = useRef(null);
+  const isAtBottomRef = useRef(true);
+  const didInitialScrollRef = useRef(false);
   const typingTimerRef = useRef(null);
   const lastTypingSentRef = useRef(0);
   const outboxKey = `hp_chat_outbox_${convoId}`;
@@ -433,10 +454,23 @@ function ChatThread({
   // Subscribe to WS events
   useEffect(() => {
     const unsubMsg = subscribe("message", ev => {
-      const m = ev.message;
-      if (!m) return;
-      if (m.convo_id !== convoId) return;
-      setMessages(prev => [...prev, m]);
+      // Backend sends { type: "message", data: message }. Accept the legacy
+      // `message` shape too so older mobile builds can reconnect safely.
+      const m = ev?.data || ev?.message;
+      if (!m || m.convo_id !== convoId) return;
+      setMessages(prev => {
+        const existingIndex = prev.findIndex(x =>
+          (x.client_message_id && m.client_message_id && x.client_message_id === m.client_message_id) ||
+          (String(x.id).startsWith("tmp_") && x.sender_id === m.sender_id && x.text === m.text)
+        );
+        if (existingIndex >= 0) {
+          const next = prev.slice();
+          next[existingIndex] = { ...m, pending: false, failed: false };
+          return next;
+        }
+        if (prev.some(x => x.id === m.id)) return prev;
+        return [...prev, m];
+      });
       // Auto-mark as read since we're viewing
       wsSend({
         type: "read",
@@ -489,11 +523,13 @@ function ChatThread({
     };
   }, [subscribe, convoId, other.id, user.id, wsSend]);
 
-  // Auto-scroll to bottom on new messages
+  // Keep the latest message visible only while the user is already near the
+  // bottom. Incoming messages must never pull the user away from older history.
   useEffect(() => {
-    setTimeout(() => listRef.current?.scrollToEnd({
-      animated: true
-    }), 80);
+    if (!isAtBottomRef.current && didInitialScrollRef.current) return;
+    const timer = setTimeout(() => listRef.current?.scrollToEnd({ animated: didInitialScrollRef.current }), 80);
+    didInitialScrollRef.current = true;
+    return () => clearTimeout(timer);
   }, [messages.length, otherTyping]);
 
   // Auto-send listing context on first open via "Contact Seller" CTA.
@@ -866,7 +902,11 @@ function ChatThread({
       flex: 1,
       justifyContent: "center"
     }}><ActivityIndicator color={colors.primary} /></View> : <View style={{ flex: 1 }}>
-                  <FlatList ref={listRef} data={messages} keyExtractor={m => m.id} contentContainerStyle={{
+                  <FlatList ref={listRef} data={messages} keyExtractor={m => m.id} onScroll={event => {
+                    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                    const distance = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+                    isAtBottomRef.current = distance < 80;
+                  }} scrollEventThrottle={100} contentContainerStyle={{
                     padding: 12,
                     paddingBottom: 16
                   }} renderItem={({
@@ -881,9 +921,12 @@ function ChatThread({
                               {showDay && <View style={s.dayChip}><Text style={s.dayChipText}>{fmtDay(itemTs)}</Text></View>}
                               <MessageBubble m={item} isMine={item.sender_id === user.id} onImagePress={setLightbox} onLongPress={setLongPressMsg} onSwipeReply={setReplyTo} />
                           </>;
-                  }} ListFooterComponent={otherTyping ? <TypingIndicator /> : null} onContentSizeChange={() => listRef.current?.scrollToEnd({
-                    animated: false
-                  })} />
+                  }} ListFooterComponent={otherTyping ? <TypingIndicator /> : null} onContentSizeChange={() => {
+                    if (isAtBottomRef.current || !didInitialScrollRef.current) {
+                      listRef.current?.scrollToEnd({ animated: didInitialScrollRef.current });
+                      didInitialScrollRef.current = true;
+                    }
+                  }} />
                 </View>}
 
             {/* Action sheet */}

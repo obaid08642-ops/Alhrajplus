@@ -138,7 +138,7 @@ export default function TopBar() {
                 </Link>
 
                 {/* Search with suggestions */}
-                <div className="relative flex-none w-[clamp(92px,25vw,320px)] min-w-0" ref={searchRef}>
+                <div className="relative flex-none w-[clamp(180px,50vw,560px)] sm:w-[clamp(260px,38vw,560px)] min-w-0" ref={searchRef}>
                     <div className={`flex items-center bg-white/95 dark:bg-[var(--surface)]/90 rounded-full px-2 sm:px-2.5 py-1.5 border border-white/30 dark:border-white/10 shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-white transition-all`}>
                         <Search className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                         <input

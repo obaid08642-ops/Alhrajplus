@@ -28,6 +28,7 @@ export function useChatSocket() {
     const reconnect = useRef(0);
     const pingTimer = useRef(null);
     const retryTimer = useRef(null);
+    const outboundQueue = useRef([]);
     const [connected, setConnected] = useState(false);
 
     const dispatch = useCallback((event) => {
@@ -45,6 +46,13 @@ export function useChatSocket() {
         ws.onopen = () => {
             setConnected(true);
             reconnect.current = 0;
+            // Flush only control events that are safe to replay after a
+            // reconnect. Message bodies are persisted through REST with a
+            // client_message_id and are not sent through this queue.
+            const queued = outboundQueue.current.splice(0, outboundQueue.current.length);
+            queued.forEach(item => {
+                try { if (ws.readyState === 1) ws.send(JSON.stringify(item)); } catch (_) {}
+            });
             if (pingTimer.current) clearInterval(pingTimer.current);
             pingTimer.current = setInterval(() => {
                 if (ws.readyState === 1) { try { ws.send(JSON.stringify({ type: "ping" })); } catch (_) {} }
@@ -80,8 +88,22 @@ export function useChatSocket() {
 
     const send = useCallback((obj) => {
         const ws = wsRef.current;
-        if (!ws || ws.readyState !== 1) return false;
-        try { ws.send(JSON.stringify(obj)); return true; } catch (_) { return false; }
+        if (ws && ws.readyState === 1) {
+            try { ws.send(JSON.stringify(obj)); return true; } catch (_) {}
+        }
+        // Queue only idempotent/control signals. Chat text is always sent via
+        // REST, so reconnects can never duplicate a message body.
+        if (obj?.type === "read" || obj?.type === "typing") {
+            const key = obj.type === "read" ? `read:${obj.convo_id || ""}` : `typing:${obj.to || ""}`;
+            outboundQueue.current = [
+                ...outboundQueue.current.filter(item => {
+                    const otherKey = item.type === "read" ? `read:${item.convo_id || ""}` : `typing:${item.to || ""}`;
+                    return otherKey !== key;
+                }),
+                obj,
+            ].slice(-50);
+        }
+        return false;
     }, []);
 
     const subscribe = useCallback((type, handler) => {
