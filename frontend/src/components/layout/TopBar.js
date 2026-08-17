@@ -138,7 +138,7 @@ export default function TopBar() {
                 </Link>
 
                 {/* Search with suggestions */}
-                <div className="relative flex-none w-[clamp(180px,50vw,560px)] sm:w-[clamp(260px,38vw,560px)] min-w-0" ref={searchRef}>
+                <div className="relative flex-none w-[clamp(220px,55vw,600px)] sm:w-[clamp(300px,42vw,600px)] min-w-0" ref={searchRef}>
                     <div className={`flex items-center bg-white/95 dark:bg-[var(--surface)]/90 rounded-full px-2 sm:px-2.5 py-1.5 border border-white/30 dark:border-white/10 shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-white transition-all`}>
                         <Search className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                         <input
@@ -151,11 +151,11 @@ export default function TopBar() {
                             onKeyDown={handleSearchKey}
                             className="bg-transparent flex-1 mx-2 outline-none text-xs sm:text-sm placeholder:text-[var(--text-muted)] text-[var(--text)] font-arabic-body min-w-0"
                         />
-                        <button data-testid="voice-search-btn" onClick={startVoice} title={tr("بحث صوتي")} className="hidden sm:block text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0">
-                            <Mic className="w-4 h-4" />
+                        <button data-testid="voice-search-btn" onClick={startVoice} title={tr("بحث صوتي")} className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0">
+                            <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
-                        <label data-testid="image-search-btn" title={tr("بحث بالصورة")} className="hidden sm:block text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0 ms-1.5 cursor-pointer">
-                            <Camera className="w-4 h-4" />
+                        <label data-testid="image-search-btn" title={tr("بحث بالصورة")} className="text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0 ms-1.5 cursor-pointer">
+                            <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => startImageSearch(e.target.files[0])} />
                         </label>
                     </div>

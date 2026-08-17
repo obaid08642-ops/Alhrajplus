@@ -24,6 +24,7 @@ import { useAuth } from "../AuthContext";
 import { useChatSocket } from "../useChatSocket";
 import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
+import VoiceCallWebView from "../components/VoiceCallWebView";
 
 // Audio player module for voice playback
 import { useAudioPlayer } from "expo-audio";
@@ -366,6 +367,8 @@ function ChatThread({
   const [otherTyping, setOtherTyping] = useState(false);
   const [recording, setRecording] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [voiceCallVisible, setVoiceCallVisible] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
   // Reply-to state — was missing in last build which caused
   // "Property 'replyTo' doesn't exist" crash at line 805 when the composer
   // tried to render the reply preview.
@@ -446,10 +449,28 @@ function ChatThread({
       });
     } catch (_) {}
   }, [other.id]);
+    useEffect(() => { loadHistory(); loadPresence(); }, [loadHistory, loadPresence]);
+
+  // Capture an incoming call offer while the WebView is opening; the latest
+  // signaling event is passed into it after its secure token handshake.
   useEffect(() => {
-    loadHistory();
-    loadPresence();
-  }, [loadHistory, loadPresence]);
+    const offInvite = subscribe("call_invite", event => {
+      if (event?.convo_id === convoId && event.from === other.id) {
+        setIncomingCall(event);
+        setVoiceCallVisible(true);
+      }
+    });
+    const offOffer = subscribe("call_offer", event => {
+      if (event?.convo_id === convoId && event.from === other.id) setIncomingCall(event);
+    });
+    const offHangup = subscribe("call_hangup", event => {
+      if (event?.convo_id === convoId && event.from === other.id) {
+        setIncomingCall(null);
+        setVoiceCallVisible(false);
+      }
+    });
+    return () => { offInvite?.(); offOffer?.(); offHangup?.(); };
+  }, [convoId, other.id, subscribe]);
 
   // Subscribe to WS events
   useEffect(() => {
@@ -836,14 +857,7 @@ function ChatThread({
                         {otherTyping ? t("يكتب الآن...") : presenceText}
                     </Text>
                 </View>
-                <TouchableOpacity onPress={() => {
-        const phone = other.phone_full || other.phone;
-        if (phone) {
-          Linking.openURL(`tel:${phone}`);
-        } else {
-          Alert.alert(t("غير متاح"), t("رقم الهاتف غير متوفر"));
-        }
-      }} style={s.headBtn} hitSlop={8} testID="chat-call-btn">
+                <TouchableOpacity onPress={() => setVoiceCallVisible(true)} style={s.headBtn} hitSlop={8} testID="chat-call-btn">
                     <Phone size={20} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => {
@@ -1050,6 +1064,7 @@ function ChatThread({
 
             {/* Forward contact picker */}
             {forwardSrc && <ForwardPicker src={forwardSrc} onClose={() => setForwardSrc(null)} currentUser={user} onForwarded={() => { setForwardSrc(null); }} />}
+            <VoiceCallWebView visible={voiceCallVisible} role={incomingCall ? "receiver" : "caller"} to={incomingCall?.from || other.id} convoId={convoId} callId={incomingCall?.call_id} signalingEvent={incomingCall?.type === "call_offer" ? incomingCall : null} name={other.name} onClose={() => { setVoiceCallVisible(false); setIncomingCall(null); }} />
         </KeyboardAvoidingView>;
 }
 

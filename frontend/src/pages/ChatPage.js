@@ -3,11 +3,12 @@ import { useSearchParams, Link } from "react-router-dom";
 import api from "@/lib/api";
 import {
     Send, ChevronRight, MessageCircle, Image as ImageIcon, Mic, X, Square,
-    MapPin, Languages, Check, CheckCheck, ChevronDown, Radio, Reply,
+    MapPin, Languages, Check, CheckCheck, ChevronDown, Radio, Reply, Phone,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import ImageViewer from "@/components/ImageViewer";
+import VoiceCallModal from "@/components/VoiceCallModal";
 import { useChatSocket } from "@/lib/useChatSocket";
 import { playNotificationSound } from "@/lib/notificationSound";
 import "@/styles/chat.css";
@@ -239,6 +240,7 @@ export default function ChatPage() {
     const [peerTyping, setPeerTyping] = useState(false);
     const [presence, setPresence] = useState({}); // {user_id: {online, last_seen}}
     const [recording, setRecording] = useState(false);
+    const [startCall, setStartCall] = useState(false);
     const recorderRef = useRef(null);
     // Listing context card — fetched once when the chat opens with ?listing=<id>.
     // Acts as a persistent reference at the top of the thread so buyer + seller
@@ -735,6 +737,9 @@ export default function ChatPage() {
                                           : ""}
                                     </div>
                                 </div>
+                                <button onClick={() => setStartCall(true)} className="w-9 h-9 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 flex items-center justify-center shrink-0" aria-label={tr("مكالمة صوتية")} data-testid="voice-call-btn">
+                                    <Phone className="w-4 h-4" />
+                                </button>
                             </div>
 
                             {/* Listing context card — shown when chat was opened from a listing */}
@@ -836,6 +841,14 @@ export default function ChatPage() {
                 </div>
             </div>
             {imgPreview && <ImageViewer images={[imgPreview]} initialIndex={0} onClose={() => setImgPreview(null)} />}
+            {activeConvoId && activeOther && <VoiceCallModal
+                socket={{ send: wsSend, subscribe }}
+                convoId={activeConvoId}
+                other={activeOther}
+                user={user}
+                start={startCall}
+                onStarted={() => setStartCall(false)}
+            />}
         </div>
     );
 }
