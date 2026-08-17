@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles, DollarSign, Search as SearchIcon, Monitor, Gift, RefreshCw, Download } from "lucide-react";
+import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles, DollarSign, Search as SearchIcon, Monitor, Gift, RefreshCw, Download, ShoppingBag, LifeBuoy } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
 
 export default function AdminPage() {
@@ -36,6 +36,8 @@ export default function AdminPage() {
         { key: "geo", label: tr("المدن والأحياء"), icon: SearchIcon },
         { key: "logs", label: tr("سجلات الأدمن"), icon: Shield },
         { key: "theme", label: tr("الهوية البصرية"), icon: Palette },
+        { key: "buy_requests", label: tr("طلبات الشراء"), icon: ShoppingBag },
+        { key: "support", label: tr("تذاكر الدعم"), icon: LifeBuoy },
     ];
 
     return (
@@ -71,8 +73,26 @@ export default function AdminPage() {
             {tab === "geo" && <GeoPanel />}
             {tab === "logs" && <LogsPanel />}
             {tab === "theme" && <ThemePanel />}
+            {tab === "buy_requests" && <AdminBuyRequestsPanel />}
+            {tab === "support" && <AdminSupportPanel />}
         </div>
     );
+}
+
+function AdminBuyRequestsPanel() {
+    const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const load = useCallback(async () => { setLoading(true); try { const r = await api.get("/buy-requests", { params: { limit: 200 } }); setRows(Array.isArray(r.data) ? r.data : []); } catch (_) { setRows([]); } finally { setLoading(false); } }, []);
+    useEffect(() => { load(); }, [load]);
+    return <div className="space-y-3" data-testid="admin-buy-requests-panel"><div className="flex items-center justify-between"><div><h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("طلبات الشراء")}</h2><p className="text-xs text-[var(--text-muted)]">{tr("طلبات حقيقية مرتبطة بالدولة والفئة والميزانية")}</p></div><button onClick={load} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]"><RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /></button></div><div className="grid gap-3">{!loading && rows.length === 0 && <div className="p-8 text-center text-[var(--text-muted)] bg-[var(--surface)] border border-[var(--border)] rounded-2xl">{tr("لا توجد بيانات بعد")}</div>}{rows.map((r) => <article key={r.id} className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]"><div className="flex justify-between gap-3"><h3 className="font-arabic font-bold text-[var(--text)]">{r.title}</h3><span className="text-xs text-[var(--primary)]">{r.status}</span></div><p className="text-sm text-[var(--text-muted)] mt-1">{r.description}</p><div className="text-xs text-[var(--text-muted)] mt-2">{r.country_code} · {r.city || "—"} · {r.category}</div></article>)}</div></div>;
+}
+
+function AdminSupportPanel() {
+    const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const load = useCallback(async () => { setLoading(true); try { const r = await api.get("/support/tickets"); setRows(Array.isArray(r.data) ? r.data : []); } catch (_) { setRows([]); } finally { setLoading(false); } }, []);
+    useEffect(() => { load(); }, [load]);
+    return <div className="space-y-3" data-testid="admin-support-panel"><div className="flex items-center justify-between"><div><h2 className="font-arabic font-black text-xl text-[var(--text)]">{tr("تذاكر الدعم")}</h2><p className="text-xs text-[var(--text-muted)]">{tr("متابعة البلاغات والأسئلة مع سجل الرسائل")}</p></div><button onClick={load} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]"><RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /></button></div><div className="grid gap-3">{!loading && rows.length === 0 && <div className="p-8 text-center text-[var(--text-muted)] bg-[var(--surface)] border border-[var(--border)] rounded-2xl">{tr("لا توجد بيانات بعد")}</div>}{rows.map((r) => <article key={r.id} className="p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)]"><div className="flex justify-between gap-3"><h3 className="font-arabic font-bold text-[var(--text)]">{r.subject}</h3><span className="text-xs text-[var(--primary)]">{r.status}</span></div><p className="text-sm text-[var(--text-muted)] mt-1">{r.message}</p><div className="text-xs text-[var(--text-muted)] mt-2">{r.category} · {r.priority} · {r.id}</div></article>)}</div></div>;
 }
 
 function VisitorsPanel() {
