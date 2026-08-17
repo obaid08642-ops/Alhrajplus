@@ -36,12 +36,18 @@
 
 غطت اختبارات Phase 7 مكافأة فتح المشاركة مرة واحدة، حجب الفتح الذاتي، رفض خصم Coins غير المتاح، تعديل إعداد الاقتصاد runtime، إنشاء رابط مشاركة idempotent ضمن دولة الإعلان، اختيار منتج الترويج وتكلفته الفعلية، وتأهيل الإحالة عند تأكيد البريد فقط.
 
+## النشر والتحقق المنشور
+
+تم إنشاء commit `2f2e58725563bb4da4913ee83b174818928d9f99` بعنوان `feat: complete economy referrals sharing promotions analytics` ودفعه بنجاح إلى فرعي `main` و`production-readiness-premium`. تم تأكيد SHA من GitHub لكلا الفرعين.
+
+استجاب Web على Vercel بـHTTP 200 بعد الدفع. لكن Backend على Render بقي يرد بـHTTP 404 لمسار `GET /api/economy/config` بعد فترة انتظار النشر، مع بقاء `GET /health` يعمل. هذا يثبت أن خادم Render المتاح لا يزال لا يحتوي عقد Phase 7؛ لا يمكن إجراء smoke test صحيح للواجهة أو العقود الجديدة قبل أن يلتقط Render commit `2f2e587`.
+
 ## القيود والـBlockers
 
 فشل تشغيل `pytest -q backend/tests` الشامل محلياً لأن مجموعة تاريخية من اختبارات HTTP التكاملية تفترض وجود خادم على `127.0.0.1` ولم يكن خادم محلي قيد التشغيل. النتيجة كانت **65 passed و35 skipped و145 failed و122 errors**، وجميع أخطاء هذه الدفعة كانت `ConnectionError` إلى الخادم المحلي، وليست فشلاً لمنطق Phase 7. تم بدلاً من ذلك تشغيل regression suite ذات الصلة بنجاح.
 
-يبقى التحقق المنشور مشروطاً بإتمام دفع الـcommit وانتظار نشر Render/Vercel؛ لا يمكن اختبار عقود Phase 7 على staging قبل أن تحتوي النسخة المنشورة عليها.
+**Blocker النشر:** يلزم تشغيل أو انتظار deployment لـRender من الفرع `production-readiness-premium` عند SHA `2f2e587`، ثم إعادة فحص `GET /api/economy/config` وإكمال smoke tests الفعلية. لا يبدأ Phase 8 قبل حل هذا الـblocker أو قبول إغلاق المرحلة مع هذا القيد صراحةً.
 
-## النتيجة المؤقتة
+## النتيجة
 
-**PASS WITH BLOCKERS (PENDING DEPLOYMENT VERIFICATION).** لا تبدأ Phase 8 قبل استكمال النشر وفحص staging وتحديث هذا التقرير إلى نتيجة الإغلاق النهائية.
+**PASS WITH BLOCKERS — GitHub push confirmed; Render deployment verification blocked.**
