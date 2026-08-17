@@ -8,6 +8,8 @@ import { colors } from "../theme";
 import { useAuth } from "../AuthContext";
 import api from "../api";
 
+const clientActionId = () => globalThis.crypto?.randomUUID?.() || `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 export default function OffersScreen() {
   const { t } = useI18n();
   const { palette } = useThemeMode();
@@ -28,7 +30,7 @@ export default function OffersScreen() {
 
   const decide = async (offer, action, amount) => {
     setBusy(offer.id);
-    try { await api.patch(`/listing-offers/${offer.id}`, { action, counter_amount: amount ? Number(amount) : undefined }); setCounter(null); setCounterAmount(""); await load(); }
+    try { await api.patch(`/listing-offers/${offer.id}`, { action, counter_amount: amount ? Number(amount) : undefined, client_action_id: clientActionId() }); setCounter(null); setCounterAmount(""); await load(); }
     catch (e) { Alert.alert(t("خطأ"), e.response?.data?.detail || t("تعذر تحديث العرض")); }
     finally { setBusy(""); }
   };
@@ -48,6 +50,7 @@ export default function OffersScreen() {
         </TouchableOpacity>
         {offer.expires_at && !expired && <Text style={[s.expiry, { color: palette.textMuted }]}><Clock size={12} color="#D97706" /> {t("ينتهي")}: {new Date(offer.expires_at).toLocaleString()}</Text>}
         {offer.is_seller && offer.status === "pending" && !expired && <View style={s.actions}><TouchableOpacity onPress={() => decide(offer, "accept")} disabled={busy === offer.id} style={[s.action, { backgroundColor: "#059669" }]}><Check size={14} color="#fff" /><Text style={s.actionText}>{t("قبول")}</Text></TouchableOpacity><TouchableOpacity onPress={() => openCounter(offer)} disabled={busy === offer.id} style={[s.action, { backgroundColor: "#F59E0B" }]}><RefreshCw size={14} color="#fff" /><Text style={s.actionText}>{t("عرض مضاد")}</Text></TouchableOpacity><TouchableOpacity onPress={() => decide(offer, "reject")} disabled={busy === offer.id} style={[s.action, { backgroundColor: "#DC2626" }]}><X size={14} color="#fff" /><Text style={s.actionText}>{t("رفض")}</Text></TouchableOpacity></View>}
+        {!offer.is_seller && offer.status === "countered" && !expired && <View style={s.actions}><TouchableOpacity onPress={() => decide(offer, "accept")} disabled={busy === offer.id} style={[s.action, { backgroundColor: "#059669" }]}><Check size={14} color="#fff" /><Text style={s.actionText}>{t("قبول العرض المضاد")}</Text></TouchableOpacity><TouchableOpacity onPress={() => decide(offer, "reject")} disabled={busy === offer.id} style={[s.action, { backgroundColor: "#DC2626" }]}><X size={14} color="#fff" /><Text style={s.actionText}>{t("رفض")}</Text></TouchableOpacity></View>}
       </View>;
     })}
     <Modal visible={!!counter} transparent animationType="fade" onRequestClose={() => setCounter(null)}><View style={s.modalBg}><View style={[s.modal, { backgroundColor: palette.surface }]}><Text style={[s.modalTitle, { color: palette.text }]}>{t("العرض المضاد")}</Text><TextInput value={counterAmount} onChangeText={setCounterAmount} keyboardType="decimal-pad" placeholder={t("قيمة العرض")} placeholderTextColor={palette.textMuted} style={[s.input, { color: palette.text, borderColor: palette.border }]} /><View style={s.modalActions}><TouchableOpacity onPress={() => setCounter(null)} style={[s.modalBtn, { backgroundColor: palette.surfaceElevated }]}><Text style={{ color: palette.text, fontWeight: "800" }}>{t("إلغاء")}</Text></TouchableOpacity><TouchableOpacity onPress={() => counterAmount && decide(counter, "counter", counterAmount)} style={[s.modalBtn, { backgroundColor: colors.primary }]}><Text style={{ color: colors.primaryFg, fontWeight: "800" }}>{t("إرسال")}</Text></TouchableOpacity></View></View></View></Modal>

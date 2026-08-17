@@ -119,6 +119,7 @@ function AppRouter() {
             <Route path="/chat" element={<Layout><ChatPage /></Layout>} />
             <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
             <Route path="/favorites" element={<Layout><AccountCollectionPage /></Layout>} />
+            <Route path="/watchlist" element={<Layout><AccountCollectionPage /></Layout>} />
             <Route path="/my-listings" element={<Layout><AccountCollectionPage /></Layout>} />
             <Route path="/offers" element={<Layout><AccountCollectionPage /></Layout>} />
             <Route path="/following" element={<Layout><AccountCollectionPage /></Layout>} />

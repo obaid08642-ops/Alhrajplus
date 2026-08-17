@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
-import { Flame, Plane } from "lucide-react-native";
+import { Flame, Plane, Bell, Trash2 } from "lucide-react-native";
 import api from "../api";
 import { theme } from "../theme";
 import { useCountry } from "../CountryContext";
@@ -69,6 +69,33 @@ export function FavoritesScreen() {
       paddingBottom: 130
     }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />} ListEmptyComponent={<EmptyBlock text={t("لا توجد إعلانات في المفضلة")} />} {...FLAT_PERF} />}
         </SafeAreaView>;
+}
+
+// ---------- WATCHLIST ----------
+export function WatchlistScreen() {
+  const { t } = useI18n();
+  const { palette } = useThemeMode();
+  const { dataVersion } = useCountry();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [busy, setBusy] = useState("");
+  const load = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
+    try { const { data } = await api.get("/watches"); setItems(Array.isArray(data) ? data : data?.items || []); }
+    catch (_) { setItems([]); }
+    finally { setLoading(false); setRefreshing(false); }
+  }, []);
+  useEffect(() => { load(); }, [load, dataVersion]);
+  const remove = async (listingId) => {
+    setBusy(listingId);
+    try { await api.delete(`/watches/${listingId}`); setItems(rows => rows.filter(row => (row.listing_id || row.listing?.id) !== listingId)); }
+    finally { setBusy(""); }
+  };
+  return <SafeAreaView style={[styles.wrap, { backgroundColor: palette.bg }]}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingTop: 8 }}><Bell size={21} color={theme.colors.primary} /><Text style={[styles.title, { color: palette.text, paddingHorizontal: 0 }]}>{t("قائمة المتابعة")}</Text></View>
+    {loading ? <LoadingBlock /> : <FlatList data={items} numColumns={2} keyExtractor={keyExtractor} renderItem={({ item }) => { const listing = item.listing || item; const id = item.listing_id || listing?.id; return <View style={{ flex: 1, margin: 4 }}><ListingCard listing={listing} /><TouchableOpacity testID={`watch-remove-${id}`} disabled={busy === id} onPress={() => remove(id)} style={{ marginTop: 4, padding: 8, borderRadius: 9, backgroundColor: "#FEF2F2", flexDirection: "row", justifyContent: "center", gap: 5, alignItems: "center" }}><Trash2 size={14} color="#DC2626" /><Text style={{ color: "#B91C1C", fontWeight: "800", fontSize: 11 }}>{t("إلغاء المتابعة")}</Text></TouchableOpacity></View>; }} contentContainerStyle={{ padding: 8, paddingBottom: 130 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(false); }} />} ListEmptyComponent={<EmptyBlock text={t("لا توجد إعلانات في قائمة المتابعة")} />} {...FLAT_PERF} />}
+  </SafeAreaView>;
 }
 
 // ---------- MY LISTINGS ----------

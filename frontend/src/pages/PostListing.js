@@ -1047,7 +1047,8 @@ export default function PostListing() {
                         const dial = DIAL_BY_CC[activeCountryCode] || "+966";
                         const ph = PLACEHOLDER_BY_CC[activeCountryCode] || "+9665XXXXXXXX";
                         const accountPhone = user?.phone_full || (user?.country_code && user?.phone ? `${DIAL_BY_CC[user.country_code] || ""}${user.phone}` : "");
-                        const useAccountPhone = () => setForm({ ...form, contact_phone: "" });
+                        const canUseAccountPhone = Boolean(user?.phone_verified && accountPhone);
+                        const useAccountPhone = () => { if (canUseAccountPhone) setForm({ ...form, contact_phone: "" }); };
                         const useOtherPhone = () => setForm({ ...form, contact_phone: dial + " " });
                         const usingOther = !!form.contact_phone;
                         return (
@@ -1060,10 +1061,12 @@ export default function PostListing() {
                                         type="button"
                                         data-testid="use-account-phone-btn"
                                         onClick={useAccountPhone}
-                                        className={`rounded-xl py-2.5 px-3 text-xs font-arabic font-bold border-2 transition-all ${!usingOther ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
+                                        disabled={!canUseAccountPhone}
+                                        className={`rounded-xl py-2.5 px-3 text-xs font-arabic font-bold border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${!usingOther && canUseAccountPhone ? "bg-[var(--primary)] text-[var(--primary-fg)] border-[var(--primary)]" : "bg-[var(--surface-elevated)] text-[var(--text)] border-[var(--border)]"}`}
                                     >
                                         ✓ {tr("استخدم رقم حسابي")}
                                         {accountPhone && <div className="text-[10px] font-normal opacity-80 mt-0.5" dir="ltr">{accountPhone}</div>}
+                                        {!canUseAccountPhone && <div className="text-[10px] font-normal opacity-80 mt-0.5">{tr("يلزم توثيق رقم الحساب أولاً")}</div>}
                                     </button>
                                     <button
                                         type="button"
@@ -1074,6 +1077,7 @@ export default function PostListing() {
                                         ✎ {tr("استخدم رقم آخر")}
                                     </button>
                                 </div>
+                                {!canUseAccountPhone && !usingOther && <p className="text-xs font-arabic-body text-amber-700 dark:text-amber-300 mb-2">{tr("وثّق رقمك من الملف الشخصي أو اختر رقمًا مخصصًا لهذا الإعلان")}</p>}
                                 {usingOther && (
                                     <div className="flex items-stretch gap-0">
                                         <select

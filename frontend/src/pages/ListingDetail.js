@@ -236,7 +236,8 @@ export default function ListingDetail() {
         if (!Number.isFinite(amount) || amount <= 0) return alert(tr("أدخل قيمة عرض صحيحة"));
         setOfferSaving(true);
         try {
-            await api.post(`/listings/${listing.id}/offers`, { amount, message: offerMessage });
+            const client_offer_id = globalThis.crypto?.randomUUID?.() || `web-offer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            await api.post(`/listings/${listing.id}/offers`, { amount, message: offerMessage, client_offer_id });
             setShowOffer(false);
             setOfferAmount("");
             setOfferMessage("");

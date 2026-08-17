@@ -238,6 +238,8 @@ export default function ProfileScreen() {
                 <MenuRow icon={Settings} label={t("الإعدادات")} onPress={() => nav.navigate("Settings")} />
                 {canAccessAdmin && <MenuRow icon={Shield} label={t("لوحة الإدارة")} onPress={() => nav.navigate("AdminDashboard")} testID="menu-admin-dashboard" />}
                 <MenuRow icon={UsersIcon} label={t("متابعاتي")} onPress={() => nav.navigate("Following")} />
+                <MenuRow icon={Bell} label={t("قائمة المتابعة")} onPress={() => nav.navigate("Watchlist")} testID="profile-watchlist" />
+                <MenuRow icon={Smartphone} label={user.phone_verified ? t("رقم الهاتف موثّق") : t("إضافة وتوثيق رقم الهاتف")} onPress={() => nav.navigate("PhoneVerification")} testID="profile-phone-verification" />
                 <TouchableOpacity onPress={togglePhoneVisibility} activeOpacity={0.65} disabled={phoneBusy} style={[s.menuRow, s.menuRowBorder]} testID="profile-toggle-phone">
                     <MapPin size={18} color={colors.primary} />
                     <Text style={s.menuLabel}>

@@ -1107,11 +1107,24 @@ class OfferIn(BaseModel):
     amount: float = Field(gt=0, le=1_000_000_000)
     message: Optional[str] = Field(default="", max_length=1000)
     expires_in_hours: int = Field(default=72, ge=1, le=720)
+    # Stable key makes a network retry return the original offer instead of
+    # creating or silently altering a negotiation.
+    client_offer_id: Optional[str] = Field(default=None, min_length=8, max_length=100)
 
 class OfferDecisionIn(BaseModel):
     action: str = Field(pattern="^(accept|reject|counter)$")
     counter_amount: Optional[float] = Field(default=None, gt=0, le=1_000_000_000)
     message: Optional[str] = Field(default="", max_length=1000)
+    client_action_id: Optional[str] = Field(default=None, min_length=8, max_length=100)
+
+class PhoneVerificationStartIn(BaseModel):
+    phone: str = Field(min_length=6, max_length=32)
+    country_code: Optional[str] = Field(default=None, min_length=2, max_length=3)
+
+class PhoneVerificationConfirmIn(BaseModel):
+    phone: str = Field(min_length=6, max_length=32)
+    code: str = Field(min_length=4, max_length=10)
+    country_code: Optional[str] = Field(default=None, min_length=2, max_length=3)
 
 class ListingCommentIn(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
@@ -1470,24 +1483,16 @@ async def update_me(body: MeUpdateIn, user: dict = Depends(get_current_user)):
         if len(n) >= 2:
             update["name"] = n
     if body.phone is not None:
-        p = (body.phone or "").strip().replace(" ", "").replace("-", "")
-        if p:
-            cc = target_cc
-            rule = PHONE_RULES.get(cc)
-            if rule:
-                pref = rule["prefix"] if isinstance(rule["prefix"], list) else [rule["prefix"]]
-                if len(p) != rule["length"] or not any(p.startswith(pp) for pp in pref):
-                    raise HTTPException(400, "رقم الجوال غير صحيح")
-            update["phone"] = p
-            country_phone_codes = {
-                "SA": "+966", "AE": "+971", "KW": "+965", "QA": "+974", "BH": "+973",
-                "OM": "+968", "EG": "+20", "JO": "+962", "LB": "+961", "IQ": "+964",
-                "SY": "+963", "YE": "+967", "PS": "+970", "MA": "+212", "DZ": "+213",
-                "TN": "+216", "LY": "+218", "SD": "+249", "TR": "+90", "PK": "+92",
-                "IN": "+91", "BD": "+880", "ID": "+62", "MY": "+60", "US": "+1",
-                "GB": "+44", "FR": "+33"
-            }
-            update["phone_full"] = f"{country_phone_codes.get(cc, '+966')}{p.lstrip('0')}"
+        raw_phone = (body.phone or "").strip()
+        if raw_phone:
+            local_phone, phone_full = _normalize_phone_for_country(target_cc, raw_phone)
+            update["phone"] = local_phone
+            update["phone_full"] = phone_full
+            # A changed number must complete an OTP challenge before it can be
+            # exposed on listings as the verified account contact.
+            if phone_full != user.get("phone_full"):
+                update["phone_verified"] = False
+                update["phone_verified_at"] = None
     if body.city is not None:
         raw_city = body.city.strip()
         if raw_city:
@@ -1695,6 +1700,15 @@ async def refresh_token(request: Request, response: Response):
 # ============================================================
 # Phone validation rules per country
 # ============================================================
+COUNTRY_PHONE_CODES = {
+    "SA": "+966", "AE": "+971", "KW": "+965", "QA": "+974", "BH": "+973",
+    "OM": "+968", "EG": "+20", "JO": "+962", "LB": "+961", "IQ": "+964",
+    "SY": "+963", "YE": "+967", "PS": "+970", "MA": "+212", "DZ": "+213",
+    "TN": "+216", "LY": "+218", "SD": "+249", "TR": "+90", "PK": "+92",
+    "IN": "+91", "BD": "+880", "ID": "+62", "MY": "+60", "US": "+1",
+    "GB": "+44", "FR": "+33",
+}
+
 PHONE_RULES = {
     "SA": {"prefix": "5", "length": 9},
     "AE": {"prefix": ["50", "52", "54", "55", "56", "58"], "length": 9},
@@ -1713,6 +1727,111 @@ def validate_phone(country_code: str, phone: str) -> bool:
         return False
     prefixes = rule["prefix"] if isinstance(rule["prefix"], list) else [rule["prefix"]]
     return any(phone.startswith(p) for p in prefixes)
+
+
+def _normalize_phone_for_country(country_code: str, raw_phone: str) -> tuple[str, str]:
+    cc = country_code_or_default(country_code, "SA")
+    local = re.sub(r"[^0-9]", "", str(raw_phone or ""))
+    if local.startswith("00"):
+        local = local[2:]
+    prefix = COUNTRY_PHONE_CODES.get(cc, "+966")
+    prefix_digits = prefix.lstrip("+")
+    if local.startswith(prefix_digits):
+        local = local[len(prefix_digits):]
+    # Store local mobile digits without the national trunk prefix; E.164 is
+    # derived consistently for every supported country, including Egypt.
+    local = local.lstrip("0")
+    if not validate_phone(cc, local):
+        raise HTTPException(422, "رقم الجوال غير صحيح للدولة المحددة")
+    return local, f"{prefix}{local.lstrip('0')}"
+
+
+def _twilio_verify_configured() -> bool:
+    return bool(os.environ.get("TWILIO_ACCOUNT_SID") and os.environ.get("TWILIO_AUTH_TOKEN") and os.environ.get("TWILIO_VERIFY_SERVICE_SID"))
+
+
+async def _twilio_verify_request(phone_full: str, *, code: Optional[str] = None) -> dict:
+    """Perform Twilio Verify server-side only; never expose credentials to clients."""
+    if not _twilio_verify_configured():
+        raise HTTPException(503, "خدمة التحقق عبر الرسائل غير مهيأة حاليًا")
+    account_sid = os.environ["TWILIO_ACCOUNT_SID"]
+    auth_token = os.environ["TWILIO_AUTH_TOKEN"]
+    service_sid = os.environ["TWILIO_VERIFY_SERVICE_SID"]
+    suffix = "VerificationCheck" if code is not None else "Verifications"
+    data = {"To": phone_full, "Code": code} if code is not None else {"To": phone_full, "Channel": "sms"}
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.post(
+                f"https://verify.twilio.com/v2/Services/{service_sid}/{suffix}",
+                data=data,
+                auth=(account_sid, auth_token),
+            )
+        parsed = response.json() if response.content else {}
+    except httpx.HTTPError:
+        raise HTTPException(503, "تعذر الاتصال بخدمة التحقق عبر الرسائل")
+    if response.status_code >= 400:
+        logger.warning("phone verification provider rejected request: %s", response.status_code)
+        raise HTTPException(502, "تعذر إرسال أو التحقق من رمز الهاتف")
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _resolve_listing_contact_phone(user: dict, show_phone: bool, source: Optional[str], custom_phone: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """Return safe persisted listing contact fields for account/custom contact."""
+    if not show_phone:
+        return None, None
+    requested_source = (source or "account").strip().lower()
+    if requested_source == "account":
+        if not user.get("phone_verified") or not user.get("phone_full"):
+            raise HTTPException(422, "أضف وتحقق من رقم هاتفك قبل استخدام رقم الحساب في الإعلان")
+        return str(user["phone_full"]), "account"
+    if requested_source != "custom":
+        raise HTTPException(422, "مصدر رقم الاتصال غير صالح")
+    normalized = re.sub(r"[^0-9+]", "", str(custom_phone or ""))
+    if not re.fullmatch(r"\+[1-9][0-9]{6,14}", normalized):
+        raise HTTPException(422, "أدخل رقم اتصال مخصصًا بصيغة دولية صحيحة")
+    return normalized, "custom"
+
+
+@api.post("/auth/phone-verification/start")
+async def start_phone_verification(body: PhoneVerificationStartIn, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    requested_cc = str(body.country_code or active_cc).upper().strip()
+    if requested_cc != active_cc:
+        raise HTTPException(409, "غيّر الدولة النشطة قبل التحقق من رقم الهاتف")
+    local_phone, phone_full = _normalize_phone_for_country(active_cc, body.phone)
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(minutes=15)
+    attempts = await db.phone_verification_attempts.count_documents({"user_id": user["id"], "created_at": {"$gte": cutoff}})
+    if attempts >= 3:
+        raise HTTPException(429, "تم تجاوز حد إرسال الرموز. حاول بعد 15 دقيقة")
+    await _twilio_verify_request(phone_full)
+    await db.phone_verification_attempts.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user["id"], "phone_full": phone_full,
+        "country_code": active_cc, "created_at": now, "expires_at": now + timedelta(minutes=15),
+    })
+    await _security_event(user["id"], "phone_verification_started", meta={"country_code": active_cc})
+    return {"sent": True, "phone_last4": local_phone[-4:], "expires_in": 600}
+
+
+@api.post("/auth/phone-verification/confirm")
+async def confirm_phone_verification(body: PhoneVerificationConfirmIn, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    requested_cc = str(body.country_code or active_cc).upper().strip()
+    if requested_cc != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    local_phone, phone_full = _normalize_phone_for_country(active_cc, body.phone)
+    result = await _twilio_verify_request(phone_full, code=body.code.strip())
+    if str(result.get("status") or "").lower() != "approved":
+        raise HTTPException(400, "رمز التحقق غير صحيح أو منتهي")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"id": user["id"]}, {"$set": {
+        "phone": local_phone, "phone_full": phone_full, "phone_verified": True,
+        "phone_verified_at": now, "updated_at": now,
+    }})
+    await db.phone_verification_attempts.delete_many({"user_id": user["id"], "phone_full": phone_full})
+    await _security_event(user["id"], "phone_verified", meta={"country_code": active_cc})
+    verified_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return {"verified": True, "user": verified_user}
 
 
 # ============================================================
@@ -3069,6 +3188,9 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         canonical_currency, canonical_currency_code = normalize_currency(effective_cc, body.currency)
     except ValueError as exc:
         raise _country_policy_http_error(exc)
+    resolved_contact_phone, resolved_contact_source = _resolve_listing_contact_phone(
+        user, body.show_phone, body.contact_phone_source, body.contact_phone
+    )
     listing_id = str(uuid.uuid4())
     mod_flags = detect_moderation_flags(f"{body.title} {body.description}")
     is_banned = bool(mod_flags)
@@ -3093,8 +3215,8 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         "lat": body.lat,
         "lng": body.lng,
         "show_phone": body.show_phone,
-        "contact_phone": (body.contact_phone or "").strip() or None,
-        "contact_phone_source": (body.contact_phone_source or "account"),
+        "contact_phone": resolved_contact_phone,
+        "contact_phone_source": resolved_contact_source,
         "status": "active",
         "moderation": "pending" if is_banned else "approved",
         "moderation_flags": mod_flags,
@@ -3316,26 +3438,42 @@ async def ai_moderate_listing(listing_id: str, title: str, description: str) -> 
 # ============================================================
 @api.post("/listings/{listing_id}/offers")
 async def create_listing_offer(listing_id: str, body: OfferIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 0, "id": 1, "user_id": 1, "title": 1, "price": 1, "currency": 1, "status": 1})
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    requested_cc = str(country_code or active_cc).upper().strip()
+    if requested_cc != active_cc:
+        raise HTTPException(409, "غيّر الدولة النشطة قبل تقديم عرض")
+    listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 0, "id": 1, "user_id": 1, "title": 1, "price": 1, "currency": 1, "status": 1})
     if not listing:
         raise HTTPException(404, "الإعلان غير موجود أو غير متاح")
     if listing.get("user_id") == user["id"]:
         raise HTTPException(400, "لا يمكنك تقديم عرض على إعلانك")
     if listing.get("status") not in (None, "active"):
         raise HTTPException(400, "الإعلان غير متاح للعروض")
-    existing = await db.listing_offers.find_one({"listing_id": listing_id, "buyer_id": user["id"], "status": {"$in": ["pending", "countered"]}})
+    if body.client_offer_id:
+        replay = await db.listing_offers.find_one({"listing_id": listing_id, "buyer_id": user["id"], "client_offer_id": body.client_offer_id}, {"_id": 0})
+        if replay:
+            if float(replay.get("amount") or 0) != float(body.amount) or str(replay.get("message") or "") != (body.message or "").strip():
+                raise HTTPException(409, "مفتاح إعادة المحاولة مستخدم لعرض مختلف")
+            replay["idempotent_replay"] = True
+            return replay
+    countered = await db.listing_offers.find_one({"listing_id": listing_id, "buyer_id": user["id"], "status": "countered"}, {"_id": 0, "id": 1})
+    if countered:
+        raise HTTPException(409, "لديك عرض مضاد مفتوح؛ اقبله أو ارفضه قبل تقديم عرض جديد")
+    existing = await db.listing_offers.find_one({"listing_id": listing_id, "buyer_id": user["id"], "status": "pending"}, {"_id": 0})
     now_dt = datetime.now(timezone.utc)
     now = now_dt.isoformat()
     expires_at = (now_dt + timedelta(hours=body.expires_in_hours)).isoformat()
     offer = {
-        "id": str(uuid.uuid4()), "listing_id": listing_id, "seller_id": listing["user_id"],
-        "buyer_id": user["id"], "amount": float(body.amount), "currency": listing.get("currency"),
+        "id": str(uuid.uuid4()), "listing_id": listing_id, "seller_id": listing["user_id"], "country_code": active_cc,
+        "buyer_id": user["id"], "amount": float(body.amount), "original_amount": float(body.amount), "currency": listing.get("currency"),
         "message": (body.message or "").strip(), "status": "pending", "created_at": now, "updated_at": now,
-        "expires_at": expires_at, "decision_at": None, "decision_by": None,
+        "expires_at": expires_at, "decision_at": None, "decision_by": None, "client_offer_id": body.client_offer_id,
+        "action_history": [{"action": "create", "by": user["id"], "at": now, "amount": float(body.amount)}],
     }
     if existing:
-        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": {"amount": offer["amount"], "message": offer["message"], "status": "pending", "updated_at": now, "expires_at": expires_at, "decision_at": None, "decision_by": None}})
-        offer["id"] = existing["id"]
+        patch = {"amount": offer["amount"], "original_amount": offer["amount"], "message": offer["message"], "updated_at": now, "expires_at": expires_at, "client_offer_id": body.client_offer_id, "action_history": list(existing.get("action_history") or []) + [{"action": "revise", "by": user["id"], "at": now, "amount": offer["amount"]}]}
+        await db.listing_offers.update_one({"id": existing["id"]}, {"$set": patch})
+        offer = {**existing, **patch, "id": existing["id"]}
     else:
         await db.listing_offers.insert_one(offer)
     payload = {k: v for k, v in offer.items() if k != "_id"}
@@ -3349,7 +3487,10 @@ async def create_listing_offer(listing_id: str, body: OfferIn, country_code: Opt
 
 @api.get("/listings/{listing_id}/offers")
 async def list_listing_offers(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 0, "user_id": 1})
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 0, "user_id": 1})
     if not listing or listing.get("user_id") != user["id"]:
         raise HTTPException(403, "غير مصرح")
     return await db.listing_offers.find({"listing_id": listing_id}, {"_id": 0}).sort("updated_at", -1).to_list(length=200)
@@ -3358,17 +3499,33 @@ async def list_listing_offers(listing_id: str, country_code: Optional[str] = Non
 async def my_listing_offers(role: str = "all", country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
     if role not in ("all", "buyer", "seller"):
         raise HTTPException(400, "role must be all, buyer, or seller")
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
     match = {"buyer_id": user["id"]} if role == "buyer" else {"seller_id": user["id"]} if role == "seller" else {"$or": [{"buyer_id": user["id"]}, {"seller_id": user["id"]}]}
     items = await db.listing_offers.find(match, {"_id": 0}).sort("updated_at", -1).limit(100).to_list(length=100)
     listing_ids = list({x.get("listing_id") for x in items if x.get("listing_id")})
     listings = {}
     if listing_ids:
-        async for listing in db.listings.find(public_listing_filter_for_country(country_code, {"id": {"$in": listing_ids}}), {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "images": {"$slice": 1}, "status": 1}):
+        async for listing in db.listings.find(public_listing_filter_for_country(active_cc, {"id": {"$in": listing_ids}}), {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "images": {"$slice": 1}, "status": 1}):
             listings[listing["id"]] = listing
+    visible_items = []
+    now = datetime.now(timezone.utc)
     for item in items:
-        item["listing"] = listings.get(item.get("listing_id"))
+        listing = listings.get(item.get("listing_id"))
+        if not listing:
+            continue
+        if item.get("status") in ("pending", "countered") and item.get("expires_at"):
+            try:
+                if datetime.fromisoformat(str(item["expires_at"]).replace("Z", "+00:00")) <= now:
+                    item["status"] = "expired"
+                    await db.listing_offers.update_one({"id": item["id"]}, {"$set": {"status": "expired", "updated_at": now.isoformat()}})
+            except ValueError:
+                pass
+        item["listing"] = listing
         item["is_seller"] = item.get("seller_id") == user["id"]
-    return items
+        visible_items.append(item)
+    return visible_items
 
 @api.patch("/listing-offers/{offer_id}")
 async def decide_listing_offer(offer_id: str, body: OfferDecisionIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
@@ -3377,37 +3534,44 @@ async def decide_listing_offer(offer_id: str, body: OfferDecisionIn, country_cod
         raise HTTPException(404, "العرض غير موجود")
     if user["id"] not in (offer.get("seller_id"), offer.get("buyer_id")):
         raise HTTPException(403, "غير مصرح")
-    # The offer belongs to a listing and must be acted on only inside the
-    # currently selected country. This prevents cross-country actions when an
-    # offer id is copied between accounts or devices.
-    cc = str(country_code or "SA").strip().upper()
-    listing = await db.listings.find_one({"id": offer.get("listing_id"), "country_code": cc}, {"_id": 1})
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    listing = await db.listings.find_one({"id": offer.get("listing_id"), "country_code": active_cc}, {"_id": 1})
     if not listing:
         raise HTTPException(404, "العرض غير متاح في الدولة المختارة")
+    if body.client_action_id and offer.get("client_action_id") == body.client_action_id:
+        return {"success": True, "idempotent_replay": True, "offer_id": offer_id, "status": offer.get("status")}
     if offer.get("status") in ("accepted", "rejected", "expired"):
         raise HTTPException(409, "لا يمكن تعديل عرض مغلق")
+    now_dt = datetime.now(timezone.utc)
     if offer.get("expires_at"):
         try:
-            if datetime.fromisoformat(str(offer["expires_at"]).replace("Z", "+00:00")) <= datetime.now(timezone.utc):
-                await db.listing_offers.update_one({"id": offer_id}, {"$set": {"status": "expired", "updated_at": datetime.now(timezone.utc).isoformat()}})
+            if datetime.fromisoformat(str(offer["expires_at"]).replace("Z", "+00:00")) <= now_dt:
+                await db.listing_offers.update_one({"id": offer_id}, {"$set": {"status": "expired", "updated_at": now_dt.isoformat()}})
                 raise HTTPException(409, "انتهت صلاحية العرض")
         except ValueError:
             pass
-    if body.action == "counter" and user["id"] != offer.get("seller_id"):
-        raise HTTPException(403, "التعديل المضاد متاح للبائع فقط")
+    is_seller = user["id"] == offer.get("seller_id")
+    if offer.get("status") == "pending":
+        if not is_seller or body.action not in ("accept", "reject", "counter"):
+            raise HTTPException(403, "البائع فقط يستطيع اتخاذ قرار بشأن العرض الأولي")
+    elif offer.get("status") == "countered":
+        if is_seller or body.action not in ("accept", "reject"):
+            raise HTTPException(403, "المشتري فقط يستطيع قبول أو رفض العرض المضاد")
     if body.action == "counter" and body.counter_amount is None:
         raise HTTPException(400, "يجب تحديد قيمة العرض المضاد")
-    now_dt = datetime.now(timezone.utc)
     now = now_dt.isoformat()
-    update = {"updated_at": now, "decision_at": now, "decision_by": user["id"], "decision_message": (body.message or "").strip()}
+    update = {"updated_at": now, "decision_at": now, "decision_by": user["id"], "decision_message": (body.message or "").strip(), "client_action_id": body.client_action_id}
     if body.action == "accept":
-        update["status"] = "accepted"
+        update.update({"status": "accepted", "accepted_amount": float(offer.get("amount") or 0)})
     elif body.action == "reject":
         update["status"] = "rejected"
     else:
-        update.update({"status": "countered", "amount": float(body.counter_amount), "counter_amount": float(body.counter_amount), "expires_at": (now_dt + timedelta(hours=72)).isoformat()})
+        update.update({"status": "countered", "amount": float(body.counter_amount), "counter_amount": float(body.counter_amount), "countered_by": user["id"], "expires_at": (now_dt + timedelta(hours=72)).isoformat()})
+    update["action_history"] = list(offer.get("action_history") or []) + [{"action": body.action, "by": user["id"], "at": now, "amount": update.get("amount", offer.get("amount"))}]
     await db.listing_offers.update_one({"id": offer_id}, {"$set": update})
-    recipient = offer["buyer_id"] if user["id"] == offer.get("seller_id") else offer["seller_id"]
+    recipient = offer["buyer_id"] if is_seller else offer["seller_id"]
     title = "تم قبول عرضك" if body.action == "accept" else "تم رفض العرض" if body.action == "reject" else "عرض مضاد جديد"
     try:
         asyncio.create_task(_send_user_notification(recipient, title, body.message or title, "listing_offer_update", f"/listing/{offer['listing_id']}", {"listing_id": offer["listing_id"], "offer_id": offer_id, "status": update["status"]}))
@@ -3818,48 +3982,94 @@ async def recent_listings(country_code: Optional[str] = None, user: dict = Depen
 class SavedSearchIn(BaseModel):
     q: str = Field(min_length=1, max_length=200)
     category: Optional[str] = None
+    city: Optional[str] = None
     country_code: Optional[str] = None
-    min_price: Optional[float] = None
-    max_price: Optional[float] = None
+    min_price: Optional[float] = Field(default=None, ge=0)
+    max_price: Optional[float] = Field(default=None, ge=0)
+    alerts_enabled: bool = True
 
 
 @api.post("/search/save")
 async def save_search(body: SavedSearchIn, user: dict = Depends(get_current_user)):
-    """Persist a search so we can notify the user when matching new listings appear."""
-    saved_country = (body.country_code or user.get("country_code") or "SA").upper().strip()
-    supported_cc = {str(item.get("code") or "").upper() for item in COUNTRIES}
-    if saved_country not in supported_cc:
-        raise HTTPException(400, "دولة البحث غير مدعومة")
-    sid = uuid.uuid4().hex
+    """Persist an exact, country-scoped search and its optional alert preference."""
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    requested_cc = str(body.country_code or active_cc).upper().strip()
+    if requested_cc != active_cc:
+        raise HTTPException(409, "غيّر الدولة النشطة قبل حفظ البحث")
+    if body.min_price is not None and body.max_price is not None and body.min_price > body.max_price:
+        raise HTTPException(422, "الحد الأدنى لا يمكن أن يتجاوز الحد الأقصى")
+    category = (body.category or "").strip() or None
+    if category and category not in {str(item.get("key") or "") for item in CATEGORIES}:
+        raise HTTPException(422, "التصنيف غير صالح")
+    city = None
+    if body.city and body.city.strip():
+        try:
+            city = normalize_location(active_cc, body.city, None)[0]
+        except ValueError as exc:
+            raise _country_policy_http_error(exc)
+    now = datetime.now(timezone.utc).isoformat()
     doc = {
-        "id": sid,
-        "user_id": user["id"],
-        "q": body.q.strip(),
-        "q_lower": body.q.strip().lower(),
-        "category": body.category,
-        "country_code": saved_country,
-        "min_price": body.min_price,
-        "max_price": body.max_price,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "id": uuid.uuid4().hex, "user_id": user["id"], "q": body.q.strip(),
+        "q_lower": body.q.strip().lower(), "category": category, "city": city,
+        "country_code": active_cc, "min_price": body.min_price, "max_price": body.max_price,
+        "alerts_enabled": bool(body.alerts_enabled), "created_at": now, "updated_at": now,
     }
-    # Upsert so saving the same query twice doesn't duplicate.
-    await db.saved_searches.update_one(
-        {"user_id": user["id"], "q_lower": doc["q_lower"]},
-        {"$set": doc},
-        upsert=True,
-    )
-    return {"ok": True, "id": sid}
+    identity = {"user_id": user["id"], "country_code": active_cc, "q_lower": doc["q_lower"], "category": category, "city": city, "min_price": body.min_price, "max_price": body.max_price}
+    existing = await db.saved_searches.find_one(identity, {"_id": 0, "id": 1})
+    if existing:
+        doc["id"] = existing["id"]
+        doc["created_at"] = None
+        await db.saved_searches.update_one({"id": existing["id"]}, {"$set": {k: v for k, v in doc.items() if k != "created_at"}})
+    else:
+        await db.saved_searches.insert_one(doc)
+    return {"ok": True, "id": doc["id"], "country_code": active_cc}
 
 
 @api.get("/search/saved")
-async def list_saved_searches(user: dict = Depends(get_current_user)):
-    items = await db.saved_searches.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(length=50)
-    return items
+async def list_saved_searches(country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    return await db.saved_searches.find({"user_id": user["id"], "country_code": active_cc}, {"_id": 0}).sort("updated_at", -1).to_list(length=50)
+
+
+@api.get("/search/saved/{sid}/run")
+async def run_saved_search(sid: str, country_code: Optional[str] = None, limit: int = 30, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    saved = await db.saved_searches.find_one({"id": sid, "user_id": user["id"], "country_code": active_cc}, {"_id": 0})
+    if not saved:
+        raise HTTPException(404, "البحث المحفوظ غير موجود")
+    filters = {}
+    if saved.get("category"):
+        filters["category"] = saved["category"]
+    if saved.get("city"):
+        filters["city"] = saved["city"]
+    if saved.get("min_price") is not None or saved.get("max_price") is not None:
+        price = {}
+        if saved.get("min_price") is not None:
+            price["$gte"] = saved["min_price"]
+        if saved.get("max_price") is not None:
+            price["$lte"] = saved["max_price"]
+        filters["price"] = price
+    base = public_listing_filter_for_country(active_cc, filters)
+    q_norm = normalize_arabic(saved.get("q") or "")
+    if q_norm:
+        base.setdefault("$and", []).append({"search_blob": {"$regex": re.escape(q_norm), "$options": "i"}})
+    count = await db.listings.count_documents(base)
+    items = await db.listings.find(base, {"_id": 0}).sort("created_at", -1).limit(max(1, min(limit, 100))).to_list(length=max(1, min(limit, 100)))
+    return {"saved_search": saved, "items": items, "total": count}
 
 
 @api.delete("/search/saved/{sid}")
-async def delete_saved_search(sid: str, user: dict = Depends(get_current_user)):
-    await db.saved_searches.delete_one({"id": sid, "user_id": user["id"]})
+async def delete_saved_search(sid: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    result = await db.saved_searches.delete_one({"id": sid, "user_id": user["id"], "country_code": active_cc})
+    if not result.deleted_count:
+        raise HTTPException(404, "البحث المحفوظ غير موجود")
     return {"ok": True}
 
 
@@ -3867,24 +4077,41 @@ async def delete_saved_search(sid: str, user: dict = Depends(get_current_user)):
 # Category follow — opt-in subscription to new listings in a category.
 # ============================================================
 @api.post("/follow/category/{name}")
-async def follow_category(name: str, user: dict = Depends(get_current_user)):
+async def follow_category(name: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    if name not in {str(item.get("key") or "") for item in CATEGORIES}:
+        raise HTTPException(422, "التصنيف غير صالح")
     await db.category_follows.update_one(
-        {"user_id": user["id"], "category": name},
-        {"$set": {"user_id": user["id"], "category": name, "ts": datetime.now(timezone.utc).isoformat()}},
+        {"user_id": user["id"], "category": name, "country_code": active_cc},
+        {"$set": {"user_id": user["id"], "category": name, "country_code": active_cc, "ts": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
-    return {"ok": True, "following": True}
+    return {"ok": True, "following": True, "country_code": active_cc}
 
 @api.delete("/follow/category/{name}")
-async def unfollow_category(name: str, user: dict = Depends(get_current_user)):
-    await db.category_follows.delete_one({"user_id": user["id"], "category": name})
+async def unfollow_category(name: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    await db.category_follows.delete_one({"user_id": user["id"], "category": name, "country_code": active_cc})
     return {"ok": True, "following": False}
 
 @api.get("/following")
-async def list_following(user: dict = Depends(get_current_user)):
-    cats = await db.category_follows.find({"user_id": user["id"]}, {"_id": 0, "category": 1, "ts": 1}).sort("ts", -1).to_list(length=200)
-    sellers = await db.follows.find({"follower_id": user["id"]}, {"_id": 0, "seller_id": 1, "ts": 1}).sort("ts", -1).to_list(length=200)
-    return {"categories": cats, "sellers": sellers}
+async def list_following(country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    cats = await db.category_follows.find({"user_id": user["id"], "country_code": active_cc}, {"_id": 0, "category": 1, "country_code": 1, "ts": 1}).sort("ts", -1).to_list(length=200)
+    sellers = await db.follows.find({"follower_id": user["id"], "country_code": active_cc}, {"_id": 0, "seller_id": 1, "country_code": 1, "ts": 1}).sort("ts", -1).to_list(length=200)
+    seller_ids = [row.get("seller_id") for row in sellers if row.get("seller_id")]
+    profiles = {}
+    if seller_ids:
+        async for profile in db.users.find({"id": {"$in": seller_ids}, "country_code": active_cc}, {"_id": 0, "id": 1, "name": 1, "avatar_url": 1, "verified": 1, "trust_score": 1}):
+            profiles[profile["id"]] = profile
+    sellers = [{**row, "seller": profiles.get(row.get("seller_id"))} for row in sellers if profiles.get(row.get("seller_id"))]
+    return {"categories": cats, "sellers": sellers, "country_code": active_cc}
 
 
 # ============================================================
@@ -5903,6 +6130,17 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
             update_data["currency_code"] = canonical_currency_code
     except ValueError as exc:
         raise _country_policy_http_error(exc)
+    if any(key in update_data for key in ("show_phone", "contact_phone", "contact_phone_source")):
+        effective_show_phone = bool(update_data.get("show_phone", item.get("show_phone", True)))
+        resolved_contact_phone, resolved_contact_source = _resolve_listing_contact_phone(
+            user,
+            effective_show_phone,
+            update_data.get("contact_phone_source", item.get("contact_phone_source")),
+            update_data.get("contact_phone", item.get("contact_phone")),
+        )
+        update_data["show_phone"] = effective_show_phone
+        update_data["contact_phone"] = resolved_contact_phone
+        update_data["contact_phone_source"] = resolved_contact_source
     old_images = list(item.get("images") or [])
     old_videos = list(item.get("videos") or [])
     old_model_url = (item.get("custom_fields") or {}).get("model_3d_url")
@@ -7843,70 +8081,73 @@ class WatchIn(BaseModel):
     target_price: Optional[float] = None  # alert when price drops at or below
 
 @api.post("/watches")
-async def add_watch(body: WatchIn, user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one({"id": body.listing_id}, {"_id": 0, "id": 1, "price": 1, "user_id": 1})
+async def add_watch(body: WatchIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": body.listing_id}), {"_id": 0, "id": 1, "price": 1, "user_id": 1})
     if not listing:
-        raise HTTPException(404, "الإعلان غير موجود")
+        raise HTTPException(404, "الإعلان غير موجود في الدولة المختارة")
     if listing["user_id"] == user["id"]:
         raise HTTPException(400, "لا يمكنك متابعة إعلانك")
-    doc = {
-        "id": str(uuid.uuid4()),
-        "user_id": user["id"],
-        "listing_id": body.listing_id,
-        "target_price": body.target_price,
-        "last_price": listing.get("price"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "active": True,
-    }
-    # upsert
-    await db.watches.update_one(
-        {"user_id": user["id"], "listing_id": body.listing_id},
-        {"$set": doc},
-        upsert=True,
-    )
-    return {"success": True}
+    doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "listing_id": body.listing_id, "country_code": active_cc, "target_price": body.target_price, "last_price": listing.get("price"), "created_at": datetime.now(timezone.utc).isoformat(), "active": True}
+    await db.watches.update_one({"user_id": user["id"], "listing_id": body.listing_id, "country_code": active_cc}, {"$set": doc}, upsert=True)
+    return {"success": True, "watch": doc}
 
 @api.delete("/watches/{listing_id}")
-async def remove_watch(listing_id: str, user: dict = Depends(get_current_user)):
-    await db.watches.delete_one({"user_id": user["id"], "listing_id": listing_id})
+async def remove_watch(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    await db.watches.delete_one({"user_id": user["id"], "listing_id": listing_id, "country_code": active_cc})
     return {"success": True}
 
 @api.get("/watches")
-async def my_watches(user: dict = Depends(get_current_user)):
-    watches = await db.watches.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
-    # Enrich with current listing data
+async def my_watches(country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    watches = await db.watches.find({"user_id": user["id"], "country_code": active_cc}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
+    visible = []
     for w in watches:
-        listing = await db.listings.find_one({"id": w["listing_id"]}, {"_id": 0, "title": 1, "price": 1, "currency": 1, "images": 1, "city": 1, "status": 1})
-        w["listing"] = listing
-    return watches
+        listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": w["listing_id"]}), {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "images": 1, "city": 1, "status": 1})
+        if listing:
+            w["listing"] = listing
+            visible.append(w)
+    return visible
 
 
 # ============================================================
 # Follow Sellers
 # ============================================================
 @api.post("/sellers/{seller_id}/follow")
-async def follow_seller(seller_id: str, user: dict = Depends(get_current_user)):
+async def follow_seller(seller_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
     if seller_id == user["id"]:
         raise HTTPException(400, "لا يمكنك متابعة نفسك")
-    seller = await db.users.find_one({"id": seller_id}, {"_id": 0, "id": 1})
+    seller = await db.users.find_one({"id": seller_id, "country_code": active_cc}, {"_id": 0, "id": 1})
     if not seller:
-        raise HTTPException(404, "البائع غير موجود")
-    existing = await db.follows.find_one({"follower_id": user["id"], "seller_id": seller_id})
+        raise HTTPException(404, "البائع غير موجود في الدولة المختارة")
+    existing = await db.follows.find_one({"follower_id": user["id"], "seller_id": seller_id, "country_code": active_cc})
     if existing:
-        await db.follows.delete_one({"follower_id": user["id"], "seller_id": seller_id})
-        return {"following": False}
+        await db.follows.delete_one({"follower_id": user["id"], "seller_id": seller_id, "country_code": active_cc})
+        return {"following": False, "country_code": active_cc}
+    now = datetime.now(timezone.utc).isoformat()
     await db.follows.insert_one({
-        "id": str(uuid.uuid4()),
-        "follower_id": user["id"],
-        "seller_id": seller_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "id": str(uuid.uuid4()), "follower_id": user["id"], "seller_id": seller_id,
+        "country_code": active_cc, "created_at": now, "ts": now,
     })
-    return {"following": True}
+    return {"following": True, "country_code": active_cc}
 
 @api.get("/sellers/{seller_id}/follow-status")
-async def follow_status(seller_id: str, user: dict = Depends(get_current_user)):
-    f = await db.follows.find_one({"follower_id": user["id"], "seller_id": seller_id})
-    return {"following": bool(f)}
+async def follow_status(seller_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = country_code_or_default(user.get("country_code"), "SA")
+    if str(country_code or active_cc).upper().strip() != active_cc:
+        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    f = await db.follows.find_one({"follower_id": user["id"], "seller_id": seller_id, "country_code": active_cc})
+    return {"following": bool(f), "country_code": active_cc}
 
 
 # ============================================================
@@ -9429,6 +9670,15 @@ async def startup():
         except Exception as e:
             logger.warning(f"[startup] index failed on {coll.name}: {e}")
 
+    async def _drop_legacy_index(coll, name: str):
+        try:
+            existing = await coll.list_indexes().to_list(length=100)
+            if any(index.get("name") == name for index in existing):
+                await coll.drop_index(name)
+                logger.info("[startup] dropped legacy index %s on %s", name, coll.name)
+        except Exception as e:
+            logger.warning("[startup] legacy index migration failed on %s: %s", coll.name, e)
+
     # Indexes
     await _safe_index(db.users, "email", unique=True)
     await _safe_index(db.users, "phone_full")
@@ -9479,6 +9729,8 @@ async def startup():
     await _safe_index(db.mfa_pending_enrollments, "user_id", unique=True)
     await _safe_index(db.mfa_pending_enrollments, "expires_at", expireAfterSeconds=0)
     await _safe_index(db.mfa_attempts, "at", expireAfterSeconds=900)
+    await _safe_index(db.phone_verification_attempts, "expires_at", expireAfterSeconds=0)
+    await _safe_index(db.phone_verification_attempts, [("user_id", 1), ("created_at", -1)])
     await _safe_index(db.security_events, [("user_id", 1), ("at", -1)])
     await db.reports.create_index("status")
     await db.search_terms.create_index("q_lower", unique=True)
@@ -9502,10 +9754,15 @@ async def startup():
     # Personalization
     await _safe_index(db.recently_viewed, [("user_id", 1), ("ts", -1)])
     await _safe_index(db.recently_viewed, [("user_id", 1), ("listing_id", 1)], unique=True)
-    await _safe_index(db.saved_searches, [("user_id", 1), ("q_lower", 1)], unique=True)
+    # Older versions deduplicated only by query/category regardless of country;
+    # retire those indexes before creating country-scoped identities.
+    await _drop_legacy_index(db.saved_searches, "user_id_1_q_lower_1")
+    await _drop_legacy_index(db.category_follows, "user_id_1_category_1")
+    await _safe_index(db.saved_searches, [("user_id", 1), ("country_code", 1), ("q_lower", 1), ("category", 1), ("city", 1), ("min_price", 1), ("max_price", 1)], unique=True)
     await _safe_index(db.listing_offers, [("listing_id", 1), ("updated_at", -1)])
     await _safe_index(db.listing_offers, [("buyer_id", 1), ("updated_at", -1)])
     await _safe_index(db.listing_offers, [("seller_id", 1), ("status", 1), ("updated_at", -1)])
+    await _safe_index(db.listing_offers, [("buyer_id", 1), ("listing_id", 1), ("client_offer_id", 1)], unique=True, partialFilterExpression={"client_offer_id": {"$type": "string"}})
     await _safe_index(db.listing_likes, [("listing_id", 1), ("user_id", 1)], unique=True)
     await _safe_index(db.listing_likes, [("listing_id", 1), ("created_at", -1)])
     await _safe_index(db.listing_comments, [("listing_id", 1), ("created_at", -1)])
@@ -9513,8 +9770,9 @@ async def startup():
     await _safe_index(db.listing_comments, [("listing_id", 1), ("user_id", 1), ("client_comment_id", 1)], unique=True, partialFilterExpression={"client_comment_id": {"$type": "string"}})
     await _safe_index(db.saved_searches, [("user_id", 1), ("created_at", -1)])
     # Category follow + boosted listings
-    await _safe_index(db.category_follows, [("user_id", 1), ("category", 1)], unique=True)
-    await _safe_index(db.category_follows, "category")
+    await _safe_index(db.category_follows, [("user_id", 1), ("category", 1), ("country_code", 1)], unique=True)
+    await _safe_index(db.category_follows, [("country_code", 1), ("category", 1)])
+    await _safe_index(db.follows, [("follower_id", 1), ("seller_id", 1), ("country_code", 1)], unique=True)
     await _safe_index(db.listings, [("is_boosted", -1), ("created_at", -1)])
     # Product analytics — supports daily funnel reports without full scans.
     await _safe_index(db.analytics_events, [("created_at", -1)])

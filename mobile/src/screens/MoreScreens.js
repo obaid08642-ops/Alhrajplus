@@ -659,9 +659,7 @@ export function SavedSearchesScreen({
             <FlatList data={items} keyExtractor={it => it.id} renderItem={({
       item
     }) => <View style={s.menuItem}>
-                        <TouchableOpacity onPress={() => navigation.navigate("Search", {
-        q: item.q
-      })} style={{
+                        <TouchableOpacity onPress={async () => { try { const { data } = await api.get(`/search/saved/${item.id}/run`); navigation.navigate("SavedSearchResults", { title: item.q, items: data?.items || [], total: data?.total || 0 }); } catch (_) {} }} style={{
         flex: 1
       }}>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><Search size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{item.q}</Text></View>
@@ -682,6 +680,13 @@ export function SavedSearchesScreen({
       }}>{t("لا توجد أبحاث محفوظة")}</Text></View>} />
         </View>;
 }
+export function SavedSearchResultsScreen({ route }) {
+  const { t } = useI18n();
+  const { palette } = useThemeMode();
+  const items = Array.isArray(route.params?.items) ? route.params.items : [];
+  return <View style={{ flex: 1, backgroundColor: palette.bg }}><Text style={{ padding: 16, fontSize: 18, fontWeight: "900", color: palette.text, textAlign: "right" }}>{route.params?.title || t("نتائج البحث")}</Text><Text style={{ paddingHorizontal: 16, paddingBottom: 8, color: theme.colors.textMuted, textAlign: "right", fontSize: 12 }}>{route.params?.total || items.length} {t("نتيجة")}</Text><FlatList data={items} keyExtractor={item => String(item.id)} renderItem={({ item }) => <ListingCard listing={item} />} numColumns={2} contentContainerStyle={{ padding: 8, paddingBottom: 100 }} ListEmptyComponent={<View style={{ padding: 48, alignItems: "center" }}><Text style={{ color: theme.colors.textMuted }}>{t("لا توجد نتائج مطابقة")}</Text></View>} /></View>;
+}
+
 export function FollowingScreen({
   navigation
 }) {
@@ -778,11 +783,11 @@ export function FollowingScreen({
     }}>{t("لا يوجد")}</Text> : data.sellers.map(s2 => {
       const info = sellerMap[s2.seller_id];
       const displayName = info?.name || t("بائع");
-      return <TouchableOpacity key={s2.seller_id} style={s.menuItem} onPress={() => navigation.navigate("SellerProfile", {
+      return <View key={s2.seller_id} style={s.menuItem}><TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate("SellerProfile", {
         sellerId: s2.seller_id
       })} testID={`following-seller-${s2.seller_id}`}>
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><User size={17} color={theme.colors.primary} /><Text style={s.menuLabel}>{displayName}</Text></View>
-                        </TouchableOpacity>;
+                        </TouchableOpacity><TouchableOpacity onPress={async () => { try { await api.post(`/sellers/${s2.seller_id}/follow`); setData(d => ({ ...d, sellers: d.sellers.filter(x => x.seller_id !== s2.seller_id) })); } catch (_) {} }} testID={`following-seller-unfollow-${s2.seller_id}`}><Trash2 size={18} color={theme.colors.danger} style={{ margin: 6 }} /></TouchableOpacity></View>;
     })}
         </ScrollView>;
 }

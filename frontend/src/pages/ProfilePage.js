@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
-import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff } from "lucide-react";
+import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff, Bookmark, Users } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import { canAccessAdmin } from "@/lib/accessControl";
 import ListingCard from "@/components/listings/ListingCard";
@@ -127,7 +127,7 @@ export default function ProfilePage() {
                             {user.verified && <Star className="w-5 h-5 fill-[var(--primary)] text-[var(--primary)]" />}
                         </h1>
                         <p className="text-sm text-[var(--text-muted)] font-arabic-body">{user.email}</p>
-                        <PhoneEditor user={user} />
+                        <PhoneEditor user={user} onUpdated={updateUser} />
                         {stats && (
                             <div className="flex flex-wrap gap-3 mt-2 text-[11px] font-latin" data-testid="profile-stats">
                                 <span className="text-[var(--text-muted)] inline-flex items-center gap-1"><Package className="w-3.5 h-3.5" /> {stats.total_listings} {tr("إعلان")}</span>
@@ -205,6 +205,11 @@ export default function ProfilePage() {
 
             {/* Quick menu — Settings / About / Terms / Contact / Logout */}
             <div className="bg-[var(--surface)] rounded-3xl border border-[var(--border)] mb-6 overflow-hidden">
+                <Link to="/favorites" data-testid="menu-favorites" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors"><Heart className="w-5 h-5 text-red-500" /><span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("المفضلة")}</span><ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" /></Link>
+                <Link to="/watchlist" data-testid="menu-watchlist" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors"><Bell className="w-5 h-5 text-amber-600" /><span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("قائمة المتابعة")}</span><ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" /></Link>
+                <Link to="/offers" data-testid="menu-offers" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors"><Tag className="w-5 h-5 text-[var(--accent)]" /><span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("العروض والمفاوضات")}</span><ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" /></Link>
+                <Link to="/following" data-testid="menu-following" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors"><Users className="w-5 h-5 text-[var(--primary)]" /><span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("متابعاتي")}</span><ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" /></Link>
+                <Link to="/saved-searches" data-testid="menu-saved-searches" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors"><Bookmark className="w-5 h-5 text-[var(--primary)]" /><span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("الأبحاث المحفوظة")}</span><ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" /></Link>
                 <Link to="/wallet" data-testid="menu-wallet" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Wallet className="w-5 h-5 text-[var(--accent)]" />
                     <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("محفظتي")}</span>
@@ -340,50 +345,53 @@ function Stat({ label, value }) {
     );
 }
 
-function PhoneEditor({ user }) {
+function PhoneEditor({ user, onUpdated }) {
     const [editing, setEditing] = useState(false);
     const [phone, setPhone] = useState(user.phone || "");
+    const [code, setCode] = useState("");
+    const [stage, setStage] = useState("entry");
     const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
     const display = user.phone_full || user.phone;
+    const verified = Boolean(user.phone_verified);
 
-    const save = async () => {
-        const clean = phone.trim().replace(/\s/g, "");
-        if (!clean) return setEditing(false);
-        setBusy(true);
+    const start = async () => {
+        const clean = phone.trim().replace(/[^\d+]/g, "");
+        if (clean.replace(/\D/g, "").length < 6) return setError(tr("أدخل رقم هاتف صالحًا"));
+        setBusy(true); setError("");
         try {
-            await api.put("/auth/me", { phone: clean });
-            window.location.reload();
-        } catch (e) {
-            alert(e.response?.data?.detail || tr("تعذر حفظ الرقم"));
-            setBusy(false);
-        }
+            await api.post("/auth/phone-verification/start", { phone: clean, country_code: user.country_code });
+            setStage("confirm");
+        } catch (e) { setError(e.response?.data?.detail || tr("تعذر إرسال رمز التحقق")); }
+        finally { setBusy(false); }
+    };
+    const confirm = async () => {
+        if (!/^\d{4,10}$/.test(code.trim())) return setError(tr("أدخل رمز التحقق الصحيح"));
+        setBusy(true); setError("");
+        try {
+            const { data } = await api.post("/auth/phone-verification/confirm", { phone, code: code.trim(), country_code: user.country_code });
+            onUpdated?.(data.user || { phone, phone_verified: true });
+            setEditing(false); setStage("entry"); setCode("");
+        } catch (e) { setError(e.response?.data?.detail || tr("تعذر تأكيد رمز التحقق")); }
+        finally { setBusy(false); }
     };
 
-    if (editing) {
-        return (
-            <div className="mt-2 flex items-center gap-2 max-w-sm">
+    if (editing) return (
+        <div className="mt-2 max-w-sm space-y-2">
+            <div className="flex items-center gap-2">
                 <span className="text-sm font-bold font-latin shrink-0 text-[var(--text-muted)]">{user.country_code === "EG" ? "+20" : user.country_code === "AE" ? "+971" : user.country_code === "KW" ? "+965" : user.country_code === "QA" ? "+974" : user.country_code === "BH" ? "+973" : user.country_code === "OM" ? "+968" : "+966"}</span>
-                <input data-testid="profile-phone-input" type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d]/g, ""))} placeholder="5xxxxxxxx" className="flex-1 bg-[var(--surface-elevated)] rounded-lg px-3 py-1.5 text-sm border border-[var(--primary)] outline-none font-latin tracking-wider" autoFocus />
-                <button data-testid="profile-phone-save" onClick={save} disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-lg text-xs font-arabic font-bold disabled:opacity-50">{busy ? "..." : tr("حفظ")}</button>
-                <button onClick={() => { setEditing(false); setPhone(user.phone || ""); }} className="text-[var(--text-muted)] text-xs font-arabic">{tr("إلغاء")}</button>
+                <input data-testid="profile-phone-input" type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ""))} placeholder="5xxxxxxxx" disabled={stage === "confirm" || busy} className="flex-1 bg-[var(--surface-elevated)] rounded-lg px-3 py-1.5 text-sm border border-[var(--primary)] outline-none font-latin tracking-wider disabled:opacity-60" autoFocus />
+                {stage === "entry" && <button data-testid="profile-phone-start" onClick={start} disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-1.5 rounded-lg text-xs font-arabic font-bold disabled:opacity-50">{busy ? "..." : tr("إرسال الرمز")}</button>}
             </div>
-        );
-    }
-    return (
-        <p className="text-xs text-[var(--text-muted)] font-arabic-body mt-1 flex items-center gap-2 flex-wrap">
-            {display ? (
-                <>
-                    <span className="font-latin tracking-wider">{display}</span>
-                    {user.city && <span> • {user.city}</span>}
-                </>
-            ) : (
-                <span className="text-amber-600 dark:text-amber-400">{tr("⚠️ لم يتم إضافة رقم جوال")}</span>
-            )}
-            <button data-testid="profile-phone-edit" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline text-[10px] font-arabic font-bold">
-                <Edit3 className="w-3 h-3" /> {display ? tr("تعديل") : tr("إضافة الجوال")}
-            </button>
-        </p>
+            {stage === "confirm" && <div className="flex items-center gap-2"><input data-testid="profile-phone-code" type="text" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder={tr("رمز التحقق")} className="flex-1 bg-[var(--surface-elevated)] rounded-lg px-3 py-1.5 text-sm border border-[var(--primary)] outline-none font-latin tracking-wider" /><button data-testid="profile-phone-confirm" onClick={confirm} disabled={busy} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-arabic font-bold disabled:opacity-50">{busy ? "..." : tr("تأكيد")}</button></div>}
+            {error && <p className="text-[11px] font-arabic-body text-red-600">{error}</p>}
+            <button onClick={() => { setEditing(false); setPhone(user.phone || ""); setStage("entry"); setCode(""); setError(""); }} className="text-[var(--text-muted)] text-xs font-arabic">{tr("إلغاء")}</button>
+        </div>
     );
+    return <p className="text-xs text-[var(--text-muted)] font-arabic-body mt-1 flex items-center gap-2 flex-wrap">
+        {display ? <><span className="font-latin tracking-wider">{display}</span><span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${verified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{verified ? tr("موثّق") : tr("غير موثّق")}</span>{user.city && <span> • {user.city}</span>}</> : <span className="text-amber-600 dark:text-amber-400">{tr("لم يتم إضافة رقم جوال")}</span>}
+        <button data-testid="profile-phone-edit" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline text-[10px] font-arabic font-bold"><Edit3 className="w-3 h-3" /> {verified ? tr("تعديل الرقم") : tr("إضافة وتوثيق الجوال")}</button>
+    </p>;
 }
 
 /**

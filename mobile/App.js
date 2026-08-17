@@ -40,17 +40,18 @@ import { ThemeModeProvider, useThemeMode } from "./src/ThemeContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import { LoginScreen, RegisterScreen } from "./src/screens/AuthScreens";
 import { ForgotPasswordScreen, ResetPasswordScreen } from "./src/screens/PasswordReset";
-import { CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, FollowingScreen, MfaSecurityScreen } from "./src/screens/MoreScreens";
+import { CategoriesScreen, CategoryListingsScreen, NotificationsScreen, SettingsScreen, StaticPageScreen, NotifSettingsScreen, SavedSearchesScreen, SavedSearchResultsScreen, FollowingScreen, MfaSecurityScreen } from "./src/screens/MoreScreens";
 import SearchScreen from "./src/screens/SearchScreen";
 import SellerProfileScreen from "./src/screens/SellerProfile";
 import OffersScreen from "./src/screens/OffersScreen";
+import PhoneVerificationScreen from "./src/screens/PhoneVerificationScreen";
 import ListingDetailScreen from "./src/screens/ListingDetailScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import PostScreen from "./src/screens/PostScreen";
 import ChatScreen from "./src/screens/ChatScreen";
 import MapScreen from "./src/screens/MapScreen";
 import ReelsScreen from "./src/screens/ReelsScreen";
-import { FavoritesScreen, MyListingsScreen, DealsScreen } from "./src/screens/OtherScreens";
+import { FavoritesScreen, WatchlistScreen, MyListingsScreen, DealsScreen } from "./src/screens/OtherScreens";
 import AuctionsScreen from "./src/screens/AuctionsScreen";
 import FlightsScreen from "./src/screens/FlightsScreen";
 import WalletScreen from "./src/screens/WalletScreen";
@@ -182,6 +183,7 @@ function Navigation() {
                 <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: t("تفاصيل الإعلان") }} />
                 <Stack.Screen name="Post" component={PostScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: t("المفضلة") }} />
+                <Stack.Screen name="Watchlist" component={WatchlistScreen} options={{ title: t("قائمة المتابعة") }} />
                 <Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: t("إعلاناتي") }} />
                 <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
@@ -190,12 +192,14 @@ function Navigation() {
                 <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: t("الإشعارات") }} />
                 <Stack.Screen name="NotifSettings" component={NotifSettingsScreen} options={{ title: t("إعدادات الإشعارات") }} />
                 <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: t("الأبحاث المحفوظة") }} />
+                <Stack.Screen name="SavedSearchResults" component={SavedSearchResultsScreen} options={({ route }) => ({ title: route.params?.title || t("نتائج البحث") })} />
                 <Stack.Screen name="Following" component={FollowingScreen} options={{ title: t("متابعاتي") }} />
                 <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("الإعدادات") }} />
                 <Stack.Screen name="MfaSecurity" component={MfaSecurityScreen} options={{ title: t("التحقق بخطوتين") }} />
                 <Stack.Screen name="StaticPage" component={StaticPageScreen} options={{ title: "" }} />
                 <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: t("الملف الشخصي للبائع") }} />
                 <Stack.Screen name="Offers" component={OffersScreen} options={{ title: t("العروض والمفاوضات") }} />
+                <Stack.Screen name="PhoneVerification" component={PhoneVerificationScreen} options={{ title: t("توثيق رقم الهاتف") }} />
                 <Stack.Screen name="Map" component={MapScreen} options={{ title: t("الخريطة") }} />
                 <Stack.Screen name="Deals" component={DealsScreen} options={{ title: t("صفقات اليوم") }} />
                 <Stack.Screen name="Auctions" component={AuctionsScreen} options={{ title: t("المزادات") }} />

@@ -469,6 +469,11 @@ export default function PostScreen({
       setErr(v);
       return;
     }
+    // An account number becomes a listing contact only after real OTP verification.
+    if (form.show_phone && form.phone_source === "account" && !user?.phone_verified) {
+      setErr(t("وثّق رقم هاتفك أولاً أو اختر رقمًا مخصصًا للإعلان"));
+      return;
+    }
     // Phase 2: validate custom phone if user picked "different number".
     if (form.show_phone && form.phone_source === "custom") {
       const num = (form.custom_phone || "").trim();
@@ -1326,8 +1331,8 @@ function Step2({
             {form.show_phone ? <View style={s.phoneBlock}>
                 <Text style={s.phoneBlockTitle}>{t("ما هو الرقم الذي يصل إليه المشتري؟")}</Text>
                 <TouchableOpacity
-                    onPress={() => update("phone_source", "account")}
-                    style={[s.radioRow, form.phone_source === "account" && s.radioRowActive]}
+                    onPress={() => user?.phone_verified ? update("phone_source", "account") : setErr(t("وثّق رقم هاتفك أولاً أو اختر رقمًا مخصصًا"))}
+                    style={[s.radioRow, form.phone_source === "account" && user?.phone_verified && s.radioRowActive, !user?.phone_verified && { opacity: 0.55 }]}
                     testID="post-phone-source-account"
                 >
                     <View style={[s.radioDot, form.phone_source === "account" && s.radioDotActive]}>
@@ -1335,7 +1340,7 @@ function Step2({
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={s.radioLabel}>{t("استخدام رقمي المسجل في الحساب")}</Text>
-                        <Text style={s.radioSub} numberOfLines={1}>{user?.phone_full || (user?.phone ? `${user?.country_code || ""} ${user?.phone}` : t("لم يتم تسجيل رقم في حسابك"))}</Text>
+                        <Text style={s.radioSub} numberOfLines={1}>{user?.phone_verified ? (user?.phone_full || user?.phone || "") : t("يلزم توثيق رقم الحساب أولاً")}</Text>
                     </View>
                 </TouchableOpacity>
                 <TouchableOpacity

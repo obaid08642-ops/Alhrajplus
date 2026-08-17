@@ -115,6 +115,7 @@ def _listing_body(**overrides):
         "city": "القاهرة",
         "country_code": "EG",
         "currency": "EGP",
+        "show_phone": False,
     }
     data.update(overrides)
     return ListingIn(**data)
