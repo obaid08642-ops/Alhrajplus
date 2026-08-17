@@ -72,6 +72,11 @@ export default function ReelsPage() {
         nav(`/chat?to=${l.user_id}&listing=${l.id}`);
     };
 
+    const goBack = () => {
+        if (window.history.length > 1) nav(-1);
+        else nav("/");
+    };
+
     const shareReel = async (l) => {
         const url = `${window.location.origin}/listing/${l.id}`;
         try {
@@ -115,12 +120,12 @@ export default function ReelsPage() {
     );
 
     return (
-        <div className="fixed inset-x-0 top-16 bottom-16 sm:relative sm:inset-auto sm:h-[calc(100vh-160px)] sm:max-w-md sm:mx-auto sm:rounded-3xl sm:overflow-hidden bg-black">
-            {/* Back + Upload buttons */}
-            <button data-testid="reels-back-btn" onClick={() => nav(-1)} aria-label={tr("رجوع")} className="absolute top-3 start-3 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur flex items-center justify-center text-white">
+        <main data-testid="reels-viewer" className="fixed inset-0 z-[70] h-[100dvh] w-screen overflow-hidden bg-black text-white" role="main" aria-label={tr("فيديوهات الإعلانات")}>
+            {/* The viewer intentionally covers the app chrome. Controls use the device safe-area so they are never hidden behind a notch or browser UI. */}
+            <button data-testid="reels-back-btn" onClick={goBack} aria-label={tr("رجوع")} style={{ top: "max(0.75rem, env(safe-area-inset-top))" }} className="absolute start-3 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur flex items-center justify-center text-white focus:outline-none focus:ring-2 focus:ring-white">
                 <ArrowLeft className="w-5 h-5" />
             </button>
-            <Link to="/post?video=1" data-testid="reels-upload-btn" aria-label={tr("ارفع ستوري فيديو")} className="absolute top-3 end-3 z-30 flex items-center gap-1.5 bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-2 rounded-full shadow-lg hover:scale-105 transition-transform">
+            <Link to="/post?video=1" data-testid="reels-upload-btn" aria-label={tr("ارفع ستوري فيديو")} style={{ top: "max(0.75rem, env(safe-area-inset-top))" }} className="absolute end-3 z-30 flex items-center gap-1.5 bg-[var(--primary)] text-[var(--primary-fg)] px-3 py-2 rounded-full shadow-lg hover:scale-105 transition-transform focus:outline-none focus:ring-2 focus:ring-white">
                 <Plus className="w-4 h-4" strokeWidth={2.8} />
                 <span className="text-xs font-arabic font-bold">{tr("ارفع ستوري")}</span>
             </Link>
@@ -130,7 +135,7 @@ export default function ReelsPage() {
                     <div key={l.id} className="h-full w-full snap-start relative flex items-center justify-center">
                         <video ref={(el) => (refs.current[i] = el)} src={l.videos[0]} loop muted={muted} playsInline className="w-full h-full object-cover" />
                         {/* Overlay info */}
-                        <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/85 via-black/60 to-transparent">
+                        <div className="absolute inset-x-0 bottom-0 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/90 via-black/60 to-transparent">
                             <Link to={`/listing/${l.id}`} className="block text-white mb-3">
                                 <h3 className="font-arabic font-bold text-base line-clamp-2 mb-1">{l.title}</h3>
                                 {l.price && <div className="font-latin font-black text-xl text-[var(--primary)]">{Number(l.price).toLocaleString()} {l.currency}</div>}
@@ -157,7 +162,7 @@ export default function ReelsPage() {
                             </div>
                         </div>
                         {/* Right action bar */}
-                        <div className="absolute end-3 bottom-32 flex flex-col gap-4 text-white">
+                        <div className="absolute end-3 bottom-36 flex flex-col gap-4 text-white" style={{ bottom: "max(9rem, calc(env(safe-area-inset-bottom) + 8rem))" }}>
                             <button data-testid={`reel-fav-${l.id}`} onClick={() => toggleFav(l)} className="flex flex-col items-center gap-1"><div className={`w-11 h-11 rounded-full backdrop-blur flex items-center justify-center ${favs[l.id] ? "bg-red-500" : "bg-white/15"}`}><Heart className={`w-5 h-5 ${favs[l.id] ? "fill-white" : ""}`} /></div><span className="text-[10px]">{tr("مفضلة")}</span></button>
                             <button data-testid={`reel-msg-${l.id}`} onClick={() => messageSeller(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><MessageCircle className="w-5 h-5" /></div><span className="text-[10px]">{tr("رسالة")}</span></button>
                             <button data-testid={`reel-share-${l.id}`} onClick={() => shareReel(l)} className="flex flex-col items-center gap-1"><div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur flex items-center justify-center"><Share2 className="w-5 h-5" /></div><span className="text-[10px]">{tr("شارك")}</span></button>
@@ -166,6 +171,6 @@ export default function ReelsPage() {
                     </div>
                 ))}
             </div>
-        </div>
+        </main>
     );
 }

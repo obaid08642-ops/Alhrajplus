@@ -4581,6 +4581,7 @@ async def voice_ice_servers(user: dict = Depends(get_current_user)):
     """
     servers = [{"urls": "stun:stun.l.google.com:19302"}]
     raw = (os.environ.get("TURN_ICE_SERVERS_JSON") or "").strip()
+    turn_config_error = False
     if raw:
         try:
             parsed = json.loads(raw)
@@ -4595,8 +4596,10 @@ async def voice_ice_servers(user: dict = Depends(get_current_user)):
                         safe["credential"] = item["credential"]
                     servers.append(safe)
         except Exception:
+            turn_config_error = True
             logger.warning("Invalid TURN_ICE_SERVERS_JSON; using STUN only")
-    return {"ice_servers": servers}
+    relay_configured = any(str(url).startswith(("turn:", "turns:")) for server in servers for url in (server.get("urls") if isinstance(server.get("urls"), list) else [server.get("urls")]))
+    return {"ice_servers": servers, "relay_configured": relay_configured, "turn_config_error": turn_config_error}
 
 
 @app.websocket("/api/ws/chat")
@@ -6419,63 +6422,135 @@ async def admin_media_cleanup_delete(body: dict, user: dict = Depends(require_ad
 
 
 # Theme settings
-@admin_router.get("/data-integrity")
-async def admin_data_integrity():
-    """Snapshot of data-integrity issues so an admin can spot any cross-country
-    leakage from legacy rows. Read-only."""
-    listings_no_cc = await db.listings.count_documents({
-        "$or": [
-            {"country_code": {"$exists": False}},
-            {"country_code": None},
-            {"country_code": ""},
-        ]
-    })
-    users_no_cc = await db.users.count_documents({
-        "$or": [
-            {"country_code": {"$exists": False}},
-            {"country_code": None},
-            {"country_code": ""},
-        ]
-    })
-    # Show a sample of offenders so the admin can act quickly.
-    sample_listings = await db.listings.find(
-        {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]},
-        {"_id": 0, "id": 1, "title": 1, "user_id": 1, "created_at": 1},
-    ).sort("created_at", -1).limit(10).to_list(length=10)
+# Country/location data integrity is intentionally conservative: a listing is
+# never moved to another country from a city name alone. Repairs only normalize
+# an unambiguous local currency and clear a city that belongs to a different
+# supported country, while preserving a reversible preimage for admin review.
+def _country_integrity_reference() -> tuple[dict, dict, set]:
+    countries = {str(c.get("code") or "").upper(): c for c in COUNTRIES if c.get("code")}
+    city_to_countries: dict[str, set[str]] = {}
+    known_currencies: set[str] = set()
+    for cc, country in countries.items():
+        for value in (country.get("currency"), country.get("currency_code")):
+            if value:
+                known_currencies.add(str(value).strip().upper())
+        for city in country.get("cities") or []:
+            for name in (city.get("name_ar"), city.get("name_en")):
+                normalized = str(name or "").strip().casefold()
+                if normalized:
+                    city_to_countries.setdefault(normalized, set()).add(cc)
+    return countries, city_to_countries, known_currencies
+
+
+async def _country_integrity_snapshot(limit: int = 10000) -> dict:
+    countries, city_to_countries, known_currencies = _country_integrity_reference()
+    missing_country_query = {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]}
+    users_no_cc = await db.users.count_documents(missing_country_query)
+    listings_no_cc = await db.listings.count_documents(missing_country_query)
+    issues: list[dict] = []
+    scanned = 0
+    projection = {"_id": 0, "id": 1, "title": 1, "country_code": 1, "city": 1, "district": 1, "currency": 1, "currency_code": 1, "user_id": 1, "created_at": 1}
+    cursor = db.listings.find({}, projection).sort("created_at", -1).limit(max(1, min(limit, 50000)))
+    async for listing in cursor:
+        scanned += 1
+        cc = str(listing.get("country_code") or "").upper().strip()
+        kinds: list[str] = []
+        city = str(listing.get("city") or "").strip()
+        city_countries = city_to_countries.get(city.casefold(), set()) if city else set()
+        if cc and cc in countries and city_countries and cc not in city_countries:
+            kinds.append("city_country_mismatch")
+        expected = countries.get(cc) or {}
+        expected_currencies = {str(v).strip().upper() for v in (expected.get("currency"), expected.get("currency_code")) if v}
+        supplied = {str(v).strip().upper() for v in (listing.get("currency"), listing.get("currency_code")) if v}
+        if expected_currencies and supplied and any(v in known_currencies and v not in expected_currencies for v in supplied):
+            kinds.append("currency_country_mismatch")
+        if kinds:
+            issues.append({**listing, "issue_types": kinds, "expected_currency": expected.get("currency"), "expected_currency_code": expected.get("currency_code")})
+    summary = {"city_country_mismatch": 0, "currency_country_mismatch": 0}
+    for item in issues:
+        for kind in item["issue_types"]:
+            summary[kind] = summary.get(kind, 0) + 1
     return {
         "listings_without_country": listings_no_cc,
         "users_without_country": users_no_cc,
-        "sample_offending_listings": sample_listings,
+        "scanned_listings": scanned,
+        "issues_total": len(issues),
+        "summary": summary,
+        "sample_issues": issues[:50],
+        "_actionable_issues": issues,
+        "truncated": scanned >= min(max(1, limit), 50000),
     }
 
 
-@admin_router.post("/data-integrity/fix")
-async def admin_data_integrity_fix(default_country: str = "SA"):
-    """One-off cleanup: copy the user's country onto their orphan listings.
-    Listings whose owner ALSO has no country get `default_country` so they stop
-    leaking into every feed. Returns the counts touched."""
-    default_country = (default_country or "SA").upper().strip()
-    supported_cc = {str(item.get("code") or "").upper() for item in COUNTRIES}
-    if default_country not in supported_cc:
-        raise HTTPException(400, "الدولة الافتراضية غير مدعومة")
-    # 1) Patch users with no country to the default.
-    users_fixed = await db.users.update_many(
-        {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]},
-        {"$set": {"country_code": default_country}},
-    )
-    # 2) For each listing without country, copy from owner.
-    fixed_listings = 0
-    cursor = db.listings.find(
-        {"$or": [{"country_code": {"$exists": False}}, {"country_code": None}, {"country_code": ""}]},
-        {"_id": 0, "id": 1, "user_id": 1},
-    )
-    async for l_doc in cursor:
-        owner = await db.users.find_one({"id": l_doc.get("user_id")}, {"_id": 0, "country_code": 1})
-        cc = ((owner or {}).get("country_code") or default_country).upper()
-        await db.listings.update_one({"id": l_doc["id"]}, {"$set": {"country_code": cc}})
-        fixed_listings += 1
+def _integrity_public_view(snapshot: dict) -> dict:
+    return {key: value for key, value in snapshot.items() if key != "_actionable_issues"}
+
+
+@admin_router.get("/data-integrity")
+async def admin_data_integrity(limit: int = Query(10000, ge=1, le=50000)):
+    """Read-only country/city/currency integrity report for legacy data."""
+    return _integrity_public_view(await _country_integrity_snapshot(limit))
+
+
+@admin_router.post("/data-integrity/repair")
+async def admin_data_integrity_repair(body: dict, user: dict = Depends(require_admin)):
+    """Create a dry-run by default; apply only with explicit confirmation.
+
+    `apply=true` and `confirm=REPAIR_COUNTRY_INTEGRITY` are required to mutate.
+    Every changed listing has a preimage written to `data_integrity_repairs` and
+    can be restored with the rollback endpoint.
+    """
+    snapshot = await _country_integrity_snapshot(int(body.get("limit") or 10000))
+    apply = bool(body.get("apply", False))
+    if not apply:
+        return {"dry_run": True, "apply_required": True, "confirmation_required": "REPAIR_COUNTRY_INTEGRITY", "plan": _integrity_public_view(snapshot)}
+    if str(body.get("confirm") or "") != "REPAIR_COUNTRY_INTEGRITY":
+        raise HTTPException(400, "يلزم تأكيد REPAIR_COUNTRY_INTEGRITY قبل التطبيق")
+    repair_currency = bool(body.get("repair_currency", True))
+    clear_invalid_city = bool(body.get("clear_invalid_city", True))
+    batch_id = str(uuid.uuid4())
+    changes: list[dict] = []
+    for issue in snapshot.get("_actionable_issues", []):
+        patch: dict = {}
+        types = set(issue.get("issue_types") or [])
+        if repair_currency and "currency_country_mismatch" in types:
+            patch.update({"currency": issue.get("expected_currency"), "currency_code": issue.get("expected_currency_code")})
+        if clear_invalid_city and "city_country_mismatch" in types:
+            patch.update({"city": "", "district": "", "location_needs_review": True})
+        if not patch:
+            continue
+        before = {key: issue.get(key) for key in ("city", "district", "currency", "currency_code", "location_needs_review")}
+        await db.listings.update_one({"id": issue["id"]}, {"$set": patch})
+        changes.append({"listing_id": issue["id"], "before": before, "after": patch, "issue_types": issue.get("issue_types")})
+    repair_doc = {"id": batch_id, "kind": "country_integrity_repair", "created_at": datetime.now(timezone.utc).isoformat(), "created_by": user["id"], "changes": changes}
+    await db.data_integrity_repairs.insert_one(repair_doc)
+    await _admin_log(user["id"], "data_integrity_repair", batch_id, {"changes": len(changes), "repair_currency": repair_currency, "clear_invalid_city": clear_invalid_city})
     _cache_invalidate()
-    return {"users_fixed": users_fixed.modified_count, "listings_fixed": fixed_listings, "default_country": default_country}
+    return {"dry_run": False, "batch_id": batch_id, "changed": len(changes), "changes": changes[:100]}
+
+
+@admin_router.post("/data-integrity/rollback")
+async def admin_data_integrity_rollback(body: dict, user: dict = Depends(require_admin)):
+    batch_id = str(body.get("batch_id") or "").strip()
+    if not batch_id:
+        raise HTTPException(400, "batch_id مطلوب")
+    repair = await db.data_integrity_repairs.find_one({"id": batch_id, "kind": "country_integrity_repair"}, {"_id": 0})
+    if not repair:
+        raise HTTPException(404, "دفعة الإصلاح غير موجودة")
+    restored = 0
+    for change in repair.get("changes") or []:
+        result = await db.listings.update_one({"id": change.get("listing_id")}, {"$set": change.get("before") or {}})
+        restored += int(result.modified_count or 0)
+    await db.data_integrity_repairs.update_one({"id": batch_id}, {"$set": {"rolled_back_at": datetime.now(timezone.utc).isoformat(), "rolled_back_by": user["id"]}})
+    await _admin_log(user["id"], "data_integrity_rollback", batch_id, {"restored": restored})
+    _cache_invalidate()
+    return {"batch_id": batch_id, "restored": restored}
+
+
+@admin_router.post("/data-integrity/fix", deprecated=True)
+async def admin_data_integrity_fix(default_country: str = "SA"):
+    """Deprecated legacy endpoint. Use dry-run `/data-integrity/repair` instead."""
+    raise HTTPException(410, "استخدم فحص وإصلاح سلامة البيانات الجديد مع dry-run وتأكيد وrollback")
 
 
 @admin_router.post("/theme")
@@ -8057,6 +8132,42 @@ async def coins_ledger(limit: int = 50, user: dict = Depends(get_current_user)):
     return await db.coins_ledger.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(length=limit)
 
 
+def _welcome_coins_amount() -> int:
+    """Return a bounded, server-side welcome reward without exposing cash credit."""
+    try:
+        return max(0, min(int(os.environ.get("WELCOME_COINS_BONUS", "10")), 100000))
+    except (TypeError, ValueError):
+        return 10
+
+
+@api.post("/coins/claim-welcome-bonus")
+async def coins_claim_welcome_bonus(user: dict = Depends(get_current_user)):
+    """Grant an optional one-time Coins onboarding reward.
+
+    The reward is deliberately virtual Coins, never SAR/cash. It requires a
+    verified account and uses a stable idempotency key so retrying the request
+    cannot mint a duplicate reward.
+    """
+    if not user.get("verified"):
+        raise HTTPException(403, "يلزم توثيق الحساب قبل استلام مكافأة الـCoins")
+    amount = _welcome_coins_amount()
+    if amount <= 0:
+        raise HTTPException(404, "مكافأة الترحيب غير مفعلة")
+    key = "welcome_coins_v1"
+    existing = await db.coins_ledger.find_one({"user_id": user["id"], "idempotency_key": key}, {"_id": 0})
+    if existing:
+        raise HTTPException(409, "تم استلام مكافأة الترحيب مسبقاً")
+    changed = await db.users.update_one({"id": user["id"]}, {"$inc": {"coins_balance": amount}})
+    if not changed.matched_count:
+        raise HTTPException(404, "المستخدم غير موجود")
+    try:
+        tx = await _coins_log(user["id"], "welcome_bonus", amount, "مكافأة ترحيبية بالـCoins", None, key)
+    except DuplicateKeyError:
+        await db.users.update_one({"id": user["id"]}, {"$inc": {"coins_balance": -amount}})
+        raise HTTPException(409, "تم استلام مكافأة الترحيب مسبقاً")
+    return {"success": True, "balance": await _coins_balance(user["id"]), "amount": amount, "currency": "COINS", "transaction": tx}
+
+
 @api.post("/coins/spend")
 async def coins_spend(body: CoinsSpendIn, user: dict = Depends(get_current_user)):
     if body.idempotency_key:
@@ -8115,44 +8226,28 @@ async def wallet_transactions(limit: int = 50, user: dict = Depends(get_current_
 
 @api.post("/wallet/topup")
 async def wallet_topup(body: WalletTopupIn, user: dict = Depends(get_current_user)):
-    """Admins can top-up any user (via target_user_id). Non-admins get a 5 SAR welcome bonus only once."""
-    is_admin = user.get("role") == "admin"
-    target = body.target_user_id if (is_admin and body.target_user_id) else user["id"]
-    if not is_admin:
-        # Non-admin self-topup is only allowed once as welcome bonus (≤ 5 SAR)
-        already = await db.wallet_transactions.find_one({"user_id": user["id"], "type": "bonus"})
-        if already:
-            raise HTTPException(403, "إعادة الشحن متاحة عبر بوابة الدفع قريباً")
-        if body.amount > 5:
-            raise HTTPException(400, "الحد الأقصى للمكافأة الترحيبية: 5 ر.س")
-        kind = "bonus"
-        desc = body.note or "مكافأة الانضمام"
-    else:
-        kind = "topup"
-        desc = body.note or "شحن يدوي من الإدارة"
+    """Manual cash adjustment for an administrator only.
+
+    A payment gateway is not connected, so users must never receive or mint a
+    cash balance from this endpoint. Real payments will use a separate verified
+    provider/webhook flow when that integration is introduced.
+    """
+    if user.get("role") != "admin":
+        raise HTTPException(403, "شحن الرصيد النقدي غير متاح حالياً")
+    target = body.target_user_id or user["id"]
+    target_user = await db.users.find_one({"id": target}, {"_id": 0, "id": 1})
+    if not target_user:
+        raise HTTPException(404, "المستخدم غير موجود")
     await db.users.update_one({"id": target}, {"$inc": {"balance": float(body.amount)}})
-    await _wallet_log(target, kind, body.amount, desc)
-    new_bal = await _wallet_balance(target)
-    return {"success": True, "balance": new_bal}
+    await _wallet_log(target, "admin_adjustment", body.amount, body.note or "تعديل نقدي يدوي من الإدارة")
+    await _admin_log(user["id"], "wallet_admin_adjustment", target, {"amount": float(body.amount)})
+    return {"success": True, "balance": await _wallet_balance(target), "currency": "SAR"}
 
 
 @api.post("/wallet/claim-welcome-bonus")
 async def wallet_claim_welcome_bonus(user: dict = Depends(get_current_user)):
-    """Idempotent welcome-bonus endpoint. Backend owns the amount + label so
-    clients never hardcode payment numbers. Returns 409 if already claimed."""
-    BONUS_AMOUNT = 5.0
-    BONUS_LABEL = "مكافأة الانضمام"
-    already = await db.wallet_transactions.find_one({"user_id": user["id"], "type": "bonus"})
-    if already:
-        raise HTTPException(409, "تم استلام مكافأة الانضمام مسبقاً")
-    await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": BONUS_AMOUNT}})
-    try:
-        await _wallet_log(user["id"], "bonus", BONUS_AMOUNT, BONUS_LABEL)
-    except DuplicateKeyError:
-        await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": -BONUS_AMOUNT}})
-        raise HTTPException(409, "تم استلام مكافأة الانضمام مسبقاً")
-    new_bal = await _wallet_balance(user["id"])
-    return {"success": True, "balance": new_bal, "amount": BONUS_AMOUNT, "label": BONUS_LABEL}
+    """Retired cash-bonus endpoint retained only to reject old clients honestly."""
+    raise HTTPException(410, "تم إيقاف مكافأة الرصيد النقدي؛ استخدم مكافأة الـCoins إن كانت مفعلة")
 
 
 # ============================================================

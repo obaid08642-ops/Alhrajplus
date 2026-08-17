@@ -14,6 +14,7 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
     const [status, setStatus] = useState("idle");
     const [muted, setMuted] = useState(false);
     const [error, setError] = useState("");
+    const [relayConfigured, setRelayConfigured] = useState(null);
     const pcRef = useRef(null);
     const streamRef = useRef(null);
     const audioRef = useRef(null);
@@ -46,7 +47,8 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
             try {
                 const { data } = await api.get("/voice/ice-servers");
                 if (Array.isArray(data?.ice_servers) && data.ice_servers.length) iceServersRef.current = data.ice_servers;
-            } catch (_) { /* STUN-only fallback remains usable */ }
+                setRelayConfigured(data?.relay_configured === true);
+            } catch (_) { setRelayConfigured(false); /* STUN-only fallback remains usable */ }
         }
         const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -162,6 +164,7 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
                 <h2 className="text-lg font-bold text-[var(--text)]">{other?.name || call?.peer_name || tr("مكالمة صوتية")}</h2>
                 <p className="text-sm text-[var(--text-muted)] mt-1">{label}</p>
                 {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+                {!error && relayConfigured === false && <p className="text-xs text-amber-600 dark:text-amber-300 mt-3">{tr("بعض الشبكات تحتاج TURN relay لإتمام المكالمة. جرّب شبكة أخرى إذا تعذر الاتصال.")}</p>}
                 <div className="flex justify-center gap-3 mt-6">
                     {status === "incoming" && <button onClick={acceptIncoming} className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center" aria-label={tr("قبول") }><Phone className="w-5 h-5" /></button>}
                     {status !== "incoming" && status !== "failed" && <button onClick={toggleMute} className="w-12 h-12 rounded-full bg-[var(--surface-elevated)] text-[var(--text)] flex items-center justify-center" aria-label={muted ? tr("تشغيل الميكروفون") : tr("كتم الميكروفون")}>{muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}</button>}

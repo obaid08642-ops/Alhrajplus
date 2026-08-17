@@ -30,6 +30,7 @@ export default function ProfileScreen() {
   const [walletBalance, setWalletBalance] = useState(null);
   const [coins, setCoins] = useState(null);
   const [phoneBusy, setPhoneBusy] = useState(false);
+  const canAccessAdmin = user?.role === "admin";
   const load = useCallback(async () => {
     if (!user) return;
     try {
@@ -235,6 +236,7 @@ export default function ProfileScreen() {
             <View style={[s.menuCard, shadow.card]}>
                 <MenuRow icon={Bell} label={t("الإشعارات")} onPress={() => nav.navigate("Notifications")} />
                 <MenuRow icon={Settings} label={t("الإعدادات")} onPress={() => nav.navigate("Settings")} />
+                {canAccessAdmin && <MenuRow icon={Shield} label={t("لوحة الإدارة")} onPress={() => nav.navigate("AdminDashboard")} testID="menu-admin-dashboard" />}
                 <MenuRow icon={UsersIcon} label={t("متابعاتي")} onPress={() => nav.navigate("Following")} />
                 <TouchableOpacity onPress={togglePhoneVisibility} activeOpacity={0.65} disabled={phoneBusy} style={[s.menuRow, s.menuRowBorder]} testID="profile-toggle-phone">
                     <MapPin size={18} color={colors.primary} />
@@ -347,10 +349,11 @@ function MenuRow({
   icon: Icon,
   label,
   onPress,
+  tint = colors.primary,
   last = false,
-  tint = colors.primary
+  testID
 }) {
-  return <TouchableOpacity onPress={onPress} activeOpacity={0.65} style={[s.menuRow, !last && s.menuRowBorder]}>
+  return <TouchableOpacity onPress={onPress} activeOpacity={0.65} style={[s.menuRow, !last && s.menuRowBorder]} testID={testID}>
             <Icon size={18} color={tint} />
             <Text style={[s.menuLabel, tint === "#EF4444" && {
       color: "#EF4444"

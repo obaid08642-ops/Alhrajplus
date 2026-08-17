@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Shield, Users, FileText, Flag, Palette, Image as ImageIcon, BarChart3, Trash2, Check, X, Plus, Edit2, Bell, Sparkles, DollarSign, Search as SearchIcon, Monitor, Gift, RefreshCw, Download, ShoppingBag, LifeBuoy } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
+import { canAccessAdmin } from "@/lib/accessControl";
 
 export default function AdminPage() {
     const { user, loading } = useAuth();
@@ -11,11 +12,11 @@ export default function AdminPage() {
     const [tab, setTab] = useState("stats");
 
     useEffect(() => {
-        if (!loading && (!user || user.role !== "admin")) nav("/");
+        if (!loading && !canAccessAdmin(user)) nav("/");
     }, [user, loading, nav]);
 
     if (loading || !user) return <div className="p-10 text-center font-arabic">{tr("جاري التحميل...")}</div>;
-    if (user.role !== "admin") return null;
+    if (!canAccessAdmin(user)) return null;
 
     const tabs = [
         { key: "stats", label: tr("الإحصائيات"), icon: BarChart3 },
@@ -645,12 +646,13 @@ function ListingLifecyclePanel() {
     </div>;
 }
 
-// Data Integrity tool — shows orphan records and one-click fix.
+// Data integrity tool — always previews first; mutations need confirmation and remain reversible.
 function DataIntegrityPanel() {
     const [data, setData] = useState(null);
     const [loadError, setLoadError] = useState("");
     const [busy, setBusy] = useState(false);
-    const [defaultCC, setDefaultCC] = useState("SA");
+    const [notice, setNotice] = useState("");
+    const [lastBatch, setLastBatch] = useState("");
 
     const load = () => {
         setLoadError("");
@@ -660,64 +662,55 @@ function DataIntegrityPanel() {
     };
     useEffect(() => { load(); }, []);
 
-    const fix = async () => {
-        if (!confirm(tr("سيتم تعيين دولة افتراضية للسجلات التي بلا دولة. متابعة؟"))) return;
-        setBusy(true);
+    const preview = async () => {
+        setBusy(true); setNotice("");
         try {
-            const { data: r } = await api.post("/admin/data-integrity/fix", null, { params: { default_country: defaultCC } });
-            alert(`${tr("✅ تم إصلاح")}: ${r.users_fixed} ${tr("مستخدم")} • ${r.listings_fixed} ${tr("إعلان")}`);
-            load();
-        } catch (e) { alert(tr("فشل الإصلاح")); }
+            const { data: result } = await api.post("/admin/data-integrity/repair", { apply: false });
+            const count = result?.plan?.issues_total ?? 0;
+            setNotice(`${tr("تم إنشاء معاينة آمنة")} — ${count} ${tr("مخالفة قابلة للمراجعة")}`);
+        } catch (_) { setNotice(tr("تعذر إنشاء معاينة الإصلاح")); }
+        finally { setBusy(false); }
+    };
+    const apply = async () => {
+        if (!confirm(tr("سيُحفظ سجل سابق لكل تعديل، وسيتم مسح المدينة المخالفة أو تصحيح العملة فقط. متابعة؟"))) return;
+        setBusy(true); setNotice("");
+        try {
+            const { data: result } = await api.post("/admin/data-integrity/repair", { apply: true, confirm: "REPAIR_COUNTRY_INTEGRITY", repair_currency: true, clear_invalid_city: true });
+            setLastBatch(result.batch_id || "");
+            setNotice(`${tr("تم الإصلاح")}: ${result.changed || 0} — ${tr("يمكن التراجع عن هذه الدفعة")}`);
+            await load();
+        } catch (e) { setNotice(e?.response?.data?.detail || tr("فشل الإصلاح")); }
+        finally { setBusy(false); }
+    };
+    const rollback = async () => {
+        if (!lastBatch || !confirm(tr("سيتم استرجاع القيم السابقة لدفعة الإصلاح الأخيرة. متابعة؟"))) return;
+        setBusy(true); setNotice("");
+        try {
+            const { data: result } = await api.post("/admin/data-integrity/rollback", { batch_id: lastBatch });
+            setNotice(`${tr("تم التراجع")}: ${result.restored || 0}`);
+            setLastBatch("");
+            await load();
+        } catch (e) { setNotice(e?.response?.data?.detail || tr("فشل التراجع")); }
         finally { setBusy(false); }
     };
 
     if (!data) return <div className="p-6 text-center font-arabic">{loadError || tr("جاري التحميل...")}</div>;
-    const clean = data.listings_without_country === 0 && data.users_without_country === 0;
-    return (
-        <div className="space-y-4" data-testid="data-integrity-panel">
-            <div className="grid grid-cols-2 gap-3">
-                <div className={`rounded-2xl p-4 border ${data.listings_without_country > 0 ? "border-[var(--danger)] bg-red-500/5" : "border-[var(--border)] bg-[var(--surface)]"}`}>
-                    <div className="font-latin font-black text-3xl text-[var(--text)]" data-testid="di-listings-count">{data.listings_without_country}</div>
-                    <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{tr("إعلانات بدون دولة")}</div>
-                </div>
-                <div className={`rounded-2xl p-4 border ${data.users_without_country > 0 ? "border-[var(--danger)] bg-red-500/5" : "border-[var(--border)] bg-[var(--surface)]"}`}>
-                    <div className="font-latin font-black text-3xl text-[var(--text)]" data-testid="di-users-count">{data.users_without_country}</div>
-                    <div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{tr("مستخدمون بدون دولة")}</div>
-                </div>
-            </div>
-
-            {clean ? (
-                <div className="bg-[var(--success)]/10 border border-[var(--success)]/40 rounded-2xl p-5 text-center font-arabic-body text-[var(--success)] font-bold" data-testid="di-clean">
-                    ✅ {tr("البيانات سليمة — لا توجد سجلات بدون دولة")}
-                </div>
-            ) : (
-                <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-3">
-                    <div className="flex flex-wrap items-end gap-2">
-                        <div className="flex-1 min-w-[120px]">
-                            <label className="block text-xs font-arabic font-bold text-[var(--text)] mb-1">{tr("الدولة الافتراضية")}</label>
-                            <input data-testid="di-default-cc" value={defaultCC} onChange={(e) => setDefaultCC(e.target.value.toUpperCase().slice(0, 3))} maxLength={3} className="w-full bg-[var(--surface-elevated)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm uppercase" />
-                        </div>
-                        <button onClick={fix} disabled={busy} data-testid="di-fix-btn" className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] px-5 py-2 rounded-xl font-arabic font-bold text-sm disabled:opacity-60">
-                            {busy ? tr("جاري الإصلاح...") : tr("إصلاح تلقائي")}
-                        </button>
-                    </div>
-                    <p className="text-[11px] text-[var(--text-muted)] font-arabic-body">{tr("ينسخ دولة المالك على كل إعلان بلا دولة. الإعلانات التي لا يملكها مستخدم بدولة ستأخذ الدولة الافتراضية أعلاه.")}</p>
-                </div>
-            )}
-
-            {data.sample_offending_listings?.length > 0 && (
-                <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]">
-                    <div className="font-arabic font-bold mb-2 text-sm">{tr("عينة من الإعلانات بلا دولة")}</div>
-                    {data.sample_offending_listings.map((l) => (
-                        <div key={l.id} className="text-xs py-1 border-b border-[var(--border)]/40 flex justify-between gap-2">
-                            <Link to={`/listing/${l.id}`} target="_blank" rel="noreferrer" className="font-arabic-body text-[var(--text)] hover:text-[var(--primary)] truncate">{l.title || l.id}</Link>
-                            <span className="font-latin text-[var(--text-muted)] text-[10px]">{(l.created_at || "").slice(0, 10)}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
+    const issuesTotal = Number(data.issues_total || 0) + Number(data.listings_without_country || 0) + Number(data.users_without_country || 0);
+    const clean = issuesTotal === 0;
+    return <div className="space-y-4" data-testid="data-integrity-panel">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <IntegrityMetric testId="di-listings-count" value={data.listings_without_country} label={tr("إعلانات بدون دولة")} danger={data.listings_without_country > 0} />
+            <IntegrityMetric testId="di-users-count" value={data.users_without_country} label={tr("مستخدمون بدون دولة")} danger={data.users_without_country > 0} />
+            <IntegrityMetric testId="di-city-mismatch" value={data.summary?.city_country_mismatch} label={tr("مدينة لا تطابق الدولة")} danger={data.summary?.city_country_mismatch > 0} />
+            <IntegrityMetric testId="di-currency-mismatch" value={data.summary?.currency_country_mismatch} label={tr("عملة لا تطابق الدولة")} danger={data.summary?.currency_country_mismatch > 0} />
         </div>
-    );
+        {clean ? <div className="bg-[var(--success)]/10 border border-[var(--success)]/40 rounded-2xl p-5 text-center font-arabic-body text-[var(--success)] font-bold" data-testid="di-clean">{tr("البيانات سليمة وفق فحص الدولة والمدينة والعملة")}</div> : <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)] space-y-3"><p className="text-xs text-[var(--text-muted)] font-arabic-body">{tr("لا ينقل الإصلاح الإعلان بين الدول بالاستنتاج. يصحح العملة المحلية الواضحة فقط ويمسح المدينة المخالفة مع وضعها للمراجعة، بعد حفظ preimage قابل للتراجع.")}</p><div className="flex flex-wrap gap-2"><button onClick={preview} disabled={busy} data-testid="di-preview-btn" className="border border-[var(--border)] px-4 py-2 rounded-xl font-arabic font-bold text-sm disabled:opacity-60">{busy ? tr("جاري الفحص...") : tr("معاينة آمنة")}</button><button onClick={apply} disabled={busy} data-testid="di-apply-btn" className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] px-4 py-2 rounded-xl font-arabic font-bold text-sm disabled:opacity-60">{tr("تطبيق مع حفظ نسخة سابقة")}</button>{lastBatch && <button onClick={rollback} disabled={busy} data-testid="di-rollback-btn" className="bg-red-600 text-white px-4 py-2 rounded-xl font-arabic font-bold text-sm disabled:opacity-60">{tr("التراجع عن آخر دفعة")}</button>}</div>{notice && <p role="status" className="text-xs font-arabic-body text-[var(--text-muted)]">{notice}</p>}</div>}
+        {data.sample_issues?.length > 0 && <div className="bg-[var(--surface)] rounded-2xl p-4 border border-[var(--border)]"><div className="font-arabic font-bold mb-2 text-sm">{tr("عينة من المخالفات")}</div>{data.sample_issues.map((item) => <div key={item.id} className="text-xs py-2 border-b border-[var(--border)]/40 flex justify-between gap-2"><Link to={`/listing/${item.id}`} target="_blank" rel="noreferrer" className="font-arabic-body text-[var(--text)] hover:text-[var(--primary)] truncate">{item.title || item.id}</Link><span className="font-latin text-[var(--text-muted)] text-[10px]">{(item.issue_types || []).join(" • ")}</span></div>)}</div>}
+    </div>;
+}
+
+function IntegrityMetric({ testId, value, label, danger }) {
+    return <div className={`rounded-2xl p-4 border ${danger ? "border-[var(--danger)] bg-red-500/5" : "border-[var(--border)] bg-[var(--surface)]"}`}><div className="font-latin font-black text-3xl text-[var(--text)]" data-testid={testId}>{Number(value || 0)}</div><div className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{label}</div></div>;
 }
 
 

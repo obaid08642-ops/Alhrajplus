@@ -1,11 +1,12 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { HelmetProvider } from "react-helmet-async";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider, useI18n } from "@/contexts/I18nContext";
 import { trackEvent, trackSessionHeartbeat } from "@/lib/analytics";
+import { canAccessAdmin } from "@/lib/accessControl";
 import { CountryProvider } from "@/contexts/CountryContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
@@ -68,6 +69,13 @@ function AnalyticsRouteTracker() {
     return null;
 }
 
+function AdminRoute({ children }) {
+    const { user, loading } = useAuth();
+    if (loading) return <PageFallback />;
+    if (!canAccessAdmin(user)) return <Navigate to={user ? "/profile" : "/login"} replace />;
+    return children;
+}
+
 function Layout({ children, hideNav = false }) {
     const { isRTL } = useI18n();
     return (
@@ -120,7 +128,7 @@ function AppRouter() {
             <Route path="/notifications" element={<Layout><NotificationsPage /></Layout>} />
             <Route path="/search" element={<Layout><SearchPage /></Layout>} />
             <Route path="/map" element={<Layout><MapPage /></Layout>} />
-            <Route path="/admin" element={<Layout><AdminPage /></Layout>} />
+            <Route path="/admin" element={<AdminRoute><Layout><AdminPage /></Layout></AdminRoute>} />
             <Route path="/reels" element={<Layout><ReelsPage /></Layout>} />
             <Route path="/auctions" element={<Layout><AuctionsPage /></Layout>} />
             <Route path="/flights" element={<Layout><FlightsPage /></Layout>} />

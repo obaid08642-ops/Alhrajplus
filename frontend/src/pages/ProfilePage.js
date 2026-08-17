@@ -6,6 +6,7 @@ import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
 import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
+import { canAccessAdmin } from "@/lib/accessControl";
 import ListingCard from "@/components/listings/ListingCard";
 
 // Bold country card — primary entry point for changing country (per UX spec).
@@ -67,6 +68,7 @@ export default function ProfilePage() {
     const [stats, setStats] = useState(null);
     const [offers, setOffers] = useState([]);
     const [offerBusy, setOfferBusy] = useState("");
+    const isAdmin = canAccessAdmin(user);
 
     useEffect(() => {
         if (!loading && !user) nav("/login");
@@ -218,6 +220,13 @@ export default function ProfilePage() {
                     <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("الإعدادات")}</span>
                     <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
                 </Link>
+                {isAdmin && (
+                    <Link to="/admin" data-testid="menu-admin-dashboard" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 transition-colors">
+                        <Shield className="w-5 h-5 text-[var(--accent)]" />
+                        <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{t("admin_panel")}</span>
+                        <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+                    </Link>
+                )}
                 <Link to="/about" data-testid="menu-about" className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)] hover:bg-[var(--surface-elevated)] transition-colors">
                     <Info className="w-5 h-5 text-[var(--primary)]" />
                     <span className="flex-1 font-arabic font-bold text-sm text-[var(--text)]">{tr("عن التطبيق")}</span>
