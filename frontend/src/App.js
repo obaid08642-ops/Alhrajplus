@@ -4,7 +4,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { I18nProvider } from "@/contexts/I18nContext";
+import { I18nProvider, useI18n } from "@/contexts/I18nContext";
 import { trackEvent, trackSessionHeartbeat } from "@/lib/analytics";
 import { CountryProvider } from "@/contexts/CountryContext";
 import TopBar from "@/components/layout/TopBar";
