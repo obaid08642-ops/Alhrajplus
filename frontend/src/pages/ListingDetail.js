@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { telLink, whatsappLink, normalizePhone } from "@/lib/phone";
@@ -64,6 +64,8 @@ export default function ListingDetail() {
     const [commentClientId, setCommentClientId] = useState("");
     const [commentBusy, setCommentBusy] = useState(false);
     const [loadError, setLoadError] = useState("");
+    const [neighbors, setNeighbors] = useState(null);
+    const swipeStartX = useRef(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -83,6 +85,7 @@ export default function ListingDetail() {
                 if (!normalizedListing) throw new Error("invalid_listing_response");
                 if (cancelled) return;
                 setListing(normalizedListing);
+                api.get(`/listings/${normalizedListing.id}/neighbors`, { params: { country_code: normalizedListing.country_code } }).then(({ data }) => { if (!cancelled) setNeighbors(data); }).catch(() => { if (!cancelled) setNeighbors(null); });
                 trackEvent("listing_view", { listing_id: normalizedListing.id, category: normalizedListing.category, country_code: normalizedListing.country_code });
                 setLikeCount(Number(normalizedListing.like_count || 0));
 
@@ -262,6 +265,16 @@ export default function ListingDetail() {
         }
     };
 
+    const onSwipeStart = (e) => { swipeStartX.current = e.touches?.[0]?.clientX ?? null; };
+    const onSwipeEnd = (e) => {
+        if (swipeStartX.current == null || !neighbors) return;
+        const dx = (e.changedTouches?.[0]?.clientX ?? swipeStartX.current) - swipeStartX.current;
+        swipeStartX.current = null;
+        if (Math.abs(dx) < 72) return;
+        const target = dx < 0 ? neighbors.next : neighbors.previous;
+        if (target?.id) nav(`/listing/${target.slug || target.id}?from=swipe`);
+    };
+
     const handleEdit = () => {
         nav(`/post?edit=${listing.id}`);
     };
@@ -283,7 +296,7 @@ export default function ListingDetail() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
             <ListingSEO listing={listing} />
             <Link to="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)] mb-4 font-arabic"><ChevronLeft className="w-4 h-4 rotate-180" />{tr(" العودة")}</Link>
 

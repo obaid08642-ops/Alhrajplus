@@ -3706,6 +3706,19 @@ async def get_listing_by_slug(slug: str, request: Request, country_code: Optiona
     return JSONResponse(content=jsonable_encoder(item), headers={"Cache-Control": "public, s-maxage=300, stale-while-revalidate=600", "Vary": "Accept-Encoding", "X-Cache-Ready": "true"})
 
 
+@api.get("/listings/{listing_id}/neighbors")
+async def listing_neighbors(listing_id: str, country_code: Optional[str] = None):
+    current = await db.listings.find_one({"$or": [{"id": listing_id}, {"slug": listing_id}]}, {"_id": 0, "id": 1, "slug": 1, "category": 1, "country_code": 1, "created_at": 1})
+    if not current:
+        raise HTTPException(404, "Listing not found")
+    cc = (country_code or current.get("country_code") or "SA").upper()
+    base = public_listing_filter_for_country(cc, {"category": current.get("category"), "id": {"$ne": current.get("id")}})
+    stamp = current.get("created_at") or ""
+    newer = await db.listings.find({**base, "created_at": {"$gt": stamp}}, {"_id": 0, "id": 1, "slug": 1, "title": 1}).sort("created_at", 1).limit(1).to_list(length=1)
+    older = await db.listings.find({**base, "created_at": {"$lt": stamp}}, {"_id": 0, "id": 1, "slug": 1, "title": 1}).sort("created_at", -1).limit(1).to_list(length=1)
+    return {"next": newer[0] if newer else None, "previous": older[0] if older else None, "country_code": cc, "category": current.get("category")}
+
+
 @api.get("/listings/{listing_id}")
 async def get_listing(listing_id: str, request: Request, country_code: Optional[str] = None):
     # Accept either UUID or slug for legacy/SEO URL compatibility
