@@ -44,6 +44,7 @@ const PrivacyPage = lazy(() => StaticPagesModule().then((m) => ({ default: m.Pri
 const AboutPage = lazy(() => StaticPagesModule().then((m) => ({ default: m.AboutPage })));
 const ContactPage = lazy(() => StaticPagesModule().then((m) => ({ default: m.ContactPage })));
 const DownloadPage = lazy(() => import("@/pages/DownloadPage"));
+const AccountCollectionPage = lazy(() => import("@/pages/AccountCollectionPage"));
 
 function PageFallback() {
     return (
@@ -108,6 +109,11 @@ function AppRouter() {
             <Route path="/post" element={<Layout><PostListing /></Layout>} />
             <Route path="/chat" element={<Layout><ChatPage /></Layout>} />
             <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
+            <Route path="/favorites" element={<Layout><AccountCollectionPage /></Layout>} />
+            <Route path="/my-listings" element={<Layout><AccountCollectionPage /></Layout>} />
+            <Route path="/offers" element={<Layout><AccountCollectionPage /></Layout>} />
+            <Route path="/following" element={<Layout><AccountCollectionPage /></Layout>} />
+            <Route path="/saved-searches" element={<Layout><AccountCollectionPage /></Layout>} />
             <Route path="/notifications" element={<Layout><NotificationsPage /></Layout>} />
             <Route path="/search" element={<Layout><SearchPage /></Layout>} />
             <Route path="/map" element={<Layout><MapPage /></Layout>} />
