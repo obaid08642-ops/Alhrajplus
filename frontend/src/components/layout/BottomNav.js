@@ -5,10 +5,15 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { tr } from "@/contexts/I18nContext";
 
+const FLOATING_FAB_COLOR = "#B7F20A";
+const FLOATING_FAB_FOREGROUND = "#062C1F";
+const TRANSPARENT_NOTCH_MASK = "radial-gradient(circle 46px at 50% 0, transparent 0 44px, #000 46px)";
+
 /**
  * BottomNav — web counterpart of the mobile FloatingTabBar.
- * The surface uses --nav-bg, which defaults to the primary brand color and
- * can be overridden independently from the admin visual-identity panel.
+ * The bar surface uses --nav-bg, which the administrator can control
+ * independently. The publication FAB intentionally keeps its approved
+ * lime-green identity and floats over a fully transparent notch.
  */
 export default function BottomNav() {
     const { pathname } = useLocation();
@@ -78,28 +83,38 @@ export default function BottomNav() {
 
     return (
         <nav data-testid="bottom-nav-pill" className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-xl" dir="rtl">
-            <div
-                className="relative flex h-[52px] items-center justify-around overflow-visible px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_-12px_rgba(15,27,58,0.35)]"
-                style={{ backgroundColor: "var(--nav-bg)", borderTop: "1px solid color-mix(in srgb, var(--nav-fg) 26%, transparent)" }}
-            >
-                {/* Mobile parity: a circular transparent notch separates the FAB from the bar. */}
-                <span aria-hidden="true" className="absolute left-1/2 top-0 h-[96px] w-[96px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ backgroundColor: "var(--bg)" }} />
-
-                <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
-                <SideItem to="/reels" icon={Film} label={tr("قصص")} navKey="reels" />
-                <div className="relative z-0 w-16 shrink-0" aria-hidden="true" />
-                <SideItem to="/chat" icon={MessageCircle} label={tr("رسائلي")} navKey="messages" badge={unread} />
-                <SideItem to="/profile" icon={User} label={tr("حسابي")} navKey="more" />
+            <div className="relative h-[52px] pb-[env(safe-area-inset-bottom)]">
+                {/* This masked surface is the bar itself. The notch has no background layer,
+                    so cards, maps, or any page content visibly pass through the cut-out. */}
+                <div
+                    data-testid="bottom-nav-surface"
+                    className="absolute inset-x-0 bottom-0 flex h-[52px] items-center justify-around px-2 shadow-[0_-8px_30px_-12px_rgba(15,27,58,0.35)]"
+                    style={{
+                        backgroundColor: "var(--nav-bg)",
+                        borderTop: "1px solid color-mix(in srgb, var(--nav-fg) 26%, transparent)",
+                        maskImage: TRANSPARENT_NOTCH_MASK,
+                        WebkitMaskImage: TRANSPARENT_NOTCH_MASK,
+                    }}
+                >
+                    <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
+                    <SideItem to="/reels" icon={Film} label={tr("قصص")} navKey="reels" />
+                    <div className="relative z-0 w-16 shrink-0" aria-hidden="true" />
+                    <SideItem to="/chat" icon={MessageCircle} label={tr("رسائلي")} navKey="messages" badge={unread} />
+                    <SideItem to="/profile" icon={User} label={tr("حسابي")} navKey="more" />
+                </div>
 
                 <Link
                     to="/post"
                     data-testid="nav-post-fab"
                     aria-label={tr("نشر إعلان")}
-                    className="group absolute left-1/2 top-0 z-20 flex h-[74px] w-[52px] -translate-x-1/2 -translate-y-[58%] flex-col items-center justify-center rounded-full border-2 border-[var(--primary-fg)]/70 bg-[var(--primary)] px-1 shadow-[0_8px_24px_-4px_var(--primary)] transition-transform duration-200 hover:scale-105 active:scale-95"
+                    className="group absolute left-1/2 top-0 z-20 flex h-[74px] w-[52px] -translate-x-1/2 -translate-y-[58%] flex-col items-center justify-center rounded-full px-1 transition-transform duration-200 hover:scale-105 active:scale-95"
+                    style={{
+                        backgroundColor: FLOATING_FAB_COLOR,
+                        boxShadow: "0 8px 20px -6px rgba(2, 32, 26, 0.38)",
+                    }}
                 >
-                    <span className="absolute inset-[-8px] rounded-full border-2 border-[var(--primary)]/35 opacity-70" />
-                    <Plus className="relative z-10 h-6 w-6 text-[var(--primary-fg)]" strokeWidth={3.2} />
-                    <span className="relative z-10 mt-0.5 whitespace-nowrap font-arabic text-[9px] font-black leading-none text-[var(--primary-fg)]">{tr("أضف إعلان")}</span>
+                    <Plus className="relative z-10 h-6 w-6" style={{ color: FLOATING_FAB_FOREGROUND }} strokeWidth={3.2} />
+                    <span className="relative z-10 mt-0.5 whitespace-nowrap font-arabic text-[9px] font-black leading-none" style={{ color: FLOATING_FAB_FOREGROUND }}>{tr("أضف إعلان")}</span>
                 </Link>
             </div>
         </nav>
