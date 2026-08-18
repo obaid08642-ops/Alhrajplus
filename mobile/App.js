@@ -1,4 +1,7 @@
 import "react-native-gesture-handler";
+import { installLatinDigitsPolicy } from "./src/latinDigits";
+
+installLatinDigitsPolicy();
 
 // ---------- Runtime crash trap ----------
 // Captures the FIRST uncaught error during bundle evaluation OR initial render
@@ -63,16 +66,27 @@ import { registerForNotifications, setNotificationNavigationRef } from "./src/no
 import { useI18n } from "./src/I18nContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Apply RTL synchronously at module load based on the user's *saved* language —
-// NOT the system locale. Arabic + Urdu = RTL; everything else = LTR.
-// This guarantees the very first render uses the correct direction so we
-// don't need a forced reload on language change.
+// Apply RTL at module load from a saved language when available; otherwise
+// follow the device locale. Arabic and Urdu are RTL; unsupported locale lookup
+// deterministically falls back to Arabic.
+function deviceLanguageIsRTL() {
+    try {
+        const locale = Intl?.DateTimeFormat?.().resolvedOptions?.().locale || "ar";
+        const language = String(locale).toLowerCase().split("-")[0].split("_")[0];
+        return language === "ar" || language === "ur";
+    } catch (_) {
+        // Product fallback: Arabic is the default whenever the device locale
+        // cannot be resolved.
+        return true;
+    }
+}
+
 try {
-    // Best-effort sync read of AsyncStorage isn't possible; instead we use
-    // the value persisted by getItemSync polyfill if available. As a fallback
-    // we leave whatever I18nManager has and let setLang() correct it later.
+    // AsyncStorage cannot be read synchronously, so the first direction uses
+    // the device language. A saved manual preference replaces it as soon as
+    // storage resolves; unknown devices deterministically fall back to Arabic.
     AsyncStorage.getItem("hp_lang").then((saved) => {
-        const wantRTL = saved === "ar" || saved === "ur" || (!saved);
+        const wantRTL = saved === "ar" || saved === "ur" || (!saved && deviceLanguageIsRTL());
         if (I18nManager.isRTL !== wantRTL) {
             I18nManager.allowRTL(wantRTL);
             I18nManager.forceRTL(wantRTL);

@@ -11,11 +11,11 @@ import * as Haptics from "expo-haptics";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 
-const BAR_HEIGHT = 36;
+const BAR_HEIGHT = 32;
 const HOLE_RADIUS = 46;
 const FAB_W = 52;
 const FAB_H = 74;
-const FAB_SUBMERGE = 30;
+const FAB_SUBMERGE = 34;
 const FLOATING_FAB_COLOR = "#B7F20A";
 const FLOATING_FAB_FOREGROUND = "#062C1F";
 

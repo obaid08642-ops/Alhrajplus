@@ -2,6 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "@/index.css";
 import App from "@/App";
+import { installLatinDigitsPolicy } from "@/lib/latinDigits";
+
+installLatinDigitsPolicy();
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {

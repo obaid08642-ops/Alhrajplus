@@ -83,12 +83,12 @@ export default function BottomNav() {
 
     return (
         <nav data-testid="bottom-nav-pill" className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-xl" dir="rtl">
-            <div className="relative h-[52px] pb-[env(safe-area-inset-bottom)]">
+            <div className="relative h-[46px] pb-[env(safe-area-inset-bottom)]">
                 {/* This masked surface is the bar itself. The notch has no background layer,
                     so cards, maps, or any page content visibly pass through the cut-out. */}
                 <div
                     data-testid="bottom-nav-surface"
-                    className="absolute inset-x-0 bottom-0 flex h-[52px] items-center justify-around px-2 shadow-[0_-8px_30px_-12px_rgba(15,27,58,0.35)]"
+                    className="absolute inset-x-0 bottom-0 flex h-[46px] items-center justify-around px-2 shadow-[0_-7px_24px_-12px_rgba(15,27,58,0.32)]"
                     style={{
                         backgroundColor: "var(--nav-bg)",
                         borderTop: "1px solid color-mix(in srgb, var(--nav-fg) 26%, transparent)",
@@ -107,7 +107,7 @@ export default function BottomNav() {
                     to="/post"
                     data-testid="nav-post-fab"
                     aria-label={tr("نشر إعلان")}
-                    className="group absolute left-1/2 top-0 z-20 flex h-[74px] w-[52px] -translate-x-1/2 -translate-y-[58%] flex-col items-center justify-center rounded-full px-1 transition-transform duration-200 hover:scale-105 active:scale-95"
+                    className="group absolute left-1/2 top-0 z-20 flex h-[74px] w-[52px] -translate-x-1/2 -translate-y-[52%] flex-col items-center justify-center rounded-full px-1 transition-transform duration-200 hover:scale-105 active:scale-95"
                     style={{
                         backgroundColor: FLOATING_FAB_COLOR,
                         boxShadow: "0 8px 20px -6px rgba(2, 32, 26, 0.38)",

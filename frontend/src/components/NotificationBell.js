@@ -37,7 +37,7 @@ export default function NotificationBell() {
     const { user } = useAuth();
     const nav = useNavigate();
     const { lang } = useI18n();
-    const locale = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
+    const locale = lang === "ar" ? "ar-SA-u-nu-latn" : lang === "fr" ? "fr-FR" : lang === "tr" ? "tr-TR" : "en-US";
     const direction = lang === "ar" ? "rtl" : "ltr";
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState([]);
