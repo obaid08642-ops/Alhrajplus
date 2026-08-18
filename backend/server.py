@@ -132,6 +132,25 @@ def _country_policy_http_error(error: ValueError) -> HTTPException:
     """Convert pure country-policy validation errors into safe API responses."""
     return HTTPException(422, _COUNTRY_POLICY_ERRORS.get(str(error), "بيانات الدولة أو الموقع غير صالحة"))
 
+
+def _require_active_country(user: dict, requested_country: Optional[str] = None, *, action: str = "إتمام العملية") -> str:
+    """Return the authenticated account's active country or reject a client override.
+
+    Anonymous discovery may intentionally select a supported marketplace. Mutating
+    actions and private collections must instead use the account's persisted
+    active country so a forged query parameter cannot create or reveal a
+    cross-country relationship.
+    """
+    active = country_code_or_default(user.get("country_code"), "SA")
+    if requested_country is None or not str(requested_country).strip():
+        return active
+    requested = str(requested_country).upper().strip()
+    if requested not in supported_country_codes():
+        raise HTTPException(422, "يرجى اختيار دولة مدعومة")
+    if requested != active:
+        raise HTTPException(409, f"غيّر الدولة النشطة قبل {action}")
+    return active
+
 # ============================================================
 # Configuration — fail-soft: missing env vars log a warning but
 # do NOT crash the app at import time (which would prevent uvicorn
@@ -159,6 +178,14 @@ ADMIN_PASSWORD = _env("ADMIN_PASSWORD", default="Admin@HarajPlus2026")
 # logged as an operational hardening gap at startup.
 MFA_ENCRYPTION_KEY = os.environ.get("MFA_ENCRYPTION_KEY", "").strip()
 MFA_ISSUER = os.environ.get("MFA_ISSUER", "Alhraj Plus").strip() or "Alhraj Plus"
+# Admin MFA is enforced by default in production. It remains configurable so
+# isolated local/unit environments can bootstrap an administrator before MFA
+# enrollment, but the backend—not either client—remains the decision point.
+APP_ENV = _env("APP_ENV", default="development").strip().lower()
+ADMIN_MFA_REQUIRED = _env(
+    "ADMIN_MFA_REQUIRED",
+    default="true" if APP_ENV == "production" else "false",
+).strip().lower() in {"1", "true", "yes", "on"}
 
 # Cloudinary — config is lazy; missing keys only fail when an upload is attempted
 cloudinary.config(
@@ -1025,15 +1052,26 @@ async def get_current_user(request: Request) -> dict:
                 raise HTTPException(401, "Session revoked or expired")
         if user.get("banned"):
             raise HTTPException(403, "Account banned")
+        user["mfa_session_verified"] = bool(payload.get("mfa", False))
+        user["admin_mfa_required"] = _admin_mfa_required_for(user)
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, "Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid token")
 
+def _admin_mfa_required_for(user: dict) -> bool:
+    return bool(ADMIN_MFA_REQUIRED and user.get("role") == "admin")
+
+
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
         raise HTTPException(403, "Admin access required")
+    # A password alone is never sufficient for a production administrator.
+    # `mfa_session_verified` is derived from the signed access-token claim in
+    # get_current_user, so a stale or pre-enrollment session cannot be reused.
+    if _admin_mfa_required_for(user) and (not user.get("mfa_enabled") or not user.get("mfa_session_verified")):
+        raise HTTPException(403, "Admin MFA enrollment and verification required")
     return user
 
 
@@ -1151,6 +1189,9 @@ class AdIn(BaseModel):
 
 class ThemeIn(BaseModel):
     primary_color: Optional[str] = None
+    # Optional independent bottom navigation surface color. When omitted,
+    # clients fall back to primary_color for backwards compatibility.
+    nav_color: Optional[str] = None
     primary_hover: Optional[str] = None
     secondary_color: Optional[str] = None
     accent_color: Optional[str] = None
@@ -1442,8 +1483,12 @@ async def login(body: LoginIn, request: Request, response: Response):
     user.pop("_id", None)
     user.pop("mfa_secret", None)
     user.pop("mfa_recovery_hashes", None)
+    user["mfa_session_verified"] = False
+    user["admin_mfa_required"] = _admin_mfa_required_for(user)
     set_auth_cookies(response, access, refresh)
-    return {"user": user, "access_token": access, "refresh_token": refresh}
+    # Production administrators without MFA receive a normal, restricted
+    # account session so they can enroll; admin APIs remain blocked above.
+    return {"user": user, "access_token": access, "refresh_token": refresh, "mfa_enrollment_required": bool(user["admin_mfa_required"] and not user.get("mfa_enabled"))}
 
 @api.post("/auth/logout")
 async def logout(request: Request, response: Response):
@@ -1608,6 +1653,8 @@ async def mfa_login_verify(body: MfaVerifyIn, request: Request, response: Respon
     access, refresh, _ = await _create_auth_session(user, request, mfa_verified=True)
     set_auth_cookies(response, access, refresh)
     public_user = {k: v for k, v in user.items() if k not in {"_id", "password_hash", "mfa_secret", "mfa_recovery_hashes"}}
+    public_user["mfa_session_verified"] = True
+    public_user["admin_mfa_required"] = _admin_mfa_required_for(user)
     await _security_event(user["id"], "mfa_login_success", request, {"recovery_code": used_recovery})
     return {"user": public_user, "access_token": access, "refresh_token": refresh, "mfa_verified": True, "recovery_codes_remaining": len(user.get("mfa_recovery_hashes") or []) - int(used_recovery)}
 
@@ -3164,6 +3211,39 @@ def _validate_model_3d(custom_fields: Optional[dict]) -> None:
         raise HTTPException(400, "يجب رفع ملف GLB أو GLTF فقط")
 
 
+def _validate_listing_media_for_user(user: dict, images: Optional[list], videos: Optional[list], custom_fields: Optional[dict]) -> None:
+    """Validate listing-media cardinality and signed-upload ownership.
+
+    The clients obtain Cloudinary signatures for `listings/<user-id>`. Once a
+    Cloudinary account is configured, accepting another host, a different
+    resource type, or a URL from another user's folder would permit attachment
+    substitution. Legacy local/test environments with no configured cloud name
+    keep the structural checks but do not require a production host.
+    """
+    image_urls = list(images or [])
+    video_urls = list(videos or [])
+    if len(image_urls) > 30 or len(video_urls) > 5:
+        raise HTTPException(422, "تم تجاوز الحد الأقصى للصور أو الفيديوهات")
+    model_url = (custom_fields or {}).get("model_3d_url")
+    candidates = [(url, "image") for url in image_urls] + [(url, "video") for url in video_urls]
+    if model_url:
+        candidates.append((model_url, "raw"))
+    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
+    expected_folder = f"/listings/{user.get('id', '')}/"
+    from urllib.parse import urlparse
+    for url, resource_type in candidates:
+        if not isinstance(url, str) or len(url) > 2048:
+            raise HTTPException(422, "رابط الوسائط غير صالح")
+        parsed = urlparse(url)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise HTTPException(422, "يجب استخدام رابط وسائط HTTPS")
+        if not cloud_name:
+            continue
+        expected_prefix = f"/{cloud_name}/{resource_type}/upload/"
+        if parsed.netloc != "res.cloudinary.com" or expected_prefix not in parsed.path or expected_folder not in parsed.path:
+            raise HTTPException(403, "الوسائط يجب أن تكون مرفوعة ضمن مساحة حسابك")
+
+
 @api.post("/listings")
 async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)):
     if not body.category:
@@ -3173,6 +3253,7 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         raise HTTPException(400, "فئة غير صالحة")
     custom_fields = dict(body.custom_fields or {})
     _validate_model_3d(custom_fields)
+    _validate_listing_media_for_user(user, body.images, body.videos, custom_fields)
     auction_end_at: Optional[str] = None
     if body.category == "auctions":
         custom_fields, auction_end_at = _normalize_auction_submission(custom_fields)
@@ -4324,12 +4405,14 @@ async def get_listing(listing_id: str, request: Request, country_code: Optional[
 
 @api.get("/listings/{listing_id}/like/check")
 async def check_listing_like(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+    active_cc = _require_active_country(user, country_code, action="عرض الإعجاب")
+    if not await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 1}):
         raise HTTPException(404, "الإعلان غير موجود")
     return {"liked": bool(await db.listing_likes.find_one({"listing_id": listing_id, "user_id": user["id"]}, {"_id": 1}))}
 @api.post("/listings/{listing_id}/like")
 async def toggle_listing_like(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+    active_cc = _require_active_country(user, country_code, action="تسجيل إعجاب")
+    if not await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 1}):
         raise HTTPException(404, "الإعلان غير موجود")
     existing = await db.listing_likes.find_one({"listing_id": listing_id, "user_id": user["id"]})
     if existing:
@@ -4360,9 +4443,7 @@ async def list_listing_comments(listing_id: str, country_code: Optional[str] = N
 
 @api.post("/listings/{listing_id}/comments")
 async def create_listing_comment(listing_id: str, body: ListingCommentIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    active_cc = country_code_or_default(user.get("country_code"), "SA")
-    if country_code and country_code_or_default(country_code, active_cc) != active_cc:
-        raise HTTPException(409, "الدولة المختارة لا تطابق دولة الحساب")
+    active_cc = _require_active_country(user, country_code, action="إضافة تعليق")
     listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 0, "id": 1, "user_id": 1, "title": 1, "country_code": 1})
     if not listing:
         raise HTTPException(404, "الإعلان غير موجود في الدولة المختارة")
@@ -4894,7 +4975,8 @@ async def auctions_ws(websocket: WebSocket, listing_id: str):
 
 @api.post("/auctions/{listing_id}/bid")
 async def place_bid(listing_id: str, body: BidIn, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id, "category": "auctions"}), {"_id": 0})
+    active_cc = _require_active_country(user, country_code, action="المزايدة")
+    listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id, "category": "auctions"}), {"_id": 0})
     if not listing:
         raise HTTPException(404, "الإعلان غير موجود")
     if listing.get("user_id") == user["id"]:
@@ -5021,7 +5103,8 @@ async def listings_map(
 async def toggle_favorite(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
     """Toggle favorite (web frontend uses this as a toggle). Mobile uses the
     paired POST/DELETE pattern with `data.favorited` checked optimistically."""
-    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+    active_cc = _require_active_country(user, country_code, action="إضافة المفضلة")
+    if not await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 1}):
         raise HTTPException(404, "الإعلان غير موجود")
     existing = await db.favorites.find_one({"user_id": user["id"], "listing_id": listing_id})
     if existing:
@@ -5039,7 +5122,8 @@ async def toggle_favorite(listing_id: str, country_code: Optional[str] = None, u
 async def delete_favorite(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
     """Explicit unfavorite (idempotent). Mobile ListingCard + ReelsScreen call
     DELETE on unlike instead of relying on toggle semantics."""
-    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+    active_cc = _require_active_country(user, country_code, action="إزالة المفضلة")
+    if not await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 1}):
         return {"favorited": False}
     res = await db.favorites.delete_one({"user_id": user["id"], "listing_id": listing_id})
     if res.deleted_count:
@@ -5048,16 +5132,18 @@ async def delete_favorite(listing_id: str, country_code: Optional[str] = None, u
 
 @api.get("/favorites/{listing_id}/check")
 async def check_favorite(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
-    if not await db.listings.find_one(public_listing_filter_for_country(country_code, {"id": listing_id}), {"_id": 1}):
+    active_cc = _require_active_country(user, country_code, action="عرض المفضلة")
+    if not await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 1}):
         return {"favorited": False}
     existing = await db.favorites.find_one({"user_id": user["id"], "listing_id": listing_id})
     return {"favorited": bool(existing)}
 
 @api.get("/favorites")
 async def list_favorites(country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = _require_active_country(user, country_code, action="عرض المفضلة")
     favs = await db.favorites.find({"user_id": user["id"]}, {"_id": 0}).to_list(length=500)
     listing_ids = [f["listing_id"] for f in favs]
-    listings = await db.listings.find(public_listing_filter_for_country(country_code, {"id": {"$in": listing_ids}}), {"_id": 0}).to_list(length=500)
+    listings = await db.listings.find(public_listing_filter_for_country(active_cc, {"id": {"$in": listing_ids}}), {"_id": 0}).to_list(length=500)
     return listings
 
 
@@ -5067,17 +5153,19 @@ async def list_favorites(country_code: Optional[str] = None, user: dict = Depend
 # /listings/{id}. No background poller needed.
 # ============================================================
 @api.post("/price-alerts/{listing_id}")
-async def create_price_alert(listing_id: str, payload: dict, user: dict = Depends(get_current_user)):
+async def create_price_alert(listing_id: str, payload: dict, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = _require_active_country(user, country_code, action="إنشاء تنبيه سعر")
     target = float(payload.get("target_price") or 0)
     if target <= 0:
         raise HTTPException(400, "target_price required")
-    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "id": 1, "price": 1, "title": 1})
+    listing = await db.listings.find_one(public_listing_filter_for_country(active_cc, {"id": listing_id}), {"_id": 0, "id": 1, "price": 1, "title": 1, "country_code": 1})
     if not listing:
         raise HTTPException(404, "Listing not found")
     doc = {
         "id": uuid.uuid4().hex,
         "user_id": user["id"],
         "listing_id": listing_id,
+        "country_code": active_cc,
         "target_price": target,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "current_price": listing.get("price"),
@@ -5085,20 +5173,22 @@ async def create_price_alert(listing_id: str, payload: dict, user: dict = Depend
     }
     # Upsert by (user, listing) — one alert per user per listing.
     await db.price_alerts.update_one(
-        {"user_id": user["id"], "listing_id": listing_id},
+        {"user_id": user["id"], "listing_id": listing_id, "country_code": active_cc},
         {"$set": doc},
         upsert=True,
     )
     return {"ok": True, "alert": doc}
 
 @api.get("/price-alerts")
-async def list_price_alerts(user: dict = Depends(get_current_user)):
-    items = await db.price_alerts.find({"user_id": user["id"]}, {"_id": 0}).to_list(length=200)
+async def list_price_alerts(country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = _require_active_country(user, country_code, action="عرض تنبيهات السعر")
+    items = await db.price_alerts.find({"user_id": user["id"], "country_code": active_cc}, {"_id": 0}).to_list(length=200)
     return items
 
 @api.delete("/price-alerts/{listing_id}")
-async def delete_price_alert(listing_id: str, user: dict = Depends(get_current_user)):
-    await db.price_alerts.delete_one({"user_id": user["id"], "listing_id": listing_id})
+async def delete_price_alert(listing_id: str, country_code: Optional[str] = None, user: dict = Depends(get_current_user)):
+    active_cc = _require_active_country(user, country_code, action="إزالة تنبيه السعر")
+    await db.price_alerts.delete_one({"user_id": user["id"], "listing_id": listing_id, "country_code": active_cc})
     return {"ok": True}
 
 
@@ -5859,10 +5949,24 @@ async def reply_support_ticket(ticket_id: str, body: SupportReplyIn, user: dict 
 
 @api.post("/auth/request-account-deletion")
 async def request_account_deletion(user: dict = Depends(get_current_user)):
-    await db.account_deletion_requests.insert_one({
-        "user_id": user["id"], "email": user.get("email"),
+    """Create one reviewable pending deletion request per account.
+
+    The endpoint does not erase data immediately: a request must be reviewed by
+    an authorized administrator. Repeated UI taps and network retries receive a
+    truthful duplicate response instead of creating a queue of PII-bearing
+    records for the same account.
+    """
+    existing = await db.account_deletion_requests.find_one({"user_id": user["id"], "status": "pending"}, {"_id": 0})
+    if existing:
+        return {"success": True, "duplicate": True, "message": "يوجد طلب حذف قيد المراجعة"}
+    request_doc = {
+        "id": str(uuid.uuid4()), "user_id": user["id"], "email": user.get("email"),
         "requested_at": datetime.now(timezone.utc).isoformat(), "status": "pending",
-    })
+    }
+    try:
+        await db.account_deletion_requests.insert_one(request_doc)
+    except DuplicateKeyError:
+        return {"success": True, "duplicate": True, "message": "يوجد طلب حذف قيد المراجعة"}
     return {"success": True, "message": "تم استلام طلب الحذف"}
 
 
@@ -6326,6 +6430,8 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     merged_custom_fields = update_data.get("custom_fields", item.get("custom_fields") or {})
     _validate_model_3d(merged_custom_fields)
     merged_images = update_data.get("images", old_images)
+    merged_videos = update_data.get("videos", old_videos)
+    _validate_listing_media_for_user(user, merged_images, merged_videos, merged_custom_fields)
     # Capture only assets removed by this edit. Reused assets must remain intact.
     media_removed_on_update = {"images": [], "videos": [], "models": []}
     if "images" in update_data:
@@ -8938,11 +9044,13 @@ class WalletTopupIn(BaseModel):
     amount: float = Field(gt=0)
     note: Optional[str] = None
     target_user_id: Optional[str] = None  # admin-only field
+    idempotency_key: str = Field(min_length=8, max_length=160)
 
 class WalletSpendIn(BaseModel):
     amount: float = Field(gt=0)
     purpose: str
     ref_id: Optional[str] = None  # e.g. listing_id when boosting
+    idempotency_key: str = Field(min_length=8, max_length=160)
 
 
 async def _wallet_balance(user_id: str) -> float:
@@ -8950,17 +9058,24 @@ async def _wallet_balance(user_id: str) -> float:
     return float((u or {}).get("balance") or 0)
 
 
-async def _wallet_log(user_id: str, kind: str, amount: float, description: str, ref_id: Optional[str] = None):
-    await db.wallet_transactions.insert_one({
+async def _wallet_log(user_id: str, kind: str, amount: float, description: str, ref_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> dict:
+    if idempotency_key:
+        existing = await db.wallet_transactions.find_one({"user_id": user_id, "idempotency_key": idempotency_key}, {"_id": 0})
+        if existing:
+            return existing
+    doc = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
         "type": kind,  # topup | spend | bonus | refund
         "amount": float(amount),
         "currency": "SAR",
-        "description": description,
+        "description": description[:200],
         "ref_id": ref_id,
+        "idempotency_key": idempotency_key,
         "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    }
+    await db.wallet_transactions.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
 
 
 async def _coins_balance(user_id: str) -> int:
@@ -9196,23 +9311,33 @@ async def wallet_transactions(limit: int = 50, user: dict = Depends(get_current_
 
 
 @api.post("/wallet/topup")
-async def wallet_topup(body: WalletTopupIn, user: dict = Depends(get_current_user)):
-    """Manual cash adjustment for an administrator only.
+async def wallet_topup(body: WalletTopupIn, user: dict = Depends(require_admin)):
+    """Manual cash adjustment for an MFA-verified administrator only.
 
     A payment gateway is not connected, so users must never receive or mint a
-    cash balance from this endpoint. Real payments will use a separate verified
-    provider/webhook flow when that integration is introduced.
+    cash balance from this endpoint. The idempotency key prevents an operator or
+    HTTP retry from applying the same adjustment twice.
     """
-    if user.get("role") != "admin":
-        raise HTTPException(403, "شحن الرصيد النقدي غير متاح حالياً")
     target = body.target_user_id or user["id"]
     target_user = await db.users.find_one({"id": target}, {"_id": 0, "id": 1})
     if not target_user:
         raise HTTPException(404, "المستخدم غير موجود")
-    await db.users.update_one({"id": target}, {"$inc": {"balance": float(body.amount)}})
-    await _wallet_log(target, "admin_adjustment", body.amount, body.note or "تعديل نقدي يدوي من الإدارة")
-    await _admin_log(user["id"], "wallet_admin_adjustment", target, {"amount": float(body.amount)})
-    return {"success": True, "balance": await _wallet_balance(target), "currency": "SAR"}
+    existing = await db.wallet_transactions.find_one({"user_id": target, "idempotency_key": body.idempotency_key}, {"_id": 0})
+    if existing:
+        return {"success": True, "duplicate": True, "balance": await _wallet_balance(target), "currency": "SAR", "transaction": existing}
+    changed = await db.users.update_one({"id": target}, {"$inc": {"balance": float(body.amount)}})
+    if not changed.modified_count:
+        raise HTTPException(404, "المستخدم غير موجود")
+    try:
+        tx = await _wallet_log(target, "admin_adjustment", body.amount, body.note or "تعديل نقدي يدوي من الإدارة", idempotency_key=body.idempotency_key)
+    except DuplicateKeyError:
+        await db.users.update_one({"id": target}, {"$inc": {"balance": -float(body.amount)}})
+        existing = await db.wallet_transactions.find_one({"user_id": target, "idempotency_key": body.idempotency_key}, {"_id": 0})
+        if existing:
+            return {"success": True, "duplicate": True, "balance": await _wallet_balance(target), "currency": "SAR", "transaction": existing}
+        raise
+    await _admin_log(user["id"], "wallet_admin_adjustment", target, {"amount": float(body.amount), "idempotency_key": body.idempotency_key})
+    return {"success": True, "balance": await _wallet_balance(target), "currency": "SAR", "transaction": tx}
 
 
 @api.post("/wallet/claim-welcome-bonus")
@@ -9288,6 +9413,9 @@ async def get_static_page(slug: str):
 async def wallet_spend(body: WalletSpendIn, user: dict = Depends(get_current_user)):
     if body.purpose.strip().lower() == "boost":
         raise HTTPException(400, "الترويج يستخدم Coins فقط عبر زر الترويج المخصص")
+    existing = await db.wallet_transactions.find_one({"user_id": user["id"], "idempotency_key": body.idempotency_key}, {"_id": 0})
+    if existing:
+        return {"success": True, "duplicate": True, "balance": await _wallet_balance(user["id"]), "transaction": existing}
     amount = float(body.amount)
     # Atomic balance guard: a read-then-write sequence can overspend under
     # concurrent requests. The conditional increment is the source of truth.
@@ -9298,12 +9426,18 @@ async def wallet_spend(body: WalletSpendIn, user: dict = Depends(get_current_use
     if not changed.modified_count:
         raise HTTPException(402, f"الرصيد غير كافٍ. رصيدك الحالي: {await _wallet_balance(user['id'])} ر.س")
     try:
-        await _wallet_log(user["id"], "spend", -amount, body.purpose, body.ref_id)
+        tx = await _wallet_log(user["id"], "spend", -amount, body.purpose, body.ref_id, body.idempotency_key)
+    except DuplicateKeyError:
+        await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": amount}})
+        existing = await db.wallet_transactions.find_one({"user_id": user["id"], "idempotency_key": body.idempotency_key}, {"_id": 0})
+        if existing:
+            return {"success": True, "duplicate": True, "balance": await _wallet_balance(user["id"]), "transaction": existing}
+        raise
     except Exception:
         await db.users.update_one({"id": user["id"]}, {"$inc": {"balance": amount}})
         raise
     new_bal = await _wallet_balance(user["id"])
-    return {"success": True, "balance": new_bal}
+    return {"success": True, "balance": new_bal, "transaction": tx}
 
 
 # ============================================================
@@ -10045,6 +10179,11 @@ async def startup():
     await _safe_index(db.referral_opens, [("idempotency_key", 1)], unique=True)
     await _safe_index(db.listing_shares, [("listing_id", 1), ("country_code", 1), ("created_at", -1)])
     await _safe_index(db.wallet_transactions, [("user_id", 1), ("type", 1)], unique=True, partialFilterExpression={"type": "bonus"})
+    await _safe_index(db.wallet_transactions, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string", "$ne": ""}})
+    await _safe_index(db.ai_provider_daily, [("provider", 1), ("day", 1)], unique=True)
+    await _safe_index(db.ai_provider_monthly, [("provider", 1), ("month", 1)], unique=True)
+    await _safe_index(db.ai_usage_events, [("provider", 1), ("created_at", -1)])
+    await _safe_index(db.account_deletion_requests, [("user_id", 1), ("status", 1)], unique=True, partialFilterExpression={"status": "pending"})
     await _safe_index(db.messages, [("sender_id", 1), ("client_message_id", 1)], unique=True, partialFilterExpression={"client_message_id": {"$type": "string"}})
     await db.conversations.create_index("id", unique=True)
     await db.call_sessions.create_index("id", unique=True)

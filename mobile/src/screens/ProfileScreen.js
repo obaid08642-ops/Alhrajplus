@@ -30,7 +30,8 @@ export default function ProfileScreen() {
   const [walletBalance, setWalletBalance] = useState(null);
   const [coins, setCoins] = useState(null);
   const [phoneBusy, setPhoneBusy] = useState(false);
-  const canAccessAdmin = user?.role === "admin";
+  const adminMfaRequired = user?.role === "admin" && user?.admin_mfa_required && (!user?.mfa_enabled || !user?.mfa_session_verified);
+  const canAccessAdmin = user?.role === "admin" && !adminMfaRequired;
   const load = useCallback(async () => {
     if (!user) return;
     try {
@@ -237,6 +238,7 @@ export default function ProfileScreen() {
                 <MenuRow icon={Bell} label={t("الإشعارات")} onPress={() => nav.navigate("Notifications")} />
                 <MenuRow icon={Settings} label={t("الإعدادات")} onPress={() => nav.navigate("Settings")} />
                 {canAccessAdmin && <MenuRow icon={Shield} label={t("لوحة الإدارة")} onPress={() => nav.navigate("AdminDashboard")} testID="menu-admin-dashboard" />}
+                {adminMfaRequired && <MenuRow icon={Shield} label={t("فعّل التحقق بخطوتين للدخول إلى لوحة الإدارة")} onPress={() => nav.navigate("MfaSecurity")} testID="menu-admin-mfa-required" />}
                 <MenuRow icon={UsersIcon} label={t("متابعاتي")} onPress={() => nav.navigate("Following")} />
                 <MenuRow icon={Bell} label={t("قائمة المتابعة")} onPress={() => nav.navigate("Watchlist")} testID="profile-watchlist" />
                 <MenuRow icon={Smartphone} label={user.phone_verified ? t("رقم الهاتف موثّق") : t("إضافة وتوثيق رقم الهاتف")} onPress={() => nav.navigate("PhoneVerification")} testID="profile-phone-verification" />

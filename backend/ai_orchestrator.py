@@ -16,7 +16,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import httpx
@@ -185,8 +185,42 @@ class AIOrchestrator:
                  "$set": {"last_status": status, "last_error": event["error"], "updated_at": event["created_at"]}},
                 upsert=True,
             )
+            await self.db.ai_provider_monthly.update_one(
+                {"provider": provider.name, "month": event["created_at"][:7]},
+                {"$inc": {"requests": 1, "total_tokens": event["total_tokens"],
+                          "prompt_tokens": event["prompt_tokens"], "completion_tokens": event["completion_tokens"],
+                          "errors": 1 if status != "success" else 0},
+                 "$set": {"last_status": status, "last_error": event["error"], "updated_at": event["created_at"]}},
+                upsert=True,
+            )
         except Exception as exc:
             logger.warning("AI usage logging failed: %s", exc)
+
+    async def _quota_reason(self, provider: ProviderSpec, threshold_pct: float) -> Optional[str]:
+        """Return the exceeded provider limit without exposing provider credentials.
+
+        Limits are evaluated from persistent daily/monthly rollups and the most
+        recent usage-event minute. This keeps rotations effective across worker
+        restarts while allowing zero-valued limits to mean "unlimited".
+        """
+        now = datetime.now(timezone.utc)
+        threshold = max(0.0, min(float(threshold_pct), 100.0)) / 100.0
+        daily = await self.db.ai_provider_daily.find_one({"provider": provider.name, "day": now.date().isoformat()}, {"_id": 0}) or {}
+        daily_requests = int(daily.get("requests", 0) or 0)
+        daily_limit = provider.daily_limit or provider.rpd_limit
+        if daily_limit and daily_requests >= daily_limit * threshold:
+            return "daily_request_quota"
+        monthly = await self.db.ai_provider_monthly.find_one({"provider": provider.name, "month": now.strftime("%Y-%m")}, {"_id": 0}) or {}
+        if provider.monthly_limit and int(monthly.get("requests", 0) or 0) >= provider.monthly_limit * threshold:
+            return "monthly_request_quota"
+        if provider.rpm_limit or provider.tpm_limit:
+            cutoff = (now - timedelta(minutes=1)).isoformat()
+            recent = await self.db.ai_usage_events.find({"provider": provider.name, "created_at": {"$gte": cutoff}}, {"_id": 0, "total_tokens": 1}).to_list(length=max(100, provider.rpm_limit or 0, 1000))
+            if provider.rpm_limit and len(recent) >= provider.rpm_limit * threshold:
+                return "minute_request_quota"
+            if provider.tpm_limit and sum(int(item.get("total_tokens", 0) or 0) for item in recent) >= provider.tpm_limit * threshold:
+                return "minute_token_quota"
+        return None
 
     async def _gemini(self, provider: ProviderSpec, prompt: str, image_base64: str | None = None) -> tuple[str, int, int]:
         from llm_shim import LlmChat, UserMessage, ImageContent
@@ -229,11 +263,9 @@ class AIOrchestrator:
             if self._cooldown_until.get(provider.name, 0.0) > time.monotonic():
                 await self._record(request_id, operation, provider, status="cooldown_skipped", started=time.monotonic(), error="provider_cooldown")
                 continue
-            today = _now()[:10]
-            usage = await self.db.ai_provider_daily.find_one({"provider": provider.name, "day": today}, {"_id": 0}) or {}
-            limit = provider.daily_limit or provider.rpd_limit
-            if limit and (float(usage.get("requests", 0)) / limit * 100) >= quota_threshold:
-                await self._record(request_id, operation, provider, status="quota_skipped", started=time.monotonic(), error="quota_threshold")
+            quota_reason = await self._quota_reason(provider, quota_threshold)
+            if quota_reason:
+                await self._record(request_id, operation, provider, status="quota_skipped", started=time.monotonic(), error=quota_reason)
                 continue
             started = time.monotonic()
             try:

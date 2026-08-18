@@ -1602,6 +1602,11 @@ function ThemePanel() {
             <h3 className="font-arabic font-bold text-lg text-[var(--text)]">{tr("تخصيص الهوية البصرية")}</h3>
             {msg && <div className="bg-[var(--primary)]/10 text-[var(--primary)] rounded-xl p-3 text-sm">{msg}</div>}
             <ColorField label={tr("اللون الأساسي")} value={theme.primary_color} onChange={(v) => setTheme({ ...theme, primary_color: v })} />
+            <ColorField
+                label={tr("لون شريط التنقل السفلي (اختياري — الافتراضي نفس اللون الأساسي)")}
+                value={theme.nav_color || theme.primary_color}
+                onChange={(v) => setTheme({ ...theme, nav_color: v })}
+            />
             <ColorField label={tr("اللون الثانوي")} value={theme.secondary_color} onChange={(v) => setTheme({ ...theme, secondary_color: v })} />
             <ColorField label={tr("لون التمييز")} value={theme.accent_color} onChange={(v) => setTheme({ ...theme, accent_color: v })} />
             <div>

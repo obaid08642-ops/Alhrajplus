@@ -17,11 +17,17 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const adminMfaRequired = user?.role === "admin" && user?.admin_mfa_required && (!user?.mfa_enabled || !user?.mfa_session_verified);
 
   const load = useCallback(async () => {
     if (user?.role !== "admin") {
       setLoading(false);
       setError(t("لا تملك صلاحية لوحة الإدارة"));
+      return;
+    }
+    if (adminMfaRequired) {
+      setLoading(false);
+      setError(t("فعّل وأكمل التحقق بخطوتين قبل فتح لوحة الإدارة"));
       return;
     }
     setError("");
@@ -34,7 +40,7 @@ export default function AdminDashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, t]);
+  }, [user, t, adminMfaRequired]);
 
   useEffect(() => { load(); }, [load]);
 

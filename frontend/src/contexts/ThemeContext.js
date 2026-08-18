@@ -46,6 +46,13 @@ export function ThemeProvider({ children }) {
             setTheme(data);
             if (data?.primary_color) document.documentElement.style.setProperty("--primary", data.primary_color);
             if (data?.primary_hover) document.documentElement.style.setProperty("--primary-hover", data.primary_hover);
+            // Navigation inherits the primary brand color unless an admin has
+            // explicitly selected an independent value.
+            const navColor = data?.nav_color || data?.primary_color;
+            if (navColor) {
+                document.documentElement.style.setProperty("--nav-bg", navColor);
+                document.documentElement.style.setProperty("--nav-active-bg", navColor);
+            }
             if (data?.secondary_color) document.documentElement.style.setProperty("--secondary", data.secondary_color);
             if (data?.accent_color) document.documentElement.style.setProperty("--accent", data.accent_color);
         }).catch(() => {});

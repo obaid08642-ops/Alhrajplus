@@ -54,7 +54,9 @@ export function ThemeModeProvider({ children }) {
       primary,
       primaryHover,
       accent,
-      navBg: primary,
+      // The bottom bar follows the primary color by default, but can be
+      // overridden independently by the admin dashboard.
+      navBg: remoteTheme?.nav_color || primary,
       navActive: isDark ? base.text : base.navActive,
       navInactive: isDark ? "rgba(231,238,248,0.78)" : base.navInactive,
       secondary: remoteTheme?.secondary_color || base.secondary,

@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider, useI18n } from "@/contexts/I18nContext";
 import { trackEvent, trackSessionHeartbeat } from "@/lib/analytics";
-import { canAccessAdmin } from "@/lib/accessControl";
+import { adminMfaEnrollmentRequired, canAccessAdmin } from "@/lib/accessControl";
 import { CountryProvider } from "@/contexts/CountryContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
@@ -72,7 +72,10 @@ function AnalyticsRouteTracker() {
 function AdminRoute({ children }) {
     const { user, loading } = useAuth();
     if (loading) return <PageFallback />;
-    if (!canAccessAdmin(user)) return <Navigate to={user ? "/profile" : "/login"} replace />;
+    if (!canAccessAdmin(user)) {
+        const destination = adminMfaEnrollmentRequired(user) ? "/settings?security=mfa" : (user ? "/profile" : "/login");
+        return <Navigate to={destination} replace />;
+    }
     return children;
 }
 
@@ -130,7 +133,7 @@ function AppRouter() {
             <Route path="/search" element={<Layout><SearchPage /></Layout>} />
             <Route path="/map" element={<Layout><MapPage /></Layout>} />
             <Route path="/admin" element={<AdminRoute><Layout><AdminPage /></Layout></AdminRoute>} />
-            <Route path="/reels" element={<Layout><ReelsPage /></Layout>} />
+            <Route path="/reels" element={<Layout hideNav><ReelsPage /></Layout>} />
             <Route path="/auctions" element={<Layout><AuctionsPage /></Layout>} />
             <Route path="/flights" element={<Layout><FlightsPage /></Layout>} />
             <Route path="/deals" element={<Layout><DealsPage /></Layout>} />

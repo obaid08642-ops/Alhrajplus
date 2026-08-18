@@ -1,21 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Film, MessageCircle, Menu, Plus } from "lucide-react";
-import { useI18n, tr } from "@/contexts/I18nContext";
+import { Home, Film, MessageCircle, User, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { tr } from "@/contexts/I18nContext";
 
 /**
- * BottomNav — Floating glass-pill with center FAB.
- * - 4 side items: الرئيسية / ستوري / محادثة / المزيد
- * - Center: Floating "+" hologram add-listing FAB in baby-blue with animated gradient + pulse rings
+ * BottomNav — web counterpart of the mobile FloatingTabBar.
+ * The surface uses --nav-bg, which defaults to the primary brand color and
+ * can be overridden independently from the admin visual-identity panel.
  */
 export default function BottomNav() {
     const { pathname } = useLocation();
-    const { t } = useI18n();
     const { user } = useAuth();
     const [unread, setUnread] = useState(0);
-    // Detect AI panel open state (set by AIAssistantWidget on <body>).
     const [aiOpen, setAiOpen] = useState(false);
 
     useEffect(() => {
@@ -27,12 +25,14 @@ export default function BottomNav() {
     }, []);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setUnread(0);
+            return undefined;
+        }
         const fetchUnread = async () => {
             try {
                 const { data } = await api.get("/chat/conversations");
-                const total = (data || []).reduce((s, c) => s + (c.unread || 0), 0);
-                setUnread(total);
+                setUnread((data || []).reduce((sum, conversation) => sum + (conversation.unread || 0), 0));
             } catch (_) {}
         };
         fetchUnread();
@@ -40,49 +40,36 @@ export default function BottomNav() {
         return () => clearInterval(id);
     }, [user]);
 
-    // Hide the bottom nav (and floating +) on full-screen experiences and on
-    // detail/checkout pages where the CTA must be free of any overlay:
-    //  - Reels/Stories (immersive vertical video)
-    //  - AI Assistant panel open (so + doesn't overlap input)
-    //  - Listing detail (sticky "Contact / Bid" button lives at bottom)
-    //  - Auction detail (sticky "مزايدة" button lives at bottom)
-    //  - Active chat thread on mobile (chat-active class)
     const onReels = pathname.startsWith("/reels");
     const onListing = /^\/listing\/[^/]+/.test(pathname);
     const onAuction = /^\/auctions?\/[^/]+/.test(pathname);
     if (onReels || onListing || onAuction || aiOpen) return null;
 
-    const isActive = (to) => to === "/" ? pathname === "/" : pathname.startsWith(to);
-
-    const SideItem = ({ to, icon: Icon, label, navKey: k, badge }) => {
+    const isActive = (to) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
+    const SideItem = ({ to, icon: Icon, label, navKey: key, badge }) => {
         const active = isActive(to);
         return (
             <Link
                 to={to}
-                data-testid={`nav-${k}`}
+                data-testid={`nav-${key}`}
                 aria-label={label}
-                className="relative flex flex-col items-center justify-center gap-0.5 px-3 sm:px-4 py-1.5 rounded-2xl transition-all duration-300"
-                style={{
-                    backgroundColor: active ? "var(--nav-active-bg)" : "transparent",
-                    boxShadow: active ? "0 4px 14px rgba(0,0,0,0.18)" : "none",
-                    opacity: 1,
-                }}
+                aria-current={active ? "page" : undefined}
+                className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1 transition-all duration-200 active:scale-95"
             >
                 <div className="relative">
                     <Icon
-                        className="w-6 h-6 transition-all"
-                            style={{ color: active ? "var(--nav-fg)" : "var(--nav-inactive-fg)", opacity: 1, transform: active ? "scale(1.1)" : "scale(1)" }}
-                        strokeWidth={active ? 2.6 : 2}
+                        className="h-[18px] w-[18px] sm:h-5 sm:w-5"
+                        style={{ color: active ? "var(--nav-fg)" : "var(--nav-inactive-fg)" }}
+                        strokeWidth={active ? 2.8 : 2}
                         fill={active ? "currentColor" : "none"}
                     />
                     {badge > 0 && (
-                        <span data-testid={`nav-badge-${k}`} className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 bg-[#EF4444] text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none ring-2 ring-white dark:ring-[#152244]">
+                        <span data-testid={`nav-badge-${key}`} className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EF4444] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--nav-bg)]">
                             {badge > 9 ? "9+" : badge}
                         </span>
                     )}
                 </div>
-                <span className="text-[10px] sm:text-[11px] font-arabic font-bold leading-tight"
-                        style={{ color: active ? "var(--nav-fg)" : "var(--nav-inactive-fg)", opacity: 1 }}>
+                <span className="font-arabic text-[9.5px] font-bold leading-tight sm:text-[10px]" style={{ color: active ? "var(--nav-fg)" : "var(--nav-inactive-fg)" }}>
                     {label}
                 </span>
             </Link>
@@ -90,44 +77,31 @@ export default function BottomNav() {
     };
 
     return (
-        <>
-            {/* Floating "+" Hologram FAB (Add Listing) */}
-            <Link
-                to="/post"
-                data-testid="nav-post-fab"
-                aria-label={tr("نشر إعلان")}
-                className="fixed left-1/2 -translate-x-1/2 z-[51] group"
-                style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+        <nav data-testid="bottom-nav-pill" className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-xl" dir="rtl">
+            <div
+                className="relative flex h-[52px] items-center justify-around overflow-visible px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_-12px_rgba(15,27,58,0.35)]"
+                style={{ backgroundColor: "var(--nav-bg)", borderTop: "1px solid color-mix(in srgb, var(--nav-fg) 26%, transparent)" }}
             >
-                {/* Hologram pulse rings */}
-                <span className="absolute inset-0 rounded-full bg-[var(--primary)]/40 animate-ping pointer-events-none"></span>
-                <span className="absolute inset-0 rounded-full bg-[var(--primary)]/20 animate-pulse pointer-events-none" style={{ animationDuration: "2s" }}></span>
-                {/* Holographic gradient core */}
-                <span className="relative flex items-center justify-center w-14 h-14 rounded-full shadow-[0_8px_32px_-4px_var(--primary)] overflow-hidden bg-gradient-to-tr from-[var(--primary)] via-[var(--primary-hover)] to-[var(--primary)] group-hover:scale-110 group-active:scale-95 transition-all duration-300 border-2 border-[var(--primary-fg)]/35 dark:border-[var(--primary-fg)]/45">
-                    {/* Hologram shimmer overlay */}
-                    <span className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent"></span>
-                    <span className="absolute -top-2 -left-2 w-6 h-6 bg-white/50 blur-lg rounded-full"></span>
-                    {/* Animated rotating border */}
-                    <span className="absolute inset-0.5 rounded-full bg-conic-gradient pointer-events-none" style={{ background: "conic-gradient(from 0deg, rgba(255,255,255,0.6), transparent 50%, rgba(255,255,255,0.3) 80%, rgba(255,255,255,0.6))", animation: "spin 3s linear infinite", maskImage: "radial-gradient(circle, transparent 60%, black 70%)" }}></span>
-                    <Plus className="w-7 h-7 text-[var(--primary-fg)] relative z-10 drop-shadow-md" strokeWidth={3} />
-                </span>
-            </Link>
+                {/* Mobile parity: a circular transparent notch separates the FAB from the bar. */}
+                <span aria-hidden="true" className="absolute left-1/2 top-0 h-[96px] w-[96px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ backgroundColor: "var(--bg)" }} />
 
-            <nav data-testid="bottom-nav-pill" className="fixed left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-1rem)] sm:w-auto" style={{ bottom: "env(safe-area-inset-bottom, 0px)" }} dir="rtl">
-                <div
-                    className="flex items-center justify-around backdrop-blur-2xl rounded-[2rem] shadow-[0_10px_40px_-10px_rgba(15,27,58,0.35)] px-2 py-2"
-                    style={{ backgroundColor: "var(--nav-bg)", border: "1px solid color-mix(in srgb, var(--nav-fg) 30%, transparent)" }}
+                <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
+                <SideItem to="/reels" icon={Film} label={tr("قصص")} navKey="reels" />
+                <div className="relative z-0 w-16 shrink-0" aria-hidden="true" />
+                <SideItem to="/chat" icon={MessageCircle} label={tr("رسائلي")} navKey="messages" badge={unread} />
+                <SideItem to="/profile" icon={User} label={tr("حسابي")} navKey="more" />
+
+                <Link
+                    to="/post"
+                    data-testid="nav-post-fab"
+                    aria-label={tr("نشر إعلان")}
+                    className="group absolute left-1/2 top-0 z-20 flex h-[74px] w-[52px] -translate-x-1/2 -translate-y-[58%] flex-col items-center justify-center rounded-full border-2 border-[var(--primary-fg)]/70 bg-[var(--primary)] px-1 shadow-[0_8px_24px_-4px_var(--primary)] transition-transform duration-200 hover:scale-105 active:scale-95"
                 >
-                    <SideItem to="/" icon={Home} label={tr("الرئيسية")} navKey="home" />
-                    <SideItem to="/reels" icon={Film} label={tr("ستوري")} navKey="reels" />
-
-                    {/* Center spacer for FAB */}
-                    <div className="w-14 h-1 shrink-0" aria-hidden="true"></div>
-
-                    <SideItem to="/chat" icon={MessageCircle} label={tr("محادثة")} navKey="messages" badge={unread} />
-                    <SideItem to="/profile" icon={Menu} label={tr("المزيد")} navKey="more" />
-                </div>
-            </nav>
-        </>
+                    <span className="absolute inset-[-8px] rounded-full border-2 border-[var(--primary)]/35 opacity-70" />
+                    <Plus className="relative z-10 h-6 w-6 text-[var(--primary-fg)]" strokeWidth={3.2} />
+                    <span className="relative z-10 mt-0.5 whitespace-nowrap font-arabic text-[9px] font-black leading-none text-[var(--primary-fg)]">{tr("أضف إعلان")}</span>
+                </Link>
+            </div>
+        </nav>
     );
 }

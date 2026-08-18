@@ -1,5 +1,13 @@
 // Client-side visibility/routing helper only. The backend `require_admin` guard
-// remains the authoritative enforcement for every privileged API operation.
+// remains authoritative for every privileged API operation.
+export function adminMfaEnrollmentRequired(user) {
+    return Boolean(
+        user?.role === "admin" &&
+        user?.admin_mfa_required &&
+        (!user?.mfa_enabled || !user?.mfa_session_verified)
+    );
+}
+
 export function canAccessAdmin(user) {
-    return user?.role === "admin";
+    return Boolean(user?.role === "admin" && !adminMfaEnrollmentRequired(user));
 }

@@ -95,6 +95,10 @@ export function routeFromUrl(url) {
         _navigationRef.navigate("Notifications");
         return;
     }
+    if (url === "/saved-searches" || url.startsWith("/saved-searches?")) {
+        _navigationRef.navigate("SavedSearches");
+        return;
+    }
     // Reels / stories — Reels is a tab nested inside Main.
     if (url === "/reels" || url.startsWith("/reels?") || url === "/stories" || url.startsWith("/stories?")) {
         _navigationRef.navigate("Main", { screen: "ReelsTab" });

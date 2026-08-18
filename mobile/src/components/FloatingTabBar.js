@@ -181,6 +181,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                 style={styles.tabBtn}
                 testID={`tab-${tab.name}`}
                 accessibilityRole="tab"
+                accessibilityLabel={tab.label}
                 accessibilityState={{ selected: focused }}
               >
                 <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
