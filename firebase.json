@@ -16,6 +16,10 @@
         "run": { "serviceId": "haraj-api", "region": "me-central1" }
       },
       {
+        "source": "/listing/**",
+        "run": { "serviceId": "haraj-api", "region": "me-central1" }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

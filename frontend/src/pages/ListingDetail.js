@@ -82,7 +82,7 @@ export default function ListingDetail() {
             try {
                 // The listing itself is required. Optional metadata must never
                 // be able to redirect a valid detail page to the home screen.
-                const { data: rawListing } = await api.get(`/listings/${id}`);
+                const { data: rawListing } = await api.get(`/listings/${id}`, { params: { lang } });
                 const normalizedListing = rawListing && typeof rawListing === "object" ? {
                     ...rawListing,
                     images: Array.isArray(rawListing.images) ? rawListing.images : [],
@@ -347,7 +347,7 @@ export default function ListingDetail() {
 
     return (
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
-            <ListingSEO listing={listing} />
+            <ListingSEO listing={listing} language={lang} />
             <Link to="/" className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)] mb-4 font-arabic"><ChevronLeft className="w-4 h-4 rotate-180" />{tr(" العودة")}</Link>
 
             {isOwner && (

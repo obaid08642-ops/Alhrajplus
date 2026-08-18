@@ -3337,15 +3337,11 @@ async def create_listing(body: ListingIn, user: dict = Depends(get_current_user)
         except Exception as e:
             logger.warning(f"[mod] admin notify failed: {e}")
 
-    # Instant search-engine submission (IndexNow → Bing, Yandex, Seznam, Naver).
-    # Fire-and-forget; never blocks listing creation.
-    try:
-        fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
-        from urllib.parse import urlparse as _up
-        host = _up(fe).hostname or "alhraj.online"
-        _seo_submit_bg(db, [f"{fe}/listing/{doc['slug']}", f"{fe}/listing/{doc['id']}"], host)
-        _google_idx_updated(f"{fe}/listing/{doc['slug']}")
-    except Exception as _e:        logger.warning(f"[IndexNow] enqueue failed: {_e}")
+    # Advertise only public, approved inventory and invalidate the sitemap at
+    # publish time. Pending moderation records are intentionally never announced.
+    _refresh_listing_discovery(doc)
+    if _listing_is_indexable(doc):
+        asyncio.create_task(_generate_listing_seo_localizations(doc))
 
     # Smart notification: tell users who recently viewed the same category.
     if doc.get("moderation") == "approved":
@@ -4321,6 +4317,81 @@ async def _notify_category_watchers(listing: dict):
         logger.warning(f"[notify] category-watchers failed: {_e}")
 
 
+@api.get("/discovery/listings")
+async def discovery_listings(
+    country_code: Optional[str] = None,
+    category: Optional[str] = Query(default=None, max_length=80),
+    city: Optional[str] = Query(default=None, max_length=100),
+    q: Optional[str] = Query(default=None, max_length=120),
+    lang: Optional[str] = Query(default="ar", max_length=8),
+    limit: int = Query(default=20, ge=1, le=50),
+    cursor: Optional[str] = Query(default=None, max_length=120),
+):
+    """Read-only public inventory feed for search, comparison, and AI agents.
+
+    The endpoint deliberately excludes contact details, private seller data, and
+    every action that could alter a listing. It respects the marketplace country
+    boundary and returns only the same public, approved inventory shown to users.
+    """
+    extra: dict = {}
+    if category:
+        extra["category"] = category.strip().lower()
+    if city:
+        extra["city"] = city.strip()
+    if cursor:
+        extra["created_at"] = {"$lt": cursor}
+    if q:
+        tokens = [token for token in normalize_arabic(q).split() if len(token) >= 2][:8]
+        if tokens:
+            extra["$and"] = [{"search_blob": {"$regex": re.escape(token), "$options": "i"}} for token in tokens]
+    projection = {
+        "_id": 0, "id": 1, "slug": 1, "title": 1, "description": 1,
+        "price": 1, "currency": 1, "currency_code": 1, "category": 1,
+        "subcategory": 1, "city": 1, "country_code": 1, "images": 1,
+        "custom_fields": 1, "created_at": 1, "updated_at": 1,
+        "seo_localizations": 1,
+    }
+    query = public_listing_filter_for_country(country_code, extra)
+    items = await db.listings.find(query, projection).sort("created_at", -1).limit(limit + 1).to_list(length=limit + 1)
+    has_more = len(items) > limit
+    items = items[:limit]
+    site = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+    requested_language = str(lang or "ar").lower()
+    payload = []
+    for item in items:
+        localized = _listing_seo_localization(item, requested_language)
+        if localized and requested_language != "ar":
+            item["title"] = localized["title"]
+            item["description"] = localized["description"]
+            item["content_language"] = requested_language
+        else:
+            item["content_language"] = "ar"
+        ref = _listing_seo_ref(item)
+        item["url"] = f"{site}/listing/{quote(ref, safe='-._~')}" if ref else None
+        item["availability"] = "active"
+        item["available_languages"] = _listing_seo_languages(item)
+        item.pop("seo_localizations", None)
+        # Defense in depth: the Mongo projection already excludes these, but the
+        # public agent feed must stay safe if another data adapter changes it.
+        for private_key in ("user_id", "seller", "contact_phone", "contact_phone_source", "show_phone", "phone", "phone_full", "email", "moderation_flags"):
+            item.pop(private_key, None)
+        payload.append(item)
+    return JSONResponse(
+        content=jsonable_encoder({
+            "items": payload,
+            "next_cursor": items[-1].get("created_at") if has_more and items else None,
+            "count": len(payload),
+            "country_code": country_code_or_default(country_code),
+            "read_only": True,
+        }),
+        headers={
+            "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+            "Vary": "Accept-Encoding",
+            "X-Agent-Read-Only": "true",
+        },
+    )
+
+
 @api.get("/listings/trending")
 async def trending_listings(limit: int = 20, country_code: Optional[str] = None, days: int = 7):
     """Most-viewed active listings in the past `days`. Hard cap 20."""
@@ -4344,7 +4415,7 @@ async def trending_listings(limit: int = 20, country_code: Optional[str] = None,
     )
 
 @api.get("/listings/by-slug/{slug}")
-async def get_listing_by_slug(slug: str, request: Request, country_code: Optional[str] = None):
+async def get_listing_by_slug(slug: str, request: Request, country_code: Optional[str] = None, lang: Optional[str] = None):
     """Resolve a listing by its SEO slug. Used by /listing/:slug URLs."""
     item = await db.listings.find_one(
         public_listing_filter_for_country(country_code, {"slug": slug}),
@@ -4353,6 +4424,12 @@ async def get_listing_by_slug(slug: str, request: Request, country_code: Optiona
     if not item:
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
+    item["seo_available_languages"] = _listing_seo_languages(item)
+    localized = _listing_seo_localization(item, lang or "ar")
+    if localized and (lang or "ar").lower() != "ar":
+        item["title"] = localized["title"]
+        item["description"] = localized["description"]
+        item["seo_content_language"] = (lang or "ar").lower()
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     # Decide which phone the seller actually exposes on THIS listing.
     if seller:
@@ -4381,8 +4458,25 @@ async def listing_neighbors(listing_id: str, country_code: Optional[str] = None)
     return {"next": newer[0] if newer else None, "previous": older[0] if older else None, "country_code": cc, "category": current.get("category")}
 
 
+@api.get("/listings/{listing_id}/discovery-profile")
+async def listing_discovery_profile(listing_id: str, user: dict = Depends(get_current_user)):
+    """Private, explainable SEO/AEO readiness feedback for the listing owner."""
+    item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    if not item:
+        raise HTTPException(404, "الإعلان غير موجود")
+    if item.get("user_id") != user.get("id") and user.get("role") != "admin":
+        raise HTTPException(403, "غير مصرح")
+    profile = _listing_discovery_profile(item)
+    return {
+        "listing_id": listing_id,
+        "source_language": "ar",
+        "available_languages": _listing_seo_languages(item),
+        **profile,
+    }
+
+
 @api.get("/listings/{listing_id}")
-async def get_listing(listing_id: str, request: Request, country_code: Optional[str] = None):
+async def get_listing(listing_id: str, request: Request, country_code: Optional[str] = None, lang: Optional[str] = None):
     # Accept either UUID or slug for legacy/SEO URL compatibility
     item = await db.listings.find_one(
         public_listing_filter_for_country(country_code, {"$or": [{"id": listing_id}, {"slug": listing_id}]}),
@@ -4391,6 +4485,12 @@ async def get_listing(listing_id: str, request: Request, country_code: Optional[
     if not item:
         raise HTTPException(404, "Listing not found")
     await db.listings.update_one({"id": item["id"]}, {"$inc": {"views": 1}})
+    item["seo_available_languages"] = _listing_seo_languages(item)
+    localized = _listing_seo_localization(item, lang or "ar")
+    if localized and (lang or "ar").lower() != "ar":
+        item["title"] = localized["title"]
+        item["description"] = localized["description"]
+        item["seo_content_language"] = (lang or "ar").lower()
     seller = await db.users.find_one({"id": item["user_id"]}, {"_id": 0, "id": 1, "name": 1, "phone": 1, "phone_full": 1, "country_code": 1, "verified": 1, "trust_score": 1, "avatar_url": 1, "created_at": 1})
     if seller:
         if not item.get("show_phone", True):
@@ -4616,15 +4716,9 @@ async def delete_listing(listing_id: str, user: dict = Depends(get_current_user)
     _cache_invalidate()
     # Fire-and-forget Cloudinary cleanup so the API response stays fast.
     asyncio.create_task(_cleanup_listing_media(listing_id, media_to_clean))
-    # Tell Google to deindex — best-effort, never blocks the response.
-    try:
-        fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
-        slug = item.get("slug")
-        if slug:
-            _google_idx_deleted(f"{fe}/listing/{slug}")
-        _google_idx_deleted(f"{fe}/listing/{listing_id}")
-    except Exception as _e:
-        logger.warning(f"[google_indexing] delete enqueue failed: {_e}")
+    # Remove the canonical listing URL from the next sitemap and queue a
+    # best-effort deindex signal. The user-facing deletion never waits for it.
+    _refresh_listing_discovery(item, removed=True)
     return {
         "success": True,
         "media_queued": sum(len(v) for v in media_to_clean.values()),
@@ -6493,22 +6587,6 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
         new_desc = update_data.get("description", item.get("description") or "")
         asyncio.create_task(ai_moderate_listing(listing_id, new_title, new_desc))
 
-    # Re-submit to IndexNow when meaningful content changes (so search engines re-crawl)
-    try:
-        if any(k in update_data for k in ("title", "description", "price", "media_urls")):
-            fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
-            from urllib.parse import urlparse as _up
-            host = _up(fe).hostname or "alhraj.online"
-            urls = [f"{fe}/listing/{listing_id}"]
-            new_slug = update_data.get("slug") or item.get("slug")
-            if new_slug:
-                urls.append(f"{fe}/listing/{new_slug}")
-            _seo_submit_bg(db, urls, host)
-            if new_slug:
-                _google_idx_updated(f"{fe}/listing/{new_slug}")
-    except Exception as _e:
-        logger.warning(f"[IndexNow] update enqueue failed: {_e}")
-
     # Price drop alert: notify watchers when price decreases by ≥1%
     try:
         if "price" in update_data and new_price and old_price and new_price < old_price * 0.99:
@@ -6544,6 +6622,12 @@ async def update_listing(listing_id: str, body: ListingUpdateIn, user: dict = De
     except Exception as e:
         logger.warning(f"price-drop notify failed: {e}")
     new_item = await db.listings.find_one({"id": listing_id}, {"_id": 0})
+    discovery_fields = {"title", "description", "price", "currency", "currency_code", "custom_fields", "images", "city", "district", "slug", "moderation"}
+    if any(key in update_data for key in discovery_fields):
+        discovery_listing = new_item or item
+        _refresh_listing_discovery(discovery_listing, previous_slug=item.get("slug"))
+        if any(key in update_data for key in ("title", "description")) and _listing_is_indexable(discovery_listing):
+            asyncio.create_task(_generate_listing_seo_localizations(discovery_listing))
     return new_item
 
 @api.post("/listings/{listing_id}/pause")
@@ -6566,6 +6650,7 @@ async def pause_listing(listing_id: str, user: dict = Depends(get_current_user))
             "paused_at": datetime.now(timezone.utc).isoformat(),
         }},
     )
+    _refresh_listing_discovery({**item, "status": "paused"}, removed=True)
     return {"ok": True}
 
 
@@ -6588,6 +6673,7 @@ async def resume_listing(listing_id: str, user: dict = Depends(get_current_user)
         },
          "$unset": {"paused_at": "", "previous_status": ""}},
     )
+    _refresh_listing_discovery({**item, "status": prev})
     return {"ok": True, "status": prev}
 
 
@@ -6620,6 +6706,7 @@ async def republish_listing(listing_id: str, user: dict = Depends(get_current_us
         },
          "$inc": {"republish_count": 1}},
     )
+    _refresh_listing_discovery({**item, "status": "active", "created_at": now, "updated_at": now})
     return {"success": True, "message": "تم تجديد الإعلان وإعادة نشره في الأعلى"}
 
 @api.post("/listings/{listing_id}/mark-sold")
@@ -6636,6 +6723,7 @@ async def mark_sold(listing_id: str, user: dict = Depends(get_current_user)):
             "sold_at": datetime.now(timezone.utc).isoformat(),
         }},
     )
+    _refresh_listing_discovery({**item, "status": "sold"}, removed=True)
     return {"success": True}
 
 
@@ -8734,6 +8822,136 @@ async def admin_delete_demo_listings(user: dict = Depends(require_admin)):
 # we use rewrites to expose /sitemap.xml → /api/sitemap.xml at the root URL.
 # ============================================================
 
+# Arabic is the source language for listings. The remaining languages are only
+# advertised when a fresh, validated localisation exists for that exact source.
+SEO_LISTING_LANGUAGES = ("ar", "en", "ur", "hi", "bn", "fr")
+SEO_TRANSLATION_TARGETS = tuple(lang for lang in SEO_LISTING_LANGUAGES if lang != "ar")
+SEO_LANGUAGE_NAMES = {
+    "en": "English", "ur": "Urdu", "hi": "Hindi", "bn": "Bengali", "fr": "French",
+}
+
+
+def _listing_source_fingerprint(listing: dict) -> str:
+    source = f"{str(listing.get('title') or '').strip()}\n{str(listing.get('description') or '').strip()}"
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+
+def _listing_seo_localization(listing: dict, language: str) -> Optional[dict]:
+    """Return a localisation only when it belongs to the current listing text."""
+    language = str(language or "ar").lower()
+    if language == "ar":
+        return {"title": str(listing.get("title") or ""), "description": str(listing.get("description") or "")}
+    candidate = (listing.get("seo_localizations") or {}).get(language)
+    if not isinstance(candidate, dict) or candidate.get("source_hash") != _listing_source_fingerprint(listing):
+        return None
+    title = str(candidate.get("title") or "").strip()
+    description = str(candidate.get("description") or "").strip()
+    if not title or not description or len(title) > 220 or len(description) > 600:
+        return None
+    return {"title": title, "description": description}
+
+
+def _listing_seo_languages(listing: dict) -> list[str]:
+    return [lang for lang in SEO_LISTING_LANGUAGES if _listing_seo_localization(listing, lang)]
+
+
+def _listing_discovery_profile(listing: dict) -> dict:
+    """Build transparent, fact-bound content guidance for one classified listing.
+
+    It does not generate keyword variants or claims. The returned tokens are
+    derived from visible listing fields and can be used to help a seller improve
+    completeness before publishing, while the factual summary supports semantic
+    HTML and answer-engine retrieval.
+    """
+    title = str(listing.get("title") or "").strip()
+    description = str(listing.get("description") or "").strip()
+    fields = listing.get("custom_fields") or {}
+    facts = []
+    for label, value in (("category", listing.get("category")), ("city", listing.get("city")), ("district", listing.get("district")), ("price", listing.get("price"))):
+        if value not in (None, "", 0, "0"):
+            facts.append({"label": label, "value": str(value)})
+    for key in ("make", "model", "year", "condition", "property_type", "area_m2", "rooms", "brand", "storage", "author", "animal_type"):
+        value = fields.get(key)
+        if value not in (None, "", "غير محدد", "آخر"):
+            facts.append({"label": key, "value": str(value)})
+    words = re.findall(r"[\w\u0600-\u06FF-]{2,}", " ".join([title, str(listing.get("category") or ""), str(listing.get("city") or ""), *[fact["value"] for fact in facts]]), re.UNICODE)
+    keywords = list(dict.fromkeys(word for word in words if len(word) <= 60))[:20]
+    checks = {
+        "title_present": bool(title),
+        "descriptive_title": len(title) >= 12,
+        "description_present": len(description) >= 40,
+        "location_present": bool(listing.get("city")),
+        "image_present": bool(listing.get("images")),
+        "price_or_contact": bool(listing.get("price")) or "تواصل" in description or "contact" in description.lower(),
+        "category_fields_present": bool(fields),
+    }
+    score = round(sum(checks.values()) / len(checks) * 100)
+    missing = [key for key, passed in checks.items() if not passed]
+    return {"keywords": keywords, "facts": facts, "quality_score": score, "missing": missing}
+
+
+async def _generate_listing_seo_localizations(listing: dict) -> None:
+    """Generate reviewable discovery translations asynchronously for a live listing.
+
+    The original user text is never overwritten. A source hash prevents stale
+    translations from appearing after an edit, and failures merely leave the
+    Arabic source version available without delaying publication.
+    """
+    if not _listing_is_indexable(listing) or not EMERGENT_LLM_KEY:
+        return
+    title = str(listing.get("title") or "").strip()
+    description = str(listing.get("description") or "").strip()
+    if not title or not description:
+        return
+    source_hash = _listing_source_fingerprint(listing)
+    existing = listing.get("seo_localizations") or {}
+    missing = [lang for lang in SEO_TRANSLATION_TARGETS if not isinstance(existing.get(lang), dict) or existing[lang].get("source_hash") != source_hash]
+    if not missing:
+        return
+    try:
+        from llm_shim import LlmChat, UserMessage
+        requested = ", ".join(f'"{lang}": {SEO_LANGUAGE_NAMES[lang]}' for lang in missing)
+        prompt = (
+            "Translate this classified listing title and description into the requested languages. "
+            "Do not add, omit, infer, or change facts. Preserve names, model numbers, prices, units, dates, URLs, and contact information exactly. "
+            "Return strict JSON only, with one object per language shaped as {\\\"title\\\": string, \\\"description\\\": string}. "
+            f"Requested languages: {requested}.\n"
+            f"Title: {title}\nDescription: {description}"
+        )
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"listing-seo-localize-{listing.get('id', uuid.uuid4().hex)}",
+            system_message="You are a precise marketplace translator. Output valid JSON only.",
+        ).with_model("gemini", "gemini-2.5-flash")
+        raw = (await chat.send_message(UserMessage(text=prompt)) or "").strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        generated = json.loads(raw)
+        if not isinstance(generated, dict):
+            return
+        accepted: dict = {}
+        for language in missing:
+            candidate = generated.get(language)
+            if not isinstance(candidate, dict):
+                continue
+            localized_title = str(candidate.get("title") or "").strip()
+            localized_description = str(candidate.get("description") or "").strip()
+            if not localized_title or not localized_description or len(localized_title) > 220 or len(localized_description) > 600:
+                continue
+            accepted[language] = {
+                "title": localized_title,
+                "description": localized_description,
+                "source_hash": source_hash,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generator": "translation-assist",
+            }
+        if accepted:
+            await db.listings.update_one({"id": listing["id"], "status": "active"}, {"$set": {f"seo_localizations.{lang}": value for lang, value in accepted.items()}})
+            refreshed = {**listing, "seo_localizations": {**existing, **accepted}}
+            _refresh_listing_discovery(refreshed)
+    except Exception as exc:
+        logger.info("[seo] listing localisation skipped: %s", exc)
+
 
 async def _build_sitemap_xml() -> str:
     site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
@@ -8751,14 +8969,13 @@ async def _build_sitemap_xml() -> str:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
     listings = await db.listings.find(
         public_listing_filter({"created_at": {"$gte": cutoff}}),
-        {"_id": 0, "id": 1, "slug": 1, "title": 1, "updated_at": 1, "created_at": 1, "images": 1}
+        {"_id": 0, "id": 1, "slug": 1, "title": 1, "description": 1, "updated_at": 1, "created_at": 1, "images": 1, "seo_localizations": 1}
     ).sort("created_at", -1).limit(50000).to_list(length=50000)
 
     parts = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:xhtml="http://www.w3.org/1999/xhtml">']
     for path, prio, freq in static_pages:
         parts.append(f"<url><loc>{site}{path}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>")
-    LANGS = ["ar", "en", "hi", "ur", "bn", "fr"]
     for l in listings:
         lastmod = (l.get("updated_at") or l.get("created_at") or "").split("T")[0] or ""
         img = (l.get("images") or [None])[0]
@@ -8767,9 +8984,13 @@ async def _build_sitemap_xml() -> str:
         loc_xml = html_escape(loc, quote=True)
         img_safe = html_escape(str(img), quote=False) if img else ""
         img_part = f"<image:image><image:loc>{img_safe}</image:loc><image:title><![CDATA[{title_safe}]]></image:title></image:image>" if img else ""
-        # Prefer SEO slug; fall back to id for older listings
-        # hreflang alternates so Google can serve the right language version
-        alt = "".join(f'<xhtml:link rel="alternate" hreflang="{lng}" href="{html_escape(loc + "?lang=" + lng, quote=True)}"/>' for lng in LANGS)
+        # Only advertise real, fresh localisations. Query-string alternates that
+        # all render the same Arabic text would be invalid hreflang signals.
+        localized_languages = _listing_seo_languages(l)
+        alt = "".join(
+            f'<xhtml:link rel="alternate" hreflang="{lng}" href="{html_escape(loc if lng == "ar" else loc + "?lang=" + lng, quote=True)}"/>'
+            for lng in localized_languages
+        )
         alt += f'<xhtml:link rel="alternate" hreflang="x-default" href="{loc_xml}"/>'
         parts.append(
             f"<url><loc>{loc_xml}</loc>"
@@ -8789,9 +9010,13 @@ async def _build_robots_txt() -> str:
         "Disallow: /admin\n"
         "Disallow: /api/\n"
         "\n"
-        "# AI agents — allow them to crawl listings for AI search results\n"
+        "# AI search and answer engines — public listing pages are crawlable.\n"
+        "# OAI-SearchBot is ChatGPT Search discovery; GPTBot controls model training.\n"
+        "User-agent: OAI-SearchBot\nAllow: /\n"
+        "User-agent: ChatGPT-User\nAllow: /\n"
         "User-agent: GPTBot\nAllow: /\n"
         "User-agent: ClaudeBot\nAllow: /\n"
+        "User-agent: Claude-SearchBot\nAllow: /\n"
         "User-agent: PerplexityBot\nAllow: /\n"
         "User-agent: Google-Extended\nAllow: /\n"
         "User-agent: anthropic-ai\nAllow: /\n"
@@ -8802,8 +9027,10 @@ async def _build_robots_txt() -> str:
     rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
     if rec and rec.get("value", {}).get("robots_txt"):
         custom = rec["value"]["robots_txt"]
-        # Only honor if custom is comprehensive (has Disallow + AI bots)
-        if "Disallow" in custom and "GPTBot" in custom:
+        # Only honor a custom policy that keeps administrative paths blocked and
+        # explicitly declares at least one AI-search crawler rather than relying
+        # on an ambiguous wildcard rule.
+        if "Disallow" in custom and any(bot in custom for bot in ("OAI-SearchBot", "GPTBot", "ClaudeBot", "PerplexityBot")):
             return custom
     return DEFAULT
 
@@ -8826,10 +9053,55 @@ async def _cached_sitemap_xml() -> str:
 
 
 def _sitemap_cache_invalidate():
-    """Force sitemap rebuild on next request. Called from listing create/update/delete
-    so search engines always see fresh inventory within seconds."""
+    """Force sitemap rebuild on next request whenever public inventory changes."""
     _SITEMAP_CACHE["xml"] = None
     _SITEMAP_CACHE["ts"] = 0.0
+
+
+def _listing_is_indexable(listing: dict) -> bool:
+    """Mirror the public-discovery rule before announcing a listing to crawlers."""
+    if listing.get("status") != "active" or listing.get("is_demo") is True:
+        return False
+    if listing.get("moderation") not in {None, "approved"}:
+        return False
+    title = str(listing.get("title") or "").strip()
+    return not bool(re.match(r"^(?:TEST(?:[_\s-]|$)|TEST_SEARCH(?:[_\s-]|$)|TEST_INDEX(?:[_\s-]|$))", title, re.IGNORECASE))
+
+
+def _listing_canonical_url(listing: dict) -> Optional[str]:
+    ref = _listing_seo_ref(listing)
+    if not ref:
+        return None
+    site = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+    return f"{site}/listing/{quote(ref, safe='-._~')}"
+
+
+def _refresh_listing_discovery(listing: dict, *, previous_slug: Optional[str] = None, removed: bool = False) -> None:
+    """Synchronize inventory changes with the sitemap and best-effort engine signals.
+
+    This function is deliberately non-blocking. The listing write is the source
+    of truth; a transient third-party indexing failure cannot turn a user action
+    into a failed publish/edit/close operation.
+    """
+    _sitemap_cache_invalidate()
+    canonical = _listing_canonical_url(listing)
+    if not canonical:
+        return
+    try:
+        site = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+        from urllib.parse import urlparse as _up
+        host = _up(site).hostname or "alhraj.online"
+        if removed or not _listing_is_indexable(listing):
+            _google_idx_deleted(canonical)
+        else:
+            _seo_submit_bg(db, [canonical], host)
+            _google_idx_updated(canonical)
+        old_slug = str(previous_slug or "").strip()
+        current_ref = _listing_seo_ref(listing)
+        if old_slug and old_slug != current_ref:
+            _google_idx_deleted(f"{site}/listing/{quote(old_slug, safe='-._~')}")
+    except Exception as exc:
+        logger.warning("[seo] listing discovery refresh failed: %s", exc)
 
 
 @api.get("/sitemap.xml", include_in_schema=False)
@@ -8905,87 +9177,251 @@ async def robots_txt_root():
     return PlainTextResponse(text)
 
 
-# Bot User-Agents that don't render JS — serve HTML stub with full meta tags
+# Crawler and share-preview clients that need initial HTML rather than waiting for React.
+# OAI-SearchBot is intentionally separate from GPTBot: the former powers ChatGPT
+# Search discovery, while the latter controls model-training crawls.
 BOT_UAS = re.compile(
     r"(googlebot|bingbot|yandex|duckduckbot|baiduspider|facebookexternalhit|twitterbot|"
-    r"linkedinbot|whatsapp|telegrambot|slackbot|discordbot|gptbot|claudebot|"
-    r"perplexitybot|chatgpt|anthropic|google-extended|bytespider|applebot)",
+    r"linkedinbot|whatsapp|telegrambot|slackbot|discordbot|oai-searchbot|gptbot|"
+    r"claude(bot|-searchbot)?|perplexitybot|chatgpt|anthropic|google-extended|"
+    r"bytespider|applebot)",
     re.IGNORECASE,
 )
 
 
-@api.get("/seo/listing/{listing_id}", include_in_schema=False)
-async def seo_listing_html(listing_id: str):
-    """Pre-rendered HTML for crawlers. Frontend can also call this to get meta tags."""
-    listing = await db.listings.find_one({"id": listing_id, "status": "active"}, {"_id": 0, "password_hash": 0})
-    if not listing:
-        return HTMLResponse("<h1>Listing not found</h1>", status_code=404)
-    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
-    title = str(listing.get("title") or "")[:200]
-    desc = str(listing.get("description") or listing.get("title") or "")[:300]
-    title_html = html_escape(title, quote=True)
-    desc_html = html_escape(desc, quote=True)
-    price = listing.get("price") or 0
-    currency = listing.get("currency") or "ر.س"
-    image = str((listing.get("images") or [f"{site}/og-image.png"])[0])
-    image_html = html_escape(image, quote=True)
-    ref = str(listing.get("slug") or listing_id)
-    canonical = f"{site}/listing/{ref}"
-    canonical_html = html_escape(canonical, quote=True)
-    keywords = ", ".join({title, str(listing.get("category", "") or ""), str(listing.get("city", "") or ""), "حراج", "بيع", "شراء", "Haraj Plus", "buy", "sell"})
-    keywords_html = html_escape(keywords, quote=True)
-    schema = {
+def _listing_seo_ref(listing: dict, fallback: str = "") -> str:
+    return str(listing.get("slug") or listing.get("id") or fallback).strip()
+
+
+async def _find_active_listing_for_seo(ref: str) -> Optional[dict]:
+    """Resolve an active public listing by either stable slug or legacy id."""
+    ref = str(ref or "").strip()
+    if not ref:
+        return None
+    return await db.listings.find_one(
+        {"status": "active", "$or": [{"slug": ref}, {"id": ref}]},
+        {"_id": 0, "password_hash": 0},
+    )
+
+
+def _listing_seo_schema(listing: dict, site: str, canonical: str, localization: Optional[dict] = None, language: str = "ar") -> dict:
+    """Create structured data only from facts visible on a live listing.
+
+    Product stays the common denominator for a classified listing. Category
+    specialisation is additive and intentionally conservative: we never claim a
+    brand, rating, policy, stock count, shipping promise, or price deadline that
+    the seller did not publish.
+    """
+    localization = localization or {}
+    title = str(localization.get("title") or listing.get("title") or "").strip()
+    description = str(localization.get("description") or listing.get("description") or title).strip()
+    fields = listing.get("custom_fields") or {}
+    category = str(listing.get("category") or "").strip().lower()
+    images = [str(url) for url in (listing.get("images") or []) if str(url).startswith(("https://", "http://"))]
+    schema_types: object = ["Product", "Car"] if category == "cars" else "Product"
+    schema: dict = {
         "@context": "https://schema.org",
-        "@type": "Product",
+        "@type": schema_types,
         "name": title,
-        "description": desc,
-        "image": listing.get("images") or [image],
-        "url": f"{site}/listing/{listing_id}",
-        "sku": listing_id,
-        "category": listing.get("category"),
-        "offers": {
-            "@type": "Offer",
-            "url": f"{site}/listing/{listing_id}",
-            "priceCurrency": listing.get("currency_code") or "SAR",
-            "price": float(price) if price else 0,
-            "availability": "https://schema.org/InStock",
-            "seller": {"@type": "Person", "name": (listing.get("seller") or {}).get("name", "بائع")},
-            "areaServed": {"@type": "Place", "name": listing.get("city", "السعودية")},
-        },
+        "description": description,
+        "url": canonical,
+        "sku": str(listing.get("id") or _listing_seo_ref(listing)),
+        "inLanguage": language,
     }
-    import json as _json
-    schema_json = _json.dumps(schema, ensure_ascii=False).replace("<", "\\u003c")
-    html = f"""<!doctype html>
-<html lang="ar" dir="rtl">
+    if images:
+        schema["image"] = images
+    if category:
+        schema["category"] = category
+
+    def text_value(key: str) -> Optional[str]:
+        value = fields.get(key)
+        if value is None:
+            return None
+        value = str(value).strip()
+        return value if value and value.lower() not in {"other", "unknown", "غير محدد", "آخر"} else None
+
+    # Brand data is useful only when the advertiser provided a real manufacturer.
+    brand = text_value("brand") or (text_value("make") if category == "cars" else None)
+    if brand:
+        schema["brand"] = {"@type": "Brand", "name": brand}
+
+    # Category-aware fields become generic, machine-readable properties instead
+    # of unsupported or invented rich-result fields.
+    property_keys = {
+        "cars": ("make", "model", "year", "kilometers", "transmission", "fuel_type", "body_type", "color", "regional_specs", "engine_size", "cylinders"),
+        "realestate": ("deal_type", "property_type", "area_m2", "rooms", "bathrooms", "floor", "furnished", "rent_period", "parking", "elevator", "air_conditioning", "available_from"),
+        "electronics": ("brand", "model", "storage", "ram", "warranty"),
+        "phones": ("brand", "model", "storage", "ram", "warranty"),
+        "furniture": ("furniture_type", "material", "color", "dimensions", "age_years"),
+        "books": ("author", "language"),
+        "sports": ("sport_type", "brand", "size"),
+        "games": ("game_type", "platform", "game_title", "region"),
+        "garden": ("item_kind", "plant_type", "size"),
+        "livestock": ("animal_type", "breed", "age_months", "gender", "vaccinated"),
+    }
+    properties = []
+    for key in property_keys.get(category, ()):
+        value = text_value(key)
+        if value:
+            properties.append({"@type": "PropertyValue", "name": key, "value": value})
+    vin = text_value("vin") if category == "cars" else None
+    if vin and 5 <= len(vin) <= 64:
+        schema["vehicleIdentificationNumber"] = vin
+    if properties:
+        schema["additionalProperty"] = properties
+
+    price = listing.get("price")
+    try:
+        price_number = float(price) if price is not None and str(price).strip() else None
+    except (TypeError, ValueError):
+        price_number = None
+    # Do not invent a zero price or an expiry date for listings that say
+    # "contact seller". Google requires offer data to be accurate.
+    if price_number is not None and price_number > 0:
+        offer: dict = {
+            "@type": "Offer",
+            "url": canonical,
+            "priceCurrency": str(listing.get("currency_code") or "SAR"),
+            "price": price_number,
+            "availability": "https://schema.org/InStock",
+        }
+        condition = text_value("condition") or (str(listing.get("condition")).strip() if listing.get("condition") else "")
+        normalized_condition = condition.lower()
+        if normalized_condition.startswith("new") or condition.startswith("جديد"):
+            offer["itemCondition"] = "https://schema.org/NewCondition"
+        elif condition:
+            offer["itemCondition"] = "https://schema.org/UsedCondition"
+        seller_name = (listing.get("seller") or {}).get("name")
+        seller_type = text_value("seller_type")
+        if seller_name:
+            offer["seller"] = {"@type": "Organization" if seller_type == "معرض" else "Person", "name": str(seller_name)}
+        if listing.get("city"):
+            offer["areaServed"] = {"@type": "Place", "name": str(listing["city"])}
+        schema["offers"] = offer
+    return schema
+
+
+def _listing_seo_html(listing: dict, fallback_ref: str = "", language: str = "ar") -> str:
+    """Generate an accessible listing document in a real, current content language."""
+    requested_language = str(language or "ar").lower()
+    if requested_language not in SEO_LISTING_LANGUAGES:
+        requested_language = "ar"
+    localization = _listing_seo_localization(listing, requested_language)
+    # Never declare an untranslated query parameter as a separate language page.
+    effective_language = requested_language if localization else "ar"
+    localization = localization or _listing_seo_localization(listing, "ar") or {}
+    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    ref = _listing_seo_ref(listing, fallback_ref)
+    base_url = f"{site}/listing/{quote(ref, safe='-._~')}"
+    canonical = base_url if effective_language == "ar" else f"{base_url}?lang={effective_language}"
+    title = str(localization.get("title") or listing.get("title") or "").strip()[:200]
+    description = str(localization.get("description") or listing.get("description") or title).strip()[:300]
+    price = listing.get("price")
+    currency = str(listing.get("currency") or "ر.س")
+    price_text = f"{price} {currency}" if price not in (None, "", 0, "0") else "السعر عند التواصل"
+    full_title = f"{title} - {price_text} - الحراج بلس".strip(" -")[:240]
+    image_urls = [str(url) for url in (listing.get("images") or []) if str(url).startswith(("https://", "http://"))]
+    image = image_urls[0] if image_urls else f"{site}/og-image.png"
+    keywords = ", ".join(dict.fromkeys(filter(None, [title, str(listing.get("category") or ""), str(listing.get("city") or ""), "الحراج بلس", "إعلانات مبوبة"])))
+    schema_json = json.dumps(_listing_seo_schema(listing, site, canonical, localization, effective_language), ensure_ascii=False).replace("<", "\\u003c")
+    title_html = html_escape(title, quote=True)
+    desc_html = html_escape(description, quote=True)
+    full_title_html = html_escape(full_title, quote=True)
+    canonical_html = html_escape(canonical, quote=True)
+    image_html = html_escape(image, quote=True)
+    price_html = html_escape(price_text, quote=True)
+    city_html = html_escape(str(listing.get("city") or ""), quote=True)
+    category_html = html_escape(str(listing.get("category") or ""), quote=True)
+    keywords_html = html_escape(keywords, quote=True)
+    image_markup = f'<img src="{image_html}" alt="{title_html}" loading="lazy" />' if image_urls else ""
+    language_direction = "rtl" if effective_language in {"ar", "ur"} else "ltr"
+    locale_map = {"ar": "ar_SA", "en": "en_US", "ur": "ur_PK", "hi": "hi_IN", "bn": "bn_BD", "fr": "fr_FR"}
+    alternate_links = "".join(
+        f'<link rel="alternate" hreflang="{lang}" href="{html_escape(base_url if lang == "ar" else base_url + "?lang=" + lang, quote=True)}" />'
+        for lang in _listing_seo_languages(listing)
+    ) + f'<link rel="alternate" hreflang="x-default" href="{html_escape(base_url, quote=True)}" />'
+    return f"""<!doctype html>
+<html lang="{effective_language}" dir="{language_direction}">
 <head>
 <meta charset="utf-8" />
-<title>{title_html} - {html_escape(str(price), quote=True)} {html_escape(str(currency), quote=True)} - الحراج بلس</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+<title>{full_title_html}</title>
 <meta name="description" content="{desc_html}" />
 <meta name="keywords" content="{keywords_html}" />
 <link rel="canonical" href="{canonical_html}" />
+{alternate_links}
 <meta property="og:type" content="product" />
-<meta property="og:title" content="{title_html}" />
+<meta property="og:title" content="{full_title_html}" />
 <meta property="og:description" content="{desc_html}" />
 <meta property="og:image" content="{image_html}" />
 <meta property="og:url" content="{canonical_html}" />
-<meta property="og:locale" content="ar_SA" />
+<meta property="og:locale" content="{locale_map[effective_language]}" />
+<meta property="og:site_name" content="الحراج بلس" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="{title_html}" />
+<meta name="twitter:title" content="{full_title_html}" />
 <meta name="twitter:description" content="{desc_html}" />
 <meta name="twitter:image" content="{image_html}" />
 <script type="application/ld+json">{schema_json}</script>
 </head>
 <body>
+<main>
+<article>
 <h1>{title_html}</h1>
-<p><strong>السعر:</strong> {html_escape(str(price), quote=True)} {html_escape(str(currency), quote=True)}</p>
-<p><strong>المدينة:</strong> {html_escape(str(listing.get("city", "") or ""), quote=True)}</p>
-<p><strong>الفئة:</strong> {html_escape(str(listing.get("category", "") or ""), quote=True)}</p>
+<p><strong>السعر:</strong> {price_html}</p>
+{f'<p><strong>المدينة:</strong> {city_html}</p>' if city_html else ''}
+{f'<p><strong>الفئة:</strong> {category_html}</p>' if category_html else ''}
 <p>{desc_html}</p>
-{f'<img src="{image_html}" alt="{title_html}" loading="lazy" />' if image else ''}
+{image_markup}
 <p><a href="{canonical_html}">عرض الإعلان كاملاً على الحراج بلس</a></p>
+</article>
+</main>
 </body>
 </html>"""
-    return HTMLResponse(html)
+
+
+async def _frontend_shell_for_listing() -> Optional[str]:
+    """Return the deployed React shell for human visitors when it is reachable.
+
+    The canonical listing route is rewritten to this API in production. Fetching
+    `/index.html` preserves the normal React app without recursively requesting
+    `/listing/...`; bots instead receive the equivalent visible listing document.
+    """
+    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    shell_url = os.environ.get("SEO_FRONTEND_SHELL_URL", f"{site}/index.html").strip()
+    try:
+        async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client_http:
+            response = await client_http.get(shell_url, headers={"User-Agent": "HarajPlus-SEO-Shell/1.0"})
+        body = response.text if response.status_code == 200 else ""
+        return body if '<div id="root">' in body else None
+    except httpx.HTTPError:
+        return None
+
+
+@api.get("/seo/listing/{listing_id}", include_in_schema=False)
+async def seo_listing_html(listing_id: str, lang: Optional[str] = None):
+    """Direct diagnostic URL returning the same HTML served to crawler clients."""
+    listing = await _find_active_listing_for_seo(listing_id)
+    if not listing:
+        return HTMLResponse("<h1>Listing not found</h1>", status_code=404)
+    return HTMLResponse(_listing_seo_html(listing, listing_id, lang or "ar"), headers={"Vary": "User-Agent"})
+
+
+@app.get("/listing/{listing_ref}", include_in_schema=False)
+async def primary_listing_page(listing_ref: str, request: Request):
+    """Canonical listing route: semantic initial HTML for crawlers, React shell for people."""
+    listing = await _find_active_listing_for_seo(listing_ref)
+    if not listing:
+        return HTMLResponse("<h1>Listing not found</h1>", status_code=404, headers={"Vary": "User-Agent"})
+    requested_language = request.query_params.get("lang", "ar")
+    user_agent = request.headers.get("user-agent", "")
+    if BOT_UAS.search(user_agent):
+        return HTMLResponse(_listing_seo_html(listing, listing_ref, requested_language), headers={"Vary": "User-Agent"})
+    shell = await _frontend_shell_for_listing()
+    if shell:
+        return HTMLResponse(shell, headers={"Vary": "User-Agent", "Cache-Control": "no-store"})
+    # Fail-safe fallback: never return an empty page when the frontend host is temporarily unavailable.
+    return HTMLResponse(_listing_seo_html(listing, listing_ref, requested_language), headers={"Vary": "User-Agent", "Cache-Control": "no-store"})
 
 
 
