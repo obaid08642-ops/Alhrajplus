@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
+import { useFeatureFlag } from "@/contexts/FeatureFlagsContext";
 import ListingCard from "@/components/listings/ListingCard";
 import LocationPicker from "@/components/LocationPicker";
 import { Search as SearchIcon, Mic, Image as ImageIcon, Loader2 } from "lucide-react";
@@ -98,6 +99,8 @@ export function SearchPage() {
     const { user } = useAuth();
     const { country } = useCountry();
     const { t, tr, lang } = useI18n();
+    const imageSearchEnabled = useFeatureFlag("image_search");
+    const voiceSearchEnabled = useFeatureFlag("voice_search");
     const [q, setQ] = useState(searchParams.get("q") || "");
     const [results, setResults] = useState([]);
     const [fuzzy, setFuzzy] = useState(false);
@@ -213,6 +216,7 @@ export function SearchPage() {
     };
 
     const startVoice = () => {
+        if (!voiceSearchEnabled) return;
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) return toggleRecordedVoiceFallback();
         const locale = { ar: "ar-SA", en: "en-US", ur: "ur-PK", hi: "hi-IN", bn: "bn-BD", fr: "fr-FR" }[lang] || "ar-SA";
@@ -263,9 +267,11 @@ export function SearchPage() {
                 <div className="flex items-center bg-[var(--surface-elevated)] rounded-full px-4 py-2.5 border border-[var(--border)] focus-within:border-[var(--primary)]">
                     <SearchIcon className="w-4 h-4 text-[var(--text-muted)]" />
                     <input data-testid="search-page-input" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && setSearchParams({ q })} placeholder={t("search_placeholder")} className="bg-transparent flex-1 mx-3 outline-none text-sm text-[var(--text)] font-arabic-body" />
-                    <input ref={imageInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => searchByImage(event.target.files?.[0])} />
-                    <button type="button" data-testid="image-search-btn-page" onClick={() => imageInputRef.current?.click()} disabled={imageBusy} title={tr("البحث بالصورة")} aria-label={tr("البحث بالصورة")} className="text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50">{imageBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}</button>
-                    <button type="button" data-testid="voice-search-btn-page" onClick={startVoice} className={`mr-2 text-[var(--text-muted)] hover:text-[var(--primary)] ${voiceActive ? "animate-pulse text-[var(--danger)]" : ""}`} title={tr("البحث الصوتي")} aria-label={tr("البحث الصوتي")}><Mic className="w-4 h-4" /></button>
+                    {imageSearchEnabled && <>
+                        <input ref={imageInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => searchByImage(event.target.files?.[0])} />
+                        <button type="button" data-testid="image-search-btn-page" onClick={() => imageInputRef.current?.click()} disabled={imageBusy} title={tr("البحث بالصورة")} aria-label={tr("البحث بالصورة")} className="text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50">{imageBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}</button>
+                    </>}
+                    {voiceSearchEnabled && <button type="button" data-testid="voice-search-btn-page" onClick={startVoice} className={`mr-2 text-[var(--text-muted)] hover:text-[var(--primary)] ${voiceActive ? "animate-pulse text-[var(--danger)]" : ""}`} title={tr("البحث الصوتي")} aria-label={tr("البحث الصوتي")}><Mic className="w-4 h-4" /></button>}
                 </div>
                 {voiceMessage && <p className="mt-2 text-xs text-[var(--text-muted)] font-arabic-body">{voiceMessage}</p>}
                 {/* Filter pills */}

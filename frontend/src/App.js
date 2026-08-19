@@ -8,6 +8,7 @@ import { I18nProvider, useI18n } from "@/contexts/I18nContext";
 import { trackEvent, trackSessionHeartbeat } from "@/lib/analytics";
 import { adminMfaEnrollmentRequired, canAccessAdmin } from "@/lib/accessControl";
 import { CountryProvider } from "@/contexts/CountryContext";
+import { FeatureFlagsProvider } from "@/contexts/FeatureFlagsContext";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import SplashScreen from "@/components/SplashScreen";
@@ -172,14 +173,16 @@ function App() {
                 <ThemeProvider>
                     <AuthProvider>
                         <CountryProvider>
-                            {showSplash && <SplashScreen />}
-                            <BrowserRouter>
-                                <AnalyticsRouteTracker />
-                                <AppRouter />
-                                <Suspense fallback={null}>
-                                    <AIAssistantWidget />
-                                </Suspense>
-                            </BrowserRouter>
+                            <FeatureFlagsProvider>
+                                {showSplash && <SplashScreen />}
+                                <BrowserRouter>
+                                    <AnalyticsRouteTracker />
+                                    <AppRouter />
+                                    <Suspense fallback={null}>
+                                        <AIAssistantWidget />
+                                    </Suspense>
+                                </BrowserRouter>
+                            </FeatureFlagsProvider>
                         </CountryProvider>
                     </AuthProvider>
                 </ThemeProvider>

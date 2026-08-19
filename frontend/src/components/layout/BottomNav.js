@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { tr } from "@/contexts/I18nContext";
+import { useFeatureFlag } from "@/contexts/FeatureFlagsContext";
 
 const FLOATING_FAB_COLOR = "#B7F20A";
 const FLOATING_FAB_FOREGROUND = "#062C1F";
@@ -18,6 +19,7 @@ const TRANSPARENT_NOTCH_MASK = "radial-gradient(circle 46px at 50% 0, transparen
 export default function BottomNav() {
     const { pathname } = useLocation();
     const { user } = useAuth();
+    const premiumNavigationEnabled = useFeatureFlag("premium_navigation");
     const [unread, setUnread] = useState(0);
     const [aiOpen, setAiOpen] = useState(false);
 
@@ -64,7 +66,7 @@ export default function BottomNav() {
                 <div
                     data-testid={`nav-icon-${key}`}
                     className="relative flex h-7 min-w-7 items-center justify-center rounded-2xl px-2 transition-[background-color,transform] duration-200"
-                    style={{ backgroundColor: active ? "color-mix(in srgb, var(--nav-fg) 16%, transparent)" : "transparent" }}
+                    style={{ backgroundColor: active && premiumNavigationEnabled ? "color-mix(in srgb, var(--nav-fg) 16%, transparent)" : "transparent" }}
                 >
                     <Icon
                         className="h-[18px] w-[18px] sm:h-5 sm:w-5"

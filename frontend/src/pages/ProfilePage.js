@@ -4,6 +4,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
+import { useFeatureFlag } from "@/contexts/FeatureFlagsContext";
 import { Heart, ListIcon, LogOut, Star, Edit3, Trash2, Gift, Copy, Award, Settings, Info, FileText, Mail, Shield, ChevronLeft, Wallet, Coins, Globe, Smartphone, Apple, Download as DownloadIcon, Tag, Bell, Package, CheckCircle2, CalendarDays, PhoneOff, Bookmark, Users, Sparkles } from "lucide-react";
 import { detectPlatform, storeUrlFor, STORE_URLS } from "@/lib/platform";
 import { adminMfaEnrollmentRequired, canAccessAdmin } from "@/lib/accessControl";
@@ -426,6 +427,7 @@ function PhoneEditor({ user, onUpdated }) {
 }
 
 function PwaInstallButton() {
+    const pwaInstallEnabled = useFeatureFlag("pwa_install");
     const [installPrompt, setInstallPrompt] = useState(() => typeof window === "undefined" ? null : window.__harajPwaInstallPrompt || null);
     const [standalone, setStandalone] = useState(() => typeof window !== "undefined" && (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true));
 
@@ -447,7 +449,7 @@ function PwaInstallButton() {
         setInstallPrompt(null);
     };
 
-    if (standalone) return null;
+    if (!pwaInstallEnabled || standalone) return null;
     if (installPrompt) return <button type="button" data-testid="pwa-install-button" onClick={install} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-[var(--primary)] text-[var(--primary)] bg-[var(--primary)]/5 font-arabic font-bold text-sm mb-3 hover:bg-[var(--primary)]/10"><DownloadIcon className="w-4 h-4" />{tr("تثبيت نسخة الويب على جهازك")}</button>;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || "");
     return isIOS ? <p className="mb-3 text-[11px] text-[var(--text-muted)] font-arabic-body">{tr("للتثبيت على iPhone أو iPad، افتح زر المشاركة في Safari ثم اختر «إضافة إلى الشاشة الرئيسية». ")}</p> : null;

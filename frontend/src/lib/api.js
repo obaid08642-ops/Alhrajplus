@@ -147,6 +147,22 @@ export const getClientContract = ({ force = false } = {}) => {
     return clientContractPromise;
 };
 
+let featureFlagsPromise = null;
+
+// Rollout controls are public bootstrap metadata and intentionally stay lazy.
+// A caller keeps the last fulfilled promise for the page session; force is only
+// for an explicit admin/support refresh, not normal navigation.
+export const getFeatureFlags = ({ force = false } = {}) => {
+    if (force) featureFlagsPromise = null;
+    if (!featureFlagsPromise) {
+        featureFlagsPromise = api.get("/meta/feature-flags").then(({ data }) => data).catch((error) => {
+            featureFlagsPromise = null;
+            throw error;
+        });
+    }
+    return featureFlagsPromise;
+};
+
 export const formatApiError = (detail) => {
     if (detail == null) return "حدث خطأ. يرجى المحاولة مرة أخرى.";
     if (typeof detail === "string") return detail;

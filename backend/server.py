@@ -1419,6 +1419,95 @@ async def root():
 async def get_client_contract():
     return _client_contract()
 
+
+# Public rollout controls shared by Web and Mobile. Defaults stay enabled to
+# preserve current behavior; FEATURE_FLAG_<NAME> environment variables are an
+# emergency kill switch that takes precedence over the admin setting.
+ROLLOUT_FEATURE_FLAG_DEFAULTS = {
+    "image_search": True,
+    "voice_search": True,
+    "pwa_install": True,
+    "premium_navigation": True,
+}
+
+
+def _feature_flag_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return None
+
+
+def _resolved_feature_flags(stored=None):
+    stored = stored if isinstance(stored, dict) else {}
+    flags = dict(ROLLOUT_FEATURE_FLAG_DEFAULTS)
+    for name in flags:
+        candidate = _feature_flag_bool(stored.get(name))
+        if candidate is not None:
+            flags[name] = candidate
+        env_candidate = _feature_flag_bool(os.environ.get(f"FEATURE_FLAG_{name.upper()}"))
+        if env_candidate is not None:
+            flags[name] = env_candidate
+    return flags
+
+
+@api.get("/meta/feature-flags")
+async def get_feature_flags():
+    """Public, cacheable rollout controls. Database failure never disables defaults."""
+    try:
+        doc = await db.settings.find_one({"_key": "feature_flags"}, {"_id": 0, "value": 1, "updated_at": 1})
+    except Exception:
+        doc = None
+    stored = doc.get("value") if doc else None
+    return JSONResponse(
+        content={
+            "version": CLIENT_CONTRACT_VERSION,
+            "flags": _resolved_feature_flags(stored),
+            "updated_at": doc.get("updated_at") if doc else None,
+        },
+        headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=300"},
+    )
+
+
+@api.get("/admin/feature-flags")
+async def get_admin_feature_flags(user: dict = Depends(require_admin)):
+    try:
+        doc = await db.settings.find_one({"_key": "feature_flags"}, {"_id": 0, "value": 1, "updated_at": 1})
+    except Exception:
+        doc = None
+    return {"flags": _resolved_feature_flags(doc.get("value") if doc else None), "updated_at": doc.get("updated_at") if doc else None}
+
+
+@api.put("/admin/feature-flags")
+async def update_admin_feature_flags(body: dict, user: dict = Depends(require_admin)):
+    requested = body.get("flags", body)
+    if not isinstance(requested, dict):
+        raise HTTPException(422, "flags must be an object")
+    unknown = set(requested) - set(ROLLOUT_FEATURE_FLAG_DEFAULTS)
+    if unknown:
+        raise HTTPException(422, f"Unknown feature flags: {', '.join(sorted(unknown))}")
+    parsed = {}
+    for name, value in requested.items():
+        enabled = _feature_flag_bool(value)
+        if enabled is None:
+            raise HTTPException(422, f"Feature flag {name} must be boolean")
+        parsed[name] = enabled
+    try:
+        current = await db.settings.find_one({"_key": "feature_flags"}, {"_id": 0, "value": 1})
+        next_flags = dict(current.get("value") or {}) if current else {}
+        next_flags.update(parsed)
+        updated_at = datetime.now(timezone.utc).isoformat()
+        await db.settings.update_one({"_key": "feature_flags"}, {"$set": {"value": next_flags, "updated_at": updated_at, "updated_by": user.get("id")}}, upsert=True)
+    except Exception:
+        raise HTTPException(503, "Feature flag storage is unavailable")
+    return {"flags": _resolved_feature_flags(next_flags), "updated_at": updated_at}
+
+
 @api.get("/meta/categories")
 async def get_categories(lang: str = "ar"):
     lang = (lang or "ar").lower().strip()

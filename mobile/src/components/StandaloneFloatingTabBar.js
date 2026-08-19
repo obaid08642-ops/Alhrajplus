@@ -10,6 +10,7 @@ import * as Haptics from "expo-haptics";
 import { useNavigation } from "@react-navigation/native";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
+import { useFeatureFlags } from "../featureFlags";
 // ---- Dimensions (approved premium navigation system) ----
 const BAR_HEIGHT = 32;
 const HOLE_RADIUS = 46;
@@ -36,6 +37,7 @@ function buildBarPath(W, totalH) {
 export default function StandaloneFloatingTabBar({ activeKey = null }) {
   const { t } = useI18n();
   const { isDark, palette } = useThemeMode();
+  const premiumNavigationEnabled = useFeatureFlags().premium_navigation !== false;
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const fabPress = useRef(new Animated.Value(1)).current;
@@ -105,7 +107,7 @@ export default function StandaloneFloatingTabBar({ activeKey = null }) {
                 style={styles.tabBtn}
                 testID={`standalone-tab-${tab.key}`}
               >
-                <View testID={`standalone-tab-icon-${tab.key}`} style={[styles.iconHalo, focused && { backgroundColor: isDark ? "rgba(231,238,248,0.14)" : "rgba(255,255,255,0.16)" }]}>
+                <View testID={`standalone-tab-icon-${tab.key}`} style={[styles.iconHalo, focused && premiumNavigationEnabled && { backgroundColor: isDark ? "rgba(231,238,248,0.14)" : "rgba(255,255,255,0.16)" }]}>
                   <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
                 </View>
                 <Text style={[styles.tabLabel, { color: focused ? activeColor : inactiveColor, fontWeight: focused ? "900" : "700" }]} numberOfLines={1}>

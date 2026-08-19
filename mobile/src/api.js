@@ -143,6 +143,19 @@ export function getClientContract({ force = false } = {}) {
     return clientContractPromise;
 }
 
+let featureFlagsPromise = null;
+
+export function getFeatureFlags({ force = false } = {}) {
+    if (force) featureFlagsPromise = null;
+    if (!featureFlagsPromise) {
+        featureFlagsPromise = api.get("/meta/feature-flags").then(({ data }) => data).catch((error) => {
+            featureFlagsPromise = null;
+            throw error;
+        });
+    }
+    return featureFlagsPromise;
+}
+
 export function formatApiError(err) {
     const detail = err?.response?.data?.detail ?? err?.response?.data?.message ?? err;
     if (!detail) return tr("خطأ غير متوقع");

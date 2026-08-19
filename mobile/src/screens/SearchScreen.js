@@ -13,6 +13,7 @@ import AudioModuleDefault from "expo-audio/build/AudioModule";
 import { requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from "expo-audio";
 const AudioRecorder = AudioModuleDefault?.AudioRecorder;
 import api from "../api";
+import { useFeatureFlags } from "../featureFlags";
 import { useI18n } from "../I18nContext";
 import { useCountry } from "../CountryContext";
 import { useThemeMode } from "../ThemeContext";
@@ -46,6 +47,9 @@ export default function SearchScreen({
   const { t, lang } = useI18n();
   const insets = useSafeAreaInsets();
   const { isDark, palette } = useThemeMode();
+  const featureFlags = useFeatureFlags();
+  const imageSearchEnabled = featureFlags.image_search !== false;
+  const voiceSearchEnabled = featureFlags.voice_search !== false;
   
   const SORT_OPTIONS = SORT_KEYS.map(o => ({
     key: o.key,
@@ -80,6 +84,7 @@ export default function SearchScreen({
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
   const toggleVoice = async () => {
+    if (!voiceSearchEnabled) return;
     if (voiceRec) {
       // Stop + transcribe
       try {
@@ -129,7 +134,7 @@ export default function SearchScreen({
   };
 
   const searchByImage = async () => {
-    if (imageBusy || voiceBusy) return;
+    if (!imageSearchEnabled || imageBusy || voiceBusy) return;
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -321,12 +326,12 @@ export default function SearchScreen({
           setSuggestions([]);
         }} hitSlop={6}>
                             <X size={16} color={colors.textMuted} />
-                        </TouchableOpacity> : <TouchableOpacity onPress={toggleVoice} hitSlop={6} disabled={voiceBusy}>
+                        </TouchableOpacity> : voiceSearchEnabled ? <TouchableOpacity onPress={toggleVoice} hitSlop={6} disabled={voiceBusy}>
                             {voiceBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <Mic size={16} color={voiceRec ? "#EF4444" : colors.primary} />}
-                        </TouchableOpacity>}
-                    <TouchableOpacity onPress={searchByImage} hitSlop={6} disabled={imageBusy || voiceBusy} testID="mobile-image-search-btn">
+                        </TouchableOpacity> : null}
+                    {imageSearchEnabled && <TouchableOpacity onPress={searchByImage} hitSlop={6} disabled={imageBusy || voiceBusy} testID="mobile-image-search-btn">
                         {imageBusy ? <ActivityIndicator size="small" color={colors.primary} /> : <Camera size={16} color={colors.primary} />}
-                    </TouchableOpacity>
+                    </TouchableOpacity>}
                 </View>
                 <TouchableOpacity onPress={() => setFiltersOpen(true)} style={[s.filterBtn, activeFiltersCount > 0 && s.filterBtnActive]}>
                     <SlidersHorizontal size={18} color={activeFiltersCount > 0 ? "#fff" : colors.text} />

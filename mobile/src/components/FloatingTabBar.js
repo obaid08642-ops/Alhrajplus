@@ -10,6 +10,7 @@ import { Home, Film, MessageCircle, User, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
+import { useFeatureFlags } from "../featureFlags";
 
 const BAR_HEIGHT = 32;
 const HOLE_RADIUS = 46;
@@ -40,6 +41,7 @@ function buildBarPath(W, totalH) {
 export default function FloatingTabBar({ state, descriptors, navigation }) {
   const { t } = useI18n();
   const { isDark, palette } = useThemeMode();
+  const premiumNavigationEnabled = useFeatureFlags().premium_navigation !== false;
   const insets = useSafeAreaInsets();
   const currentRoute = state.routes[state.index];
   const currentOpts = descriptors?.[currentRoute.key]?.options || {};
@@ -118,7 +120,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                 accessibilityLabel={tab.label}
                 accessibilityState={{ selected: focused }}
               >
-                <View testID={`tab-icon-${tab.name}`} style={[styles.iconHalo, focused && { backgroundColor: isDark ? "rgba(231,238,248,0.14)" : "rgba(255,255,255,0.16)" }]}>
+                <View testID={`tab-icon-${tab.name}`} style={[styles.iconHalo, focused && premiumNavigationEnabled && { backgroundColor: isDark ? "rgba(231,238,248,0.14)" : "rgba(255,255,255,0.16)" }]}>
                   <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
                 </View>
                 <Text style={[styles.tabLabel, { color: focused ? activeColor : inactiveColor, fontWeight: focused ? "900" : "700" }]} numberOfLines={1}>
