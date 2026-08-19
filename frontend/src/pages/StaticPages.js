@@ -28,6 +28,16 @@ export function SettingsPage() {
     const { t, lang, setLang, available, tr, isAutoLanguage } = useI18n();
     const nav = useNavigate();
 
+    const languageLabel = (code) => ({
+        auto: tr("تلقائي حسب الجهاز"),
+        ar: tr("العربية"),
+        en: "English",
+        ur: "اردو",
+        hi: "हिन्दी",
+        bn: "বাংলা",
+        fr: "Français",
+    })[code] || code;
+
     const items = [
         { icon: Lock, label: tr("الأمان والخصوصية"), to: "#", desc: tr("كلمة المرور، حذف الحساب، البيانات") },
         { icon: HelpCircle, label: tr("المساعدة والدعم"), to: "/contact", desc: tr("تواصل معنا، الأسئلة الشائعة") },
@@ -69,10 +79,7 @@ export function SettingsPage() {
                         <span className="font-arabic font-bold text-sm text-[var(--text)]">{tr("اللغة")}</span>
                     </div>
                     <select value={isAutoLanguage ? "auto" : lang} onChange={(e) => setLang(e.target.value)} data-testid="settings-lang-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
-                        {available.map((l) => <option key={l} value={l}>
-                            {l === "auto" && "🖥️ تلقائي (لغة الجهاز)"}{l === "ar" && "🇸🇦 العربية"}{l === "en" && "🇬🇧 English"}{l === "ur" && "🇵🇰 اردو"}
-                            {l === "hi" && "🇮🇳 हिन्दी"}{l === "bn" && "🇧🇩 বাংলা"}{l === "fr" && "🇫🇷 Français"}
-                        </option>)}
+                        {available.map((l) => <option key={l} value={l}>{languageLabel(l)}</option>)}
                     </select>
                 </div>
             </div>
@@ -181,7 +188,7 @@ export function ContactPage() {
                     <input data-testid="contact-subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder={tr("الموضوع")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]" />
                     <textarea data-testid="contact-message" required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder={tr("اكتب رسالتك...")} className="w-full bg-[var(--surface-elevated)] rounded-xl px-3 py-2.5 text-sm border border-[var(--border)] text-[var(--text)] outline-none focus:border-[var(--primary)]"></textarea>
                     <button data-testid="contact-send" disabled={busy} className="bg-[var(--primary)] text-[var(--primary-fg)] px-5 py-2.5 rounded-full font-bold text-sm font-arabic disabled:opacity-50">
-                        {busy ? "جاري الإرسال..." : "إرسال"}
+                        {busy ? tr("جاري الإرسال...") : tr("إرسال")}
                     </button>
                 </form>
             )}

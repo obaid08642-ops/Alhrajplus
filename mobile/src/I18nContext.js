@@ -2285,6 +2285,17 @@ const STRINGS = {
     },
 };
 
+// Shared UI labels that must behave identically in Web and Mobile settings.
+// They live outside the large legacy dictionary so new cross-channel labels are
+// easy to audit without duplicating every screen dictionary entry.
+const SHARED_UI_STRINGS = {
+    "تلقائي حسب الجهاز": {
+        en: "Automatic (device language)", ur: "خودکار (آلہ کی زبان)",
+        hi: "स्वचालित (डिवाइस भाषा)", bn: "স্বয়ংক্রিয় (ডিভাইসের ভাষা)", fr: "Automatique (langue de l’appareil)",
+    },
+    "العربية": { en: "Arabic", ur: "عربی", hi: "अरबी", bn: "আরবি", fr: "Arabe" },
+};
+
 const KEY = "hp_lang";
 const MANUAL_KEY = "hp_lang_manual";
 const SUPPORTED = ["auto", "ar", "en", "hi", "ur", "bn", "fr"];
@@ -2296,7 +2307,7 @@ export function currentLang() { return _currentLang; }
 // translation is found — same behavior as t() inside components.
 export function tr(key) {
     if (_currentLang === "ar") return key;
-    return (STRINGS[_currentLang] && STRINGS[_currentLang][key]) || key;
+    return (STRINGS[_currentLang] && STRINGS[_currentLang][key]) || (SHARED_UI_STRINGS[key] && SHARED_UI_STRINGS[key][_currentLang]) || key;
 }
 
 export function I18nProvider({ children }) {
@@ -2354,7 +2365,7 @@ export function I18nProvider({ children }) {
         if (!key) return key;
         if (lang === "ar") return key;
         const table = STRINGS[lang];
-        return (table && table[key]) || key;
+        return (table && table[key]) || (SHARED_UI_STRINGS[key] && SHARED_UI_STRINGS[key][lang]) || key;
     }, [lang]);
 
     return <I18nCtx.Provider value={{ lang, setLang, t, supported: SUPPORTED }}>

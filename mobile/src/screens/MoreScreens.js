@@ -216,13 +216,13 @@ export function SettingsScreen({
   const [countryOpen, setCountryOpen] = useState(false);
 
   const LANG_LABELS = {
-    auto: "تلقائي حسب الجهاز",
-    ar: "العربية 🇸🇦",
-    en: "English 🇬🇧",
-    hi: "हिन्दी 🇮🇳",
-    ur: "اردو 🇵🇰",
-    bn: "বাংলা 🇧🇩",
-    fr: "Français 🇫🇷"
+    auto: t("تلقائي حسب الجهاز"),
+    ar: t("العربية"),
+    en: "English",
+    hi: "हिन्दी",
+    ur: "اردو",
+    bn: "বাংলা",
+    fr: "Français"
   };
   return <ScrollView style={[s.wrap, { backgroundColor: palette.bg }]}>
             <Text style={s.pageTitle}>{t("الإعدادات")}</Text>
@@ -360,8 +360,10 @@ export function StaticPageScreen({
       data
     }) => {
       if (mounted) setPage({
-        title: data.title,
-        body: data.body
+        // Server-managed pages may be localized already.  Translating known
+        // Arabic fallback copy keeps the offline and seeded pages aligned.
+        title: t(data.title || ""),
+        body: String(data.body || "").startsWith("📧") ? String(data.body || "") : t(data.body || "")
       });
     }).catch(() => {
       if (mounted) setPage(STATIC_FALLBACK[slug] || STATIC_FALLBACK.about);

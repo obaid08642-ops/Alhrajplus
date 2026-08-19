@@ -8992,5 +8992,19 @@
     "hi": "Coins",
     "bn": "Coins",
     "fr": "Coins"
+  },
+  "تلقائي حسب الجهاز": {
+    "en": "Automatic (device language)",
+    "ur": "خودکار (آلہ کی زبان)",
+    "hi": "स्वचालित (डिवाइस भाषा)",
+    "bn": "স্বয়ংক্রিয় (ডিভাইসের ভাষা)",
+    "fr": "Automatique (langue de l’appareil)"
+  },
+  "العربية": {
+    "en": "Arabic",
+    "ur": "عربی",
+    "hi": "अरबी",
+    "bn": "আরবি",
+    "fr": "Arabe"
   }
 }
