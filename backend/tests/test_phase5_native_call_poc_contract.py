@@ -35,7 +35,8 @@ def test_native_call_poc_uses_native_webrtc_and_all_signal_types_without_webview
     assert "pendingIceRef" in source
 
     chat = (MOBILE / "src" / "screens" / "ChatScreen.js").read_text(encoding="utf-8")
-    assert "EXPO_PUBLIC_NATIVE_CALL_POC" in chat
+    assert "EXPO_PUBLIC_NATIVE_CALL_POC" not in chat
     assert "<NativeVoiceCall" in chat
     assert "signalingEvents={nativeCallSignals}" in chat
     assert 'subscribe("call_ice"' in chat
+    assert "VoiceCallWebView" not in chat

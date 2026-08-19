@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import { randomUUID } from "expo-crypto";
 // expo-audio v1.1+ removed the top-level `AudioModule`/`AudioRecorder`
 // named exports. Use the documented functions + grab the native AudioRecorder
 // constructor from the default-export module so the chat voice-record
@@ -24,12 +25,13 @@ import { useAuth } from "../AuthContext";
 import { useChatSocket } from "../useChatSocket";
 import { useThemeMode } from "../ThemeContext";
 import { colors, radius, shadow } from "../theme";
-import VoiceCallWebView from "../components/VoiceCallWebView";
 import NativeVoiceCall from "../components/NativeVoiceCall";
-
-// Phase 5 proof only. Phase 6 will promote the native path and remove the
-// WebView fallback after device-network validation is complete.
-const USE_NATIVE_CALL_POC = process.env.EXPO_PUBLIC_NATIVE_CALL_POC === "1";
+import {
+  endNativeCall,
+  ensureNativeCallSystem,
+  showIncomingNativeCall,
+  subscribeNativeCallEvents,
+} from "../calls/nativeCallSystem";
 
 // Audio player module for voice playback
 import { useAudioPlayer } from "expo-audio";
@@ -122,6 +124,8 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const initialTo = route.params?.to;
   const initialListing = route.params?.listing;
+  const initialIncomingCallId = route.params?.call_id;
+  const initialIncomingCallerName = route.params?.caller_name;
   // When the user navigates from a listing detail "تواصل مع البائع" CTA we
   // already have seller_name/avatar/id in the route params. Use them
   // immediately so the thread opens INSTANTLY without waiting for the
@@ -263,7 +267,7 @@ export default function ChatScreen() {
             </View>;
   }
   if (activeConvoId && activeOther) {
-    return <ChatThread convoId={activeConvoId} other={activeOther} listing={activeListing} socket={chatSocket} onBack={closeThread} />;
+    return <ChatThread convoId={activeConvoId} other={activeOther} listing={activeListing} socket={chatSocket} incomingCallId={initialIncomingCallId} incomingCallerName={initialIncomingCallerName} onBack={closeThread} />;
   }
   return <View style={{
     flex: 1,
@@ -347,10 +351,21 @@ function ChatThread({
   other,
   listing,
   socket,
+  incomingCallId,
+  incomingCallerName,
   onBack
 }) {
   const { t } = useI18n();
   const { isDark, palette } = useThemeMode();
+  const nativeCallLabels = useMemo(() => ({
+    appName: "Haraj Plus",
+    alertTitle: t("إذن حساب الاتصال"),
+    alertDescription: t("يحتاج الحراج بلس إذنًا لإظهار وإدارة المكالمات الصوتية الواردة."),
+    cancelButton: t("إلغاء"),
+    okButton: t("متابعة"),
+    channelName: t("المكالمات الصوتية"),
+    notificationTitle: t("مكالمة صوتية جارية في الحراج بلس"),
+  }), [t]);
   
   const {
     user
@@ -383,6 +398,7 @@ function ChatThread({
     setNativeCallSignals(previous => previous.some(item => `${item.type}:${item.call_id}:${JSON.stringify(item.data || {})}` === key) ? previous : [...previous, event].slice(-64));
   }, []);
   const incomingRingtone = useAudioPlayer(require("../../assets/audio/alhrajplus-call-ringtone.mp3"));
+  const isSystemCallId = useCallback((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || ""), []);
   // Reply-to state — was missing in last build which caused
   // "Property 'replyTo' doesn't exist" crash at line 805 when the composer
   // tried to render the reply preview.
@@ -476,21 +492,67 @@ function ChatThread({
     return () => { try { incomingRingtone.pause(); } catch (_) {} };
   }, [incomingCall?.call_id, incomingRingtone, voiceCallVisible]);
 
-  // Capture an incoming call offer while the WebView is opening; the latest
-  // signaling event is passed into it after its secure token handshake.
+  // A notification can open the app after the sender already emitted SDP/ICE.
+  // Recover the short-lived authorized queue before asking the user to answer.
+  const recoveredIncomingCallRef = useRef(null);
+  useEffect(() => {
+    if (!incomingCallId || recoveredIncomingCallRef.current === incomingCallId) return undefined;
+    recoveredIncomingCallRef.current = incomingCallId;
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await api.get(`/voice/calls/${incomingCallId}/signals`);
+        const session = data?.session || {};
+        if (!active || session.convo_id !== convoId || session.caller_id !== other.id || !Array.isArray(data?.signals) || !data.signals.length) return;
+        const recovered = { type: "call_invite", from: session.caller_id, convo_id: convoId, call_id: incomingCallId, data: { caller_name: incomingCallerName || other.name || "Haraj Plus" } };
+        setIncomingCall(recovered);
+        setActiveCallSignal(recovered);
+        setNativeCallSignals(data.signals);
+        const nativeShown = isSystemCallId(incomingCallId) && await showIncomingNativeCall({
+          callId: incomingCallId,
+          callerName: incomingCallerName || other.name || t("مكالمة صوتية"),
+          handle: "Haraj Plus",
+          payload: { to: session.caller_id, convo_id: convoId, call_id: incomingCallId },
+          labels: nativeCallLabels,
+        });
+        if (!nativeShown && active) {
+          Alert.alert(t("مكالمة واردة"), t("لديك مكالمة صوتية واردة"), [
+            { text: t("رفض"), style: "destructive", onPress: () => {
+              wsSend({ type: "call_reject", to: session.caller_id, convo_id: convoId, call_id: incomingCallId, data: {} });
+              setIncomingCall(null);
+            } },
+            { text: t("قبول"), onPress: () => { try { incomingRingtone.pause(); } catch (_) {} setVoiceCallVisible(true); } },
+          ]);
+        }
+      } catch (_) {}
+    })();
+    return () => { active = false; };
+  }, [convoId, incomingCallId, incomingCallerName, incomingRingtone, isSystemCallId, nativeCallLabels, other.id, other.name, t, wsSend]);
+
+  // Capture an incoming call offer while the native call UI is opening.
   useEffect(() => {
     const offInvite = subscribe("call_invite", event => {
       if (event?.convo_id !== convoId || event.from !== other.id || !event.call_id) return;
       setIncomingCall(event);
       setActiveCallSignal(event);
       setNativeCallSignals([event]);
-      Alert.alert(t("مكالمة واردة"), t("لديك مكالمة صوتية واردة"), [
-        { text: t("رفض"), style: "destructive", onPress: () => {
-          wsSend({ type: "call_reject", to: event.from, convo_id: convoId, call_id: event.call_id, data: {} });
-          setIncomingCall(null);
-        } },
-        { text: t("قبول"), onPress: () => { try { incomingRingtone.pause(); } catch (_) {} setVoiceCallVisible(true); } },
-      ]);
+      (async () => {
+        const nativeShown = isSystemCallId(event.call_id) && await showIncomingNativeCall({
+          callId: event.call_id,
+          callerName: event.data?.caller_name || other.name || t("مكالمة صوتية"),
+          handle: "Haraj Plus",
+          payload: { to: event.from, convo_id: convoId, call_id: event.call_id },
+          labels: nativeCallLabels,
+        });
+        if (nativeShown) return;
+        Alert.alert(t("مكالمة واردة"), t("لديك مكالمة صوتية واردة"), [
+          { text: t("رفض"), style: "destructive", onPress: () => {
+            wsSend({ type: "call_reject", to: event.from, convo_id: convoId, call_id: event.call_id, data: {} });
+            setIncomingCall(null);
+          } },
+          { text: t("قبول"), onPress: () => { try { incomingRingtone.pause(); } catch (_) {} setVoiceCallVisible(true); } },
+        ]);
+      })();
     });
     const offOffer = subscribe("call_offer", event => {
       if (event?.convo_id === convoId && event.from === other.id) {
@@ -527,7 +589,30 @@ function ChatThread({
       }
     });
     return () => { offInvite?.(); offOffer?.(); offAnswer?.(); offIce?.(); offHangup?.(); offReject?.(); };
-  }, [convoId, enqueueNativeCallSignal, incomingRingtone, other.id, outgoingCall?.call_id, subscribe, t, wsSend]);
+  }, [convoId, enqueueNativeCallSignal, incomingRingtone, isSystemCallId, nativeCallLabels, other.id, outgoingCall?.call_id, subscribe, t, wsSend]);
+
+  // Bridge CallKit / Android ConnectionService actions back to the secured
+  // chat signaling channel. When a platform UI cannot be initialized the
+  // existing in-app alert remains the safe fallback.
+  useEffect(() => {
+    ensureNativeCallSystem(nativeCallLabels).catch(() => {});
+    return subscribeNativeCallEvents(event => {
+      const active = incomingCall || outgoingCall;
+      if (!active?.call_id || event.callId !== active.call_id) return;
+      if (event.type === "answer") {
+        try { incomingRingtone.pause(); } catch (_) {}
+        setVoiceCallVisible(true);
+      } else if (event.type === "end" || event.type === "reset") {
+        const type = incomingCall && !voiceCallVisible ? "call_reject" : "call_hangup";
+        wsSend({ type, to: incomingCall?.from || other.id, convo_id: convoId, call_id: active.call_id, data: {} });
+        setVoiceCallVisible(false);
+        setIncomingCall(null);
+        setOutgoingCall(null);
+        setActiveCallSignal(null);
+        setNativeCallSignals([]);
+      }
+    });
+  }, [convoId, incomingCall, incomingRingtone, nativeCallLabels, other.id, outgoingCall, voiceCallVisible, wsSend]);
 
   // Subscribe to WS events
   useEffect(() => {
@@ -920,7 +1005,7 @@ function ChatThread({
                         {otherTyping ? t("يكتب الآن...") : presenceText}
                     </Text>
                 </View>
-                <TouchableOpacity onPress={() => { setIncomingCall(null); setActiveCallSignal(null); setNativeCallSignals([]); setOutgoingCall({ call_id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 9)}` }); setVoiceCallVisible(true); }} style={s.headBtn} hitSlop={8} testID="chat-call-btn">
+                <TouchableOpacity onPress={() => { setIncomingCall(null); setActiveCallSignal(null); setNativeCallSignals([]); setOutgoingCall({ call_id: randomUUID() }); setVoiceCallVisible(true); }} style={s.headBtn} hitSlop={8} testID="chat-call-btn">
                     <Phone size={20} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => {
@@ -1142,7 +1227,7 @@ function ChatThread({
 
             {/* Forward contact picker */}
             {forwardSrc && <ForwardPicker src={forwardSrc} onClose={() => setForwardSrc(null)} currentUser={user} onForwarded={() => { setForwardSrc(null); }} />}
-            {USE_NATIVE_CALL_POC ? <NativeVoiceCall visible={voiceCallVisible} role={incomingCall ? "receiver" : "caller"} to={incomingCall?.from || other.id} convoId={convoId} callId={incomingCall?.call_id || outgoingCall?.call_id} signalingEvents={nativeCallSignals} name={other.name} onSignal={wsSend} onClose={({ signalAlreadySent = false } = {}) => { const activeCall = incomingCall || outgoingCall; if (!signalAlreadySent && activeCall?.call_id) wsSend({ type: "call_hangup", to: incomingCall?.from || other.id, convo_id: convoId, call_id: activeCall.call_id, data: {} }); setVoiceCallVisible(false); setIncomingCall(null); setOutgoingCall(null); setActiveCallSignal(null); setNativeCallSignals([]); }} /> : <VoiceCallWebView visible={voiceCallVisible} role={incomingCall ? "receiver" : "caller"} to={incomingCall?.from || other.id} convoId={convoId} callId={incomingCall?.call_id || outgoingCall?.call_id} signalingEvent={incomingCall?.type === "call_offer" ? incomingCall : null} name={other.name} onClose={() => { const activeCall = incomingCall || outgoingCall; if (activeCall?.call_id) wsSend({ type: "call_hangup", to: incomingCall?.from || other.id, convo_id: convoId, call_id: activeCall.call_id, data: {} }); setVoiceCallVisible(false); setIncomingCall(null); setOutgoingCall(null); setActiveCallSignal(null); setNativeCallSignals([]); }} />}
+            <NativeVoiceCall visible={voiceCallVisible} role={incomingCall ? "receiver" : "caller"} to={incomingCall?.from || other.id} convoId={convoId} callId={incomingCall?.call_id || outgoingCall?.call_id} signalingEvents={nativeCallSignals} name={other.name} onSignal={wsSend} onClose={({ signalAlreadySent = false } = {}) => { const activeCall = incomingCall || outgoingCall; if (activeCall?.call_id) endNativeCall(activeCall.call_id, signalAlreadySent ? "local" : "remote"); if (!signalAlreadySent && activeCall?.call_id) wsSend({ type: "call_hangup", to: incomingCall?.from || other.id, convo_id: convoId, call_id: activeCall.call_id, data: {} }); setVoiceCallVisible(false); setIncomingCall(null); setOutgoingCall(null); setActiveCallSignal(null); setNativeCallSignals([]); }} />
         </KeyboardAvoidingView>;
 }
 

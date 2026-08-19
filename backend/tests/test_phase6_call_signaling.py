@@ -114,3 +114,46 @@ def test_call_history_is_scoped_to_authenticated_participant_and_country(monkeyp
     monkeypatch.setattr(server, "db", db)
     rows = asyncio.run(server.voice_call_history(limit=50, user={"id": "u1", "country_code": "SA"}))
     assert [row["id"] for row in rows] == ["call_history_123"]
+
+
+def test_queued_call_signals_are_scoped_to_the_target_participant(monkeypatch):
+    db = _CallDb()
+    db.call_sessions.docs["call_signal_queue_123"] = {
+        "id": "call_signal_queue_123",
+        "convo_id": "u1_u2",
+        "caller_id": "u1",
+        "callee_id": "u2",
+        "country_code": "SA",
+        "status": "offered",
+        "expires_at": "2999-01-01T00:00:00+00:00",
+        "pending_signals": [
+            {"type": "call_offer", "from": "u1", "to": "u2", "call_id": "call_signal_queue_123", "data": {"type": "offer"}},
+            {"type": "call_ice", "from": "u1", "to": "u2", "call_id": "call_signal_queue_123", "data": {"candidate": "candidate-u2"}},
+            {"type": "call_answer", "from": "u2", "to": "u1", "call_id": "call_signal_queue_123", "data": {"type": "answer"}},
+        ],
+    }
+    monkeypatch.setattr(server, "db", db)
+
+    payload = asyncio.run(server.voice_call_signals("call_signal_queue_123", user={"id": "u2"}))
+    assert [event["type"] for event in payload["signals"]] == ["call_offer", "call_ice"]
+    assert all(event["to"] == "u2" for event in payload["signals"])
+    assert payload["session"]["convo_id"] == "u1_u2"
+
+
+def test_queued_call_signals_reject_non_participants(monkeypatch):
+    db = _CallDb()
+    db.call_sessions.docs["call_signal_denied_123"] = {
+        "id": "call_signal_denied_123",
+        "caller_id": "u1",
+        "callee_id": "u2",
+        "status": "ringing",
+        "expires_at": "2999-01-01T00:00:00+00:00",
+    }
+    monkeypatch.setattr(server, "db", db)
+
+    try:
+        asyncio.run(server.voice_call_signals("call_signal_denied_123", user={"id": "intruder"}))
+    except Exception as exc:
+        assert getattr(exc, "status_code", None) == 403
+    else:
+        raise AssertionError("non-participant could read queued call signals")

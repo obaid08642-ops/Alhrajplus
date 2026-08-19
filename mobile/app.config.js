@@ -21,7 +21,9 @@ module.exports = ({ config }) => ({
     config?.plugins || [],
     [["@config-plugins/react-native-webrtc", {
       microphonePermission: "يستخدم التطبيق الميكروفون لإجراء المكالمات الصوتية والرسائل الصوتية"
-    }]]
+    }]],
+    ["./plugins/withCallKeepBranding"],
+    ["@config-plugins/react-native-callkeep"]
   ),
   extra: {
     ...(base.expo.extra || {}),

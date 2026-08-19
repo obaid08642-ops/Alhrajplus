@@ -5568,6 +5568,10 @@ async def _authorize_call_signal(sender_id: str, target_id: str, convo_id: str, 
         session = {
             "id": call_id, "convo_id": convo_id, "caller_id": sender_id, "callee_id": target_id,
             "country_code": conversation_country, "status": "ringing", "created_at": now_iso,
+            # Signaling is persisted only for the short-lived call session so a
+            # recipient opened from an incoming push can recover SDP/ICE that
+            # was emitted while its chat WebSocket was offline.
+            "pending_signals": [],
             "updated_at": now_iso, "expires_at": (now + timedelta(seconds=45)).isoformat(),
         }
         await db.call_sessions.insert_one(session)
@@ -5600,6 +5604,34 @@ async def _authorize_call_signal(sender_id: str, target_id: str, convo_id: str, 
         await db.call_sessions.update_one({"id": call_id}, {"$set": updates})
         session.update(updates)
     return session
+
+
+@api.get("/voice/calls/{call_id}/signals")
+async def voice_call_signals(call_id: str, user: dict = Depends(get_current_user)):
+    """Return only queued WebRTC signals addressed to an authenticated participant.
+
+    Signals live only inside the existing short-lived call session.  They are a
+    recovery path for a recipient woken by notification delivery, not a durable
+    media or message channel; audio remains peer-to-peer WebRTC.
+    """
+    session = await db.call_sessions.find_one({"id": call_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(404, "المكالمة غير موجودة")
+    if user.get("id") not in {session.get("caller_id"), session.get("callee_id")}:
+        raise HTTPException(403, "غير مصرح")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if session.get("status") in _CALL_TERMINAL_STATES or (session.get("expires_at") and session["expires_at"] < now_iso and session.get("status") != "connected"):
+        return {"call_id": call_id, "session": {key: session.get(key) for key in ("id", "convo_id", "caller_id", "callee_id", "status", "expires_at")}, "signals": []}
+    target_id = user["id"]
+    signals = [
+        item for item in (session.get("pending_signals") or [])
+        if isinstance(item, dict) and item.get("to") == target_id and item.get("type") in _CALL_SIGNAL_TYPES
+    ][-64:]
+    return {
+        "call_id": call_id,
+        "session": {key: session.get(key) for key in ("id", "convo_id", "caller_id", "callee_id", "status", "expires_at")},
+        "signals": signals,
+    }
 
 
 @api.get("/voice/calls")
@@ -5690,13 +5722,28 @@ async def chat_websocket(websocket: WebSocket, token: str = Query("")):
                 session = await _authorize_call_signal(user_id, to, convo_id, call_id, etype)
                 if not session:
                     continue
+                signal_event = {
+                    "type": etype, "from": user_id, "to": to, "convo_id": convo_id,
+                    "call_id": call_id, "data": data, "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+                # Store only the offer/answer/ICE recovery envelope, capped to
+                # a short list. Invite/reject/hangup are session-state events.
+                if etype in {"call_offer", "call_answer", "call_ice"}:
+                    await db.call_sessions.update_one(
+                        {"id": call_id},
+                        {"$push": {"pending_signals": {"$each": [signal_event], "$slice": -64}}},
+                    )
                 delivered = await _chat_hub.send_to_user(to, {
                     "type": etype, "from": user_id, "convo_id": convo_id,
                     "call_id": call_id, "data": data,
                 })
                 if etype == "call_invite" and delivered == 0:
-                    route = f"/chat?to={user_id}&convo={convo_id}"
-                    await _send_user_notification(to, "مكالمة واردة", "لديك مكالمة صوتية واردة", "incoming_call", route, {"entity": "conversation", "entity_id": convo_id, "conversation_id": convo_id, "convo_id": convo_id, "caller_id": user_id, "call_id": call_id, "country_code": session.get("country_code")}, pref_key="messages")
+                    # Use the persisted account name rather than client-provided
+                    # signaling data in the notification payload.
+                    caller = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1}) or {}
+                    caller_name = str(caller.get("name") or "Haraj Plus")[:120]
+                    route = f"/chat?to={user_id}&convo={convo_id}&call_id={call_id}"
+                    await _send_user_notification(to, "مكالمة واردة", "لديك مكالمة صوتية واردة", "incoming_call", route, {"entity": "conversation", "entity_id": convo_id, "conversation_id": convo_id, "convo_id": convo_id, "caller_id": user_id, "caller_name": caller_name, "call_id": call_id, "country_code": session.get("country_code")}, pref_key="messages")
                 continue
             if etype == "read":
                 convo_id = event.get("convo_id")

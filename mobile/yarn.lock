@@ -783,6 +783,11 @@
     "@babel/helper-string-parser" "^7.27.1"
     "@babel/helper-validator-identifier" "^7.28.5"
 
+"@config-plugins/react-native-callkeep@12.0.0":
+  version "12.0.0"
+  resolved "https://registry.yarnpkg.com/@config-plugins/react-native-callkeep/-/react-native-callkeep-12.0.0.tgz#2a4157dd1cf7373f3633b8b53b92f4db2064453c"
+  integrity sha512-IoRZ0+u8iBbmpnF9qvodQ77NI6lebm2OThAER4zOTPFKxEpKMkmCPoFk54CD5yyy4N1cLBXnbELj/GNQRDQBaQ==
+
 "@config-plugins/react-native-webrtc@13.0.0":
   version "13.0.0"
   resolved "https://registry.yarnpkg.com/@config-plugins/react-native-webrtc/-/react-native-webrtc-13.0.0.tgz#8242d5afd89e269630918c448ac1503fd84fdc41"
@@ -4991,6 +4996,11 @@ react-is@^19.1.0:
   version "19.2.6"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-19.2.6.tgz#aeee6159b159eb7f520d672cffcc69e7052d288f"
   integrity sha512-XjBR15BhXuylgWGuslhDKqlSayuqvqBX91BP8pauG8kd1zY8kotkNWbXksTCNRarse4kuGbe2kIY05ARtwNIvw==
+
+react-native-callkeep@4.3.16:
+  version "4.3.16"
+  resolved "https://registry.yarnpkg.com/react-native-callkeep/-/react-native-callkeep-4.3.16.tgz#56291796984b896113ef00f8b67ae3fe177baf70"
+  integrity sha512-aIxn02T5zW4jNPyzRdFGTWv6xD3Vy/1AkBMB6iYvWZEHWnfmgNGF0hELqg03Vbc2BNUhfqpu17aIydos+5Hurg==
 
 react-native-gesture-handler@~2.28.0:
   version "2.28.0"

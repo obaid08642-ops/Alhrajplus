@@ -88,7 +88,9 @@ export function routeFromUrl(url) {
         const to = params.get("to");
         const convo = params.get("convo") || params.get("conversation_id");
         const listing = params.get("listing");
-        _navigationRef.navigate("Chat", { ...(to ? { to } : {}), ...(convo ? { convo } : {}), ...(listing ? { listing_id: listing } : {}), fromNotification: true });
+        const callId = params.get("call_id");
+        const callerName = params.get("caller_name");
+        _navigationRef.navigate("Chat", { ...(to ? { to } : {}), ...(convo ? { convo } : {}), ...(listing ? { listing_id: listing } : {}), ...(callId ? { call_id: callId } : {}), ...(callerName ? { caller_name: callerName } : {}), fromNotification: true });
         return;
     }
     if (url === "/notifications" || url.startsWith("/notifications?")) {
@@ -154,7 +156,19 @@ function attachListenersOnce() {
     // Tap on a foreground/background notification
     Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response?.notification?.request?.content?.data || {};
-        routeFromUrl(notificationUrlFromData(data));
+        const url = notificationUrlFromData(data);
+        const payload = data.payload && typeof data.payload === "object" ? { ...data.payload, ...data } : data;
+        if (payload?.type === "incoming_call" && payload.call_id) {
+            const query = new URLSearchParams({
+                to: String(payload.caller_id || ""),
+                convo: String(payload.convo_id || payload.conversation_id || ""),
+                call_id: String(payload.call_id),
+                caller_name: String(payload.caller_name || ""),
+            });
+            routeFromUrl(`/chat?${query.toString()}`);
+            return;
+        }
+        routeFromUrl(url);
     });
     // Fired the moment a notification arrives — let UI badges refresh live.
     Notifications.addNotificationReceivedListener((notif) => {
@@ -164,7 +178,16 @@ function attachListenersOnce() {
     Notifications.getLastNotificationResponseAsync().then((response) => {
         const data = response?.notification?.request?.content?.data || {};
         const url = notificationUrlFromData(data);
-        if (url) routeFromUrl(url);
+        const payload = data.payload && typeof data.payload === "object" ? { ...data.payload, ...data } : data;
+        if (payload?.type === "incoming_call" && payload.call_id) {
+            const query = new URLSearchParams({
+                to: String(payload.caller_id || ""),
+                convo: String(payload.convo_id || payload.conversation_id || ""),
+                call_id: String(payload.call_id),
+                caller_name: String(payload.caller_name || ""),
+            });
+            routeFromUrl(`/chat?${query.toString()}`);
+        } else if (url) routeFromUrl(url);
     });
 }
 

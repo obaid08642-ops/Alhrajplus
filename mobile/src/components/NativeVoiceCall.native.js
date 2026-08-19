@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Mic, MicOff, PhoneOff, Volume2 } from "lucide-react-native";
 import { mediaDevices, RTCPeerConnection, RTCIceCandidate, RTCSessionDescription } from "react-native-webrtc";
 import { setAudioModeAsync } from "expo-audio";
 import api from "../api";
 import { useI18n } from "../I18nContext";
+import {
+  endNativeCall,
+  markNativeCallConnected,
+  setNativeCallMuted,
+  setNativeCallSpeaker,
+  showOutgoingNativeCall,
+} from "../calls/nativeCallSystem";
 
 const DEFAULT_ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
 
@@ -43,6 +50,15 @@ export default function NativeVoiceCall({
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [relayConfigured, setRelayConfigured] = useState(null);
+  const nativeCallLabels = useMemo(() => ({
+    appName: "Haraj Plus",
+    alertTitle: t("إذن حساب الاتصال"),
+    alertDescription: t("يحتاج الحراج بلس إذنًا لإظهار وإدارة المكالمات الصوتية الواردة."),
+    cancelButton: t("إلغاء"),
+    okButton: t("متابعة"),
+    channelName: t("المكالمات الصوتية"),
+    notificationTitle: t("مكالمة صوتية جارية في الحراج بلس"),
+  }), [t]);
 
   const emit = useCallback((type, data = {}) => {
     if (!to || !convoId || !callId) return;
@@ -70,11 +86,12 @@ export default function NativeVoiceCall({
     if (endedRef.current) return;
     endedRef.current = true;
     if (notify) emit("call_hangup");
+    endNativeCall(callId, notify ? "local" : "remote");
     stopMedia();
     resetAudioMode();
     setState("ended");
     onClose?.({ signalAlreadySent: notify });
-  }, [emit, onClose, resetAudioMode, stopMedia]);
+  }, [callId, emit, onClose, resetAudioMode, stopMedia]);
 
   const flushPendingIce = useCallback(async () => {
     const peer = peerRef.current;
@@ -185,7 +202,10 @@ export default function NativeVoiceCall({
         };
         peer.onconnectionstatechange = () => {
           if (!active || !peerRef.current || peerRef.current !== peer) return;
-          if (peer.connectionState === "connected") setState("connected");
+          if (peer.connectionState === "connected") {
+            markNativeCallConnected(callId);
+            setState("connected");
+          }
           else if (peer.connectionState === "failed") setState("failed");
           else if (peer.connectionState === "disconnected") setState("reconnecting");
         };
@@ -198,6 +218,7 @@ export default function NativeVoiceCall({
         stream.getTracks().forEach(track => peer.addTrack(track, stream));
 
         if (role === "caller") {
+          showOutgoingNativeCall({ callId, calleeName: name, handle: "Haraj Plus", labels: nativeCallLabels }).catch(() => {});
           emit("call_invite", { caller_name: name || "Haraj Plus" });
           const offer = await peer.createOffer({ offerToReceiveAudio: true });
           await peer.setLocalDescription(offer);
@@ -218,7 +239,7 @@ export default function NativeVoiceCall({
         resetAudioMode();
       }
     };
-  }, [callId, emit, name, resetAudioMode, role, stopMedia, visible]);
+  }, [callId, emit, name, nativeCallLabels, resetAudioMode, role, stopMedia, visible]);
 
   useEffect(() => {
     if (state !== "connected") return undefined;
@@ -229,6 +250,7 @@ export default function NativeVoiceCall({
   const toggleMute = () => {
     const nextMuted = !muted;
     streamRef.current?.getAudioTracks?.().forEach(track => { track.enabled = !nextMuted; });
+    setNativeCallMuted(callId, nextMuted);
     setMuted(nextMuted);
   };
 
@@ -236,6 +258,7 @@ export default function NativeVoiceCall({
     if (Platform.OS !== "android") return;
     const next = !speakerEnabled;
     setSpeakerEnabled(next);
+    setNativeCallSpeaker(callId, next);
     setAudioModeAsync({
       allowsRecording: true,
       playsInSilentMode: true,
