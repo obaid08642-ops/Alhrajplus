@@ -9,7 +9,7 @@ import { useI18n, tr } from "@/contexts/I18nContext";
 import { useCountry } from "@/contexts/CountryContext";
 import ListingCard from "@/components/listings/ListingCard";
 import LocationPicker from "@/components/LocationPicker";
-import { Search as SearchIcon, Mic } from "lucide-react";
+import { Search as SearchIcon, Mic, Image as ImageIcon, Loader2 } from "lucide-react";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -97,12 +97,16 @@ export function SearchPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { country } = useCountry();
-    const { t, tr } = useI18n();
+    const { t, tr, lang } = useI18n();
     const [q, setQ] = useState(searchParams.get("q") || "");
     const [results, setResults] = useState([]);
     const [fuzzy, setFuzzy] = useState(false);
     const [loading, setLoading] = useState(false);
     const [voiceActive, setVoiceActive] = useState(false);
+    const [voiceMessage, setVoiceMessage] = useState("");
+    const [imageBusy, setImageBusy] = useState(false);
+    const imageInputRef = useRef(null);
+    const voiceRecorderRef = useRef(null);
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState(searchParams.get("sort") || "newest");
     const [days, setDays] = useState(searchParams.get("days") || "");
@@ -156,26 +160,101 @@ export function SearchPage() {
         return () => { clearTimeout(timer); ctrl.abort(); };
     }, [q, user, sortBy, days, minPrice, maxPrice, userLoc, country, locationFilter]);
 
-    const startVoice = () => {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) {
-            alert(tr("المتصفح لا يدعم البحث الصوتي"));
+    const updateQueryFromAssist = (text) => {
+        const query = String(text || "").trim();
+        if (!query) return;
+        setQ(query);
+        setSearchParams({ q: query });
+    };
+
+    const transcribeBrowserRecording = async (blob) => {
+        const form = new FormData();
+        form.append("audio", blob, `web-search-${Date.now()}.webm`);
+        const { data } = await api.post("/ai/transcribe", form);
+        if (!data?.text) throw new Error("empty transcription");
+        updateQueryFromAssist(data.text);
+    };
+
+    const toggleRecordedVoiceFallback = async () => {
+        if (voiceRecorderRef.current) {
+            voiceRecorderRef.current.stop();
             return;
         }
+        if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+            setVoiceMessage(tr("المتصفح لا يدعم البحث الصوتي"));
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const chunks = [];
+            const recorder = new MediaRecorder(stream);
+            recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+            recorder.onstop = async () => {
+                voiceRecorderRef.current = null;
+                setVoiceMessage(tr("جارٍ تحويل الصوت إلى نص..."));
+                try {
+                    await transcribeBrowserRecording(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+                    setVoiceMessage("");
+                } catch (_) {
+                    setVoiceMessage(tr("تعذر تحويل التسجيل إلى نص. حاول مرة أخرى."));
+                } finally {
+                    stream.getTracks().forEach((track) => track.stop());
+                    setVoiceActive(false);
+                }
+            };
+            voiceRecorderRef.current = recorder;
+            setVoiceMessage(tr("جارٍ التسجيل... اضغط لإيقافه."));
+            setVoiceActive(true);
+            recorder.start();
+        } catch (_) {
+            setVoiceActive(false);
+            setVoiceMessage(tr("تعذر الوصول إلى الميكروفون. تحقق من إذن المتصفح."));
+        }
+    };
+
+    const startVoice = () => {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) return toggleRecordedVoiceFallback();
+        const locale = { ar: "ar-SA", en: "en-US", ur: "ur-PK", hi: "hi-IN", bn: "bn-BD", fr: "fr-FR" }[lang] || "ar-SA";
         const r = new SR();
-        r.lang = "ar-SA";
+        r.lang = locale;
         r.continuous = false;
         r.interimResults = false;
+        setVoiceMessage(tr("جارٍ الاستماع..."));
         setVoiceActive(true);
-        r.onresult = (e) => {
-            const text = e.results[0][0].transcript;
-            setQ(text);
-            setSearchParams({ q: text });
-            setVoiceActive(false);
-        };
-        r.onerror = () => setVoiceActive(false);
+        r.onresult = (e) => updateQueryFromAssist(e.results[0][0].transcript);
+        r.onerror = () => setVoiceMessage(tr("تعذر التعرف على الصوت. حاول مرة أخرى."));
         r.onend = () => setVoiceActive(false);
         r.start();
+    };
+
+    const searchByImage = async (file) => {
+        if (!file || imageBusy) return;
+        if (!file.type?.startsWith("image/")) {
+            alert(tr("اختر ملف صورة صالحًا"));
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            alert(tr("حجم الصورة يجب ألا يتجاوز 5 MB"));
+            return;
+        }
+        setImageBusy(true);
+        try {
+            const imageBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const { data } = await api.post("/ai/image-search", { image_base64: imageBase64 });
+            if (!data?.query) throw new Error("empty image query");
+            updateQueryFromAssist(data.query);
+        } catch (error) {
+            alert(error?.response?.data?.detail || tr("تعذر تحليل الصورة؛ حاول مرة أخرى"));
+        } finally {
+            setImageBusy(false);
+            if (imageInputRef.current) imageInputRef.current.value = "";
+        }
     };
 
     return (
@@ -184,8 +263,11 @@ export function SearchPage() {
                 <div className="flex items-center bg-[var(--surface-elevated)] rounded-full px-4 py-2.5 border border-[var(--border)] focus-within:border-[var(--primary)]">
                     <SearchIcon className="w-4 h-4 text-[var(--text-muted)]" />
                     <input data-testid="search-page-input" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && setSearchParams({ q })} placeholder={t("search_placeholder")} className="bg-transparent flex-1 mx-3 outline-none text-sm text-[var(--text)] font-arabic-body" />
-                    <button data-testid="voice-search-btn-page" onClick={startVoice} className={`text-[var(--text-muted)] hover:text-[var(--primary)] ${voiceActive ? "animate-pulse text-[var(--danger)]" : ""}`}><Mic className="w-4 h-4" /></button>
+                    <input ref={imageInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => searchByImage(event.target.files?.[0])} />
+                    <button type="button" data-testid="image-search-btn-page" onClick={() => imageInputRef.current?.click()} disabled={imageBusy} title={tr("البحث بالصورة")} aria-label={tr("البحث بالصورة")} className="text-[var(--text-muted)] hover:text-[var(--primary)] disabled:opacity-50">{imageBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}</button>
+                    <button type="button" data-testid="voice-search-btn-page" onClick={startVoice} className={`mr-2 text-[var(--text-muted)] hover:text-[var(--primary)] ${voiceActive ? "animate-pulse text-[var(--danger)]" : ""}`} title={tr("البحث الصوتي")} aria-label={tr("البحث الصوتي")}><Mic className="w-4 h-4" /></button>
                 </div>
+                {voiceMessage && <p className="mt-2 text-xs text-[var(--text-muted)] font-arabic-body">{voiceMessage}</p>}
                 {/* Filter pills */}
                 <div className="mt-3 flex flex-wrap gap-2 items-center">
                     <button data-testid="toggle-filters-btn" onClick={() => setShowFilters(s => !s)} className="px-3 py-1.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] text-xs font-bold font-arabic hover:bg-[var(--primary)]/25">

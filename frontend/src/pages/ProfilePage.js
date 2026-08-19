@@ -425,6 +425,34 @@ function PhoneEditor({ user, onUpdated }) {
     </p>;
 }
 
+function PwaInstallButton() {
+    const [installPrompt, setInstallPrompt] = useState(() => typeof window === "undefined" ? null : window.__harajPwaInstallPrompt || null);
+    const [standalone, setStandalone] = useState(() => typeof window !== "undefined" && (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true));
+
+    useEffect(() => {
+        const syncInstallability = () => setInstallPrompt(window.__harajPwaInstallPrompt || null);
+        const installed = () => { setInstallPrompt(null); setStandalone(true); };
+        window.addEventListener("harajpwa:installable", syncInstallability);
+        window.addEventListener("harajpwa:installed", installed);
+        return () => {
+            window.removeEventListener("harajpwa:installable", syncInstallability);
+            window.removeEventListener("harajpwa:installed", installed);
+        };
+    }, []);
+
+    const install = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        await installPrompt.userChoice.catch(() => null);
+        setInstallPrompt(null);
+    };
+
+    if (standalone) return null;
+    if (installPrompt) return <button type="button" data-testid="pwa-install-button" onClick={install} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-[var(--primary)] text-[var(--primary)] bg-[var(--primary)]/5 font-arabic font-bold text-sm mb-3 hover:bg-[var(--primary)]/10"><DownloadIcon className="w-4 h-4" />{tr("تثبيت نسخة الويب على جهازك")}</button>;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || "");
+    return isIOS ? <p className="mb-3 text-[11px] text-[var(--text-muted)] font-arabic-body">{tr("للتثبيت على iPhone أو iPad، افتح زر المشاركة في Safari ثم اختر «إضافة إلى الشاشة الرئيسية». ")}</p> : null;
+}
+
 /**
  * DownloadAppCard
  * - Always visible on Profile (web & PWA).
@@ -457,6 +485,7 @@ function DownloadAppCard() {
                 <h3 className="font-arabic font-black text-base text-[var(--text)]">{tr("حمّل التطبيق")}</h3>
             </div>
             <p className="text-xs text-[var(--text-muted)] font-arabic-body mb-4">{tr("تجربة أسرع، إشعارات فورية، ومميزات حصرية على الجوال.")}</p>
+            <PwaInstallButton />
 
             {primary && (
                 <button

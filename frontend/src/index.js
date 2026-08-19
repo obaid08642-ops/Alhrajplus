@@ -6,6 +6,21 @@ import { installLatinDigitsPolicy } from "@/lib/latinDigits";
 
 installLatinDigitsPolicy();
 
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    window.__harajPwaInstallPrompt = event;
+    window.dispatchEvent(new Event("harajpwa:installable"));
+  });
+  window.addEventListener("appinstalled", () => {
+    window.__harajPwaInstallPrompt = null;
+    window.dispatchEvent(new Event("harajpwa:installed"));
+  });
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}), { once: true });
+  }
+}
+
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
