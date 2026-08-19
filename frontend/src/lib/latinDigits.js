@@ -14,10 +14,18 @@ export function toLatinDigits(value) {
   });
 }
 
-function patchLocaleMethod(prototype, method) {
+function deviceLocale() {
+  try {
+    return Intl?.DateTimeFormat?.().resolvedOptions?.().locale || undefined;
+  } catch (_) {
+    return undefined;
+  }
+}
+
+function patchNumberLocaleMethod(prototype, method) {
   const original = prototype?.[method];
   if (typeof original !== "function" || original.__hpLatinDigitsPatched) return;
-  const wrapped = function patchedLocaleMethod(...args) {
+  const wrapped = function patchedNumberLocaleMethod(...args) {
     return toLatinDigits(original.apply(this, args));
   };
   Object.defineProperty(wrapped, "__hpLatinDigitsPatched", { value: true });
@@ -29,12 +37,35 @@ function patchLocaleMethod(prototype, method) {
   }
 }
 
+function patchGregorianDateLocaleMethod(prototype, method) {
+  const original = prototype?.[method];
+  if (typeof original !== "function" || original.__hpGregorianDatePatched) return;
+  const wrapped = function patchedGregorianDateLocaleMethod(_locales, options) {
+    // Keep the device's ordering and punctuation, but always use Gregorian dates
+    // and Latin digits. This avoids Hijri output even on an Arabic device whose
+    // system calendar is set to Islamic.
+    const safeOptions = options && typeof options === "object" ? options : {};
+    const formatted = original.call(this, deviceLocale(), {
+      ...safeOptions,
+      calendar: "gregory",
+      numberingSystem: "latn",
+    });
+    return toLatinDigits(formatted);
+  };
+  Object.defineProperty(wrapped, "__hpGregorianDatePatched", { value: true });
+  try {
+    Object.defineProperty(prototype, method, { configurable: true, writable: true, value: wrapped });
+  } catch (_) {
+    // A locked runtime simply retains its native formatting.
+  }
+}
+
 /** Installs once before the app renders, covering all existing locale callers. */
 export function installLatinDigitsPolicy() {
   if (globalThis.__hpLatinDigitsPolicyInstalled) return;
   globalThis.__hpLatinDigitsPolicyInstalled = true;
-  patchLocaleMethod(Number.prototype, "toLocaleString");
-  patchLocaleMethod(Date.prototype, "toLocaleString");
-  patchLocaleMethod(Date.prototype, "toLocaleDateString");
-  patchLocaleMethod(Date.prototype, "toLocaleTimeString");
+  patchNumberLocaleMethod(Number.prototype, "toLocaleString");
+  patchGregorianDateLocaleMethod(Date.prototype, "toLocaleString");
+  patchGregorianDateLocaleMethod(Date.prototype, "toLocaleDateString");
+  patchGregorianDateLocaleMethod(Date.prototype, "toLocaleTimeString");
 }

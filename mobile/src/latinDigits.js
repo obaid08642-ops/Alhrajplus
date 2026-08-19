@@ -9,13 +9,39 @@ export function toLatinDigits(value) {
   });
 }
 
-function patchLocaleMethod(prototype, method) {
+function deviceLocale() {
+  try {
+    return Intl?.DateTimeFormat?.().resolvedOptions?.().locale || undefined;
+  } catch (_) {
+    return undefined;
+  }
+}
+
+function patchNumberLocaleMethod(prototype, method) {
   const original = prototype?.[method];
   if (typeof original !== "function" || original.__hpLatinDigitsPatched) return;
-  const wrapped = function patchedLocaleMethod(...args) {
+  const wrapped = function patchedNumberLocaleMethod(...args) {
     return toLatinDigits(original.apply(this, args));
   };
   Object.defineProperty(wrapped, "__hpLatinDigitsPatched", { value: true });
+  try {
+    Object.defineProperty(prototype, method, { configurable: true, writable: true, value: wrapped });
+  } catch (_) {}
+}
+
+function patchGregorianDateLocaleMethod(prototype, method) {
+  const original = prototype?.[method];
+  if (typeof original !== "function" || original.__hpGregorianDatePatched) return;
+  const wrapped = function patchedGregorianDateLocaleMethod(_locales, options) {
+    const safeOptions = options && typeof options === "object" ? options : {};
+    const formatted = original.call(this, deviceLocale(), {
+      ...safeOptions,
+      calendar: "gregory",
+      numberingSystem: "latn",
+    });
+    return toLatinDigits(formatted);
+  };
+  Object.defineProperty(wrapped, "__hpGregorianDatePatched", { value: true });
   try {
     Object.defineProperty(prototype, method, { configurable: true, writable: true, value: wrapped });
   } catch (_) {}
@@ -25,8 +51,8 @@ function patchLocaleMethod(prototype, method) {
 export function installLatinDigitsPolicy() {
   if (globalThis.__hpLatinDigitsPolicyInstalled) return;
   globalThis.__hpLatinDigitsPolicyInstalled = true;
-  patchLocaleMethod(Number.prototype, "toLocaleString");
-  patchLocaleMethod(Date.prototype, "toLocaleString");
-  patchLocaleMethod(Date.prototype, "toLocaleDateString");
-  patchLocaleMethod(Date.prototype, "toLocaleTimeString");
+  patchNumberLocaleMethod(Number.prototype, "toLocaleString");
+  patchGregorianDateLocaleMethod(Date.prototype, "toLocaleString");
+  patchGregorianDateLocaleMethod(Date.prototype, "toLocaleDateString");
+  patchGregorianDateLocaleMethod(Date.prototype, "toLocaleTimeString");
 }

@@ -8,9 +8,9 @@ import api, { formatApiError } from "@/lib/api";
 // Floating language switcher for the unauthenticated screens. Placed at the top-
 // left of every Auth card so visitors can pick their language before signing in.
 function LangButton() {
-    const { lang, setLang, available } = useI18n();
+    const { lang, setLang, available, isAutoLanguage } = useI18n();
     const [open, setOpen] = useState(false);
-    const labels = { ar: "🇸🇦 العربية", en: "🇬🇧 English", ur: "🇵🇰 اردو", hi: "🇮🇳 हिन्दी", bn: "🇧🇩 বাংলা", fr: "🇫🇷 Français" };
+    const labels = { auto: "🖥️ تلقائي (لغة الجهاز)", ar: "🇸🇦 العربية", en: "🇬🇧 English", ur: "🇵🇰 اردو", hi: "🇮🇳 हिन्दी", bn: "🇧🇩 বাংলা", fr: "🇫🇷 Français" };
     return (
         <div className="relative">
             <button
@@ -20,17 +20,17 @@ function LangButton() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)] text-xs text-[var(--text)] font-arabic-body hover:border-[var(--primary)]"
             >
                 <Globe className="w-3.5 h-3.5" />
-                <span>{labels[lang] || lang}</span>
+                <span>{isAutoLanguage ? labels.auto : (labels[lang] || lang)}</span>
             </button>
             {open && (
                 <div data-testid="auth-lang-menu" className="absolute top-10 start-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-1.5 min-w-[150px] z-50">
-                    {available.filter((l) => l !== "auto").map((l) => (
+                    {available.map((l) => (
                         <button
                             key={l}
                             type="button"
                             data-testid={`auth-lang-opt-${l}`}
                             onClick={() => { setLang(l); setOpen(false); }}
-                            className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${lang === l ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}
+                            className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${(l === "auto" ? isAutoLanguage : lang === l) ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}
                         >
                             {labels[l]}
                         </button>

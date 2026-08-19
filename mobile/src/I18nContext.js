@@ -7,14 +7,23 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { I18nManager, View } from "react-native";
+import * as Localization from "expo-localization";
 
 const I18nCtx = createContext(null);
 const DEVICE_LANGS = { ar: "ar", en: "en", hi: "hi", ur: "ur", bn: "bn", fr: "fr" };
+function languageFromLocale(locale) {
+    const base = String(locale || "").toLowerCase().split("-")[0].split("_")[0];
+    return DEVICE_LANGS[base] || null;
+}
+
 function detectDeviceLanguage() {
     try {
-        const locale = Intl?.DateTimeFormat?.().resolvedOptions?.().locale || "";
-        const base = String(locale).toLowerCase().split("-")[0].split("_")[0];
-        return DEVICE_LANGS[base] || "ar";
+        // Expo reads the native device preference on Android and iOS; Intl remains
+        // a web-compatible fallback for Expo web or constrained runtimes.
+        const nativeLocale = Localization.getLocales?.()[0]?.languageCode;
+        return languageFromLocale(nativeLocale)
+            || languageFromLocale(Intl?.DateTimeFormat?.().resolvedOptions?.().locale)
+            || "ar";
     } catch (_) { return "ar"; }
 }
 

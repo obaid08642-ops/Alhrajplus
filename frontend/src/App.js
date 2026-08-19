@@ -161,7 +161,7 @@ function App() {
             const t = setTimeout(() => {
                 setShowSplash(false);
                 sessionStorage.setItem("hp_splash_shown", "1");
-            }, 2200);
+            }, 450);
             return () => clearTimeout(t);
         }
     }, [showSplash]);

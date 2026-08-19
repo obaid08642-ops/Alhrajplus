@@ -33,6 +33,13 @@ services:
         sync: false
       - key: RESEND_FROM
         value: Haraj Plus <noreply@alhraj.online>
+      # Defaults to ADMIN_EMAIL if unset; override only when alerts go elsewhere.
+      - key: MONITORING_ALERT_EMAIL
+        sync: false
+      # Required for reliable WebRTC calls across restrictive mobile networks.
+      # Set a real JSON ICE-server list in the Render dashboard; never commit credentials.
+      - key: TURN_ICE_SERVERS_JSON
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: CRON_SECRET
@@ -41,3 +48,17 @@ services:
         value: https://alhraj.online
       - key: APP_ENV
         value: production
+
+  # External, single-run health and indexing check. Render bills cron execution
+  # by active seconds and documents a $1/month minimum per cron service.
+  - type: cron
+    name: haraj-platform-monitor
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: frankfurt
+    plan: starter
+    schedule: "*/5 * * * *"
+    dockerCommand: 'sh -c ''curl -fsS -X POST -H "X-Cron-Secret: ${CRON_SECRET}" https://alhrajplus.onrender.com/api/cron/monitoring'''
+    envVars:
+      - key: CRON_SECRET
+        sync: false

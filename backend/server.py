@@ -740,6 +740,111 @@ async def _metrics_endpoint():
 
 
 # ============================================================
+# Monitoring: API, indexing assets and public listing schema
+# ============================================================
+_MONITOR_TIMEOUT_SECONDS = 10.0
+_MONITOR_LATENCY_WARNING_MS = 4000
+
+
+def _monitor_site_url() -> str:
+    return os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+
+
+def _monitor_alert_recipient() -> str:
+    return (os.environ.get("MONITORING_ALERT_EMAIL") or os.environ.get("ADMIN_EMAIL") or "").strip()
+
+
+async def _monitor_http_check(client: httpx.AsyncClient, name: str, url: str, required_text: str = "") -> dict:
+    started = time.perf_counter()
+    try:
+        response = await client.get(url, headers={"User-Agent": "HarajPlus-Monitor/1.0"})
+        latency_ms = round((time.perf_counter() - started) * 1000, 1)
+        valid = response.status_code == 200 and (not required_text or required_text in response.text)
+        warning = valid and latency_ms > _MONITOR_LATENCY_WARNING_MS
+        return {
+            "name": name, "ok": valid, "warning": warning, "status_code": response.status_code,
+            "latency_ms": latency_ms,
+            "detail": "slow" if warning else ("ok" if valid else "unexpected response"),
+        }
+    except httpx.HTTPError as exc:
+        return {"name": name, "ok": False, "warning": False, "status_code": None, "latency_ms": None, "detail": f"network error: {type(exc).__name__}"}
+
+
+async def _run_platform_monitoring() -> dict:
+    """Run bounded, read-only public and dependency checks for Admin and cron.
+
+    This never changes a listing or calls a search-engine indexing API.  It checks
+    what an external visitor can retrieve, then records only the compact result.
+    """
+    checked_at = datetime.now(timezone.utc).isoformat()
+    checks = []
+    try:
+        await db.command("ping")
+        checks.append({"name": "mongo", "ok": True, "warning": False, "status_code": None, "latency_ms": None, "detail": "ok"})
+    except Exception as exc:
+        checks.append({"name": "mongo", "ok": False, "warning": False, "status_code": None, "latency_ms": None, "detail": type(exc).__name__})
+    redis_status = _redis_status() if "_redis_status" in globals() else "off"
+    checks.append({"name": "redis", "ok": redis_status == "on", "warning": redis_status != "on", "status_code": None, "latency_ms": None, "detail": redis_status})
+
+    site = _monitor_site_url()
+    async with httpx.AsyncClient(timeout=_MONITOR_TIMEOUT_SECONDS, follow_redirects=True) as client:
+        checks.append(await _monitor_http_check(client, "api_health", f"{site}/api/health", '"status"'))
+        checks.append(await _monitor_http_check(client, "robots", f"{site}/robots.txt", "Sitemap:"))
+        checks.append(await _monitor_http_check(client, "sitemap", f"{site}/sitemap.xml", "<urlset"))
+        try:
+            sample = await db.listings.find_one({"status": "active", "moderation": "approved"}, {"_id": 0, "id": 1, "slug": 1})
+        except Exception:
+            sample = None
+        if sample:
+            ref = quote(_listing_seo_ref(sample), safe="-._~")
+            started = time.perf_counter()
+            try:
+                response = await client.get(f"{site}/listing/{ref}", headers={"User-Agent": "OAI-SearchBot/1.0"})
+                body = response.text
+                latency_ms = round((time.perf_counter() - started) * 1000, 1)
+                valid = response.status_code == 200 and 'application/ld+json' in body and 'BreadcrumbList' in body
+                checks.append({"name": "listing_schema", "ok": valid, "warning": valid and latency_ms > _MONITOR_LATENCY_WARNING_MS, "status_code": response.status_code, "latency_ms": latency_ms, "detail": "ok" if valid else "schema missing"})
+            except httpx.HTTPError as exc:
+                checks.append({"name": "listing_schema", "ok": False, "warning": False, "status_code": None, "latency_ms": None, "detail": f"network error: {type(exc).__name__}"})
+        else:
+            checks.append({"name": "listing_schema", "ok": True, "warning": True, "status_code": None, "latency_ms": None, "detail": "no approved public listing sample"})
+
+    failed = [item for item in checks if not item["ok"]]
+    warnings = [item for item in checks if item.get("warning")]
+    return {
+        "checked_at": checked_at,
+        "status": "down" if failed else ("degraded" if warnings else "healthy"),
+        "checks": checks,
+        "failed_count": len(failed),
+        "warning_count": len(warnings),
+    }
+
+
+async def _record_monitoring_result(result: dict, notify: bool = True) -> dict:
+    """Persist a compact check history and email only on a status transition."""
+    previous = await db.monitoring_runs.find_one({}, {"_id": 0, "status": 1}, sort=[("checked_at", -1)])
+    should_alert = bool(notify and result["status"] != "healthy" and previous and previous.get("status") == "healthy")
+    should_recover = bool(notify and result["status"] == "healthy" and previous and previous.get("status") in {"down", "degraded"})
+    result["alert_sent"] = False
+    result["recovery_sent"] = False
+    if (should_alert or should_recover) and RESEND_API_KEY and _monitor_alert_recipient():
+        subject = "🚨 تنبيه مراقبة الحراج بلس" if should_alert else "✅ عادت خدمات الحراج بلس للعمل"
+        rows = "".join(f"<li><strong>{html_escape(check['name'])}</strong>: {html_escape(str(check['detail']))}</li>" for check in result["checks"] if not check["ok"] or check.get("warning")) or "<li>جميع الفحوص سليمة.</li>"
+        try:
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL, "to": [_monitor_alert_recipient()], "subject": subject,
+                "html": f'<div dir="rtl" style="font-family:Arial,sans-serif"><h2>{subject}</h2><p>الحالة: <strong>{result["status"]}</strong></p><ul>{rows}</ul><p>وقت الفحص UTC: {html_escape(result["checked_at"])}</p></div>',
+            })
+            result["alert_sent"] = should_alert
+            result["recovery_sent"] = should_recover
+        except Exception as exc:
+            logger.error("[monitoring] failed to send alert email: %s", exc)
+    await db.monitoring_runs.insert_one({"id": f"monitor_{uuid.uuid4().hex}", **result})
+    await db.monitoring_runs.delete_many({"checked_at": {"$lt": (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()}})
+    return result
+
+
+# ============================================================
 # Email helper (Resend)
 # ============================================================
 async def send_password_reset_email(to_email: str, reset_url: str, user_name: str = "") -> bool:
@@ -8796,6 +8901,36 @@ async def _get_user_from_cookie(request: Request):
         return None
 
 
+@admin_router.get("/monitoring")
+async def admin_monitoring_status():
+    """Expose compact operational health for administrators only."""
+    latest = await db.monitoring_runs.find_one({}, {"_id": 0}, sort=[("checked_at", -1)])
+    history = await db.monitoring_runs.find({}, {"_id": 0, "checks": 0}).sort("checked_at", -1).limit(30).to_list(length=30)
+    return {
+        "latest": latest,
+        "history": history,
+        "email_alerts_configured": bool(RESEND_API_KEY and _monitor_alert_recipient()),
+        "metrics": await _metrics_endpoint(),
+    }
+
+
+@admin_router.post("/monitoring/run")
+async def admin_run_monitoring():
+    """Run an on-demand check without sending a duplicate operational email."""
+    return await _record_monitoring_result(await _run_platform_monitoring(), notify=False)
+
+
+@api.post("/cron/monitoring")
+@api.get("/cron/monitoring")
+async def cron_platform_monitoring(request: Request):
+    """Protected scheduled check; configure a scheduler with X-Cron-Secret."""
+    supplied = request.headers.get("X-Cron-Secret", "") or request.query_params.get("secret", "")
+    expected = os.environ.get("CRON_SECRET", "")
+    if not expected or not hmac.compare_digest(supplied, expected):
+        raise HTTPException(403, "Forbidden")
+    return await _record_monitoring_result(await _run_platform_monitoring(), notify=True)
+
+
 # ============================================================
 # Mount routers (MUST be after ALL endpoint definitions)
 # ============================================================
@@ -9221,10 +9356,12 @@ def _listing_seo_schema(listing: dict, site: str, canonical: str, localization: 
     schema_types: object = ["Product", "Car"] if category == "cars" else "Product"
     schema: dict = {
         "@context": "https://schema.org",
+        "@id": f"{canonical}#product",
         "@type": schema_types,
         "name": title,
         "description": description,
         "url": canonical,
+        "mainEntityOfPage": {"@type": "WebPage", "@id": canonical},
         "sku": str(listing.get("id") or _listing_seo_ref(listing)),
         "inLanguage": language,
     }
@@ -9301,6 +9438,28 @@ def _listing_seo_schema(listing: dict, site: str, canonical: str, localization: 
     return schema
 
 
+def _listing_breadcrumb_schema(listing: dict, site: str, canonical: str, title: str) -> dict:
+    """Describe the public navigation path that is visible on the listing page."""
+    category = str(listing.get("category") or "").strip()
+    items = [{"@type": "ListItem", "position": 1, "name": "الحراج بلس", "item": f"{site}/"}]
+    if category:
+        category_ref = quote(category, safe="-._~")
+        items.append({
+            "@type": "ListItem",
+            "position": 2,
+            "name": category,
+            "item": f"{site}/category/{category_ref}",
+        })
+    items.append({
+        "@type": "ListItem",
+        "position": len(items) + 1,
+        "name": title,
+        "item": canonical,
+    })
+    return {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": items}
+
+
+
 def _listing_seo_html(listing: dict, fallback_ref: str = "", language: str = "ar") -> str:
     """Generate an accessible listing document in a real, current content language."""
     requested_language = str(language or "ar").lower()
@@ -9323,7 +9482,9 @@ def _listing_seo_html(listing: dict, fallback_ref: str = "", language: str = "ar
     image_urls = [str(url) for url in (listing.get("images") or []) if str(url).startswith(("https://", "http://"))]
     image = image_urls[0] if image_urls else f"{site}/og-image.png"
     keywords = ", ".join(dict.fromkeys(filter(None, [title, str(listing.get("category") or ""), str(listing.get("city") or ""), "الحراج بلس", "إعلانات مبوبة"])))
-    schema_json = json.dumps(_listing_seo_schema(listing, site, canonical, localization, effective_language), ensure_ascii=False).replace("<", "\\u003c")
+    listing_schema = _listing_seo_schema(listing, site, canonical, localization, effective_language)
+    breadcrumb_schema = _listing_breadcrumb_schema(listing, site, canonical, title)
+    schema_json = json.dumps([listing_schema, breadcrumb_schema], ensure_ascii=False).replace("<", "\\u003c")
     title_html = html_escape(title, quote=True)
     desc_html = html_escape(description, quote=True)
     full_title_html = html_escape(full_title, quote=True)
@@ -9332,6 +9493,8 @@ def _listing_seo_html(listing: dict, fallback_ref: str = "", language: str = "ar
     price_html = html_escape(price_text, quote=True)
     city_html = html_escape(str(listing.get("city") or ""), quote=True)
     category_html = html_escape(str(listing.get("category") or ""), quote=True)
+    category_url = f"{site}/category/{quote(str(listing.get('category') or ''), safe='-._~')}" if listing.get("category") else ""
+    category_url_html = html_escape(category_url, quote=True)
     keywords_html = html_escape(keywords, quote=True)
     image_markup = f'<img src="{image_html}" alt="{title_html}" loading="lazy" />' if image_urls else ""
     language_direction = "rtl" if effective_language in {"ar", "ur"} else "ltr"
@@ -9366,6 +9529,7 @@ def _listing_seo_html(listing: dict, fallback_ref: str = "", language: str = "ar
 </head>
 <body>
 <main>
+<nav aria-label="Breadcrumb"><a href="{html_escape(site + '/', quote=True)}">الحراج بلس</a>{f' › <a href="{category_url_html}">{category_html}</a>' if category_url_html else ''} › <span>{title_html}</span></nav>
 <article>
 <h1>{title_html}</h1>
 <p><strong>السعر:</strong> {price_html}</p>
@@ -10619,6 +10783,7 @@ async def startup():
     await _safe_index(db.ai_provider_daily, [("provider", 1), ("day", 1)], unique=True)
     await _safe_index(db.ai_provider_monthly, [("provider", 1), ("month", 1)], unique=True)
     await _safe_index(db.ai_usage_events, [("provider", 1), ("created_at", -1)])
+    await _safe_index(db.monitoring_runs, [("checked_at", -1)])
     await _safe_index(db.account_deletion_requests, [("user_id", 1), ("status", 1)], unique=True, partialFilterExpression={"status": "pending"})
     await _safe_index(db.messages, [("sender_id", 1), ("client_message_id", 1)], unique=True, partialFilterExpression={"client_message_id": {"$type": "string"}})
     await db.conversations.create_index("id", unique=True)

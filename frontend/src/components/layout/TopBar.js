@@ -251,9 +251,10 @@ export default function TopBar() {
                     </button>
                     {openMenu === "lang" && (
                         <div className="absolute top-12 end-0 bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--border)] py-2 min-w-[150px] z-50">
-                            {available.filter((l) => l !== "auto").map((l) => (
+                            {available.map((l) => (
                                 <button key={l} onClick={() => { setLang(l); setOpenMenu(null); }} data-testid={`lang-opt-${l}`}
-                                    className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${lang === l ? "text-[var(--primary)] font-bold" : "text-[var(--text)]"}`}>
+                                    className={`w-full px-4 py-2 text-sm text-start hover:bg-[var(--primary)]/10 ${l === "auto" ? "text-[var(--text)]" : (lang === l ? "text-[var(--primary)] font-bold" : "text-[var(--text)]")}`}>
+                                    {l === "auto" && "🖥️ تلقائي (لغة الجهاز)"}
                                     {l === "ar" && "🇸🇦 العربية"}
                                     {l === "en" && "🇬🇧 English"}
                                     {l === "ur" && "🇵🇰 اردو"}

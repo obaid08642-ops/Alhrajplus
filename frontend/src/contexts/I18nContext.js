@@ -272,6 +272,7 @@ export function tr(text) {
 }
 
 export function I18nProvider({ children }) {
+    const [manualLanguage, setManualLanguage] = useState(() => localStorage.getItem("hp_lang_manual") === "1");
     const [lang, setLang] = useState(() => {
         const manual = localStorage.getItem("hp_lang_manual") === "1";
         return manual ? (localStorage.getItem("hp_lang") || detectDeviceLanguage()) : detectDeviceLanguage();
@@ -321,15 +322,17 @@ export function I18nProvider({ children }) {
     const chooseLanguage = (next) => {
         if (next === "auto") {
             localStorage.removeItem("hp_lang_manual");
+            setManualLanguage(false);
             setLang(detectDeviceLanguage());
             return;
         }
         if (!next || !TRANSLATIONS[next]) return;
         localStorage.setItem("hp_lang_manual", "1");
+        setManualLanguage(true);
         setLang(next);
     };
     return (
-        <I18nCtx.Provider value={{ lang, setLang: chooseLanguage, t, tr, isRTL, pickName, pickLabel, available: ["auto", "ar", "en", "ur", "hi", "bn", "fr"] }}>
+        <I18nCtx.Provider value={{ lang, setLang: chooseLanguage, t, tr, isRTL, pickName, pickLabel, isAutoLanguage: !manualLanguage, available: ["auto", "ar", "en", "ur", "hi", "bn", "fr"] }}>
             {children}
         </I18nCtx.Provider>
     );

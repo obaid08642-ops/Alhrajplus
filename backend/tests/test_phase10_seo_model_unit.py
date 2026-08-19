@@ -288,3 +288,67 @@ def test_discovery_feed_is_read_only_and_strips_private_listing_data():
         assert any(clause.get("country_code") == "SA" for clause in FeedDB.listings.last_query["$and"] if isinstance(clause, dict))
     finally:
         server.db = previous
+
+
+def test_listing_html_emits_product_webpage_and_visible_breadcrumb_schema():
+    listing = {
+        "id": "schema-1",
+        "slug": "schema-car",
+        "status": "active",
+        "title": "سيارة معلنة",
+        "description": "وصف حقيقي ظاهر للمستخدم",
+        "price": 50000,
+        "currency_code": "SAR",
+        "category": "cars",
+        "city": "الرياض",
+    }
+    body = server._listing_seo_html(listing)
+    assert '"@id": "https://alhraj.online/listing/schema-car#product"' in body
+    assert '"mainEntityOfPage": {"@type": "WebPage", "@id": "https://alhraj.online/listing/schema-car"}' in body
+    assert '"@type": "BreadcrumbList"' in body
+    assert 'href="https://alhraj.online/category/cars"' in body
+    assert '<nav aria-label="Breadcrumb">' in body
+
+
+def test_platform_monitoring_checks_api_indexing_and_schema_without_external_network(monkeypatch):
+    class Response:
+        def __init__(self, url):
+            self.status_code = 200
+            if url.endswith("/robots.txt"):
+                self.text = "User-agent: *\nSitemap: https://alhraj.online/sitemap.xml"
+            elif url.endswith("/sitemap.xml"):
+                self.text = "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>"
+            elif "/listing/" in url:
+                self.text = '<script type="application/ld+json">[{"@type":"BreadcrumbList"}]</script>'
+            else:
+                self.text = '{"status":"ok"}'
+
+    class Client:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            return False
+        async def get(self, url, **kwargs):
+            return Response(url)
+
+    class Listings:
+        async def find_one(self, *args, **kwargs):
+            return {"id": "monitor-1", "slug": "monitor-sample"}
+
+    class DB:
+        listings = Listings()
+        async def command(self, command):
+            assert command == "ping"
+            return {"ok": 1}
+
+    previous = server.db
+    server.db = DB()
+    monkeypatch.setattr(server.httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr(server, "_redis_status", lambda: "on")
+    try:
+        result = asyncio.run(server._run_platform_monitoring())
+        assert result["status"] == "healthy"
+        assert {check["name"] for check in result["checks"]} == {"mongo", "redis", "api_health", "robots", "sitemap", "listing_schema"}
+        assert all(check["ok"] for check in result["checks"])
+    finally:
+        server.db = previous

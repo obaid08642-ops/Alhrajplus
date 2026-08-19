@@ -25,7 +25,7 @@ function MfaSecurityPanel() {
 export function SettingsPage() {
     const { user, logout } = useAuth();
     const { themeMode, setThemeMode, isDark } = useTheme();
-    const { t, lang, setLang, available, tr } = useI18n();
+    const { t, lang, setLang, available, tr, isAutoLanguage } = useI18n();
     const nav = useNavigate();
 
     const items = [
@@ -68,9 +68,9 @@ export function SettingsPage() {
                         <Globe className="w-5 h-5 text-[var(--primary)]" />
                         <span className="font-arabic font-bold text-sm text-[var(--text)]">{tr("اللغة")}</span>
                     </div>
-                    <select value={lang} onChange={(e) => setLang(e.target.value)} data-testid="settings-lang-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
-                        {available.filter((l) => l !== "auto").map((l) => <option key={l} value={l}>
-                            {l === "ar" && "🇸🇦 العربية"}{l === "en" && "🇬🇧 English"}{l === "ur" && "🇵🇰 اردو"}
+                    <select value={isAutoLanguage ? "auto" : lang} onChange={(e) => setLang(e.target.value)} data-testid="settings-lang-select" className="bg-[var(--surface-elevated)] rounded-xl px-3 py-1.5 text-xs border border-[var(--border)] text-[var(--text)] outline-none font-arabic-body">
+                        {available.map((l) => <option key={l} value={l}>
+                            {l === "auto" && "🖥️ تلقائي (لغة الجهاز)"}{l === "ar" && "🇸🇦 العربية"}{l === "en" && "🇬🇧 English"}{l === "ur" && "🇵🇰 اردو"}
                             {l === "hi" && "🇮🇳 हिन्दी"}{l === "bn" && "🇧🇩 বাংলা"}{l === "fr" && "🇫🇷 Français"}
                         </option>)}
                     </select>
