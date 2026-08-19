@@ -13,7 +13,7 @@ export function ListingSEO({ listing, language = "ar" }) {
     const baseUrl = `${SITE}/listing/${ref}`;
     const effectiveLanguage = listing.seo_content_language || "ar";
     const url = effectiveLanguage === "ar" ? baseUrl : `${baseUrl}?lang=${effectiveLanguage}`;
-    const title = `${listing.title} ${listing.price ? `بسعر ${listing.price.toLocaleString()} ${listing.currency || "ر.س"}` : ""} | ${listing.city || ""} - الحراج بلس`.slice(0, 200);
+    const title = `${listing.title} ${listing.price ? `بسعر ${Number(listing.price).toLocaleString("en-US")} ${listing.currency || "ر.س"}` : ""} | ${listing.city || ""} - الحراج بلس`.slice(0, 200);
     const description = (listing.description || listing.title).slice(0, 300);
     const image = listing.images?.[0] || `${SITE}/og-image.png`;
     const tokens = (listing.title + " " + (listing.description || "")).split(/\s+/).filter(w => w.length > 2).slice(0, 30);
@@ -27,16 +27,27 @@ export function ListingSEO({ listing, language = "ar" }) {
     // brand, zero-price offer, expiry date, rating, or seller identity is invented.
     const schema = {
         "@context": "https://schema.org",
+        "@id": `${url}#product`,
         "@type": "Product",
         "name": listing.title,
         "description": description,
         "image": listing.images || [image],
         "url": url,
+        "mainEntityOfPage": { "@type": "WebPage", "@id": url },
         "sku": listing.id,
         "inLanguage": effectiveLanguage,
         "category": listing.category,
     };
     if (listing.custom_fields?.brand) schema.brand = { "@type": "Brand", name: listing.custom_fields.brand };
+    const breadcrumbSchema = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            { "@type": "ListItem", position: 1, name: "الحراج بلس", item: `${SITE}/` },
+            ...(listing.category ? [{ "@type": "ListItem", position: 2, name: listing.category, item: `${SITE}/category/${encodeURIComponent(listing.category)}` }] : []),
+            { "@type": "ListItem", position: listing.category ? 3 : 2, name: listing.title, item: url },
+        ],
+    };
     if (Number(listing.price) > 0 && listing.status === "active") {
         const condition = listing.custom_fields?.condition || "";
         schema.offers = {
@@ -87,8 +98,8 @@ export function ListingSEO({ listing, language = "ar" }) {
             <meta name="twitter:description" content={description} />
             <meta name="twitter:image" content={image} />
 
-            {/* Product Schema for Google Rich Snippets + AI Agents */}
-            <script type="application/ld+json">{JSON.stringify(schema)}</script>
+            {/* Product + breadcrumb JSON-LD mirrors visible facts for eligible rich results; it does not guarantee ranking or AI inclusion. */}
+            <script type="application/ld+json">{JSON.stringify([schema, breadcrumbSchema])}</script>
         </Helmet>
     );
 }

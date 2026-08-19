@@ -46,6 +46,8 @@ export default function PostScreen({
   const [aiBusy, setAiBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(null); // 'city' | 'district' | null
   const [err, setErr] = useState("");
+  const [discovery, setDiscovery] = useState(null);
+  const [discoveryBusy, setDiscoveryBusy] = useState(false);
   const [form, setForm] = useState({
     category: "",
     subcategory: "",
@@ -463,6 +465,29 @@ export default function PostScreen({
     }
     return null;
   };
+  const previewDiscovery = async () => {
+    setDiscoveryBusy(true);
+    setErr("");
+    try {
+      const { data } = await api.post("/listings/discovery-preview", {
+        title: form.title,
+        description: form.description,
+        price: form.price ? Number(form.price) : null,
+        category: form.category,
+        city: form.city,
+        district: form.district,
+        custom_fields: form.custom_fields || {},
+        images: form.images || [],
+        post_type: form.post_type || "offer",
+      });
+      setDiscovery(data || null);
+    } catch (e) {
+      setErr(formatApiError(e.response?.data?.detail) || t("تعذر تقييم اكتمال الإعلان"));
+    } finally {
+      setDiscoveryBusy(false);
+    }
+  };
+
   const submit = async () => {
     setErr("");
     const v = validateRequiredFields();
@@ -600,7 +625,7 @@ export default function PostScreen({
           });
           setStep(2);
         }
-      }} /> : <Step2 form={form} setForm={setForm} cat={cat} categories={categories} onPickerOpen={setPickerOpen} country={country} user={user} onPickImage={pickImage} onTakePhoto={takePhoto} uploadingImg={uploadingImg} onPickVideo={pickVideo} onRemoveVideo={removeVideo} uploadingVid={uploadingVid} uploadingModel={uploadingModel} onPickModel3D={pickModel3D} onUseLocation={useMyLocation} />}
+      }} /> : <><Step2 form={form} setForm={setForm} cat={cat} categories={categories} onPickerOpen={setPickerOpen} country={country} user={user} onPickImage={pickImage} onTakePhoto={takePhoto} uploadingImg={uploadingImg} onPickVideo={pickVideo} onRemoveVideo={removeVideo} uploadingVid={uploadingVid} uploadingModel={uploadingModel} onPickModel3D={pickModel3D} onUseLocation={useMyLocation} /><DiscoveryReadinessCard discovery={discovery} t={t} /></>}
             </ScrollView>
 
             {/* Bottom CTA */}
@@ -608,6 +633,7 @@ export default function PostScreen({
       paddingBottom: Math.max(insets.bottom, 12)
     }]}>
                     {err ? <Text style={s.errText}>{err}</Text> : null}
+                    <TouchableOpacity onPress={previewDiscovery} disabled={discoveryBusy || busy} style={[s.discoveryBtn, (discoveryBusy || busy) && { opacity: 0.5 }]} accessibilityRole="button" testID="post-discovery-preview"><Sparkles size={16} color={colors.primary} /><Text style={s.discoveryBtnText}>{discoveryBusy ? t("جاري التقييم...") : discovery ? t("تحديث تقييم الظهور") : t("تقييم ظهور الإعلان")}</Text></TouchableOpacity>
                     <TouchableOpacity onPress={submit} disabled={busy} style={[s.submitBtn, busy && {
         opacity: 0.5
       }]}>
@@ -1562,6 +1588,21 @@ function PickerModal({
             </View>
         </Modal>;
 }
+function DiscoveryReadinessCard({ discovery, t }) {
+  if (!discovery) return null;
+  const missingLabels = {
+    title_present: "العنوان", descriptive_title: "عنوان وصفي", description_present: "وصف كافٍ", location_present: "المدينة", image_present: "صورة", price_or_contact: "سعر أو طريقة تواصل", category_fields_present: "تفاصيل الفئة",
+  };
+  const score = Math.max(0, Math.min(100, Number(discovery.quality_score || 0)));
+  const scoreColor = score >= 85 ? "#059669" : score >= 60 ? "#D97706" : "#DC2626";
+  return <View style={s.discoveryCard} testID="post-discovery-readiness">
+    <View style={s.discoveryHeader}><View style={{ flex: 1 }}><Text style={s.discoveryTitle}>{t("جاهزية الظهور والاكتشاف")}</Text><Text style={s.discoverySub}>{t("تقييم من حقائق الإعلان الحالية فقط؛ لا يضمن ترتيبًا أو فهرسة.")}</Text></View><Text style={[s.discoveryScore, { color: scoreColor }]}>{score}</Text></View>
+    {!!discovery.missing?.length && <View style={s.discoveryMissing}><Text style={s.discoverySection}>{t("أكمل هذه العناصر")}</Text><Text style={s.discoveryText}>{discovery.missing.map(key => t(missingLabels[key] || key)).join(" · ")}</Text></View>}
+    {!!discovery.facts?.length && <View style={s.discoveryFacts}><Text style={s.discoverySection}>{t("حقائق ستظهر للمستخدم ومحركات البحث")}</Text><Text style={s.discoveryText}>{discovery.facts.slice(0, 6).map(item => `${t(item.label)}: ${item.value}`).join(" · ")}</Text></View>}
+    {!!discovery.keywords?.length && <Text style={s.discoveryKeywords}>{t("كلمات مستخرجة من الإعلان:")} {discovery.keywords.slice(0, 12).join(" · ")}</Text>}
+  </View>;
+}
+
 const s = StyleSheet.create({
   guestWrap: {
     flex: 1,
@@ -2153,6 +2194,9 @@ const s = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center"
   },
+  discoveryCard: { marginTop: 16, marginHorizontal: 16, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, discoveryHeader: { flexDirection: "row", alignItems: "center", gap: 12 }, discoveryTitle: { color: colors.text, fontWeight: "900", fontSize: 14, textAlign: "right" }, discoverySub: { color: colors.textMuted, fontSize: 10, lineHeight: 15, marginTop: 3, textAlign: "right" }, discoveryScore: { fontSize: 27, fontWeight: "900", fontVariant: ["tabular-nums"] }, discoveryMissing: { marginTop: 10, borderRadius: 10, backgroundColor: "#FEF3C7", padding: 10 }, discoveryFacts: { marginTop: 10, borderRadius: 10, backgroundColor: "#EFF6FF", padding: 10 }, discoverySection: { color: colors.text, fontSize: 11, fontWeight: "800", textAlign: "right" }, discoveryText: { color: colors.textMuted, fontSize: 10, lineHeight: 16, marginTop: 3, textAlign: "right" }, discoveryKeywords: { color: colors.textMuted, fontSize: 10, lineHeight: 16, marginTop: 10, textAlign: "right" },
+  discoveryBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 40, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface, borderRadius: 14, marginBottom: 8 },
+  discoveryBtnText: { color: colors.primary, fontWeight: "800", fontSize: 12 },
   submitBtn: {
     height: 50,
     borderRadius: 18,

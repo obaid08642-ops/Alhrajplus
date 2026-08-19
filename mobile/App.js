@@ -65,6 +65,7 @@ import { theme, colors } from "./src/theme";
 import { registerForNotifications, setNotificationNavigationRef } from "./src/notifications";
 import { useI18n } from "./src/I18nContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trackEvent } from "./src/analytics";
 
 // Apply RTL at module load from a saved language when available; otherwise
 // follow the device locale. Arabic and Urdu are RTL; unsupported locale lookup
@@ -126,9 +127,25 @@ function Navigation() {
         if (user) registerForNotifications();
     }, [user]);
 
+    useEffect(() => {
+        const trackIncomingLink = (value) => {
+            if (!value) return;
+            try {
+                const parsed = new URL(value);
+                const allowed = parsed.protocol === "harajplus:" || ["alhraj.online", "www.alhraj.online", "alhrajplus.com"].includes(parsed.hostname);
+                if (!allowed) return;
+                const listingId = parsed.pathname.match(/^\/listing\/([^/?#]+)/)?.[1];
+                trackEvent("screen_view", { path: parsed.pathname || "/", listing_id: listingId, category: "app_deep_link" });
+            } catch (_) {}
+        };
+        Linking.getInitialURL().then(trackIncomingLink).catch(() => {});
+        const subscription = Linking.addEventListener("url", ({ url }) => trackIncomingLink(url));
+        return () => subscription.remove();
+    }, []);
+
     // Deep-link config so notifications/URLs route to the right screen.
     const linking = {
-        prefixes: [Linking.createURL("/"), "harajplus://", "https://alhraj.online", "https://alhrajplus.com"],
+        prefixes: [Linking.createURL("/"), "harajplus://", "https://alhraj.online", "https://www.alhraj.online", "https://alhrajplus.com"],
         config: {
             screens: {
                 Main: {

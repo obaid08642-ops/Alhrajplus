@@ -1229,6 +1229,18 @@ class ListingIn(BaseModel):
     contact_phone_source: Optional[str] = None  # "account" | "custom"
     post_type: Optional[str] = None  # offer | request
 
+class ListingDiscoveryPreviewIn(BaseModel):
+    """Unpersisted, fact-bound discovery readiness input for listing authors."""
+    title: str = Field(default="", max_length=120)
+    description: str = Field(default="", max_length=4000)
+    price: Optional[float] = None
+    category: str = Field(default="", max_length=80)
+    city: str = Field(default="", max_length=120)
+    district: Optional[str] = Field(default=None, max_length=120)
+    custom_fields: dict = Field(default_factory=dict)
+    images: List[str] = Field(default_factory=list, max_length=30)
+    post_type: Optional[str] = Field(default=None, max_length=32)
+
 class ChatMessageIn(BaseModel):
     listing_id: Optional[str] = None
     receiver_id: str
@@ -4610,6 +4622,21 @@ async def listing_neighbors(listing_id: str, country_code: Optional[str] = None)
     newer = await db.listings.find({**base, "created_at": {"$gt": stamp}}, {"_id": 0, "id": 1, "slug": 1, "title": 1}).sort("created_at", 1).limit(1).to_list(length=1)
     older = await db.listings.find({**base, "created_at": {"$lt": stamp}}, {"_id": 0, "id": 1, "slug": 1, "title": 1}).sort("created_at", -1).limit(1).to_list(length=1)
     return {"next": newer[0] if newer else None, "previous": older[0] if older else None, "country_code": cc, "category": current.get("category")}
+
+
+@api.post("/listings/discovery-preview")
+async def listing_discovery_preview(body: ListingDiscoveryPreviewIn, user: dict = Depends(get_current_user)):
+    """Explain discovery readiness before publication without persisting or generating content."""
+    draft = body.model_dump()
+    draft["status"] = "active"
+    draft["moderation"] = "approved"
+    profile = _listing_discovery_profile(draft)
+    return {
+        "source_language": "ar",
+        "available_languages": ["ar"],
+        "preview": True,
+        **profile,
+    }
 
 
 @api.get("/listings/{listing_id}/discovery-profile")
@@ -9333,6 +9360,47 @@ def _refresh_listing_discovery(listing: dict, *, previous_slug: Optional[str] = 
             _google_idx_deleted(f"{site}/listing/{quote(old_slug, safe='-._~')}")
     except Exception as exc:
         logger.warning("[seo] listing discovery refresh failed: %s", exc)
+
+
+def _android_asset_links() -> list[dict]:
+    """Return Android App Links declarations from public release fingerprints only."""
+    raw = os.environ.get("ANDROID_APP_LINK_SHA256_CERT_FINGERPRINTS", "")
+    fingerprints = [value.strip().upper() for value in raw.split(",") if re.fullmatch(r"(?:[0-9A-F]{2}:){31}[0-9A-F]{2}", value.strip().upper())]
+    if not fingerprints:
+        return []
+    package = os.environ.get("ANDROID_APP_LINK_PACKAGE", "com.harajplus.app").strip()
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+", package):
+        return []
+    return [{
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {"namespace": "android_app", "package_name": package, "sha256_cert_fingerprints": fingerprints},
+    }]
+
+
+def _apple_app_site_association() -> dict:
+    """Return iOS Universal Links declarations from public app identifiers only."""
+    raw_ids = os.environ.get("IOS_UNIVERSAL_LINK_APP_IDS", "")
+    app_ids = [value.strip() for value in raw_ids.split(",") if re.fullmatch(r"[A-Z0-9]{10}\.[A-Za-z0-9.-]+", value.strip())]
+    if not app_ids:
+        return {}
+    paths = ["/listing/*", "/seller/*", "/category/*", "/auctions", "/deals", "/reels", "/map", "/search"]
+    return {"applinks": {"details": [{"appIDs": app_ids, "components": [{"/": path} for path in paths]}]}}
+
+
+@app.get("/.well-known/assetlinks.json", include_in_schema=False)
+async def android_asset_links_file():
+    statements = _android_asset_links()
+    if not statements:
+        raise HTTPException(404, "Android App Links are not configured")
+    return JSONResponse(content=statements, headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/.well-known/apple-app-site-association", include_in_schema=False)
+async def apple_app_site_association_file():
+    document = _apple_app_site_association()
+    if not document:
+        raise HTTPException(404, "iOS Universal Links are not configured")
+    return JSONResponse(content=document, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @api.get("/sitemap.xml", include_in_schema=False)

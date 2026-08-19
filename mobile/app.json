@@ -25,6 +25,7 @@
       "buildNumber": "1",
       "associatedDomains": [
         "applinks:alhraj.online",
+        "applinks:www.alhraj.online",
         "applinks:alhrajplus.com"
       ],
       "infoPlist": {
@@ -89,6 +90,10 @@
             {
               "scheme": "https",
               "host": "alhraj.online"
+            },
+            {
+              "scheme": "https",
+              "host": "www.alhraj.online"
             },
             {
               "scheme": "https",

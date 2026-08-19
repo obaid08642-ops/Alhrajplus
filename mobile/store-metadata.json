@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "application_id": "com.harajplus.app",
+  "default_language": "ar",
+  "supported_languages": ["ar", "en", "ur", "hi", "bn", "fr"],
+  "locales": {
+    "ar": {
+      "name": "الحراج بلس",
+      "short_description": "بيع واشترِ الإعلانات المبوبة القريبة منك",
+      "full_description": "الحراج بلس منصة إعلانات مبوبة تساعدك على البيع والشراء والتواصل مع البائعين، مع تصفح حسب الفئة والمدينة ومشاركة روابط آمنة للإعلانات.",
+      "keywords": ["حراج", "بيع", "شراء", "إعلانات مبوبة", "سيارات", "عقارات", "السعودية"]
+    },
+    "en": {
+      "name": "Alhraj Plus",
+      "short_description": "Buy and sell nearby classified listings",
+      "full_description": "Alhraj Plus is a classifieds marketplace for browsing, buying, selling, and contacting advertisers by category and city, with safe shareable listing links.",
+      "keywords": ["classifieds", "buy", "sell", "marketplace", "cars", "real estate", "Saudi Arabia"]
+    },
+    "ur": {
+      "name": "الحراج پلس",
+      "short_description": "قریب کی کلاسیفائیڈ فہرستوں میں خریدیں اور فروخت کریں",
+      "full_description": "الحراج پلس درجہ بندی اور شہر کے لحاظ سے اشتہارات دیکھنے، خریدنے، فروخت کرنے اور مشتہرین سے رابطہ کرنے کا کلاسیفائیڈ بازار ہے۔",
+      "keywords": ["کلاسیفائیڈ", "خرید", "فروخت", "مارکیٹ", "گاڑیاں", "جائیداد"]
+    },
+    "hi": {
+      "name": "अलहराज प्लस",
+      "short_description": "आस-पास के क्लासीफाइड में खरीदें और बेचें",
+      "full_description": "अलहराज प्लस वर्ग और शहर के अनुसार विज्ञापन देखने, खरीदने, बेचने और विज्ञापनदाताओं से संपर्क करने का क्लासीफाइड मार्केटप्लेस है।",
+      "keywords": ["क्लासीफाइड", "खरीदें", "बेचें", "मार्केटप्लेस", "कार", "रियल एस्टेट"]
+    },
+    "bn": {
+      "name": "আলহরাজ প্লাস",
+      "short_description": "কাছের শ্রেণিবদ্ধ বিজ্ঞাপনে কিনুন ও বিক্রি করুন",
+      "full_description": "আলহরাজ প্লাস বিভাগ ও শহর অনুযায়ী বিজ্ঞাপন দেখা, কেনা, বিক্রি এবং বিজ্ঞাপনদাতার সঙ্গে যোগাযোগের একটি শ্রেণিবদ্ধ মার্কেটপ্লেস।",
+      "keywords": ["শ্রেণিবদ্ধ", "কেনা", "বিক্রি", "বাজার", "গাড়ি", "রিয়েল এস্টেট"]
+    },
+    "fr": {
+      "name": "Alhraj Plus",
+      "short_description": "Achetez et vendez près de chez vous",
+      "full_description": "Alhraj Plus est une plateforme de petites annonces pour parcourir, acheter, vendre et contacter des annonceurs par catégorie et par ville.",
+      "keywords": ["petites annonces", "acheter", "vendre", "marché", "voitures", "immobilier"]
+    }
+  },
+  "release_requirements": {
+    "store_urls": "Les liens officiels App Store, Google Play et AppGallery restent vides tant que leurs identifiants réels ne sont pas provisionnés.",
+    "screenshots": "Chaque locale doit utiliser des captures réelles de la même fonctionnalité, sans promesse de classement, de disponibilité ou de prix non affichée dans l'application.",
+    "privacy": "Les déclarations de confidentialité et de collecte doivent être revues à chaque version avant soumission."
+  }
+}
