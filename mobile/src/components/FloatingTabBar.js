@@ -118,7 +118,9 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                 accessibilityLabel={tab.label}
                 accessibilityState={{ selected: focused }}
               >
-                <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
+                <View testID={`tab-icon-${tab.name}`} style={[styles.iconHalo, focused && { backgroundColor: isDark ? "rgba(231,238,248,0.14)" : "rgba(255,255,255,0.16)" }]}>
+                  <Icon size={18} color={focused ? activeColor : inactiveColor} strokeWidth={focused ? 2.6 : 2} />
+                </View>
                 <Text style={[styles.tabLabel, { color: focused ? activeColor : inactiveColor, fontWeight: focused ? "900" : "700" }]} numberOfLines={1}>
                   {tab.label}
                 </Text>
@@ -155,6 +157,14 @@ const styles = StyleSheet.create({
   },
   spacer: {
     width: HOLE_RADIUS * 2 + 8,
+  },
+  iconHalo: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
   },
   tabLabel: {
     fontSize: 9.5,

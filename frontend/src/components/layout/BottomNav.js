@@ -61,12 +61,16 @@ export default function BottomNav() {
                 aria-current={active ? "page" : undefined}
                 className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1 transition-all duration-200 active:scale-95"
             >
-                <div className="relative">
+                <div
+                    data-testid={`nav-icon-${key}`}
+                    className="relative flex h-7 min-w-7 items-center justify-center rounded-2xl px-2 transition-[background-color,transform] duration-200"
+                    style={{ backgroundColor: active ? "color-mix(in srgb, var(--nav-fg) 16%, transparent)" : "transparent" }}
+                >
                     <Icon
                         className="h-[18px] w-[18px] sm:h-5 sm:w-5"
                         style={{ color: active ? "var(--nav-fg)" : "var(--nav-inactive-fg)" }}
-                        strokeWidth={active ? 2.8 : 2}
-                        fill={active ? "currentColor" : "none"}
+                        strokeWidth={active ? 2.6 : 2}
+                        fill="none"
                     />
                     {badge > 0 && (
                         <span data-testid={`nav-badge-${key}`} className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EF4444] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--nav-bg)]">
