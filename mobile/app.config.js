@@ -23,7 +23,8 @@ module.exports = ({ config }) => ({
       microphonePermission: "يستخدم التطبيق الميكروفون لإجراء المكالمات الصوتية والرسائل الصوتية"
     }]],
     ["./plugins/withCallKeepBranding"],
-    ["@config-plugins/react-native-callkeep"]
+    ["@config-plugins/react-native-callkeep"],
+    ["@maplibre/maplibre-react-native"]
   ),
   extra: {
     ...(base.expo.extra || {}),

@@ -2,8 +2,8 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useI18n } from "../I18nContext";
 
 // Mobile web export is a development-preview target; the production website
-// owns browser calling separately. Keep this fallback free of WebView and
-// native modules so the mobile application has a single native call path.
+// owns browser calling separately. Keep this fallback free of embedded browser
+// and native modules so the mobile application has a single native call path.
 export default function NativeVoiceCallWeb({ visible, name, onClose }) {
   const { t } = useI18n();
   return <Modal visible={visible} animationType="slide" onRequestClose={() => onClose?.({ signalAlreadySent: false })}>

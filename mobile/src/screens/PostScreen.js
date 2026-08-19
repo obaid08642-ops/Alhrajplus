@@ -291,9 +291,10 @@ export default function PostScreen({
     ]);
   };
   const pickModel3D = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ type: ["model/gltf-binary", "model/gltf+json", "application/octet-stream"], copyToCacheDirectory: true });
+    const result = await DocumentPicker.getDocumentAsync({ type: ["model/gltf-binary", "application/octet-stream"], copyToCacheDirectory: true });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+    if (!/\.glb$/i.test(asset.name || "")) { Alert.alert(t("خطأ"), t("يرجى اختيار ملف GLB للعرض الأصلي")); return; }
     if (asset.size && asset.size > 80 * 1024 * 1024) { Alert.alert(t("خطأ"), t("ملف 3D أكبر من 80 ميجابايت")); return; }
     setUploadingModel(true);
     try {
@@ -1266,7 +1267,7 @@ function Step2({
 
             <Field label={t("نموذج 3D") + (form.custom_fields?.model_3d_url ? " ✓" : "")}>
                 <TouchableOpacity onPress={onPickModel3D} style={[s.imgBtn, { borderColor: "#7C3AED", borderWidth: 1.5 }]} testID="post-pick-model-3d-btn">
-                    <Text style={[s.imgBtnText, { color: "#7C3AED" }]}>{form.custom_fields?.model_3d_url ? t("استبدال نموذج 3D") : t("رفع ملف GLB أو GLTF")}</Text>
+                    <Text style={[s.imgBtnText, { color: "#7C3AED" }]}>{form.custom_fields?.model_3d_url ? t("استبدال نموذج 3D") : t("رفع ملف GLB")}</Text>
                 </TouchableOpacity>
                 {form.custom_fields?.model_3d_url && <TouchableOpacity onPress={() => setForm(f => ({ ...f, custom_fields: { ...f.custom_fields, model_3d_url: "" } }))} style={[s.imgBtn, { borderColor: colors.danger, borderWidth: 1.5, marginTop: 8 }]} testID="post-remove-model-3d-btn">
                     <Text style={[s.imgBtnText, { color: colors.danger }]}>{t("إزالة نموذج 3D")}</Text>
