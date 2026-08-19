@@ -6,6 +6,7 @@ import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
 import api from "../api";
 import { colors, shadow } from "../theme";
+import AdminMonitoringPanel from "../components/AdminMonitoringPanel";
 
 const EMPTY = { users: 0, listings: 0, active_listings: 0, pending_moderation: 0, open_reports: 0, messages_24h: 0, total_views: 0, total_clicks: 0 };
 
@@ -60,7 +61,8 @@ export default function AdminDashboardScreen() {
 
   return <ScrollView style={{ flex: 1, backgroundColor: palette.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}>
     <View style={[styles.hero, shadow.card]}><Shield size={26} color="#fff" /><View style={{ flex: 1 }}><Text style={styles.heroTitle}>{t("لوحة الإدارة")}</Text><Text style={styles.heroSub}>{t("ملخص تشغيلي مباشر من بيانات المنصة")}</Text></View><TouchableOpacity onPress={load} style={styles.heroRefresh}><RefreshCw size={16} color="#fff" /></TouchableOpacity></View>
-    <View style={styles.grid}>{rows.map(({ key, label, value, Icon, color, bg }) => <View key={key} style={[styles.card, shadow.card]} testID={`admin-stat-${key}`}><View style={[styles.icon, { backgroundColor: bg }]}><Icon size={18} color={color} /></View><Text style={styles.value}>{Number(value || 0).toLocaleString()}</Text><Text style={styles.label}>{label}</Text></View>)}</View>
+    <View style={styles.grid}>{rows.map(({ key, label, value, Icon, color, bg }) => <View key={key} style={[styles.card, shadow.card]} testID={`admin-stat-${key}`}><View style={[styles.icon, { backgroundColor: bg }]}><Icon size={18} color={color} /></View><Text style={styles.value}>{Number(value || 0).toLocaleString("en-US")}</Text><Text style={styles.label}>{label}</Text></View>)}</View>
+    <AdminMonitoringPanel />
     <View style={styles.note}><Shield size={16} color={colors.primary} /><Text style={styles.noteText}>{t("هذه الشاشة متاحة لحسابات الأدمن فقط. تبقى صلاحية Backend هي الحماية الفعلية لكل بيانات وأوامر الإدارة.")}</Text></View>
   </ScrollView>;
 }
