@@ -15,7 +15,7 @@ export default function ListingDetailScreen({
   route,
   navigation
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { palette } = useThemeMode();
   const {
     id
@@ -59,29 +59,37 @@ export default function ListingDetailScreen({
   const [commentError, setCommentError] = useState("");
   const carouselRef = useRef(null);
   const scrollRef = useRef(null);
+  const viewedListingId = useRef(null);
   const [commentsY, setCommentsY] = useState(null);
   const SCREEN_W = Dimensions.get("window").width;
   useEffect(() => {
     (async () => {
       try {
-        const [l, s, b] = await Promise.all([api.get(`/listings/${id}`), api.get(`/listings/${id}/similar`), api.get(`/ai/price-badge/${id}`).catch(() => ({
+        const [l, s, b] = await Promise.all([api.get(`/listings/${id}`, { params: { lang } }), api.get(`/listings/${id}/similar`), api.get(`/ai/price-badge/${id}`).catch(() => ({
           data: null
         }))]);
         setListing(l.data);
-        trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
+        // Language changes reload only the localized copy; they are not new
+        // listing views and must not inflate analytics or view counters.
+        const firstLocalizedLoad = viewedListingId.current !== l.data.id;
+        if (firstLocalizedLoad) {
+          viewedListingId.current = l.data.id;
+          trackEvent("listing_view", { listing_id: l.data.id, category: l.data.category, country_code: l.data.country_code });
+        }
         setSimilar(s.data);
         setBadge(b.data);
         setLikeCount(Number(l.data.like_count || 0));
         api.get(`/listings/${id}/comments`).then(({ data }) => setComments(Array.isArray(data) ? data : (data?.items || []))).catch(() => setCommentError(t("تعذر تحميل التعليقات")));
         if (user) api.get(`/listings/${id}/like/check`).then(({ data }) => setLiked(!!data?.liked)).catch(() => {});
-        // Fire-and-forget: log to "recently viewed" so /listings/recent works.
-        api.post(`/listings/${id}/view`).catch(() => {});
+        // Fire-and-forget only on the first load; switching language must not
+        // generate an additional recent-view event.
+        if (firstLocalizedLoad) api.post(`/listings/${id}/view`).catch(() => {});
       } catch {
         Alert.alert(t("خطأ"), t("تعذر تحميل الإعلان"));
         navigation.goBack();
       }
     })();
-  }, [id]);
+  }, [id, lang]);
 
   useEffect(() => {
     if (!listing?.id) return;
