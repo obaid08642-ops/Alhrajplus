@@ -17,6 +17,10 @@ const api = axios.create({
 
 const TOKEN_KEY = "hp_access_token";
 const REFRESH_KEY = "hp_refresh_token";
+const LANGUAGE_KEY = "hp_lang";
+export const CLIENT_CONTRACT_VERSION = "2026.08.19.1";
+export const CLIENT_PLATFORM = "mobile";
+const SUPPORTED_LANGUAGES = new Set(["ar", "en", "ur", "hi", "bn", "fr"]);
 
 // Secure-first storage: keychain on iOS, EncryptedSharedPreferences on Android.
 // Fall back to AsyncStorage when SecureStore isn't available (web / older sims).
@@ -61,7 +65,13 @@ api.interceptors.request.use(async (config) => {
                 config.params.country_code = cc;
             }
         }
+        const language = String(await AsyncStorage.getItem(LANGUAGE_KEY) || "ar").toLowerCase();
+        config.headers = config.headers || {};
+        if (!config.headers["X-Haraj-Language"]) config.headers["X-Haraj-Language"] = SUPPORTED_LANGUAGES.has(language) ? language : "ar";
     } catch (_) { /* noop */ }
+    config.headers = config.headers || {};
+    if (!config.headers["X-Haraj-Client"]) config.headers["X-Haraj-Client"] = CLIENT_PLATFORM;
+    if (!config.headers["X-Haraj-Contract-Version"]) config.headers["X-Haraj-Contract-Version"] = CLIENT_CONTRACT_VERSION;
     return config;
 });
 
@@ -118,12 +128,28 @@ export async function clearToken() {
     await delStored(REFRESH_KEY);
 }
 
+let clientContractPromise = null;
+
+// Uses the same public compatibility descriptor as Web.  The request is lazy
+// and cached so it does not add work to cold app startup.
+export function getClientContract({ force = false } = {}) {
+    if (force) clientContractPromise = null;
+    if (!clientContractPromise) {
+        clientContractPromise = api.get("/meta/client-contract").then(({ data }) => data).catch((error) => {
+            clientContractPromise = null;
+            throw error;
+        });
+    }
+    return clientContractPromise;
+}
+
 export function formatApiError(err) {
-    if (!err) return "خطأ غير متوقع";
-    if (typeof err === "string") return err;
-    if (Array.isArray(err)) return err.map(formatApiError).join(", ");
-    if (err.msg) return err.msg;
-    return JSON.stringify(err);
+    const detail = err?.response?.data?.detail ?? err?.response?.data?.message ?? err;
+    if (!detail) return tr("خطأ غير متوقع");
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) return detail.map(formatApiError).filter(Boolean).join(" • ");
+    if (typeof detail?.msg === "string") return detail.msg;
+    return tr("خطأ غير متوقع");
 }
 
 export { BACKEND_URL };

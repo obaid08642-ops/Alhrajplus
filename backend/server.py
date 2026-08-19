@@ -1339,9 +1339,58 @@ class SupportReplyIn(BaseModel):
 # ============================================================
 # Public meta endpoints
 # ============================================================
+# Public, versioned contract consumed by both first-party clients.  It describes
+# only stable client behavior; it never exposes credentials, admin capabilities,
+# or deployment-specific configuration.
+CLIENT_CONTRACT_VERSION = "2026.08.19.1"
+CLIENT_SUPPORTED_LANGUAGES = ("ar", "en", "ur", "hi", "bn", "fr")
+
+
+def _client_contract():
+    return {
+        "version": CLIENT_CONTRACT_VERSION,
+        "supported_languages": list(CLIENT_SUPPORTED_LANGUAGES),
+        "defaults": {
+            "language": "ar",
+            "country_code": "SA",
+            "calendar": "gregory",
+            "numbering_system": "latn",
+        },
+        "request_context": {
+            "country_query": "country_code",
+            "language_header": "X-Haraj-Language",
+            "client_header": "X-Haraj-Client",
+            "contract_header": "X-Haraj-Contract-Version",
+        },
+        "capabilities": {
+            "listing_detail": {
+                "path": "/listings/{id}",
+                "method": "GET",
+                "query": ["lang"],
+                "localized_fields": ["title", "description", "seo_available_languages"],
+            },
+            "public_discovery": {
+                "path": "/discovery/listings",
+                "method": "GET",
+                "read_only": True,
+            },
+            "admin_monitoring": {
+                "path": "/admin/monitoring/summary",
+                "method": "GET",
+                "admin_only": True,
+            },
+        },
+    }
+
+
 @api.get("/")
 async def root():
-    return {"app": "haraj_plus", "status": "ok", "version": "1.0"}
+    return {"app": "haraj_plus", "status": "ok", "version": "1.0", "client_contract_version": CLIENT_CONTRACT_VERSION}
+
+
+@api.get("/meta/client-contract")
+async def get_client_contract():
+    return _client_contract()
 
 @api.get("/meta/categories")
 async def get_categories(lang: str = "ar"):

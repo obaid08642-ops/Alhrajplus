@@ -20,6 +20,17 @@ if (typeof window !== "undefined") {
 
 const ACCESS_KEY = "hp_access";
 const REFRESH_KEY = "hp_refresh";
+export const CLIENT_CONTRACT_VERSION = "2026.08.19.1";
+export const CLIENT_PLATFORM = "web";
+
+const preferredLanguage = () => {
+    try {
+        const value = String(localStorage.getItem("hp_lang") || "").toLowerCase();
+        return ["ar", "en", "ur", "hi", "bn", "fr"].includes(value) ? value : "ar";
+    } catch (_) {
+        return "ar";
+    }
+};
 
 export const tokenStore = {
     getAccess: () => {
@@ -69,6 +80,10 @@ api.interceptors.request.use((config) => {
             }
         }
     } catch (_) { /* noop */ }
+    config.headers = config.headers || {};
+    if (!config.headers["X-Haraj-Language"]) config.headers["X-Haraj-Language"] = preferredLanguage();
+    if (!config.headers["X-Haraj-Client"]) config.headers["X-Haraj-Client"] = CLIENT_PLATFORM;
+    if (!config.headers["X-Haraj-Contract-Version"]) config.headers["X-Haraj-Contract-Version"] = CLIENT_CONTRACT_VERSION;
     return config;
 });
 
@@ -116,6 +131,21 @@ api.interceptors.response.use(
         return Promise.reject(err);
     }
 );
+
+let clientContractPromise = null;
+
+// Fetches a public compatibility descriptor shared with Mobile.  It is opt-in
+// so existing startup paths stay fast; callers cache the promise per session.
+export const getClientContract = ({ force = false } = {}) => {
+    if (force) clientContractPromise = null;
+    if (!clientContractPromise) {
+        clientContractPromise = api.get("/meta/client-contract").then(({ data }) => data).catch((error) => {
+            clientContractPromise = null;
+            throw error;
+        });
+    }
+    return clientContractPromise;
+};
 
 export const formatApiError = (detail) => {
     if (detail == null) return "حدث خطأ. يرجى المحاولة مرة أخرى.";
