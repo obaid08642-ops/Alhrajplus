@@ -355,6 +355,21 @@ async def _utf8_json_charset(request, call_next):
 
 
 @app.middleware("http")
+async def _baseline_security_headers(request, call_next):
+    """Set API-safe defense-in-depth headers without overriding route caching."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()")
+    response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").lower()
+    if request.url.scheme == "https" or forwarded_proto == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+
+
+@app.middleware("http")
 async def _perf_logger(request, call_next):
     import time as _t
     start = _t.perf_counter()
@@ -10931,6 +10946,12 @@ async def startup():
     await _safe_index(db.listings, "is_demo")  # NEW: fast demo filter / bulk delete
     await _safe_index(db.listings, [("created_at", -1)])  # NEW: list-newest pagination
     await _safe_index(db.listings, [("category", 1), ("city", 1), ("created_at", -1)])
+    # Match the public discovery filter exactly: country + active status, then
+    # the boosted/newest sort. Category and city variants avoid scanning another
+    # country's feed before applying filters used by the browse UI.
+    await _safe_index(db.listings, [("country_code", 1), ("status", 1), ("is_boosted", -1), ("created_at", -1)], name="discover_country_status_boosted_created")
+    await _safe_index(db.listings, [("country_code", 1), ("status", 1), ("category", 1), ("is_boosted", -1), ("created_at", -1)], name="discover_country_status_category_boosted_created")
+    await _safe_index(db.listings, [("country_code", 1), ("status", 1), ("city", 1), ("is_boosted", -1), ("created_at", -1)], name="discover_country_status_city_boosted_created")
     await _safe_index(db.listings, [("country_code", 1), ("status", 1)])
     await _safe_index(db.listings, [("title", "text"), ("description", "text")])
     await _safe_index(db.listings, "search_blob")
