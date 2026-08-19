@@ -31,7 +31,7 @@
         "NSLocationWhenInUseUsageDescription": "يستخدم التطبيق موقعك لعرض الإعلانات القريبة منك",
         "NSCameraUsageDescription": "يستخدم التطبيق الكاميرا لإضافة صور للإعلانات",
         "NSPhotoLibraryUsageDescription": "يستخدم التطبيق مكتبة الصور لإضافة صور للإعلانات",
-        "NSMicrophoneUsageDescription": "يستخدم التطبيق الميكروفون لتسجيل الرسائل الصوتية في الشات",
+        "NSMicrophoneUsageDescription": "يستخدم التطبيق الميكروفون لإجراء المكالمات الصوتية والرسائل الصوتية",
         "NSFaceIDUsageDescription": "يستخدم التطبيق Face ID لتسجيل الدخول الآمن",
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
