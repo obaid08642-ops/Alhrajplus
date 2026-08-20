@@ -163,6 +163,10 @@ export function MyListingsScreen({
     padding: 4
   }}>
             <ListingCard listing={item} />
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, paddingHorizontal: 5, marginTop: 3 }} testID={`my-listing-meta-${item.id}`}>
+              <Text numberOfLines={1} style={{ flex: 1, color: palette.textMuted, fontSize: 10, fontWeight: "600" }}>{item.subcategory_label || item.category_label || t("إعلان")}</Text>
+              <Text style={{ color: item.status === "active" ? "#047857" : item.status === "sold" ? "#0369A1" : "#B45309", backgroundColor: item.status === "active" ? "#D1FAE5" : item.status === "sold" ? "#E0F2FE" : "#FEF3C7", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 99, fontSize: 9, fontWeight: "800" }}>{item.status_label || t("قيد المراجعة")}</Text>
+            </View>
             <TouchableOpacity onPress={() => toggleBoost(item)} style={[styles.boostBtn, item.is_boosted && styles.boostBtnActive]} testID={`boost-${item.id}`}>
                 {item.is_boosted ? <Star size={12} color="#fff" fill="#fff" /> : <Rocket size={12} color={theme.colors.primary} />}
                 <Text style={[styles.boostText, item.is_boosted && {

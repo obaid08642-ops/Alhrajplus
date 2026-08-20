@@ -5198,10 +5198,99 @@ async def _media_cleanup_retry_worker():
             logger.warning(f"[media-cleanup.retry] worker error: {e}")
 
 
+_OWNER_LISTING_CARD_PROJECTION = {
+    "_id": 0,
+    "id": 1,
+    "slug": 1,
+    "title": 1,
+    "description": 1,
+    "price": 1,
+    "currency": 1,
+    "currency_code": 1,
+    "category": 1,
+    "subcategory": 1,
+    "post_type": 1,
+    "custom_fields": 1,
+    "images": 1,
+    "videos": 1,
+    "country_code": 1,
+    "city": 1,
+    "district": 1,
+    "status": 1,
+    "moderation": 1,
+    "created_at": 1,
+    "updated_at": 1,
+    "views": 1,
+    "favorites": 1,
+    "is_boosted": 1,
+    "boost_until": 1,
+    "boost_product_id": 1,
+    "boost_strength": 1,
+    "auction_end_at": 1,
+}
+
+
+def _owner_listing_card(item: dict) -> dict:
+    """Return a compact, display-safe owner listing record.
+
+    Owner views must not receive internal search, moderation, translation,
+    contact, or persistence fields. Legacy records can contain malformed values,
+    so card-visible strings are normalized defensively and stable display labels
+    are returned beside the action-oriented status code.
+    """
+    category_key = str(item.get("category") or "").strip()
+    category = next((entry for entry in CATEGORIES if entry.get("key") == category_key), None) or {}
+    subcategory_key = str(item.get("subcategory") or "").strip()
+    subcategory = next((entry for entry in (category.get("subcategories") or []) if entry.get("key") == subcategory_key), None) or {}
+    status = str(item.get("status") or "active").strip().lower()
+    status_labels = {
+        "active": "نشط",
+        "paused": "موقوف مؤقتاً",
+        "sold": "تم البيع",
+        "expired": "منتهي",
+        "draft": "مسودة",
+        "rejected": "مرفوض",
+    }
+    title = item.get("title")
+    description = item.get("description")
+    return {
+        "id": str(item.get("id") or ""),
+        "slug": str(item.get("slug") or ""),
+        "title": title.strip() if isinstance(title, str) else "",
+        "description": description.strip() if isinstance(description, str) else "",
+        "price": item.get("price"),
+        "currency": str(item.get("currency") or ""),
+        "currency_code": str(item.get("currency_code") or ""),
+        "category": category_key,
+        "category_label": str(category.get("name_ar") or category.get("name_en") or category_key),
+        "subcategory": subcategory_key,
+        "subcategory_label": str(subcategory.get("name_ar") or subcategory.get("name_en") or subcategory_key),
+        "post_type": str(item.get("post_type") or ""),
+        "custom_fields": item.get("custom_fields") if isinstance(item.get("custom_fields"), dict) else {},
+        "images": [url for url in (item.get("images") or []) if isinstance(url, str) and url][:30],
+        "videos": [url for url in (item.get("videos") or []) if isinstance(url, str) and url][:5],
+        "country_code": str(item.get("country_code") or ""),
+        "city": str(item.get("city") or ""),
+        "district": str(item.get("district") or ""),
+        "status": status,
+        "status_label": status_labels.get(status, "قيد المراجعة"),
+        "moderation": str(item.get("moderation") or ""),
+        "created_at": item.get("created_at"),
+        "updated_at": item.get("updated_at"),
+        "views": int(item.get("views") or 0),
+        "favorites": int(item.get("favorites") or 0),
+        "is_boosted": bool(item.get("is_boosted")),
+        "boost_until": item.get("boost_until"),
+        "boost_product_id": str(item.get("boost_product_id") or ""),
+        "boost_strength": int(item.get("boost_strength") or 0),
+        "auction_end_at": item.get("auction_end_at"),
+    }
+
+
 @api.get("/listings/me/mine")
 async def my_listings(user: dict = Depends(get_current_user)):
-    items = await db.listings.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(length=200)
-    return items
+    items = await db.listings.find({"user_id": user["id"]}, _OWNER_LISTING_CARD_PROJECTION).sort("created_at", -1).to_list(length=200)
+    return [_owner_listing_card(item) for item in items]
 
 
 # ============================================================
