@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Mic, MicOff, PhoneOff, Volume2 } from "lucide-react-native";
+import { Mic, MicOff, Phone, PhoneOff, ShieldCheck, Volume2 } from "lucide-react-native";
 import { mediaDevices, RTCPeerConnection, RTCIceCandidate, RTCSessionDescription } from "react-native-webrtc";
 import { setAudioModeAsync } from "expo-audio";
 import api from "../api";
@@ -36,6 +36,9 @@ export default function NativeVoiceCall({
   signalingEvents = [],
   onSignal,
   onClose,
+  incomingAccepted = false,
+  onAcceptIncoming,
+  onRejectIncoming,
 }) {
   const { t } = useI18n();
   const peerRef = useRef(null);
@@ -50,6 +53,7 @@ export default function NativeVoiceCall({
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [relayConfigured, setRelayConfigured] = useState(null);
+  const isIncomingPending = role === "receiver" && !incomingAccepted;
   const nativeCallLabels = useMemo(() => ({
     appName: "Haraj Plus",
     alertTitle: t("إذن حساب الاتصال"),
@@ -169,7 +173,7 @@ export default function NativeVoiceCall({
   }, [callId, consumeSignal, peerReady, signalingEvents, visible]);
 
   useEffect(() => {
-    if (!visible || !callId || startedCallIdRef.current === callId) return undefined;
+    if (!visible || !callId || isIncomingPending || startedCallIdRef.current === callId) return undefined;
     startedCallIdRef.current = callId;
     endedRef.current = false;
     setMuted(false);
@@ -239,7 +243,7 @@ export default function NativeVoiceCall({
         resetAudioMode();
       }
     };
-  }, [callId, emit, name, nativeCallLabels, resetAudioMode, role, stopMedia, visible]);
+  }, [callId, emit, isIncomingPending, name, nativeCallLabels, resetAudioMode, role, stopMedia, visible]);
 
   useEffect(() => {
     if (state !== "connected") return undefined;
@@ -267,6 +271,7 @@ export default function NativeVoiceCall({
   };
 
   const status = {
+    incoming: t("مكالمة واردة"),
     idle: t("جاري تجهيز المكالمة"),
     preparing: t("جاري تجهيز المكالمة"),
     ringing: t("جاري الاتصال"),
@@ -275,31 +280,40 @@ export default function NativeVoiceCall({
     connected: `${t("متصل")} · ${String(Math.floor(elapsedSeconds / 60)).padStart(2, "0")}:${String(elapsedSeconds % 60).padStart(2, "0")}`,
     failed: t("تعذر الاتصال"),
     ended: t("انتهت المكالمة"),
-  }[state] || t("جاري تجهيز المكالمة");
+  }[isIncomingPending ? "incoming" : state] || t("جاري تجهيز المكالمة");
 
   return <Modal visible={visible} animationType="slide" onRequestClose={() => closeLocal(true)} statusBarTranslucent>
     <View style={styles.page}>
-      <View style={[styles.avatarHalo, state === "ringing" && styles.ringing]}>
+      <View style={styles.securePill}><ShieldCheck size={16} color="#8BD9F4" /><Text style={styles.secureText}>{t("مكالمة صوتية آمنة")}</Text></View>
+      <View style={[styles.avatarHalo, (state === "ringing" || isIncomingPending) && styles.ringing]}>
         <View style={styles.avatar}><Text style={styles.avatarText}>{(name || "?").trim().slice(0, 1).toUpperCase()}</Text></View>
       </View>
       <Text style={styles.name} numberOfLines={2}>{name || t("مكالمة صوتية")}</Text>
       <Text style={styles.status}>{status}</Text>
-      <View style={styles.badge}><View style={styles.dot} /><Text style={styles.badgeText}>{relayConfigured ? t("اتصال محمي عبر TURN عند الحاجة") : t("اتصال مباشر عبر STUN")}</Text></View>
-      {relayConfigured === false && <Text style={styles.warning}>{t("قد تمنع بعض الشبكات الاتصال المباشر. يلزم TURN لاتصال موثوق على جميع الشبكات.")}</Text>}
-      <View style={styles.controls}>
-        <TouchableOpacity onPress={toggleMute} style={[styles.control, muted && styles.controlActive]} accessibilityRole="button" accessibilityLabel={muted ? t("تشغيل الميكروفون") : t("كتم الميكروفون")}>
-          {muted ? <MicOff size={24} color={muted ? "#07152F" : "#FFFFFF"} /> : <Mic size={24} color="#FFFFFF" />}
-          <Text style={[styles.controlText, muted && styles.controlTextActive]}>{muted ? t("تشغيل") : t("كتم")}</Text>
+      {!isIncomingPending && state === "connected" && <View style={styles.badge}><View style={styles.dot} /><Text style={styles.badgeText}>{t("اتصال محمي")}</Text></View>}
+      {isIncomingPending ? <View style={styles.incomingControls}>
+        <TouchableOpacity onPress={onAcceptIncoming} style={[styles.incomingControl, styles.acceptControl]} accessibilityRole="button" accessibilityLabel={t("قبول")}>
+          <Phone size={28} color="#FFFFFF" /><Text style={styles.controlText}>{t("قبول")}</Text>
         </TouchableOpacity>
-        {Platform.OS === "android" && <TouchableOpacity onPress={toggleSpeaker} style={[styles.control, speakerEnabled && styles.controlActive]} accessibilityRole="button" accessibilityLabel={t("مكبر الصوت")}>
-          <Volume2 size={24} color={speakerEnabled ? "#07152F" : "#FFFFFF"} />
-          <Text style={[styles.controlText, speakerEnabled && styles.controlTextActive]}>{t("مكبر الصوت")}</Text>
-        </TouchableOpacity>}
-        <TouchableOpacity onPress={() => closeLocal(true)} style={[styles.control, styles.endControl]} accessibilityRole="button" accessibilityLabel={t("إنهاء المكالمة")}>
-          <PhoneOff size={24} color="#FFFFFF" />
-          <Text style={styles.controlText}>{t("إنهاء")}</Text>
+        <TouchableOpacity onPress={onRejectIncoming} style={[styles.incomingControl, styles.endControl]} accessibilityRole="button" accessibilityLabel={t("رفض")}>
+          <PhoneOff size={28} color="#FFFFFF" /><Text style={styles.controlText}>{t("رفض")}</Text>
         </TouchableOpacity>
-      </View>
+      </View> : <>
+        {relayConfigured === false && <Text style={styles.warning}>{t("قد تمنع بعض الشبكات الاتصال المباشر. يلزم TURN لاتصال موثوق على جميع الشبكات.")}</Text>}
+        <View style={styles.controls}>
+          <TouchableOpacity onPress={toggleMute} disabled={state === "failed" || state === "ended"} style={[styles.control, muted && styles.controlActive, (state === "failed" || state === "ended") && styles.controlDisabled]} accessibilityRole="button" accessibilityLabel={muted ? t("تشغيل الميكروفون") : t("كتم الميكروفون")}>
+            {muted ? <MicOff size={24} color="#07152F" /> : <Mic size={24} color="#FFFFFF" />}
+            <Text style={[styles.controlText, muted && styles.controlTextActive]}>{muted ? t("تشغيل") : t("كتم")}</Text>
+          </TouchableOpacity>
+          {Platform.OS === "android" && <TouchableOpacity onPress={toggleSpeaker} disabled={state === "failed" || state === "ended"} style={[styles.control, speakerEnabled && styles.controlActive, (state === "failed" || state === "ended") && styles.controlDisabled]} accessibilityRole="button" accessibilityLabel={t("مكبر الصوت")}>
+            <Volume2 size={24} color={speakerEnabled ? "#07152F" : "#FFFFFF"} />
+            <Text style={[styles.controlText, speakerEnabled && styles.controlTextActive]}>{t("مكبر الصوت")}</Text>
+          </TouchableOpacity>}
+          <TouchableOpacity onPress={() => closeLocal(true)} style={[styles.control, styles.endControl]} accessibilityRole="button" accessibilityLabel={t("إنهاء المكالمة")}>
+            <PhoneOff size={24} color="#FFFFFF" /><Text style={styles.controlText}>{t("إنهاء")}</Text>
+          </TouchableOpacity>
+        </View>
+      </>}
       {state === "preparing" && <ActivityIndicator color="#8BD9F4" style={styles.loader} />}
     </View>
   </Modal>;
@@ -307,6 +321,8 @@ export default function NativeVoiceCall({
 
 const styles = StyleSheet.create({
   page: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "#07152F" },
+  securePill: { position: "absolute", top: 68, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 15, paddingVertical: 9, borderRadius: 99, borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", backgroundColor: "rgba(255,255,255,0.05)" },
+  secureText: { color: "#E4F4FF", fontSize: 12, fontWeight: "700" },
   avatarHalo: { width: 150, height: 150, borderRadius: 75, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(79,182,230,0.12)", borderWidth: 18, borderColor: "rgba(79,182,230,0.08)", marginBottom: 28 },
   ringing: { transform: [{ scale: 1.04 }] },
   avatar: { width: 110, height: 110, borderRadius: 55, alignItems: "center", justifyContent: "center", backgroundColor: "#287EA8" },
@@ -318,8 +334,12 @@ const styles = StyleSheet.create({
   badgeText: { color: "#D6E6F4", fontSize: 12 },
   warning: { marginTop: 18, maxWidth: 330, color: "#FDE2A9", fontSize: 12, lineHeight: 19, textAlign: "center" },
   controls: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 17, marginTop: 58 },
+  incomingControls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 28, marginTop: 58 },
+  incomingControl: { width: 94, height: 94, borderRadius: 32, alignItems: "center", justifyContent: "center", gap: 6 },
+  acceptControl: { backgroundColor: "#20B576" },
   control: { width: 72, height: 72, borderRadius: 23, alignItems: "center", justifyContent: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.10)" },
   controlActive: { backgroundColor: "#8BD9F4" },
+  controlDisabled: { opacity: 0.4 },
   endControl: { backgroundColor: "#EB4B51" },
   controlText: { color: "#FFFFFF", fontSize: 11, fontWeight: "600" },
   controlTextActive: { color: "#07152F" },
