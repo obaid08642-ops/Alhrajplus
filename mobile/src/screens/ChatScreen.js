@@ -649,7 +649,7 @@ function ChatThread({
       });
     });
     const unsubTyping = subscribe("typing", ev => {
-      if (ev.from !== other.id) return;
+      if (ev.from !== other.id || (ev.convo_id && ev.convo_id !== convoId)) return;
       setOtherTyping(!!ev.is_typing);
       if (ev.is_typing) {
         if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -745,6 +745,7 @@ function ChatThread({
     wsSend({
       type: "typing",
       to: other.id,
+      convo_id: convoId,
       is_typing: is
     });
   };
@@ -1344,6 +1345,24 @@ function MessageBubble({
   // sub-properties unless explicitly validated. Prevents the runtime crash
   // "Property 'replyTo' doesn't exist" reported on the previous build.
   const replyTo = m?.reply_to ?? null;
+  const call = m?.system_type === "call" ? m.call : null;
+  if (call) {
+    const duration = Math.max(0, Number(call.duration_seconds || 0));
+    const durationLabel = duration ? `${String(Math.floor(duration / 60)).padStart(2, "0")}:${String(duration % 60).padStart(2, "0")}` : "";
+    const statusLabel = call.status === "missed" ? (isMine ? t("لم يتم الرد") : t("مكالمة فائتة"))
+      : call.status === "rejected" ? t("تم رفض المكالمة")
+        : call.status === "connected" ? t("مكالمة جارية")
+          : call.status === "ended" ? t("انتهت مكالمة صوتية")
+            : (isMine ? t("مكالمة صوتية صادرة") : t("مكالمة صوتية واردة"));
+    const warning = call.status === "missed" || call.status === "rejected";
+    return <View style={{ alignItems: "center", marginVertical: 10 }} testID={`call-timeline-${call.id}`}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" }}>
+        <Phone size={15} color={warning ? "#F87171" : colors.primary} />
+        <Text style={{ color: "#D6E6F4", fontSize: 12, fontWeight: "700" }}>{statusLabel}{durationLabel ? ` · ${durationLabel}` : ""}</Text>
+        <Text style={{ color: "#9BAFC5", fontSize: 11 }}>{fmtTime(m.ts || m.created_at)}</Text>
+      </View>
+    </View>;
+  }
   return <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX }] }}>
     <TouchableOpacity activeOpacity={0.85} onLongPress={() => onLongPress?.(m)} delayLongPress={350} style={[s.bubbleWrap, {
     alignItems: isMine ? "flex-end" : "flex-start"

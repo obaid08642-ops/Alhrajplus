@@ -259,7 +259,6 @@ export default function NativeVoiceCall({
   };
 
   const toggleSpeaker = () => {
-    if (Platform.OS !== "android") return;
     const next = !speakerEnabled;
     setSpeakerEnabled(next);
     setNativeCallSpeaker(callId, next);
@@ -305,10 +304,10 @@ export default function NativeVoiceCall({
             {muted ? <MicOff size={24} color="#07152F" /> : <Mic size={24} color="#FFFFFF" />}
             <Text style={[styles.controlText, muted && styles.controlTextActive]}>{muted ? t("تشغيل") : t("كتم")}</Text>
           </TouchableOpacity>
-          {Platform.OS === "android" && <TouchableOpacity onPress={toggleSpeaker} disabled={state === "failed" || state === "ended"} style={[styles.control, speakerEnabled && styles.controlActive, (state === "failed" || state === "ended") && styles.controlDisabled]} accessibilityRole="button" accessibilityLabel={t("مكبر الصوت")}>
+          <TouchableOpacity onPress={toggleSpeaker} disabled={state === "failed" || state === "ended"} style={[styles.control, speakerEnabled && styles.controlActive, (state === "failed" || state === "ended") && styles.controlDisabled]} accessibilityRole="button" accessibilityLabel={t("مكبر الصوت")}>
             <Volume2 size={24} color={speakerEnabled ? "#07152F" : "#FFFFFF"} />
             <Text style={[styles.controlText, speakerEnabled && styles.controlTextActive]}>{t("مكبر الصوت")}</Text>
-          </TouchableOpacity>}
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => closeLocal(true)} style={[styles.control, styles.endControl]} accessibilityRole="button" accessibilityLabel={t("إنهاء المكالمة")}>
             <PhoneOff size={24} color="#FFFFFF" /><Text style={styles.controlText}>{t("إنهاء")}</Text>
           </TouchableOpacity>

@@ -5654,6 +5654,112 @@ async def voice_ice_servers(user: dict = Depends(get_current_user)):
 _CALL_SIGNAL_TYPES = {"call_invite", "call_offer", "call_answer", "call_ice", "call_reject", "call_hangup"}
 _CALL_TERMINAL_STATES = {"rejected", "ended", "missed", "failed"}
 _CALL_SIGNAL_MAX_BYTES = 64 * 1024
+_CALL_EXPIRY_TASK = None
+
+
+def _call_duration_seconds(session: dict) -> int:
+    """Return a bounded connected-call duration from server timestamps only."""
+    accepted_at = session.get("accepted_at")
+    ended_at = session.get("ended_at") or datetime.now(timezone.utc).isoformat()
+    if not accepted_at:
+        return 0
+    try:
+        seconds = int((datetime.fromisoformat(ended_at) - datetime.fromisoformat(accepted_at)).total_seconds())
+        return max(0, min(seconds, 24 * 60 * 60))
+    except Exception:
+        return 0
+
+
+async def _upsert_call_timeline_message(session: dict) -> Optional[dict]:
+    """Persist one call-system row per call so chat history survives reconnects.
+
+    The call session remains the authoritative state machine. This row is a
+    durable timeline projection keyed by ``call_id`` and is updated in place as
+    a call is answered, missed, rejected, or ended.
+    """
+    status = str(session.get("status") or "")
+    if status not in {"ringing", "connected", "missed", "rejected", "ended"}:
+        return None
+    call_id = session.get("id")
+    convo_id = session.get("convo_id")
+    caller_id = session.get("caller_id")
+    callee_id = session.get("callee_id")
+    if not all(isinstance(value, str) and value for value in (call_id, convo_id, caller_id, callee_id)):
+        return None
+    created_at = session.get("created_at") or datetime.now(timezone.utc).isoformat()
+    ended_at = session.get("ended_at")
+    duration_seconds = _call_duration_seconds(session) if status == "ended" else 0
+    payload = {
+        "id": f"call_timeline_{call_id}",
+        "convo_id": convo_id,
+        "sender_id": caller_id,
+        "receiver_id": callee_id,
+        "country_code": session.get("country_code"),
+        "system_type": "call",
+        "call": {
+            "id": call_id,
+            "status": status,
+            "caller_id": caller_id,
+            "callee_id": callee_id,
+            "created_at": created_at,
+            "accepted_at": session.get("accepted_at"),
+            "ended_at": ended_at,
+            "duration_seconds": duration_seconds,
+            "end_reason": session.get("end_reason"),
+        },
+        "text": None,
+        "image": None,
+        "voice": None,
+        "location": None,
+        "read": True,
+        "delivered": True,
+        "ts": created_at,
+        "updated_at": session.get("updated_at") or created_at,
+    }
+    await db.messages.update_one({"id": payload["id"]}, {"$set": payload}, upsert=True)
+    return payload
+
+
+async def _broadcast_call_timeline(session: dict) -> None:
+    payload = await _upsert_call_timeline_message(session)
+    if not payload:
+        return
+    event = {"type": "message", "data": payload}
+    for participant in (session.get("caller_id"), session.get("callee_id")):
+        if participant:
+            await _chat_hub.send_to_user(participant, event)
+
+
+async def _expire_stale_call_sessions() -> None:
+    """Convert unanswered call sessions to durable missed-call timeline rows."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    try:
+        expired = await db.call_sessions.find(
+            {"status": {"$in": ["ringing", "offered"]}, "expires_at": {"$lte": now_iso}},
+            {"_id": 0},
+        ).to_list(length=250)
+    except Exception as exc:
+        logger.warning("[voice] unable to scan expired calls: %s", exc)
+        return
+    for session in expired:
+        if not session.get("id"):
+            continue
+        updates = {"status": "missed", "ended_at": now_iso, "updated_at": now_iso, "end_reason": "invite_expired"}
+        try:
+            await db.call_sessions.update_one({"id": session["id"], "status": {"$in": ["ringing", "offered"]}}, {"$set": updates})
+            session.update(updates)
+            await _broadcast_call_timeline(session)
+        except Exception as exc:
+            logger.warning("[voice] unable to finalize missed call %s: %s", session.get("id"), exc)
+
+
+async def _call_expiry_worker() -> None:
+    while True:
+        try:
+            await _expire_stale_call_sessions()
+        except Exception as exc:
+            logger.warning("[voice] call expiry worker failed: %s", exc)
+        await asyncio.sleep(10)
 
 
 def _valid_call_id(call_id: object) -> bool:
@@ -5730,7 +5836,10 @@ async def _authorize_call_signal(sender_id: str, target_id: str, convo_id: str, 
     elif event_type == "call_reject":
         updates.update({"status": "rejected", "ended_at": now_iso, "end_reason": "rejected"})
     elif event_type == "call_hangup":
-        updates.update({"status": "ended", "ended_at": now_iso, "end_reason": "hangup"})
+        if session.get("status") in {"ringing", "offered"} and sender_id == session.get("caller_id"):
+            updates.update({"status": "missed", "ended_at": now_iso, "end_reason": "no_answer"})
+        else:
+            updates.update({"status": "ended", "ended_at": now_iso, "end_reason": "hangup"})
     if event_type != "call_ice":
         await db.call_sessions.update_one({"id": call_id}, {"$set": updates})
         session.update(updates)
@@ -5828,10 +5937,12 @@ async def chat_websocket(websocket: WebSocket, token: str = Query("")):
                 continue
             if etype == "typing":
                 to = event.get("to")
+                convo_id = event.get("convo_id")
                 if to and isinstance(to, str):
                     await _chat_hub.send_to_user(to, {
                         "type": "typing",
                         "from": user_id,
+                        "convo_id": convo_id if isinstance(convo_id, str) else None,
                         "is_typing": bool(event.get("is_typing")),
                     })
                 continue
@@ -5868,6 +5979,8 @@ async def chat_websocket(websocket: WebSocket, token: str = Query("")):
                     "type": etype, "from": user_id, "convo_id": convo_id,
                     "call_id": call_id, "data": data,
                 })
+                if etype != "call_ice":
+                    await _broadcast_call_timeline(session)
                 if etype == "call_invite" and delivered == 0:
                     # Use the persisted account name rather than client-provided
                     # signaling data in the notification payload.
@@ -5980,7 +6093,10 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         "reply_to": reply_to,
         "forwarded_from": body.forwarded_from,
         "client_message_id": body.client_message_id,
+        "delivered": False,
+        "delivered_at": None,
         "read": False,
+        "read_at": None,
         "ts": datetime.now(timezone.utc).isoformat(),
     }
     try:
@@ -6013,8 +6129,12 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
     await _chat_hub.send_to_user(user["id"], {"type": "message", "data": msg_payload})
     # If receiver is online, instantly mark as delivered and inform sender
     if delivered > 0:
+        delivered_at = datetime.now(timezone.utc).isoformat()
+        msg["delivered"] = True
+        msg["delivered_at"] = delivered_at
+        msg_payload = {**msg, "sender": sender_meta}
         try:
-            await db.messages.update_one({"id": msg["id"]}, {"$set": {"delivered": True, "delivered_at": datetime.now(timezone.utc).isoformat()}})
+            await db.messages.update_one({"id": msg["id"]}, {"$set": {"delivered": True, "delivered_at": delivered_at}})
         except Exception:
             pass
         await _chat_hub.send_to_user(user["id"], {
@@ -6022,6 +6142,7 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
             "convo_id": convo_id,
             "message_id": msg["id"],
             "by": body.receiver_id,
+            "ts": delivered_at,
         })
     # In-app notification + push (respects user's `messages` pref) — only if
     # receiver is NOT actively connected (saves on no-op push).
@@ -6068,10 +6189,19 @@ async def get_messages(convo_id: str, before: Optional[str] = None, limit: int =
             "has_more": len(msgs) == limit,
             "next_before": msgs[0]["ts"] if (msgs and len(msgs) == limit) else None,
         }
-    # Legacy: latest 500 oldest-first + mark as read.
+    # Legacy: latest 500 oldest-first + mark the recipient's messages read.
     msgs = await db.messages.find({"convo_id": convo_id, "hidden_for": {"$ne": user["id"]}}, {"_id": 0}).sort("ts", 1).to_list(length=500)
-    await db.messages.update_many({"convo_id": convo_id, "receiver_id": user["id"], "read": False}, {"$set": {"read": True}})
+    now = datetime.now(timezone.utc).isoformat()
+    await db.messages.update_many({"convo_id": convo_id, "receiver_id": user["id"], "read": False}, {"$set": {"read": True, "read_at": now}})
     await db.conversations.update_one({"id": convo_id}, {"$set": {f"unread_{user['id']}": 0}})
+    parts = convo_id.split("_")
+    other = next((part for part in parts if part != user["id"]), None)
+    if other:
+        await _chat_hub.send_to_user(other, {"type": "read", "convo_id": convo_id, "by": user["id"], "ts": now})
+    for message in msgs:
+        if message.get("receiver_id") == user["id"] and not message.get("read"):
+            message["read"] = True
+            message["read_at"] = now
     return msgs
 
 
@@ -11065,6 +11195,7 @@ async def startup():
     await db.call_sessions.create_index([("caller_id", 1), ("country_code", 1), ("created_at", -1)])
     await db.call_sessions.create_index([("callee_id", 1), ("country_code", 1), ("created_at", -1)])
     await db.call_sessions.create_index([("status", 1), ("expires_at", 1)])
+    await _safe_index(db.messages, [("call.id", 1)], unique=True, partialFilterExpression={"system_type": "call"})
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
     await db.bids.create_index([("listing_id", 1), ("amount", -1)])
     await db.bids.create_index("ts")
@@ -11172,9 +11303,14 @@ async def startup():
         logger.warning(f"[startup] banned_words reload failed: {_bwe}")
 
     # Start the smart notifications worker (abandoned drafts/searches + scheduled).
-    global _SMART_NOTIF_TASK
+    global _SMART_NOTIF_TASK, _CALL_EXPIRY_TASK
     if _SMART_NOTIF_TASK is None or _SMART_NOTIF_TASK.done():
         _SMART_NOTIF_TASK = asyncio.create_task(_smart_notifications_worker())
+    # Finalize unanswered calls as durable missed-call rows. The work is
+    # deterministic, low-cost, and runs inside the already persistent API
+    # process so it remains available even when neither participant opens chat.
+    if _CALL_EXPIRY_TASK is None or _CALL_EXPIRY_TASK.done():
+        _CALL_EXPIRY_TASK = asyncio.create_task(_call_expiry_worker())
 
     # Start the media-cleanup retry worker (background — retries every 10 min)
     global _MEDIA_CLEANUP_TASK
@@ -11345,6 +11481,9 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
+    global _CALL_EXPIRY_TASK
+    if _CALL_EXPIRY_TASK and not _CALL_EXPIRY_TASK.done():
+        _CALL_EXPIRY_TASK.cancel()
     client.close()
 
 

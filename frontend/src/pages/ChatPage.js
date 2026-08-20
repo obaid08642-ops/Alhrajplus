@@ -75,6 +75,7 @@ function linkify(text) {
 
 /** Single message bubble — memoised so list updates don't rerender history. */
 const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact, onDelete, onDeleteForMe }) => {
+    const call = m.system_type === "call" ? m.call : null;
     const liveShare = m.location?.live_share_id;
     // Swipe-to-reply touch handler — simple horizontal drag detection
     const startX = useRef(null);
@@ -100,6 +101,23 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
         if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
         startX.current = null;
     };
+
+    if (call) {
+        const duration = Math.max(0, Number(call.duration_seconds || 0));
+        const durationLabel = duration ? `${String(Math.floor(duration / 60)).padStart(2, "0")}:${String(duration % 60).padStart(2, "0")}` : "";
+        const statusLabel = call.status === "missed" ? (mine ? tr("لم يتم الرد") : tr("مكالمة فائتة"))
+            : call.status === "rejected" ? (mine ? tr("تم رفض المكالمة") : tr("تم رفض المكالمة"))
+                : call.status === "connected" ? tr("مكالمة جارية")
+                    : call.status === "ended" ? tr("انتهت مكالمة صوتية")
+                        : (mine ? tr("مكالمة صوتية صادرة") : tr("مكالمة صوتية واردة"));
+        return <div data-testid={`call-timeline-${call.id}`} className="my-3 flex items-center justify-center" role="status">
+            <div className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-2 text-[var(--text-muted)] shadow-sm">
+                <Phone className={`w-4 h-4 ${call.status === "missed" || call.status === "rejected" ? "text-red-500" : "text-[var(--primary)]"}`} />
+                <span className="text-xs font-semibold">{statusLabel}{durationLabel ? ` · ${durationLabel}` : ""}</span>
+                <span className="text-[11px] opacity-70">{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+        </div>;
+    }
 
     return (
         <div
@@ -308,6 +326,7 @@ export default function ChatPage() {
     const initialLoadRef = useRef(true);
     const [showScrollDown, setShowScrollDown] = useState(false);
     const typingDebounce = useRef(null);
+    const peerTypingTimer = useRef(null);
 
     // Single WS connection
     const { send: wsSend, connected, subscribe } = useChatSocket();
@@ -514,7 +533,10 @@ export default function ChatPage() {
         }));
 
         offs.push(subscribe("typing", (ev) => {
-            if (activeOther && ev.from === activeOther.id) setPeerTyping(!!ev.is_typing);
+            if (!activeOther || ev.from !== activeOther.id || (ev.convo_id && ev.convo_id !== activeConvoId)) return;
+            setPeerTyping(!!ev.is_typing);
+            if (peerTypingTimer.current) clearTimeout(peerTypingTimer.current);
+            if (ev.is_typing) peerTypingTimer.current = setTimeout(() => setPeerTyping(false), 4000);
         }));
 
         offs.push(subscribe("presence", (ev) => {
@@ -543,7 +565,10 @@ export default function ChatPage() {
             } : m));
         }));
 
-        return () => offs.forEach((off) => off());
+        return () => {
+            offs.forEach((off) => off());
+            if (peerTypingTimer.current) clearTimeout(peerTypingTimer.current);
+        };
     }, [user, subscribe, activeConvoId, activeOther, scrollToBottom, wsSend, tr]);
 
     // ----------- Send message -----------
@@ -594,8 +619,8 @@ export default function ChatPage() {
     // ----------- Typing notify (debounced) -----------
     const notifyTyping = useCallback((isTyping) => {
         if (!activeOther?.id) return;
-        wsSend({ type: "typing", to: activeOther.id, is_typing: isTyping });
-    }, [activeOther?.id, wsSend]);
+        wsSend({ type: "typing", to: activeOther.id, convo_id: activeConvoId, is_typing: isTyping });
+    }, [activeConvoId, activeOther?.id, wsSend]);
 
     const onInputChange = (e) => {
         setInput(e.target.value);

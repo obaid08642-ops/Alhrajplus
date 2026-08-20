@@ -122,6 +122,9 @@ export function setNativeCallMuted(callId, muted) {
 }
 
 export function setNativeCallSpeaker(callId, speakerEnabled) {
-  if (!callId || Platform.OS !== "android") return;
+  if (!callId) return;
+  // CallKeep maps this to the platform route on Android and iOS when the
+  // native integration exposes it; expo-audio applies the same route request
+  // from the call screen as a compatible fallback.
   try { RNCallKeep.toggleAudioRouteSpeaker(callId, speakerEnabled); } catch (_) {}
 }

@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { API_BASE, tokenStore } from "@/lib/api";
 
 const REPLAYABLE_SOCKET_EVENTS = new Set([
-    "read", "typing", "call_invite", "call_offer", "call_answer", "call_ice", "call_reject", "call_hangup",
+    "read", "call_invite", "call_offer", "call_answer", "call_ice", "call_reject", "call_hangup",
 ]);
 
 function websocketOriginFromApiBase() {
@@ -14,7 +14,6 @@ function websocketOriginFromApiBase() {
 
 function queuedEventKey(event) {
     if (event?.type === "call_ice") return null;
-    if (event?.type === "typing") return `typing:${event.to || ""}`;
     if (event?.type === "read") return `read:${event.convo_id || ""}`;
     return `${event?.type || "event"}:${event?.call_id || ""}:${event?.to || ""}`;
 }
