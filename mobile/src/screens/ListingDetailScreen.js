@@ -54,6 +54,7 @@ export default function ListingDetailScreen({
   const [likeCount, setLikeCount] = useState(0);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
+  const [commentClientId, setCommentClientId] = useState("");
   const [commentBusy, setCommentBusy] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [commentError, setCommentError] = useState("");
@@ -185,13 +186,27 @@ export default function ListingDetailScreen({
     const text = commentText.trim();
     if (!text) return;
     setCommentBusy(true); setCommentError("");
+    const client_comment_id = commentClientId || globalThis.crypto?.randomUUID?.() || `mobile-comment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    if (!commentClientId) setCommentClientId(client_comment_id);
     try {
-      const client_comment_id = globalThis.crypto?.randomUUID?.() || `mobile-comment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const { data } = await api.post(`/listings/${id}/comments`, { text, parent_id: replyTo?.id || null, client_comment_id });
       setComments(items => [data, ...items.filter(item => item.id !== data.id)]);
-      setCommentText(""); setReplyTo(null);
-    } catch (e) { setCommentError(e.response?.data?.detail || t("تعذر نشر التعليق")); }
-    finally { setCommentBusy(false); }
+      setCommentText(""); setCommentClientId(""); setReplyTo(null);
+    } catch (e) {
+      // A timeout may occur after Mongo accepted the request. Reconcile by the
+      // stable client key before surfacing a false failure to the author.
+      try {
+        const { data } = await api.get(`/listings/${id}/comments`);
+        const items = Array.isArray(data) ? data : (data?.items || []);
+        const accepted = items.find(item => item?.client_comment_id === client_comment_id);
+        if (accepted) {
+          setComments(items);
+          setCommentText(""); setCommentClientId(""); setReplyTo(null);
+          return;
+        }
+      } catch (_) {}
+      setCommentError(e.response?.data?.detail || t("تعذر نشر التعليق"));
+    } finally { setCommentBusy(false); }
   };
   const deleteComment = comment => Alert.alert(t("حذف التعليق"), t("هل تريد حذف تعليقك؟"), [{ text: t("إلغاء"), style: "cancel" }, { text: t("حذف"), style: "destructive", onPress: async () => { try { await api.delete(`/listing-comments/${comment.id}`); await refreshComments(); } catch (e) { setCommentError(e?.response?.data?.detail || t("تعذر حذف التعليق")); } } }]);
   const reportComment = comment => Alert.alert(t("إبلاغ عن تعليق"), t("سيتم إرسال البلاغ للمراجعة."), [{ text: t("إلغاء"), style: "cancel" }, { text: t("إبلاغ"), style: "destructive", onPress: async () => { try { await api.post(`/listing-comments/${comment.id}/report`, { reason: "inappropriate_content" }); Alert.alert(t("تم"), t("تم استلام بلاغك")); } catch (e) { setCommentError(e?.response?.data?.detail || t("تعذر إرسال البلاغ")); } } }]);
@@ -439,7 +454,7 @@ export default function ListingDetailScreen({
                 <Text style={styles.desc}>{listing.description}</Text>
 
                 <Text style={styles.sectionTitle} onLayout={(e) => setCommentsY(e.nativeEvent.layout.y)}>{t("التعليقات")}</Text>
-                {user ? <>{replyTo && <View style={styles.replyBanner}><Text numberOfLines={1} style={styles.replyBannerText}>{t("رد على")}: {replyTo.author?.name || t("مستخدم")}</Text><TouchableOpacity onPress={() => setReplyTo(null)}><Text style={styles.replyCancel}>{t("إلغاء")}</Text></TouchableOpacity></View>}<View style={styles.commentComposer}><TextInput value={commentText} onChangeText={setCommentText} maxLength={1000} placeholder={replyTo ? t("اكتب ردك...") : t("اكتب تعليقًا عامًا...")} placeholderTextColor={theme.colors.textMuted} style={styles.commentInput} multiline /><TouchableOpacity onPress={submitComment} disabled={commentBusy || !commentText.trim()} style={[styles.commentSubmit, (commentBusy || !commentText.trim()) && { opacity: 0.5 }]} testID="mobile-comment-submit"><Text style={styles.commentSubmitText}>{commentBusy ? t("جارٍ النشر...") : t("نشر")}</Text></TouchableOpacity></View>{commentError ? <View style={styles.commentError}><Text style={styles.commentErrorText}>{commentError}</Text><TouchableOpacity onPress={refreshComments}><Text style={styles.commentRetry}>{t("إعادة المحاولة")}</Text></TouchableOpacity></View> : null}</> : <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.commentLogin}><Text style={styles.commentLoginText}>{t("سجل الدخول لكتابة تعليق")}</Text></TouchableOpacity>}
+                {user ? <>{replyTo && <View style={styles.replyBanner}><Text numberOfLines={1} style={styles.replyBannerText}>{t("رد على")}: {replyTo.author?.name || t("مستخدم")}</Text><TouchableOpacity onPress={() => setReplyTo(null)}><Text style={styles.replyCancel}>{t("إلغاء")}</Text></TouchableOpacity></View>}<View style={styles.commentComposer}><TextInput value={commentText} onChangeText={setCommentText} maxLength={1000} placeholder={replyTo ? t("اكتب ردك...") : t("اكتب تعليقًا عامًا...")} placeholderTextColor={theme.colors.textMuted} style={styles.commentInput} multiline /><TouchableOpacity onPress={submitComment} disabled={commentBusy || !commentText.trim()} style={[styles.commentSubmit, (commentBusy || !commentText.trim()) && { opacity: 0.5 }]} testID="mobile-comment-submit"><Text style={styles.commentSubmitText}>{commentBusy ? t("جارٍ النشر...") : t("نشر")}</Text></TouchableOpacity></View>{commentError ? <View style={styles.commentError}><Text style={styles.commentErrorText}>{commentError}</Text><TouchableOpacity onPress={submitComment} disabled={commentBusy || !commentText.trim()}><Text style={styles.commentRetry}>{t("إعادة المحاولة")}</Text></TouchableOpacity></View> : null}</> : <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.commentLogin}><Text style={styles.commentLoginText}>{t("سجل الدخول لكتابة تعليق")}</Text></TouchableOpacity>}
                 {comments.length === 0 ? <Text style={styles.emptyComments}>{t("لا توجد تعليقات بعد")}</Text> : comments.filter(comment => !comment.parent_id).map(comment => <View key={comment.id} style={[styles.commentCard, route.params?.commentId === comment.id && styles.commentFocused]}><View style={styles.commentMeta}><Text style={styles.commentAuthor}>{comment.author?.name || t("مستخدم")}</Text>{comment.author?.verified && <CheckCircle2 size={13} color={theme.colors.primary} />}<Text style={styles.commentDate}>{new Date(comment.created_at).toLocaleDateString()}</Text></View><Text style={styles.commentBody}>{comment.text}</Text>{user && <View style={styles.commentActions}><TouchableOpacity onPress={() => setReplyTo(comment)} style={styles.commentAction}><Reply size={14} color={theme.colors.primary} /><Text style={styles.commentActionText}>{t("رد")}</Text></TouchableOpacity>{user.id === comment.user_id ? <TouchableOpacity onPress={() => deleteComment(comment)} style={styles.commentAction}><Trash2 size={14} color="#DC2626" /><Text style={[styles.commentActionText, { color: "#DC2626" }]}>{t("حذف")}</Text></TouchableOpacity> : <TouchableOpacity onPress={() => reportComment(comment)} style={styles.commentAction}><Flag size={14} color={theme.colors.textMuted} /><Text style={styles.commentActionText}>{t("إبلاغ")}</Text></TouchableOpacity>}</View>}{comments.filter(reply => reply.parent_id === comment.id).map(reply => <View key={reply.id} style={[styles.commentReply, route.params?.commentId === reply.id && styles.commentFocused]}><View style={styles.commentMeta}><Text style={styles.commentAuthor}>{reply.author?.name || t("مستخدم")}</Text>{reply.author?.verified && <CheckCircle2 size={13} color={theme.colors.primary} />}<Text style={styles.commentDate}>{new Date(reply.created_at).toLocaleDateString()}</Text></View><Text style={styles.commentBody}>{reply.text}</Text>{user && <View style={styles.commentActions}><TouchableOpacity onPress={() => setReplyTo(reply)} style={styles.commentAction}><Reply size={14} color={theme.colors.primary} /><Text style={styles.commentActionText}>{t("رد")}</Text></TouchableOpacity>{user.id === reply.user_id ? <TouchableOpacity onPress={() => deleteComment(reply)} style={styles.commentAction}><Trash2 size={14} color="#DC2626" /><Text style={[styles.commentActionText, { color: "#DC2626" }]}>{t("حذف")}</Text></TouchableOpacity> : <TouchableOpacity onPress={() => reportComment(reply)} style={styles.commentAction}><Flag size={14} color={theme.colors.textMuted} /><Text style={styles.commentActionText}>{t("إبلاغ")}</Text></TouchableOpacity>}</View>}</View>)}</View>)}
 
                 <Text style={styles.sectionTitle}>{t("معلومات البائع")}</Text>

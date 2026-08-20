@@ -481,6 +481,14 @@ function ChatThread({
   }, [other.id]);
     useEffect(() => { loadHistory(); loadPresence(); }, [loadHistory, loadPresence]);
 
+  // REST remains authoritative for messages. Poll only while the real-time
+  // channel reconnects so an intermittent socket cannot make chat appear dead.
+  useEffect(() => {
+    if (connected) return undefined;
+    const timer = setInterval(loadHistory, 8000);
+    return () => clearInterval(timer);
+  }, [connected, loadHistory]);
+
   useEffect(() => {
     const shouldRing = !!incomingCall?.call_id && !voiceCallVisible;
     try {

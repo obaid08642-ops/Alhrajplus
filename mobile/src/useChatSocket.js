@@ -11,6 +11,16 @@ import * as SecureStore from "expo-secure-store";
 import { BACKEND_URL } from "./api";
 
 const TOKEN_KEY = "hp_access_token";
+const REPLAYABLE_SOCKET_EVENTS = new Set([
+  "read", "typing", "call_invite", "call_offer", "call_answer", "call_ice", "call_reject", "call_hangup",
+]);
+
+function queuedEventKey(event) {
+  if (event?.type === "call_ice") return null;
+  if (event?.type === "typing") return `typing:${event.to || ""}`;
+  if (event?.type === "read") return `read:${event.convo_id || ""}`;
+  return `${event?.type || "event"}:${event?.call_id || ""}:${event?.to || ""}`;
+}
 
 async function readToken() {
     try {
@@ -91,17 +101,12 @@ export function useChatSocket() {
         if (ws && ws.readyState === 1) {
             try { ws.send(JSON.stringify(obj)); return true; } catch (_) {}
         }
-        // Queue only idempotent/control signals. Chat text is always sent via
-        // REST, so reconnects can never duplicate a message body.
-        if (obj?.type === "read" || obj?.type === "typing") {
-            const key = obj.type === "read" ? `read:${obj.convo_id || ""}` : `typing:${obj.to || ""}`;
-            outboundQueue.current = [
-                ...outboundQueue.current.filter(item => {
-                    const otherKey = item.type === "read" ? `read:${item.convo_id || ""}` : `typing:${item.to || ""}`;
-                    return otherKey !== key;
-                }),
-                obj,
-            ].slice(-50);
+        // Chat bodies use idempotent REST. Keep call/control signals while
+        // reconnecting; every ICE candidate is retained in arrival order.
+        if (REPLAYABLE_SOCKET_EVENTS.has(obj?.type)) {
+            const key = queuedEventKey(obj);
+            const retained = key ? outboundQueue.current.filter(item => queuedEventKey(item) !== key) : outboundQueue.current;
+            outboundQueue.current = [...retained, obj].slice(-128);
         }
         return false;
     }, []);

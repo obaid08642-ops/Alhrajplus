@@ -232,7 +232,21 @@ export default function ListingDetail() {
             const { data } = await api.post(`/listings/${listing.id}/comments`, { text, parent_id: replyTo?.id || null, client_comment_id: requestId });
             if (data?.id) setComments((items) => [data, ...items.filter((item) => item?.id !== data.id)]);
             setCommentText(""); setCommentClientId(""); setReplyTo(null);
-        } catch (e) { setCommentError(e.response?.data?.detail || tr("تعذر نشر التعليق")); }
+        } catch (e) {
+            // A write can succeed before a transient response failure reaches
+            // the client. Reconcile with the stable key before showing an error.
+            try {
+                const { data } = await api.get(`/listings/${listing.id}/comments`);
+                const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+                const accepted = items.find((item) => item?.client_comment_id === requestId);
+                if (accepted) {
+                    setComments(items);
+                    setCommentText(""); setCommentClientId(""); setReplyTo(null);
+                    return;
+                }
+            } catch (_) {}
+            setCommentError(e.response?.data?.detail || tr("تعذر نشر التعليق"));
+        }
         finally { setCommentBusy(false); }
     };
     const deleteComment = async (commentId) => {

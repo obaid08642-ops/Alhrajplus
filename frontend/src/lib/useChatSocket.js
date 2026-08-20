@@ -1,6 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { tokenStore } from "@/lib/api";
+import { API_BASE, tokenStore } from "@/lib/api";
+
+const REPLAYABLE_SOCKET_EVENTS = new Set([
+    "read", "typing", "call_invite", "call_offer", "call_answer", "call_ice", "call_reject", "call_hangup",
+]);
+
+function websocketOriginFromApiBase() {
+    const pageOrigin = typeof window !== "undefined" ? window.location.origin : "";
+    const absoluteApiBase = /^https?:\/\//i.test(API_BASE) ? API_BASE : `${pageOrigin}${API_BASE}`;
+    return absoluteApiBase.replace(/\/api\/?$/, "").replace(/^http/i, "ws");
+}
+
+function queuedEventKey(event) {
+    if (event?.type === "call_ice") return null;
+    if (event?.type === "typing") return `typing:${event.to || ""}`;
+    if (event?.type === "read") return `read:${event.convo_id || ""}`;
+    return `${event?.type || "event"}:${event?.call_id || ""}:${event?.to || ""}`;
+}
 
 /**
  * Single shared WebSocket connection for chat real-time events.
@@ -22,6 +39,7 @@ export function useChatSocket() {
     const reconnectAttempt = useRef(0);
     const pingTimer = useRef(null);
     const reconnectTimer = useRef(null);
+    const outboundQueue = useRef([]);
     const [connected, setConnected] = useState(false);
     const userId = user?.id;
     const connectRef = useRef(null);
@@ -49,12 +67,9 @@ export function useChatSocket() {
         const token = tokenStore.getAccess();
         if (!token) return;
 
-        // Build a valid ws/wss URL both when a separate backend host is
-        // configured and when the Web app is served from the same origin.
-        const configured = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/+$/, "");
-        const origin = configured || (typeof window !== "undefined" ? window.location.origin : "");
-        const base = origin.replace(/^http/i, "ws");
-        const url = `${base}/api/ws/chat?token=${encodeURIComponent(token)}`;
+        // Derive the WebSocket origin from API_BASE. This keeps runtime
+        // config.js overrides from splitting HTTP and real-time traffic.
+        const url = `${websocketOriginFromApiBase()}/api/ws/chat?token=${encodeURIComponent(token)}`;
         let ws;
         try {
             ws = new WebSocket(url);
@@ -67,6 +82,10 @@ export function useChatSocket() {
         ws.onopen = () => {
             setConnected(true);
             reconnectAttempt.current = 0;
+            const queued = outboundQueue.current.splice(0, outboundQueue.current.length);
+            queued.forEach((event) => {
+                try { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(event)); } catch (_) {}
+            });
             // Keep-alive ping every 25s (avoids idle proxies dropping us)
             if (pingTimer.current) clearInterval(pingTimer.current);
             pingTimer.current = setInterval(() => {
@@ -105,8 +124,17 @@ export function useChatSocket() {
 
     const send = useCallback((obj) => {
         const ws = wsRef.current;
-        if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-        try { ws.send(JSON.stringify(obj)); return true; } catch (_) { return false; }
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            try { ws.send(JSON.stringify(obj)); return true; } catch (_) {}
+        }
+        // Text/media chat messages use the idempotent REST endpoint. Retain
+        // only control and call signals; ICE candidates must all remain ordered.
+        if (REPLAYABLE_SOCKET_EVENTS.has(obj?.type)) {
+            const key = queuedEventKey(obj);
+            const retained = key ? outboundQueue.current.filter((event) => queuedEventKey(event) !== key) : outboundQueue.current;
+            outboundQueue.current = [...retained, obj].slice(-128);
+        }
+        return false;
     }, []);
 
     const subscribe = useCallback((type, handler) => {
