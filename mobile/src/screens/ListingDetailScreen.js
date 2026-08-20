@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Linking, Alert, Share, FlatList, Dimensions, Modal, TextInput, PanResponder } from "react-native";
-import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2, Eye, MapPin, Reply, Trash2, Flag } from "lucide-react-native";
+import { Phone, MessageCircle, Bell, BellOff, Share2, ChevronRight, Gavel, Heart, CheckCircle2, Eye, MapPin, Reply, Trash2, Flag, Rocket } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import api from "../api";
@@ -58,6 +58,8 @@ export default function ListingDetailScreen({
   const [commentBusy, setCommentBusy] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [commentError, setCommentError] = useState("");
+  const [boostProducts, setBoostProducts] = useState([]);
+  const [boostBusy, setBoostBusy] = useState(false);
   const carouselRef = useRef(null);
   const scrollRef = useRef(null);
   const viewedListingId = useRef(null);
@@ -100,6 +102,15 @@ export default function ListingDetailScreen({
       .catch(() => { if (active) setNeighbors(null); });
     return () => { active = false; };
   }, [listing?.id, listing?.country_code]);
+
+  useEffect(() => {
+    if (!user || !listing?.id || user.id !== listing.user_id) return;
+    let active = true;
+    api.get("/economy/config").then(({ data }) => {
+      if (active) setBoostProducts(Array.isArray(data?.boost_products) ? data.boost_products : []);
+    }).catch(() => { if (active) setBoostProducts([]); });
+    return () => { active = false; };
+  }, [listing?.id, listing?.user_id, user?.id]);
 
   useEffect(() => {
     if (route.params?.focus !== "comments" || commentsY == null || !listing) return;
@@ -249,6 +260,27 @@ export default function ListingDetailScreen({
       }
     }]);
   };
+  const promoteListing = () => {
+    if (!boostProducts.length) {
+      Alert.alert(t("الترويج غير متاح"), t("لا توجد منتجات ترويج مفعلة حالياً."));
+      return;
+    }
+    const choose = async product => {
+      setBoostBusy(true);
+      try {
+        const key = `boost_${listing.id}_${product.id}_${Date.now()}`;
+        const { data } = await api.post(`/listings/${listing.id}/boost`, { product_id: product.id, idempotency_key: key });
+        setListing(current => current ? { ...current, is_boosted: !!data?.is_boosted, boost_until: data?.boost_until || current.boost_until, boost_product_id: data?.product_id || product.id } : current);
+        Alert.alert(t("تم"), t("تم ترويج الإعلان بنجاح"));
+      } catch (e) {
+        Alert.alert(t("تعذر الترويج"), e?.response?.data?.detail || t("تحقق من رصيد Coins ثم أعد المحاولة."));
+      } finally { setBoostBusy(false); }
+    };
+    Alert.alert(t("اختر باقة الترويج"), t("سيُخصم من Coins فقط بعد التأكيد."), [
+      ...boostProducts.map(product => ({ text: `${product.duration_hours}h · ${product.cost} Coins · ×${product.strength}`, onPress: () => choose(product) })),
+      { text: t("إلغاء"), style: "cancel" },
+    ]);
+  };
   const togglePauseResume = async () => {
     try {
       const url = listing.status === "paused" ? `/listings/${id}/resume` : `/listings/${id}/pause`;
@@ -391,6 +423,9 @@ export default function ListingDetailScreen({
       }]} testID="owner-republish-btn">
                         <Text style={styles.smallBtnText}>{t("تجديد")}</Text>
                     </TouchableOpacity>
+                    {!listing.is_boosted ? <TouchableOpacity onPress={promoteListing} disabled={boostBusy} style={[styles.smallBtn, { backgroundColor: "#F59E0B", opacity: boostBusy ? 0.55 : 1 }]} testID="owner-boost-btn">
+                        <Rocket size={13} color="#fff" /><Text style={styles.smallBtnText}>{boostBusy ? t("جارٍ الترويج...") : t("رَوِّج")}</Text>
+                    </TouchableOpacity> : <View style={[styles.smallBtn, { backgroundColor: "#D97706" }]} testID="owner-boosted-status"><Rocket size={13} color="#fff" /><Text style={styles.smallBtnText}>{t("مُروَّج")}</Text></View>}
                     <TouchableOpacity onPress={markSold} style={[styles.smallBtn, {
         backgroundColor: theme.colors.accent
       }]} testID="owner-sold-btn">

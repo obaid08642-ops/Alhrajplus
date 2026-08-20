@@ -74,7 +74,7 @@ function linkify(text) {
 
 
 /** Single message bubble — memoised so list updates don't rerender history. */
-const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact, onDelete, onDeleteForMe }) => {
+const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, translation, isTranslating, onReact, onDelete, onDeleteForMe, onRetry }) => {
     const call = m.system_type === "call" ? m.call : null;
     const liveShare = m.location?.live_share_id;
     // Swipe-to-reply touch handler — simple horizontal drag detection
@@ -223,7 +223,7 @@ const Bubble = ({ m, mine, firstOfRun, onReply, onImageClick, onTranslate, trans
                 )}
                 <span>{new Date(m.ts).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>
                 {mine && (
-                    m.failed ? <span className="text-red-500 font-bold" title={tr("فشل الإرسال")}>!</span>
+                    m.failed ? <button type="button" onClick={() => onRetry?.(m)} className="text-red-500 font-bold hover:underline" title={tr("فشل الإرسال — اضغط لإعادة المحاولة")} data-testid={`retry-message-${m.id}`}>!</button>
                     : m.pending ? <Check className="w-3 h-3 opacity-60" />
                     : m.read_at ? <CheckCheck className="w-3.5 h-3.5" style={{ color: "#B5E61D", strokeWidth: 3 }} />
                     : m.delivered ? <CheckCheck className="w-3.5 h-3.5" style={{ color: "rgba(181,230,29,0.55)", strokeWidth: 3 }} />
@@ -616,6 +616,27 @@ export default function ChatPage() {
         }
     };
 
+    const retryFailedMessage = async (message) => {
+        if (!activeOther?.id || !message?.failed) return;
+        const clientMessageId = message.client_message_id || (String(message.id || "").startsWith("tmp_") ? message.id : `retry_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+        setMessages((items) => items.map((item) => item.id === message.id ? { ...item, pending: true, failed: false, client_message_id: clientMessageId } : item));
+        try {
+            const { data } = await api.post("/chat/send", {
+                receiver_id: message.receiver_id || activeOther.id,
+                listing_id: message.listing_id || null,
+                text: message.text || null,
+                image: message.image || null,
+                voice: message.voice || null,
+                location: message.location || null,
+                reply_to: message.reply_to || null,
+                client_message_id: clientMessageId,
+            });
+            setMessages((items) => items.map((item) => item.id === message.id ? { ...data, pending: false, failed: false } : item));
+        } catch (_) {
+            setMessages((items) => items.map((item) => item.id === message.id ? { ...item, pending: false, failed: true } : item));
+        }
+    };
+
     // ----------- Typing notify (debounced) -----------
     const notifyTyping = useCallback((isTyping) => {
         if (!activeOther?.id) return;
@@ -813,6 +834,7 @@ export default function ChatPage() {
                                             try { await api.post(`/chat/messages/${msg.id}/delete-for-me`); setMessages(prev => prev.filter(x => x.id !== msg.id)); }
                                             catch (_) {}
                                         }}
+                                        onRetry={retryFailedMessage}
                                         onReact={async (msg, emoji) => {
                                             try {
                                                 const { data } = await api.post(`/chat/messages/${msg.id}/react`, { emoji });

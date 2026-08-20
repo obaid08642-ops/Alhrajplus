@@ -72,6 +72,12 @@ export default function ListingDetail() {
     const [reportReason, setReportReason] = useState("fraud");
     const [reportBusy, setReportBusy] = useState(false);
     const [reportMessage, setReportMessage] = useState("");
+    const [boostProducts, setBoostProducts] = useState([]);
+    const [boostProductId, setBoostProductId] = useState("");
+    const [boostBusy, setBoostBusy] = useState(false);
+    const listingId = listing?.id;
+    const listingOwnerId = listing?.user_id;
+    const currentUserId = user?.id;
     const swipeStartX = useRef(null);
 
     useEffect(() => {
@@ -148,6 +154,18 @@ export default function ListingDetail() {
         load();
         return () => { cancelled = true; };
     }, [id, user, lang, tr, location.state, nav]);
+
+    useEffect(() => {
+        if (!currentUserId || !listingId || currentUserId !== listingOwnerId) return;
+        let active = true;
+        api.get("/economy/config").then(({ data }) => {
+            if (!active) return;
+            const products = Array.isArray(data?.boost_products) ? data.boost_products : [];
+            setBoostProducts(products);
+            setBoostProductId((current) => current || products[0]?.id || "");
+        }).catch(() => { if (active) { setBoostProducts([]); setBoostProductId(""); } });
+        return () => { active = false; };
+    }, [currentUserId, listingId, listingOwnerId]);
 
     useEffect(() => {
         const commentId = new URLSearchParams(location.search).get("comment");
@@ -343,6 +361,24 @@ export default function ListingDetail() {
         nav(`/post?edit=${listing.id}`);
     };
 
+    const handleBoost = async () => {
+        if (!boostProductId) {
+            alert(tr("لا توجد باقات ترويج مفعّلة حالياً"));
+            return;
+        }
+        setBoostBusy(true);
+        try {
+            const key = `boost_${listing.id}_${boostProductId}_${Date.now()}`;
+            const { data } = await api.post(`/listings/${listing.id}/boost`, { product_id: boostProductId, idempotency_key: key });
+            setListing((current) => current ? { ...current, is_boosted: !!data?.is_boosted, boost_until: data?.boost_until || current.boost_until, boost_product_id: data?.product_id || boostProductId } : current);
+            alert(tr("تم ترويج الإعلان بنجاح"));
+        } catch (e) {
+            alert(e?.response?.data?.detail || tr("تعذر الترويج؛ تحقق من رصيد Coins."));
+        } finally {
+            setBoostBusy(false);
+        }
+    };
+
     const handlePauseToggle = async () => {
         const isPaused = listing.status === "paused";
         const msg = isPaused
@@ -375,6 +411,8 @@ export default function ListingDetail() {
                     <button data-testid="republish-btn" onClick={handleRepublish} className="bg-[var(--success)] hover:opacity-90 text-white rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1">
                         <RefreshCw className="w-3 h-3" /> تجديد النشر
                     </button>
+                    {!listing.is_boosted && <><select data-testid="listing-boost-product" aria-label={tr("باقة الترويج")} value={boostProductId} onChange={(e) => setBoostProductId(e.target.value)} className="min-w-0 max-w-32 bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] rounded-full px-2 py-1.5 text-xs font-latin"><option value="">{tr("اختر باقة")}</option>{boostProducts.map((product) => <option key={product.id} value={product.id}>{product.duration_hours}h · {product.cost} Coins</option>)}</select><button data-testid="boost-listing-detail-btn" onClick={handleBoost} disabled={boostBusy || !boostProductId} className="bg-amber-500 hover:bg-amber-400 text-white rounded-full px-3 py-1.5 text-xs font-bold font-arabic disabled:opacity-50 flex items-center gap-1"><Sparkles className="w-3 h-3" />{boostBusy ? tr("جارٍ الترويج...") : tr("رَوِّج")}</button></>}
+                    {listing.is_boosted && <span data-testid="listing-boosted-status" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1"><Sparkles className="w-3 h-3" />{tr("مُروَّج")}</span>}
                     <button data-testid="pause-resume-btn" onClick={handlePauseToggle} className={`${listing.status === "paused" ? "bg-emerald-500 text-white" : "bg-amber-500/15 text-amber-700 hover:bg-amber-500/25"} rounded-full px-3 py-1.5 text-xs font-bold font-arabic flex items-center gap-1`}>
                         {listing.status === "paused" ? <>▶ {tr("استئناف")}</> : <>⏸ {tr("إيقاف مؤقت")}</>}
                     </button>

@@ -5655,6 +5655,7 @@ _CALL_SIGNAL_TYPES = {"call_invite", "call_offer", "call_answer", "call_ice", "c
 _CALL_TERMINAL_STATES = {"rejected", "ended", "missed", "failed"}
 _CALL_SIGNAL_MAX_BYTES = 64 * 1024
 _CALL_EXPIRY_TASK = None
+_PRESENCE_EXPIRY_TASK = None
 
 
 def _call_duration_seconds(session: dict) -> int:
@@ -5760,6 +5761,16 @@ async def _call_expiry_worker() -> None:
         except Exception as exc:
             logger.warning("[voice] call expiry worker failed: %s", exc)
         await asyncio.sleep(10)
+
+
+async def _presence_expiry_worker() -> None:
+    """Keep online state tied to a live client heartbeat, not a stale socket."""
+    while True:
+        try:
+            await _chat_hub.expire_inactive(db)
+        except Exception as exc:
+            logger.warning("[presence] expiry worker failed: %s", exc)
+        await asyncio.sleep(15)
 
 
 def _valid_call_id(call_id: object) -> bool:
@@ -5927,6 +5938,7 @@ async def chat_websocket(websocket: WebSocket, token: str = Query("")):
     try:
         while True:
             raw = await websocket.receive_text()
+            await _chat_hub.touch(user_id, websocket)
             try:
                 event = json.loads(raw)
             except Exception:
@@ -11303,7 +11315,7 @@ async def startup():
         logger.warning(f"[startup] banned_words reload failed: {_bwe}")
 
     # Start the smart notifications worker (abandoned drafts/searches + scheduled).
-    global _SMART_NOTIF_TASK, _CALL_EXPIRY_TASK
+    global _SMART_NOTIF_TASK, _CALL_EXPIRY_TASK, _PRESENCE_EXPIRY_TASK
     if _SMART_NOTIF_TASK is None or _SMART_NOTIF_TASK.done():
         _SMART_NOTIF_TASK = asyncio.create_task(_smart_notifications_worker())
     # Finalize unanswered calls as durable missed-call rows. The work is
@@ -11311,6 +11323,8 @@ async def startup():
     # process so it remains available even when neither participant opens chat.
     if _CALL_EXPIRY_TASK is None or _CALL_EXPIRY_TASK.done():
         _CALL_EXPIRY_TASK = asyncio.create_task(_call_expiry_worker())
+    if _PRESENCE_EXPIRY_TASK is None or _PRESENCE_EXPIRY_TASK.done():
+        _PRESENCE_EXPIRY_TASK = asyncio.create_task(_presence_expiry_worker())
 
     # Start the media-cleanup retry worker (background — retries every 10 min)
     global _MEDIA_CLEANUP_TASK
@@ -11481,9 +11495,11 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    global _CALL_EXPIRY_TASK
+    global _CALL_EXPIRY_TASK, _PRESENCE_EXPIRY_TASK
     if _CALL_EXPIRY_TASK and not _CALL_EXPIRY_TASK.done():
         _CALL_EXPIRY_TASK.cancel()
+    if _PRESENCE_EXPIRY_TASK and not _PRESENCE_EXPIRY_TASK.done():
+        _PRESENCE_EXPIRY_TASK.cancel()
     client.close()
 
 

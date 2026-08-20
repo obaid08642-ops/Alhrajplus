@@ -84,6 +84,7 @@ def test_clients_render_backend_call_timeline_and_do_not_replay_stale_typing():
     mobile = (root / "mobile" / "src" / "screens" / "ChatScreen.js").read_text(encoding="utf-8")
     web_socket = (root / "frontend" / "src" / "lib" / "useChatSocket.js").read_text(encoding="utf-8")
     mobile_socket = (root / "mobile" / "src" / "useChatSocket.js").read_text(encoding="utf-8")
+    web_call = (root / "frontend" / "src" / "components" / "VoiceCallModal.js").read_text(encoding="utf-8")
     native_call = (root / "mobile" / "src" / "components" / "NativeVoiceCall.native.js").read_text(encoding="utf-8")
     assert 'm.system_type === "call"' in web
     assert 'm?.system_type === "call"' in mobile
@@ -93,3 +94,5 @@ def test_clients_render_backend_call_timeline_and_do_not_replay_stale_typing():
     assert '"typing", "call_invite"' not in mobile_socket
     assert "setNativeCallSpeaker(callId, next)" in native_call
     assert 'accessibilityLabel={t("مكبر الصوت")}' in native_call
+    assert "audio.setSinkId" in web_call
+    assert 'CallControl label={tr("مكبر الصوت")}' in web_call

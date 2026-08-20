@@ -428,7 +428,9 @@ function ChatThread({
   }, [outboxKey]);
 
   const flushOutbox = useCallback(async () => {
-    if (!connected) return;
+    // Messages are persisted through REST, not through WebSocket. Retrying
+    // only while the socket is connected left an entire conversation stuck
+    // whenever a network/proxy blocked WS upgrades but HTTPS still worked.
     let queued = [];
     try { queued = JSON.parse(await AsyncStorage.getItem(outboxKey) || "[]"); } catch (_) { queued = []; }
     if (!queued.length) return;
@@ -446,9 +448,13 @@ function ChatThread({
       } catch (_) { remaining.push(item); }
     }
     try { await AsyncStorage.setItem(outboxKey, JSON.stringify(remaining)); } catch (_) {}
-  }, [connected, outboxKey]);
+  }, [outboxKey]);
 
-  useEffect(() => { flushOutbox(); }, [flushOutbox]);
+  useEffect(() => {
+    flushOutbox();
+    const retryTimer = setInterval(flushOutbox, 8000);
+    return () => clearInterval(retryTimer);
+  }, [flushOutbox]);
 
   // Load history
   const loadHistory = useCallback(async () => {

@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Set, Optional
@@ -37,6 +38,12 @@ class ChatHub:
     """
     def __init__(self) -> None:
         self._conns: Dict[str, Set[WebSocket]] = {}
+        # A TCP socket can survive a suspended browser/app longer than the
+        # client is genuinely reachable. Presence therefore requires a recent
+        # application heartbeat, not merely an entry left in this map.
+        self._activity: Dict[WebSocket, float] = {}
+        self._presence_state: Dict[str, bool] = {}
+        self._presence_ttl_seconds = 75.0
         self._lock = asyncio.Lock()
         self._redis_url = os.environ.get("REDIS_URL", "").strip()
         self._redis = None
@@ -100,17 +107,34 @@ class ChatHub:
     async def connect(self, user_id: str, ws: WebSocket) -> None:
         await self._ensure_redis()
         async with self._lock:
+            was_online = self._presence_state.get(user_id, False)
             self._conns.setdefault(user_id, set()).add(ws)
-        await self._broadcast_presence(user_id, True)
+            self._activity[ws] = time.monotonic()
+            self._presence_state[user_id] = True
+        if not was_online:
+            await self._broadcast_presence(user_id, True)
+
+    async def touch(self, user_id: str, ws: WebSocket) -> None:
+        """Record a live client heartbeat or event for an active socket."""
+        became_online = False
+        async with self._lock:
+            if ws in self._conns.get(user_id, set()):
+                became_online = not self._presence_state.get(user_id, False)
+                self._activity[ws] = time.monotonic()
+                self._presence_state[user_id] = True
+        if became_online:
+            await self._broadcast_presence(user_id, True)
 
     async def disconnect(self, user_id: str, ws: WebSocket, db) -> None:
         async with self._lock:
+            self._activity.pop(ws, None)
             conns = self._conns.get(user_id)
             if conns:
                 conns.discard(ws)
                 if not conns:
                     self._conns.pop(user_id, None)
         if not self.is_online(user_id):
+            self._presence_state[user_id] = False
             ts = datetime.now(timezone.utc).isoformat()
             try:
                 await db.users.update_one({"id": user_id}, {"$set": {"last_seen": ts}})
@@ -119,10 +143,36 @@ class ChatHub:
             await self._broadcast_presence(user_id, False, last_seen=ts)
 
     def is_online(self, user_id: str) -> bool:
-        return bool(self._conns.get(user_id))
+        now = time.monotonic()
+        conns = self._conns.get(user_id, set())
+        return any(now - self._activity.get(ws, 0.0) <= self._presence_ttl_seconds for ws in conns)
+
+    async def expire_inactive(self, db) -> None:
+        """Broadcast offline state for sockets whose heartbeat expired.
+
+        The socket remains registered so a late mobile heartbeat can restore
+        presence without a forced disconnect, but it cannot count as online.
+        """
+        now = time.monotonic()
+        async with self._lock:
+            expired_users = [
+                uid for uid, conns in self._conns.items()
+                if self._presence_state.get(uid, False)
+                and not any(now - self._activity.get(ws, 0.0) <= self._presence_ttl_seconds for ws in conns)
+            ]
+            for uid in expired_users:
+                self._presence_state[uid] = False
+        for uid in expired_users:
+            ts = datetime.now(timezone.utc).isoformat()
+            try:
+                await db.users.update_one({"id": uid}, {"$set": {"last_seen": ts}})
+            except Exception:
+                pass
+            await self._broadcast_presence(uid, False, last_seen=ts)
 
     async def _send_local(self, user_id: str, payload: dict) -> int:
-        conns = list(self._conns.get(user_id, ()))
+        now = time.monotonic()
+        conns = [ws for ws in self._conns.get(user_id, ()) if now - self._activity.get(ws, 0.0) <= self._presence_ttl_seconds]
         if not conns:
             return 0
         text = json.dumps(payload, ensure_ascii=False, default=str)

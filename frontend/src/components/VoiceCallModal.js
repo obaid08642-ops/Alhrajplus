@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageCircle, Mic, MicOff, Phone, PhoneOff, ShieldCheck, UserRound } from "lucide-react";
+import { MessageCircle, Mic, MicOff, Phone, PhoneOff, ShieldCheck, UserRound, Volume2, VolumeX } from "lucide-react";
 import { tr } from "@/contexts/I18nContext";
 import api from "@/lib/api";
 
@@ -29,6 +29,7 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
     const [error, setError] = useState("");
     const [elapsed, setElapsed] = useState(0);
     const [minimized, setMinimized] = useState(false);
+    const [speakerEnabled, setSpeakerEnabled] = useState(true);
     const pcRef = useRef(null);
     const streamRef = useRef(null);
     const audioRef = useRef(null);
@@ -52,6 +53,10 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
         try {
             const context = new Ctx();
             ringContextRef.current = context;
+            // Browsers may create AudioContext in a suspended state after a
+            // WebSocket event. Resume when policy allows; the in-call visual
+            // and notification fallback remain available otherwise.
+            context.resume?.().catch(() => {});
             const tone = () => {
                 if (context.state === "closed") return;
                 [0, 0.32].forEach((offset) => {
@@ -87,6 +92,7 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
         setError("");
         setElapsed(0);
         setMinimized(false);
+        setSpeakerEnabled(true);
         stopRing();
         onActiveChange?.(false);
     }, [call, onActiveChange, socket, stopRing]);
@@ -235,6 +241,23 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
         setMuted(next);
     };
 
+    const toggleSpeaker = useCallback(async () => {
+        const audio = audioRef.current;
+        const next = !speakerEnabled;
+        if (!audio) return;
+        try {
+            // `setSinkId` is the browser-supported route selector.  Selecting
+            // `default` requests the system's current speaker/output, while the
+            // muted state provides an honest fallback on browsers without it.
+            if (typeof audio.setSinkId === "function") await audio.setSinkId("default");
+            audio.muted = !next;
+            setSpeakerEnabled(next);
+            setError("");
+        } catch (_) {
+            setError(tr("تعذر تغيير مخرج الصوت في هذا المتصفح. استخدم إعدادات الصوت في الجهاز."));
+        }
+    }, [speakerEnabled]);
+
     const label = status === "incoming" ? tr("مكالمة واردة")
         : status === "connected" ? tr("متصل")
             : status === "failed" ? tr("فشلت المكالمة")
@@ -274,8 +297,9 @@ export default function VoiceCallModal({ socket, convoId, other, user, start = f
                     <CallControl label={tr("قبول")} onClick={acceptIncoming} tone="accept"><Phone className="w-6 h-6" /></CallControl>
                     <CallControl label={tr("رفض")} onClick={rejectIncoming} tone="end"><PhoneOff className="w-6 h-6" /></CallControl>
                 </div> : <>
-                    <div className="grid grid-cols-3 gap-3 mt-10 max-w-[340px] mx-auto">
+                    <div className="grid grid-cols-2 gap-3 mt-10 max-w-[340px] mx-auto">
                         <CallControl label={muted ? tr("تشغيل") : tr("كتم")} onClick={toggleMute} tone={muted ? "active" : "neutral"} disabled={status === "failed" || status === "ended"}>{muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}</CallControl>
+                        <CallControl label={tr("مكبر الصوت")} onClick={toggleSpeaker} tone={speakerEnabled ? "active" : "neutral"} disabled={status === "failed" || status === "ended"}>{speakerEnabled ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}</CallControl>
                         <CallControl label={tr("المحادثة")} onClick={() => setMinimized(true)} tone="neutral" disabled={status === "failed" || status === "ended"}><MessageCircle className="w-6 h-6" /></CallControl>
                         <CallControl label={tr("إنهاء")} onClick={() => cleanup(true)} tone="end"><PhoneOff className="w-6 h-6" /></CallControl>
                     </div>
