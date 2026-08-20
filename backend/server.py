@@ -5876,25 +5876,50 @@ async def _authorize_call_signal(sender_id: str, target_id: str, convo_id: str, 
     if event_type not in _CALL_SIGNAL_TYPES or not _valid_call_id(call_id):
         return None
     expected_participants = sorted([sender_id, target_id])
-    conversation = await db.conversations.find_one(
-        {"id": convo_id, "participants": {"$all": expected_participants, "$size": 2}},
-        {"_id": 0, "id": 1, "participants": 1, "country_code": 1},
-    )
-    if not conversation or sorted(conversation.get("participants") or []) != expected_participants:
+    # Conversation ids are deterministic across Web and Mobile. Rejecting a
+    # mismatched id prevents a signal from being attached to another thread.
+    if convo_id != "_".join(expected_participants):
         return None
     users = await db.users.find({"id": {"$in": expected_participants}}, {"_id": 0, "id": 1, "country_code": 1, "banned": 1}).to_list(length=2)
     if len(users) != 2 or any(item.get("banned") for item in users):
         return None
     countries = {country_code_or_default(item.get("country_code"), "SA") for item in users}
-    conversation_country = country_code_or_default(conversation.get("country_code"), next(iter(countries)))
-    if len(countries) != 1 or conversation_country not in countries:
+    if len(countries) != 1:
+        return None
+    conversation_country = next(iter(countries))
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    conversation = await db.conversations.find_one(
+        {"id": convo_id, "participants": {"$all": expected_participants, "$size": 2}},
+        {"_id": 0, "id": 1, "participants": 1, "country_code": 1},
+    )
+    if not conversation:
+        # A call can legitimately be the first interaction between two people.
+        # Previously this returned None silently, so the invite never reached
+        # the peer and no call timeline message could be persisted.
+        if event_type != "call_invite":
+            return None
+        await db.conversations.update_one(
+            {"id": convo_id},
+            {"$setOnInsert": {
+                "id": convo_id,
+                "participants": expected_participants,
+                "country_code": conversation_country,
+                "last_message": "مكالمة صوتية",
+                "last_ts": now_iso,
+                f"unread_{target_id}": 0,
+            }},
+            upsert=True,
+        )
+        conversation = {"id": convo_id, "participants": expected_participants, "country_code": conversation_country}
+    if sorted(conversation.get("participants") or []) != expected_participants:
+        return None
+    conversation_country = country_code_or_default(conversation.get("country_code"), conversation_country)
+    if conversation_country not in countries:
         return None
     blocked = await db.blocks.find_one({"$or": [{"blocker_id": sender_id, "blocked_id": target_id}, {"blocker_id": target_id, "blocked_id": sender_id}]}, {"_id": 0, "blocker_id": 1})
     if blocked:
         return None
-
-    now = datetime.now(timezone.utc)
-    now_iso = now.isoformat()
     session = await db.call_sessions.find_one({"id": call_id}, {"_id": 0})
     if event_type == "call_invite":
         if session:
@@ -6221,6 +6246,7 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
         }, "$inc": {f"unread_{body.receiver_id}": 1}, "$pull": {"hidden_for": user["id"]}},
         upsert=True
     )
+    logger.info("[chat] message persisted id=%s convo=%s sender=%s receiver=%s", msg["id"], convo_id, user["id"], body.receiver_id)
     msg.pop("_id", None)
     # Real-time fan-out via WebSocket (instant). Both receiver AND sender's
     # other devices/tabs get the message so they all stay in sync.
@@ -6250,7 +6276,23 @@ async def send_message(body: ChatMessageIn, user: dict = Depends(get_current_use
     if delivered == 0:
         preview = (body.text or "[وسائط]")[:80]
         route = f"/chat?to={user['id']}&convo={convo_id}" + (f"&listing={body.listing_id}" if body.listing_id else "")
-        await _send_user_notification(body.receiver_id, f"رسالة جديدة من {user.get('name', 'مستخدم')}", preview, "new_message", route, {"entity": "conversation", "entity_id": convo_id, "conversation_id": convo_id, "convo_id": convo_id, "sender_id": user["id"], "listing_id": body.listing_id, "message_id": msg["id"], "country_code": active_cc}, pref_key="messages")
+        # The message and conversation are already durable at this point. Push
+        # providers or notification storage must never turn that successful
+        # write into an HTTP error visible as a failed message to the sender.
+        async def notify_receiver_in_background():
+            try:
+                await _send_user_notification(
+                    body.receiver_id,
+                    f"رسالة جديدة من {user.get('name', 'مستخدم')}",
+                    preview,
+                    "new_message",
+                    route,
+                    {"entity": "conversation", "entity_id": convo_id, "conversation_id": convo_id, "convo_id": convo_id, "sender_id": user["id"], "listing_id": body.listing_id, "message_id": msg["id"], "country_code": active_cc},
+                    pref_key="messages",
+                )
+            except Exception as exc:
+                logger.warning("[chat] offline notification failed after durable send: %s", exc)
+        asyncio.create_task(notify_receiver_in_background())
     return msg_payload
 
 @api.get("/chat/conversations")
@@ -11278,13 +11320,13 @@ async def startup():
     await _safe_index(db.google_oauth_states, "state", unique=True)
     await _safe_index(db.google_oauth_states, "expires_at", expireAfterSeconds=0)
     await db.messages.create_index([("convo_id", 1), ("ts", 1)])
-    await _safe_index(db.coins_ledger, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string", "$ne": ""}})
+    await _safe_index(db.coins_ledger, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string"}})
     await _safe_index(db.listing_shares, [("sharer_id", 1), ("client_share_id", 1)], unique=True)
     await _safe_index(db.share_opens, [("idempotency_key", 1)], unique=True)
     await _safe_index(db.referral_opens, [("idempotency_key", 1)], unique=True)
     await _safe_index(db.listing_shares, [("listing_id", 1), ("country_code", 1), ("created_at", -1)])
     await _safe_index(db.wallet_transactions, [("user_id", 1), ("type", 1)], unique=True, partialFilterExpression={"type": "bonus"})
-    await _safe_index(db.wallet_transactions, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string", "$ne": ""}})
+    await _safe_index(db.wallet_transactions, [("user_id", 1), ("idempotency_key", 1)], unique=True, partialFilterExpression={"idempotency_key": {"$type": "string"}})
     await _safe_index(db.ai_provider_daily, [("provider", 1), ("day", 1)], unique=True)
     await _safe_index(db.ai_provider_monthly, [("provider", 1), ("month", 1)], unique=True)
     await _safe_index(db.ai_usage_events, [("provider", 1), ("created_at", -1)])
