@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { I18nProvider, useI18n } from "@/contexts/I18nContext";
 import { trackEvent, trackSessionHeartbeat } from "@/lib/analytics";
+import { registerPublicWebMcp } from "@/lib/webMcp";
 import { adminMfaEnrollmentRequired, canAccessAdmin } from "@/lib/accessControl";
 import { CountryProvider } from "@/contexts/CountryContext";
 import { FeatureFlagsProvider } from "@/contexts/FeatureFlagsContext";
@@ -66,6 +67,14 @@ function AnalyticsRouteTracker() {
         trackSessionHeartbeat();
         const timer = window.setInterval(trackSessionHeartbeat, 30000);
         return () => window.clearInterval(timer);
+    }, []);
+    return null;
+}
+
+function PublicWebMcpBridge() {
+    useEffect(() => {
+        const cleanup = registerPublicWebMcp();
+        return typeof cleanup === "function" ? cleanup : undefined;
     }, []);
     return null;
 }
@@ -177,6 +186,7 @@ function App() {
                                 {showSplash && <SplashScreen />}
                                 <BrowserRouter>
                                     <AnalyticsRouteTracker />
+                                    <PublicWebMcpBridge />
                                     <AppRouter />
                                     <Suspense fallback={null}>
                                         <AIAssistantWidget />

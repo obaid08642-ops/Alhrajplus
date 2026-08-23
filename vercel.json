@@ -6,21 +6,74 @@
   "installCommand": "echo 'skip-root-install'",
   "framework": null,
   "rewrites": [
+    { "source": "/", "has": [{ "type": "header", "key": "accept", "value": ".*text/markdown.*" }], "destination": "https://alhrajplus.onrender.com/agent/home.md" },
     { "source": "/.well-known/assetlinks.json", "destination": "https://alhrajplus.onrender.com/.well-known/assetlinks.json" },
     { "source": "/.well-known/apple-app-site-association", "destination": "https://alhrajplus.onrender.com/.well-known/apple-app-site-association" },
+    { "source": "/.well-known/api-catalog", "destination": "https://alhrajplus.onrender.com/.well-known/api-catalog" },
+    { "source": "/.well-known/public-openapi.json", "destination": "https://alhrajplus.onrender.com/.well-known/public-openapi.json" },
+    { "source": "/.well-known/oauth-authorization-server", "destination": "https://alhrajplus.onrender.com/.well-known/oauth-authorization-server" },
+    { "source": "/.well-known/openid-configuration", "destination": "https://alhrajplus.onrender.com/.well-known/openid-configuration" },
+    { "source": "/.well-known/oauth-protected-resource", "destination": "https://alhrajplus.onrender.com/.well-known/oauth-protected-resource" },
+    { "source": "/.well-known/mcp/:path*", "destination": "https://alhrajplus.onrender.com/.well-known/mcp/:path*" },
+    { "source": "/.well-known/agent-skills/:path*", "destination": "https://alhrajplus.onrender.com/.well-known/agent-skills/:path*" },
+    { "source": "/.well-known/ai-catalog.json", "destination": "https://alhrajplus.onrender.com/.well-known/ai-catalog.json" },
+    { "source": "/auth.md", "destination": "https://alhrajplus.onrender.com/auth.md" },
+    { "source": "/llms.txt", "destination": "https://alhrajplus.onrender.com/llms.txt" },
+    { "source": "/docs/api", "destination": "https://alhrajplus.onrender.com/docs/api" },
+    { "source": "/openapi.json", "destination": "https://alhrajplus.onrender.com/openapi.json" },
     { "source": "/api/:path*", "destination": "https://alhrajplus.onrender.com/api/:path*" },
     { "source": "/sitemap.xml", "destination": "https://alhrajplus.onrender.com/sitemap.xml" },
-    { "source": "/robots.txt",  "destination": "https://alhrajplus.onrender.com/robots.txt" },
+    { "source": "/robots.txt", "destination": "https://alhrajplus.onrender.com/robots.txt" },
     { "source": "/listing/:path*", "destination": "https://alhrajplus.onrender.com/listing/:path*" },
     { "source": "/:key([a-f0-9]{16,128}).txt", "destination": "https://alhrajplus.onrender.com/:key.txt" },
-    { "source": "/((?!api|sitemap|robots|favicon|logo|assets|static).*)", "destination": "/index.html" }
+    { "source": "/((?!api|sitemap|robots|auth.md|llms.txt|docs|openapi.json|favicon|logo|assets|static).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "source": "/.well-known/(.*)",
+      "source": "/",
+      "headers": [
+        { "key": "Link", "value": "</.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain" },
+        { "key": "Content-Signal", "value": "ai-train=no, search=yes, ai-input=yes" }
+      ]
+    },
+    {
+      "source": "/.well-known/:path*.json",
       "headers": [
         { "key": "Content-Type", "value": "application/json; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/.well-known/api-catalog",
+      "headers": [
+        { "key": "Content-Type", "value": "application/linkset+json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/.well-known/oauth-authorization-server",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/.well-known/openid-configuration",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
     },
     {

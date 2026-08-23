@@ -369,6 +369,79 @@ async def _baseline_security_headers(request, call_next):
     return response
 
 
+def _agent_site_url() -> str:
+    return (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+
+
+def _agent_discovery_link_header() -> str:
+    """Describe only public, read-only discovery resources (RFC 8288/9727)."""
+    site = _agent_site_url()
+    return ", ".join([
+        f'<{site}/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"',
+        f'<{site}/docs/api>; rel="service-doc"; type="text/markdown"',
+        f'<{site}/llms.txt>; rel="alternate"; type="text/plain"',
+    ])
+
+
+def _agent_public_headers(*, markdown: bool = False, vary: str = "") -> dict:
+    """Headers shared by public agent-discovery documents and public listings."""
+    values = [item.strip() for item in vary.split(",") if item.strip()]
+    if markdown and "Accept" not in values:
+        values.append("Accept")
+    headers = {
+        "Link": _agent_discovery_link_header(),
+        "Content-Signal": "ai-train=no, search=yes, ai-input=yes",
+        "Cache-Control": "public, max-age=300",
+    }
+    if values:
+        headers["Vary"] = ", ".join(dict.fromkeys(values))
+    return headers
+
+
+def _agent_markdown_headers(content: str, *, vary: str = "") -> dict:
+    """Expose a transparent, word-based Markdown size estimate for clients."""
+    headers = _agent_public_headers(markdown=True, vary=vary)
+    headers["X-Markdown-Tokens"] = str(len(re.findall(r"\S+", content)))
+    return headers
+
+
+def _listing_agent_markdown(listing: dict, fallback_ref: str = "", language: str = "ar") -> str:
+    """Render only public listing facts as an agent-friendly Markdown variant."""
+    requested_language = str(language or "ar").lower()
+    if requested_language not in SEO_LISTING_LANGUAGES:
+        requested_language = "ar"
+    localization = _listing_seo_localization(listing, requested_language)
+    effective_language = requested_language if localization else "ar"
+    localization = localization or _listing_seo_localization(listing, "ar") or {}
+    site = _agent_site_url()
+    ref = _listing_seo_ref(listing, fallback_ref)
+    canonical = f"{site}/listing/{quote(ref, safe='-._~')}" + (f"?lang={effective_language}" if effective_language != "ar" else "")
+    title = str(localization.get("title") or listing.get("title") or "إعلان").strip()[:200]
+    description = str(localization.get("description") or listing.get("description") or title).strip()[:4000]
+    lines = [
+        "---",
+        f"title: {json.dumps(title, ensure_ascii=False)}",
+        f"description: {json.dumps(description[:300], ensure_ascii=False)}",
+        f"url: {json.dumps(canonical, ensure_ascii=False)}",
+        f"language: {effective_language}",
+        "content_signal: ai-train=no, search=yes, ai-input=yes",
+        "---",
+        "",
+        f"# {title}",
+        "",
+    ]
+    price = listing.get("price")
+    currency = str(listing.get("currency") or "ر.س")
+    if price not in (None, "", 0, "0"):
+        lines.extend([f"**السعر:** {price} {currency}", ""])
+    for label, value in (("المدينة", listing.get("city")), ("الفئة", listing.get("category")), ("الحالة", listing.get("condition"))):
+        text = str(value or "").strip()
+        if text:
+            lines.extend([f"**{label}:** {text}", ""])
+    lines.extend([description, "", f"[عرض الإعلان على الحراج بلس]({canonical})"])
+    return "\n".join(lines).strip() + "\n"
+
+
 @app.middleware("http")
 async def _perf_logger(request, call_next):
     import time as _t
@@ -9640,10 +9713,19 @@ async def _build_sitemap_xml() -> str:
 async def _build_robots_txt() -> str:
     site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
     DEFAULT = (
+        "# Content Signals express the publisher's preferences for public content.\n"
+        "# Search and retrieval/grounding are allowed; model training is not.\n"
         "User-agent: *\n"
+        "Content-Signal: ai-train=no, search=yes, ai-input=yes\n"
         "Allow: /\n"
         "Disallow: /admin\n"
         "Disallow: /api/\n"
+        "Disallow: /chat\n"
+        "Disallow: /profile\n"
+        "Disallow: /settings\n"
+        "Disallow: /wallet\n"
+        "Disallow: /notifications\n"
+        "Disallow: /auth/\n"
         "\n"
         "# AI search and answer engines — public listing pages are crawlable.\n"
         "# OAI-SearchBot is ChatGPT Search discovery; GPTBot controls model training.\n"
@@ -9762,6 +9844,410 @@ def _apple_app_site_association() -> dict:
         return {}
     paths = ["/listing/*", "/seller/*", "/category/*", "/auctions", "/deals", "/reels", "/map", "/search"]
     return {"applinks": {"details": [{"appIDs": app_ids, "components": [{"/": path} for path in paths]}]}}
+
+
+def _agent_well_known_headers(*, media_type: str = "application/json", max_age: int = 3600) -> dict:
+    return {
+        "Content-Type": f"{media_type}; charset=utf-8",
+        "Cache-Control": f"public, max-age={max_age}",
+        "Access-Control-Allow-Origin": "*",
+        "X-Content-Type-Options": "nosniff",
+    }
+
+
+def _agent_docs_markdown() -> str:
+    site = _agent_site_url()
+    api = f"{site}/api"
+    return f"""# Haraj Plus Public API
+
+Haraj Plus publishes a read-only public discovery surface for listings, categories, countries, and service health. It is suitable for search, retrieval, and grounding. It must not be used to access account data, chats, wallets, promotion, administration, or any other private operation.
+
+## Public resources
+
+| Resource | Purpose | Authentication |
+|---|---|---|
+| `{api}/listings` | Discover public, approved listings | None |
+| `{api}/listings/{{listing_id}}` | Retrieve one public listing | None |
+| `{api}/meta/categories` | Retrieve public categories | None |
+| `{api}/meta/countries` | Retrieve supported marketplaces | None |
+| `{api}/health` | Service health status | None |
+| `{site}/api/mcp` | MCP read-only listing tools | None |
+
+## Usage rules
+
+Use only public, approved inventory. Respect pagination, cache headers, rate limits, and the publisher's Content Signals. Never infer private contact details or attempt an operation that changes a listing, account, wallet, message, or transaction.
+
+## Discovery
+
+- API catalog: `{site}/.well-known/api-catalog`
+- Agentic resource manifest: `{site}/.well-known/ai-catalog.json`
+- Agent skill index: `{site}/.well-known/agent-skills/index.json`
+- MCP server card: `{site}/.well-known/mcp/server-card.json`
+"""
+
+
+def _agent_llms_txt() -> str:
+    site = _agent_site_url()
+    return f"""# Haraj Plus
+
+> Arabic-first classified marketplace for public listings across supported Gulf markets.
+
+## Public agent access
+
+- API catalog: {site}/.well-known/api-catalog
+- Agentic resource discovery: {site}/.well-known/ai-catalog.json
+- Read-only MCP server: {site}/api/mcp
+- Agent skills: {site}/.well-known/agent-skills/index.json
+- API documentation: {site}/docs/api
+- Sitemap: {site}/sitemap.xml
+
+## Public content policy
+
+Public content may be indexed for search and used as input to answer user requests. It may not be used for AI model training. Private user areas, accounts, messages, wallets, promotion, and administration are excluded.
+"""
+
+
+def _agent_skill_public_listing_search() -> str:
+    return """---
+name: public-listing-search
+description: Search and retrieve public, approved Haraj Plus listings. Use only for read-only marketplace discovery; never use it for private account data, messages, promotion, purchases, bids, or administration.
+---
+
+# Public listing search
+
+Use the Haraj Plus MCP endpoint for read-only discovery.
+
+## Tools
+
+- `search_public_listings`: Search public approved listings by a short query and optional country code.
+- `get_public_listing`: Retrieve one public approved listing by its listing ID or slug.
+
+## Safety rules
+
+Only return facts present in the tool response. Do not attempt to find contact details, infer personal information, submit offers, start conversations, place bids, promote listings, or change any account or listing state. Respect the returned URL as the canonical listing URL.
+"""
+
+
+def _agent_skill_index() -> dict:
+    artifact = _agent_skill_public_listing_search().encode("utf-8")
+    digest = hashlib.sha256(artifact).hexdigest()
+    return {
+        "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+        "skills": [{
+            "name": "public-listing-search",
+            "type": "skill-md",
+            "description": "Search and retrieve public, approved Haraj Plus listings using read-only tools.",
+            "url": "/.well-known/agent-skills/public-listing-search/SKILL.md",
+            "digest": f"sha256:{digest}",
+        }],
+    }
+
+
+def _public_openapi_document() -> dict:
+    site = _agent_site_url()
+    return {
+        "openapi": "3.1.0",
+        "info": {"title": "Haraj Plus Public Discovery API", "version": "2026.08.23", "description": "Read-only public discovery endpoints. Private account, chat, wallet, promotion, bidding, and administration endpoints are intentionally excluded."},
+        "servers": [{"url": f"{site}/api"}],
+        "paths": {
+            "/health": {"get": {"summary": "Service health", "responses": {"200": {"description": "Service is responding"}}}},
+            "/listings": {"get": {"summary": "Search public approved listings", "parameters": [{"name": "q", "in": "query", "schema": {"type": "string", "maxLength": 80}}, {"name": "country_code", "in": "query", "schema": {"type": "string", "pattern": "^[A-Za-z]{2}$"}}], "responses": {"200": {"description": "Public listing collection"}}}},
+            "/listings/{listing_id}": {"get": {"summary": "Get one public approved listing", "parameters": [{"name": "listing_id", "in": "path", "required": True, "schema": {"type": "string", "maxLength": 160}}, {"name": "country_code", "in": "query", "schema": {"type": "string", "pattern": "^[A-Za-z]{2}$"}}], "responses": {"200": {"description": "Public listing"}, "404": {"description": "Not found"}}}},
+            "/meta/categories": {"get": {"summary": "Public category taxonomy", "responses": {"200": {"description": "Categories"}}}},
+            "/meta/countries": {"get": {"summary": "Supported marketplace countries", "responses": {"200": {"description": "Countries"}}}},
+        },
+    }
+
+
+def _api_catalog_document() -> dict:
+    site = _agent_site_url()
+    api = f"{site}/api"
+    return {
+        "linkset": [{
+            "anchor": f"{site}/.well-known/api-catalog",
+            "item": [
+                {"href": f"{api}/listings", "title": "Public listing discovery", "type": "application/json"},
+                {"href": f"{api}/listings/{{listing_id}}", "title": "Public listing detail", "type": "application/json"},
+                {"href": f"{api}/meta/categories", "title": "Public categories", "type": "application/json"},
+                {"href": f"{api}/meta/countries", "title": "Supported marketplaces", "type": "application/json"},
+            ],
+            "service-desc": [{"href": f"{site}/.well-known/public-openapi.json", "type": "application/vnd.oai.openapi+json;version=3.1", "title": "Public OpenAPI description"}],
+            "service-doc": [{"href": f"{site}/docs/api", "type": "text/markdown", "title": "Public API documentation"}],
+            "status": [{"href": f"{api}/health", "type": "application/json", "title": "Service health"}],
+        }]
+    }
+
+
+def _ard_manifest() -> dict:
+    site = _agent_site_url()
+    host = site.removeprefix("https://").removeprefix("http://")
+    return {
+        "specVersion": "0.1",
+        "host": {"name": "Haraj Plus", "url": site},
+        "entries": [
+            {
+                "id": f"urn:air:{host}:api:public-listings",
+                "displayName": "Haraj Plus public listings API",
+                "type": "application/linkset+json",
+                "url": f"{site}/.well-known/api-catalog",
+                "representativeQueries": ["Search public used cars in Riyadh", "Find public property listings", "Browse marketplace categories"],
+            },
+            {
+                "id": f"urn:air:{host}:mcp:public-listings",
+                "displayName": "Haraj Plus read-only MCP tools",
+                "type": "application/json",
+                "url": f"{site}/.well-known/mcp/server-card.json",
+                "representativeQueries": ["Find approved public listings", "Get details of a public listing", "Search Haraj Plus inventory"],
+            },
+            {
+                "id": f"urn:air:{host}:skills:public-listing-search",
+                "displayName": "Public listing search agent skill",
+                "type": "application/json",
+                "url": f"{site}/.well-known/agent-skills/index.json",
+                "representativeQueries": ["Discover Haraj Plus agent skills", "Use the public listing search skill"],
+            },
+        ],
+    }
+
+
+def _mcp_server_card() -> dict:
+    site = _agent_site_url()
+    return {
+        "serverInfo": {"name": "haraj-plus-public-listings", "version": "2026.08.23"},
+        "transport": {"type": "streamable-http", "url": f"{site}/api/mcp"},
+        "capabilities": {"tools": {"listChanged": False}},
+        "description": "Read-only discovery of public, approved Haraj Plus listings. No private, financial, messaging, promotion, bidding, or administrative operations are exposed.",
+    }
+
+
+def _oauth_discovery_metadata() -> dict:
+    """Truthful compatibility metadata: this deployment does not issue OAuth grants yet."""
+    site = _agent_site_url()
+    return {
+        "issuer": site,
+        "response_types_supported": [],
+        "grant_types_supported": [],
+        "scopes_supported": [],
+        "service_documentation": f"{site}/auth.md",
+        "agent_auth": {
+            "registration_status": "not_available",
+            "supported_identity_types": [],
+            "credential_types": [],
+            "notice": "OAuth authorization grants are not issued by this deployment. Public MCP and public discovery APIs do not require credentials.",
+        },
+    }
+
+
+def _oauth_protected_resource_metadata() -> dict:
+    site = _agent_site_url()
+    return {
+        "resource": f"{site}/api/mcp",
+        "resource_name": "Haraj Plus public listing discovery",
+        "resource_documentation": f"{site}/docs/api",
+        "authorization_servers": [],
+        "bearer_methods_supported": [],
+        "scopes_supported": [],
+    }
+
+
+def _mcp_tools() -> list[dict]:
+    return [
+        {
+            "name": "search_public_listings",
+            "description": "Search public, approved Haraj Plus listings. Read-only; no contact, payment, promotion, messaging, bidding, or account data is returned.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "minLength": 1, "maxLength": 80, "description": "Short search query"},
+                    "country_code": {"type": "string", "pattern": "^[A-Za-z]{2}$", "description": "Supported marketplace code; defaults to SA"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5},
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "get_public_listing",
+            "description": "Retrieve one public, approved listing by its ID or slug. Read-only.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "listing_ref": {"type": "string", "minLength": 1, "maxLength": 160},
+                    "country_code": {"type": "string", "pattern": "^[A-Za-z]{2}$", "description": "Supported marketplace code; defaults to SA"},
+                },
+                "required": ["listing_ref"],
+                "additionalProperties": False,
+            },
+        },
+    ]
+
+
+def _mcp_public_listing_view(listing: dict) -> dict:
+    site = _agent_site_url()
+    ref = _listing_seo_ref(listing)
+    return {
+        "id": str(listing.get("id") or ""),
+        "slug": str(listing.get("slug") or ""),
+        "title": str(listing.get("title") or ""),
+        "description": str(listing.get("description") or "")[:2000],
+        "price": listing.get("price"),
+        "currency": listing.get("currency"),
+        "city": listing.get("city"),
+        "category": listing.get("category"),
+        "images": [str(value) for value in (listing.get("images") or [])[:3] if str(value).startswith(("https://", "http://"))],
+        "url": f"{site}/listing/{quote(ref, safe='-._~')}" if ref else site,
+    }
+
+
+async def _mcp_call_tool(name: str, arguments: object) -> dict:
+    args = arguments if isinstance(arguments, dict) else {}
+    country_code = country_code_or_default(str(args.get("country_code") or "SA"), "SA")
+    if name == "search_public_listings":
+        query = str(args.get("query") or "").strip()
+        if not query or len(query) > 80:
+            raise ValueError("query must contain 1 to 80 characters")
+        try:
+            limit = max(1, min(int(args.get("limit", 5)), 10))
+        except (TypeError, ValueError):
+            limit = 5
+        pattern = re.escape(query)
+        selector = public_listing_filter_for_country(country_code, {"$or": [{"title": {"$regex": pattern, "$options": "i"}}, {"description": {"$regex": pattern, "$options": "i"}}]})
+        items = await db.listings.find(selector, {"_id": 0, "id": 1, "slug": 1, "title": 1, "description": 1, "price": 1, "currency": 1, "city": 1, "category": 1, "images": 1}).sort("created_at", -1).limit(limit).to_list(length=limit)
+        return {"country_code": country_code, "items": [_mcp_public_listing_view(item) for item in items]}
+    if name == "get_public_listing":
+        ref = str(args.get("listing_ref") or "").strip()
+        if not ref or len(ref) > 160:
+            raise ValueError("listing_ref must contain 1 to 160 characters")
+        selector = public_listing_filter_for_country(country_code, {"$or": [{"id": ref}, {"slug": ref}]})
+        item = await db.listings.find_one(selector, {"_id": 0, "id": 1, "slug": 1, "title": 1, "description": 1, "price": 1, "currency": 1, "city": 1, "category": 1, "images": 1})
+        if not item:
+            raise LookupError("Public listing not found")
+        return _mcp_public_listing_view(item)
+    raise LookupError("Tool not found")
+
+
+@app.api_route("/.well-known/public-openapi.json", methods=["GET", "HEAD"], include_in_schema=False)
+async def public_openapi_well_known():
+    return JSONResponse(content=_public_openapi_document(), headers=_agent_well_known_headers())
+
+
+@app.api_route("/.well-known/api-catalog", methods=["GET", "HEAD"], include_in_schema=False)
+async def api_catalog_well_known():
+    return Response(content=json.dumps(_api_catalog_document(), ensure_ascii=False), media_type="application/linkset+json", headers=_agent_well_known_headers(media_type="application/linkset+json"))
+
+
+@app.api_route("/.well-known/ai-catalog.json", methods=["GET", "HEAD"], include_in_schema=False)
+async def ai_catalog_well_known():
+    return JSONResponse(content=_ard_manifest(), headers=_agent_well_known_headers())
+
+
+@app.api_route("/.well-known/mcp/server-card.json", methods=["GET", "HEAD"], include_in_schema=False)
+async def mcp_server_card_well_known():
+    return JSONResponse(content=_mcp_server_card(), headers=_agent_well_known_headers())
+
+
+@app.api_route("/.well-known/agent-skills/index.json", methods=["GET", "HEAD"], include_in_schema=False)
+async def agent_skills_index_well_known():
+    return JSONResponse(content=_agent_skill_index(), headers=_agent_well_known_headers())
+
+
+@app.api_route("/.well-known/agent-skills/public-listing-search/SKILL.md", methods=["GET", "HEAD"], include_in_schema=False)
+async def public_listing_search_skill_well_known():
+    return Response(content=_agent_skill_public_listing_search(), media_type="text/markdown", headers=_agent_well_known_headers(media_type="text/markdown"))
+
+
+@app.api_route("/.well-known/oauth-authorization-server", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/.well-known/openid-configuration", methods=["GET", "HEAD"], include_in_schema=False)
+async def oauth_discovery_well_known():
+    return JSONResponse(content=_oauth_discovery_metadata(), headers=_agent_well_known_headers())
+
+
+@app.api_route("/.well-known/oauth-protected-resource", methods=["GET", "HEAD"], include_in_schema=False)
+async def oauth_protected_resource_well_known():
+    return JSONResponse(content=_oauth_protected_resource_metadata(), headers=_agent_well_known_headers())
+
+
+@app.api_route("/agent/home.md", methods=["GET", "HEAD"], include_in_schema=False)
+async def public_home_markdown():
+    site = _agent_site_url()
+    text = f"""---
+title: Haraj Plus
+description: Arabic-first classified marketplace for public listings across supported Gulf markets.
+url: {site}/
+content_signal: ai-train=no, search=yes, ai-input=yes
+---
+
+# Haraj Plus
+
+Haraj Plus is an Arabic-first classified marketplace. Browse public, approved listings by category, country, and search query. This Markdown representation excludes accounts, messages, wallets, promotion, bidding, and administration.
+
+## Public discovery
+
+- [Browse public listings]({site}/api/listings)
+- [API catalog]({site}/.well-known/api-catalog)
+- [Public API documentation]({site}/docs/api)
+- [Read-only MCP server]({site}/.well-known/mcp/server-card.json)
+- [Sitemap]({site}/sitemap.xml)
+"""
+    return Response(content=text, media_type="text/markdown", headers=_agent_markdown_headers(text))
+
+
+@app.api_route("/docs/api", methods=["GET", "HEAD"], include_in_schema=False)
+async def public_api_docs_markdown():
+    text = _agent_docs_markdown()
+    return Response(content=text, media_type="text/markdown", headers=_agent_well_known_headers(media_type="text/markdown", max_age=900))
+
+
+@app.api_route("/llms.txt", methods=["GET", "HEAD"], include_in_schema=False)
+async def llms_txt():
+    return PlainTextResponse(_agent_llms_txt(), headers={"Cache-Control": "public, max-age=900", "Content-Signal": "ai-train=no, search=yes, ai-input=yes"})
+
+
+@app.api_route("/auth.md", methods=["GET", "HEAD"], include_in_schema=False)
+async def agent_auth_markdown():
+    site = _agent_site_url()
+    text = f"""# Haraj Plus authentication for agents
+
+## Public read-only access
+
+The public listing API and the read-only MCP server are available without credentials. Start with `{site}/.well-known/api-catalog` or `{site}/.well-known/mcp/server-card.json`.
+
+## Protected operations
+
+Haraj Plus does not offer third-party OAuth client registration or OAuth authorization grants in this deployment. Agents must not request, store, or reuse a user's password, JWT, device token, or session. Private actions such as messaging, promotion, bidding, wallet activity, account management, and administration require an authenticated first-party user session and are not exposed through MCP or the public API catalog.
+
+## Registration and revocation
+
+No agent registration, credential issuance, delegated scope, or revocation endpoint is available. Do not represent the platform as supporting OAuth/OIDC until authorization-code flow, PKCE, consent, client registration, and revocation are deployed and independently tested.
+"""
+    return Response(content=text, media_type="text/markdown", headers=_agent_well_known_headers(media_type="text/markdown", max_age=900))
+
+
+@app.post("/api/mcp", include_in_schema=False)
+async def public_mcp_endpoint(request: Request):
+    """Minimal streamable-HTTP-compatible MCP JSON-RPC endpoint for public reads."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}, status_code=400)
+    if not isinstance(payload, dict):
+        return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Invalid request"}}, status_code=400)
+    request_id = payload.get("id")
+    method = str(payload.get("method") or "")
+    params = payload.get("params") if isinstance(payload.get("params"), dict) else {}
+    if method == "initialize":
+        return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {"protocolVersion": "2025-06-18", "capabilities": {"tools": {"listChanged": False}}, "serverInfo": _mcp_server_card()["serverInfo"]}}, headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
+    if method == "tools/list":
+        return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {"tools": _mcp_tools()}}, headers={"Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*"})
+    if method == "tools/call":
+        try:
+            result = await _mcp_call_tool(str(params.get("name") or ""), params.get("arguments"))
+        except LookupError as exc:
+            return JSONResponse({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": str(exc)}}, status_code=404)
+        except ValueError as exc:
+            return JSONResponse({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": str(exc)}}, status_code=400)
+        return JSONResponse({"jsonrpc": "2.0", "id": request_id, "result": {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]}}, headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
+    return JSONResponse({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Method not found"}}, status_code=404)
 
 
 @app.get("/.well-known/assetlinks.json", include_in_schema=False)
@@ -10104,29 +10590,50 @@ async def _frontend_shell_for_listing() -> Optional[str]:
 
 
 @api.get("/seo/listing/{listing_id}", include_in_schema=False)
-async def seo_listing_html(listing_id: str, lang: Optional[str] = None):
-    """Direct diagnostic URL returning the same HTML served to crawler clients."""
+async def seo_listing_html(listing_id: str, request: Request, lang: Optional[str] = None):
+    """Return a public listing in HTML or Markdown for crawler diagnostics."""
     listing = await _find_active_listing_for_seo(listing_id)
     if not listing:
         return HTMLResponse("<h1>Listing not found</h1>", status_code=404)
-    return HTMLResponse(_listing_seo_html(listing, listing_id, lang or "ar"), headers={"Vary": "User-Agent"})
+    language = lang or "ar"
+    accepts_markdown = "text/markdown" in request.headers.get("accept", "").lower()
+    if accepts_markdown:
+        markdown = _listing_agent_markdown(listing, listing_id, language)
+        return Response(
+            content=markdown,
+            media_type="text/markdown",
+            headers=_agent_markdown_headers(markdown),
+        )
+    return HTMLResponse(_listing_seo_html(listing, listing_id, language), headers=_agent_public_headers(vary="User-Agent"))
 
 
 @app.get("/listing/{listing_ref}", include_in_schema=False)
 async def primary_listing_page(listing_ref: str, request: Request):
-    """Canonical listing route: semantic initial HTML for crawlers, React shell for people."""
+    """Canonical listing route: Markdown for agents, semantic HTML for bots, React for people."""
     listing = await _find_active_listing_for_seo(listing_ref)
     if not listing:
-        return HTMLResponse("<h1>Listing not found</h1>", status_code=404, headers={"Vary": "User-Agent"})
+        return HTMLResponse("<h1>Listing not found</h1>", status_code=404, headers={"Vary": "User-Agent, Accept"})
     requested_language = request.query_params.get("lang", "ar")
+    accepts_markdown = "text/markdown" in request.headers.get("accept", "").lower()
+    if accepts_markdown:
+        markdown = _listing_agent_markdown(listing, listing_ref, requested_language)
+        return Response(
+            content=markdown,
+            media_type="text/markdown",
+            headers=_agent_markdown_headers(markdown, vary="User-Agent"),
+        )
     user_agent = request.headers.get("user-agent", "")
     if BOT_UAS.search(user_agent):
-        return HTMLResponse(_listing_seo_html(listing, listing_ref, requested_language), headers={"Vary": "User-Agent"})
+        return HTMLResponse(_listing_seo_html(listing, listing_ref, requested_language), headers=_agent_public_headers(vary="User-Agent, Accept"))
     shell = await _frontend_shell_for_listing()
     if shell:
-        return HTMLResponse(shell, headers={"Vary": "User-Agent", "Cache-Control": "no-store"})
+        headers = _agent_public_headers(vary="User-Agent, Accept")
+        headers["Cache-Control"] = "no-store"
+        return HTMLResponse(shell, headers=headers)
     # Fail-safe fallback: never return an empty page when the frontend host is temporarily unavailable.
-    return HTMLResponse(_listing_seo_html(listing, listing_ref, requested_language), headers={"Vary": "User-Agent", "Cache-Control": "no-store"})
+    headers = _agent_public_headers(vary="User-Agent, Accept")
+    headers["Cache-Control"] = "no-store"
+    return HTMLResponse(_listing_seo_html(listing, listing_ref, requested_language), headers=headers)
 
 
 

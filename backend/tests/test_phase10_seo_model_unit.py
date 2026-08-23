@@ -51,7 +51,9 @@ def test_seo_html_escapes_attributes_and_uses_slug():
     previous = server.db
     server.db = FakeDB()
     try:
-        response = asyncio.run(server.seo_listing_html("listing-1"))
+        from starlette.requests import Request
+        request = Request({"type": "http", "method": "GET", "path": "/api/seo/listing/listing-1", "query_string": b"", "headers": []})
+        response = asyncio.run(server.seo_listing_html("listing-1", request))
         body = response.body.decode("utf-8")
         assert 'canonical" href="https://alhraj.online/listing/safe-listing-1"' in body
         assert "<script>alert(1)</script>" not in body
@@ -100,7 +102,7 @@ def test_primary_listing_page_serves_listing_document_to_search_bot():
         assert 'rel="canonical" href="https://alhraj.online/listing/safe-listing-1"' in body
         assert 'application/ld+json' in body
         assert '"price": 100.0' in body
-        assert response.headers["vary"] == "User-Agent"
+        assert response.headers["vary"] == "User-Agent, Accept"
     finally:
         server.db = previous
 
