@@ -56,3 +56,9 @@
 - https://contentsignals.org/
 - https://github.com/cloudflare/agent-skills-discovery-rfc
 - https://developer.chrome.com/blog/webmcp-epp
+
+### Vercel Markdown rewrite
+
+يوضح دليل Vercel الرسمي أن شرط `has` لتفاوض `Accept: text/markdown` يستخدم القيمة regex التالية: `(.*)text/markdown(.*)`، لا الصيغة المختصرة `.*text/markdown.*`. ستتغير قاعدة Rewrite لصفحة البداية إلى هذه الصياغة ثم يعاد نشر Web والتحقق الحي.
+
+**المصدر:** https://vercel.com/kb/guide/how-to-serve-documentation-for-agents

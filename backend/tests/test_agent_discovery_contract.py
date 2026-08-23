@@ -117,6 +117,7 @@ def test_web_and_deployment_register_only_safe_agent_entrypoints():
     assert "/docs/api" in rewrite_sources
     home_markdown_rewrite = next(item for item in vercel["rewrites"] if item["source"] == "/" and item.get("has"))
     assert home_markdown_rewrite["destination"].endswith("/agent/home.md")
+    assert home_markdown_rewrite["has"][0]["value"] == "(.*)text/markdown(.*)"
 
     webmcp = (ROOT / "frontend" / "src" / "lib" / "webMcp.js").read_text(encoding="utf-8")
     app = (ROOT / "frontend" / "src" / "App.js").read_text(encoding="utf-8")
