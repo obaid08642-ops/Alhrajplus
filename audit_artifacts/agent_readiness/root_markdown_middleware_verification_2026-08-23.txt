@@ -1,0 +1,72 @@
+
+=== markdown ===
+HTTP/2 200 
+cache-control: public, max-age=300
+cf-cache-status: DYNAMIC
+cf-ray: a2f8244a18886c94-LHR
+content-encoding: br
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/markdown; charset=utf-8
+date: Sun, 23 Aug 2026 06:43:13 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </.well-known/ai-catalog.json>; rel=ai-catalog; type=application/json, </openapi.json>; rel=service-desc; type=application/vnd.oai.openapi+json;version=3.1, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+link: <https://alhraj.online/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json", <https://alhraj.online/.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json", <https://alhraj.online/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1", <https://alhraj.online/docs/api>; rel="service-doc"; type="text/markdown", <https://alhraj.online/llms.txt>; rel="alternate"; type="text/plain"
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: c77313d4-4614-4d35
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-markdown-tokens: 73
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-id: cpt1::2k89h-1787467393157-acd69fb820bc
+
+
+--- body preview ---
+---
+title: Haraj Plus
+description: Arabic-first classified marketplace for public listings across supported Gulf markets.
+url: https://alhraj.online/
+content_signal: ai-train=no, search=yes, ai-input=yes
+---
+
+# Haraj Plus
+
+Haraj Plus is an Arabic-first classified marketplace. Browse public, approved listings by category, country, and search query. This Markdown representation excludes accounts, messages, wallets, promotion, bidding, and administration.
+
+## Public discovery
+
+- [Browse public listings](https://alhraj.online/api/listings)
+- [API catalog](https://alhraj.online/.well-known/api-catalog)
+- [Public API documentation](https://alhraj.online/docs/api)
+- [Read-only MCP server](https://alhraj.online/.well-known/mcp/server-card.json)
+- [Sitemap](https://alhraj.online/sitemap.xml)
+
+
+=== html ===
+HTTP/2 200 
+accept-ranges: bytes
+access-control-allow-origin: *
+age: 0
+cache-control: public, max-age=0, must-revalidate
+content-disposition: inline
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 06:43:17 GMT
+etag: "3974b605f74ad356a29643fe832d5fda"
+last-modified: Sun, 23 Aug 2026 06:43:17 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </.well-known/ai-catalog.json>; rel=ai-catalog; type=application/json, </openapi.json>; rel=service-desc; type=application/vnd.oai.openapi+json;version=3.1, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+server: Vercel
+strict-transport-security: max-age=63072000
+vary: Accept
+x-vercel-cache: MISS
+x-vercel-id: cpt1::tzgl9-1787467397181-7b54470d9b34
+content-length: 7872
+
+
+--- body preview ---
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#4FB6E6"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta name="description" content="الحراج بلس - أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي للسعودية، الإمارات، الكويت، قطر، البحرين، عُمان ومصر. سيارات، عقارات، إلكترونيات، وظائف، خدمات، رحلات طيران بأفضل الأسعار."/><meta
+ROOT_MARKDOWN_NEGOTIATION_PASSED

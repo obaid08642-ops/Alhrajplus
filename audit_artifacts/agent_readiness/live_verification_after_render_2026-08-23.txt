@@ -1,0 +1,226 @@
+
+=== root_markdown (curl_exit=0) ===
+HTTP/2 200 
+accept-ranges: bytes
+access-control-allow-origin: *
+age: 0
+cache-control: public, max-age=0, must-revalidate
+content-disposition: inline
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 06:36:25 GMT
+etag: "3974b605f74ad356a29643fe832d5fda"
+last-modified: Sun, 23 Aug 2026 06:36:25 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </.well-known/ai-catalog.json>; rel=ai-catalog; type=application/json, </openapi.json>; rel=service-desc; type=application/vnd.oai.openapi+json;version=3.1, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+server: Vercel
+strict-transport-security: max-age=63072000
+vary: Accept
+x-vercel-cache: MISS
+x-vercel-id: cpt1::7k29z-1787466985466-063260aa6b06
+content-length: 7872
+
+
+--- body preview ---
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#4FB6E6"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta name="description" content="الحراج بلس - أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي للسعودية، الإمارات، الكويت، قطر، البحرين، عُمان ومصر. سيارات، عقارات، إلكترونيات، وظائف، خدمات، رحلات طيران بأفضل الأسعار."/><meta name="keywords" content="حراج, الحراج بلس, alhraj, السعودية, الإمارات, الكويت, قطر, البحرين, عمان, مصر, بيع, شراء, إعلانات مبوبة, سيارات مستعملة, عقارات للبيع, شقق للإيجار, جوالات, إلك�
+
+=== root_html (curl_exit=0) ===
+HTTP/2 200 
+accept-ranges: bytes
+access-control-allow-origin: *
+age: 3
+cache-control: public, max-age=0, must-revalidate
+content-disposition: inline
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 06:36:29 GMT
+etag: "3974b605f74ad356a29643fe832d5fda"
+last-modified: Sun, 23 Aug 2026 06:36:25 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </.well-known/ai-catalog.json>; rel=ai-catalog; type=application/json, </openapi.json>; rel=service-desc; type=application/vnd.oai.openapi+json;version=3.1, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+server: Vercel
+strict-transport-security: max-age=63072000
+vary: Accept
+x-vercel-cache: HIT
+x-vercel-id: cpt1::b9pnr-1787466989221-8853d30f268a
+content-length: 7872
+
+
+--- body preview ---
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#4FB6E6"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta name="description" content="الحراج بلس - أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي للسعودية، الإمارات، الكويت، قطر، البحرين، عُمان ومصر. سيارات، عقارات، إلكترونيات، وظائف، خدمات، رحلات طيران بأفضل الأسعار."/><meta name="keywords" content="حراج, الحراج بلس, alhraj, السعودية, الإمارات, الكويت, قطر, البحرين, عمان, مصر, بيع, شراء, إعلانات مبوبة, سيارات مستعملة, عقارات للبيع, شقق للإيجار, جوالات, إلك�
+
+=== openapi (curl_exit=0) ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=300
+cf-cache-status: DYNAMIC
+cf-ray: a2f81a825f6758d3-CPT
+content-type: application/json; charset=utf-8
+date: Sun, 23 Aug 2026 06:36:33 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: cf886f9e-559a-4939
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::drdlm-1787466992743-9bd9c987b2a4
+
+
+--- body preview ---
+{"openapi":"3.1.0","info":{"title":"Haraj Plus Public Discovery API","version":"2026.08.23","description":"Read-only public discovery endpoints. Private account, chat, wallet, promotion, bidding, and administration endpoints are intentionally excluded."},"x-service-info":{"categories":["search","data"],"docs":{"homepage":"https://alhraj.online","apiReference":"https://alhraj.online/docs/api","llms":"https://alhraj.online/llms.txt"}},"servers":[{"url":"https://alhraj.online/api"}],"paths":{"/health":{"get":{"summary":"Service health","responses":{"200":{"description":"Service is responding"}}}},"/listings":{"get":{"summary":"Search public approved listings","parameters":[{"name":"q","in":"query","schema":{"type":"string","maxLength":80}},{"name":"country_code","in":"query","schema":{"type":"string","pattern":"^[A-Za-z]{2}$"}}],"responses":{"200":{"description":"Public listing collection"}}}},"/listings/{listing_id}":{"get":{"summary":"Get one public approved listing","parameters":[{"name":"listing_id","in":"path","required":true,"schema":{"type":"string","maxLength":160}},{"name":"country_code","in":"query","schema":{"type":"string","pattern":"^[A-Za-z]{2}$"}}],"responses":{"200":{"
+
+=== ard (curl_exit=0) ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f81a996f4c4193-CPT
+content-type: application/json; charset=utf-8
+date: Sun, 23 Aug 2026 06:36:36 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 8d18e42a-ad76-4286
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::5zh82-1787466996434-bc24606bedb5
+
+
+--- body preview ---
+{"specVersion":"1.0","host":{"displayName":"Haraj Plus","identifier":"did:web:alhraj.online"},"entries":[{"id":"urn:air:alhraj.online:api:public-listings","identifier":"urn:air:alhraj.online:api:public-listings","displayName":"Haraj Plus public listings API","type":"application/linkset+json","url":"https://alhraj.online/.well-known/api-catalog","representativeQueries":["Search public used cars in Riyadh","Find public property listings","Browse marketplace categories"]},{"id":"urn:air:alhraj.online:mcp:public-listings","identifier":"urn:air:alhraj.online:mcp:public-listings","displayName":"Haraj Plus read-only MCP tools","type":"application/mcp-server-card+json","url":"https://alhraj.online/.well-known/mcp/server-card.json","representativeQueries":["Find approved public listings","Get details of a public listing","Search Haraj Plus inventory"]},{"id":"urn:air:alhraj.online:skills:public-listing-search","identifier":"urn:air:alhraj.online:skills:public-listing-search","displayName":"Public listing search agent skill","type":"application/json","url":"https://alhraj.online/.well-known/agent-skills/index.json","representativeQueries":["Discover Haraj Plus agent skills","Use the public l
+
+=== auth (curl_exit=0) ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=900
+cf-cache-status: DYNAMIC
+cf-ray: a2f81aacd8a758d3-CPT
+content-type: text/markdown; charset=utf-8
+date: Sun, 23 Aug 2026 06:36:40 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 65c27fb2-5602-4b04
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::5zh82-1787466999818-75d1f35a1233
+
+
+--- body preview ---
+# Auth.md — Haraj Plus agent authentication
+
+## Public read-only access
+
+The public listing API and the read-only MCP server are available without credentials. Start with `https://alhraj.online/.well-known/api-catalog` or `https://alhraj.online/.well-known/mcp/server-card.json`.
+
+## Protected operations
+
+Haraj Plus does not offer third-party OAuth client registration or OAuth authorization grants in this deployment. Agents must not request, store, or reuse a user's password, JWT, device token, or session. Private actions such as messaging, promotion, bidding, wallet activity, account management, and administration require an authenticated first-party user session and are not exposed through MCP or the public API catalog.
+
+## Registration and revocation
+
+No agent registration, credential issuance, delegated scope, or revocation endpoint is available. Do not represent the platform as supporting OAuth/OIDC until authorization-code flow, PKCE, consent, client registration, and revocation are deployed and independently tested.
+
+
+=== robots (curl_exit=0) ===
+HTTP/2 200 
+cache-control: public, max-age=0, must-revalidate
+cf-cache-status: DYNAMIC
+cf-ray: a2f81ac84b0f58d3-CPT
+content-type: text/plain; charset=utf-8
+date: Sun, 23 Aug 2026 06:36:44 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: b7ba66cc-519d-4e73
+server: Vercel
+server-timing: app;dur=3
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::5zh82-1787467003904-b1148cdf5257
+
+
+--- body preview ---
+# Content Signals express the publisher's preferences for public content.
+# Search and retrieval/grounding are allowed; model training is not.
+User-agent: *
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /chat
+Disallow: /profile
+Disallow: /settings
+Disallow: /wallet
+Disallow: /notifications
+Disallow: /auth/
+
+# AI search and answer engines — public listing pages are crawlable.
+# OAI-SearchBot is ChatGPT Search discovery; GPTBot controls model training.
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://alhraj.online/sitemap.xml
+Agentmap: https://alhraj.online/.well-known/ai-catalog.json
+
+
+=== api_catalog (curl_exit=0) ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f81addfcaf4807-CPT
+content-type: application/linkset+json; charset=utf-8
+date: Sun, 23 Aug 2026 06:36:47 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 174246d1-5736-437c
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::drdlm-1787467007396-7d1d9425d986
+content-length: 947
+
+
+--- body preview ---
+{"linkset": [{"anchor": "https://alhraj.online/.well-known/api-catalog", "item": [{"href": "https://alhraj.online/api/listings", "title": "Public listing discovery", "type": "application/json"}, {"href": "https://alhraj.online/api/listings/{listing_id}", "title": "Public listing detail", "type": "application/json"}, {"href": "https://alhraj.online/api/meta/categories", "title": "Public categories", "type": "application/json"}, {"href": "https://alhraj.online/api/meta/countries", "title": "Supported marketplaces", "type": "application/json"}], "service-desc": [{"href": "https://alhraj.online/openapi.json", "type": "application/vnd.oai.openapi+json;version=3.1", "title": "Public OpenAPI description"}], "service-doc": [{"href": "https://alhraj.online/docs/api", "type": "text/markdown", "title": "Public API documentation"}], "status": [{"href": "https://alhraj.online/api/health", "type": "application/json", "title": "Service health"}]}]}
