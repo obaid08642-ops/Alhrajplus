@@ -157,21 +157,19 @@ def test_listing_indexability_matches_public_visibility_policy():
     assert server._listing_is_indexable({**base, "title": "Testament for sale"})
 
 
-def test_discovery_refresh_uses_canonical_slug_and_deindexes_hidden_listing(monkeypatch):
+def test_discovery_refresh_uses_canonical_slug_and_notifies_indexnow_for_public_or_hidden_listing(monkeypatch):
     previous_cache = dict(server._SITEMAP_CACHE)
-    submitted, updated, deleted = [], [], []
-    monkeypatch.setattr(server, "_seo_submit_bg", lambda db, urls, host: submitted.extend(urls))
-    monkeypatch.setattr(server, "_google_idx_updated", lambda url: updated.append(url))
-    monkeypatch.setattr(server, "_google_idx_deleted", lambda url: deleted.append(url))
+    submitted = []
+    monkeypatch.setattr(server, "_seo_submit_bg", lambda db, urls, host, **kwargs: submitted.extend(urls))
     try:
         visible = {"id": "l1", "slug": "visible-listing", "status": "active", "moderation": "approved", "title": "إعلان حقيقي"}
-        server._SITEMAP_CACHE.update({"xml": "stale", "ts": 123.0})
+        server._SITEMAP_CACHE.update({"index": "stale", "static": "stale", "listing_pages": {1: "stale"}, "ts": 123.0})
         server._refresh_listing_discovery(visible)
         assert submitted == ["https://alhraj.online/listing/visible-listing"]
-        assert updated == ["https://alhraj.online/listing/visible-listing"]
-        assert server._SITEMAP_CACHE["xml"] is None
+        assert server._SITEMAP_CACHE["index"] is None
+        assert server._SITEMAP_CACHE["listing_pages"] == {}
         server._refresh_listing_discovery({**visible, "status": "sold"}, removed=True)
-        assert deleted == ["https://alhraj.online/listing/visible-listing"]
+        assert submitted == ["https://alhraj.online/listing/visible-listing", "https://alhraj.online/listing/visible-listing"]
     finally:
         server._SITEMAP_CACHE.update(previous_cache)
 
@@ -319,7 +317,7 @@ def test_platform_monitoring_checks_api_indexing_and_schema_without_external_net
             if url.endswith("/robots.txt"):
                 self.text = "User-agent: *\nSitemap: https://alhraj.online/sitemap.xml"
             elif url.endswith("/sitemap.xml"):
-                self.text = "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>"
+                self.text = "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></sitemapindex>"
             elif "/listing/" in url:
                 self.text = '<script type="application/ld+json">[{"@type":"BreadcrumbList"}]</script>'
             else:
@@ -343,14 +341,23 @@ def test_platform_monitoring_checks_api_indexing_and_schema_without_external_net
             assert command == "ping"
             return {"ok": 1}
 
+    async def flush_indexnow(_db, limit):
+        assert limit == 20
+        return {"delivered": 1, "failed": 0}
+
+    async def indexnow_summary(_db):
+        return {"pending": 0, "processing": 0, "failed": 0}
+
     previous = server.db
     server.db = DB()
     monkeypatch.setattr(server.httpx, "AsyncClient", lambda **kwargs: Client())
     monkeypatch.setattr(server, "_redis_status", lambda: "on")
+    monkeypatch.setattr(server, "_flush_indexnow_pending", flush_indexnow)
+    monkeypatch.setattr(server, "_indexnow_queue_summary", indexnow_summary)
     try:
         result = asyncio.run(server._run_platform_monitoring())
         assert result["status"] == "healthy"
-        assert {check["name"] for check in result["checks"]} == {"mongo", "redis", "api_health", "robots", "sitemap", "listing_schema"}
+        assert {check["name"] for check in result["checks"]} == {"mongo", "redis", "indexnow_delivery", "api_health", "robots", "sitemap", "listing_schema"}
         assert all(check["ok"] for check in result["checks"])
     finally:
         server.db = previous

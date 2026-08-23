@@ -8,6 +8,7 @@ load_dotenv()
 import os
 import uuid
 import time
+import math
 import asyncio
 import json
 import base64
@@ -57,13 +58,11 @@ from search_engine import (
     public_listing_filter_for_country,
 )
 from seo_submitter import (
-    submit_in_background as _seo_submit_bg,
+    enqueue_in_background as _seo_submit_bg,
+    flush_pending as _flush_indexnow_pending,
     get_or_create_indexnow_key as _get_indexnow_key,
-    ping_google_sitemap as _ping_google_sitemap,
-)
-from google_indexing import (
-    enqueue_updated as _google_idx_updated,
-    enqueue_deleted as _google_idx_deleted,
+    queue_summary as _indexnow_queue_summary,
+    queue_urls as _queue_indexnow_urls,
 )
 from ai_orchestrator import AIOrchestrator
 
@@ -673,7 +672,7 @@ async def _og_listing_share(listing_id: str, country_code: Optional[str] = None)
     price = doc.get("price")
     currency = doc.get("currency_code") or doc.get("currency") or "SAR"
     city = doc.get("city") or ""
-    spa_url = f"https://alhraj.online/listing/{listing_id}"
+    spa_url = _listing_canonical_url(doc) or f"https://alhraj.online/listing/{listing_id}"
     price_line = f"{price:,.0f} {currency}" if isinstance(price, (int, float)) and price > 0 else ""
     city = html_escape(str(city), quote=True)
     image = html_escape(str(image), quote=True)
@@ -884,11 +883,27 @@ async def _run_platform_monitoring() -> dict:
     redis_status = _redis_status() if "_redis_status" in globals() else "off"
     checks.append({"name": "redis", "ok": redis_status == "on", "warning": redis_status != "on", "status_code": None, "latency_ms": None, "detail": redis_status})
 
+    # Deterministically drain a bounded number of persisted IndexNow events.
+    # Failures remain queued with backoff; monitoring does not expose URL or key data.
+    try:
+        indexnow_delivery = await _flush_indexnow_pending(db, limit=20)
+        indexnow_summary = await _indexnow_queue_summary(db)
+        checks.append({
+            "name": "indexnow_delivery",
+            "ok": indexnow_summary["failed"] == 0,
+            "warning": bool(indexnow_summary["pending"] or indexnow_summary["processing"]),
+            "status_code": None,
+            "latency_ms": None,
+            "detail": {**indexnow_delivery, **indexnow_summary},
+        })
+    except Exception as exc:
+        checks.append({"name": "indexnow_delivery", "ok": False, "warning": False, "status_code": None, "latency_ms": None, "detail": type(exc).__name__})
+
     site = _monitor_site_url()
     async with httpx.AsyncClient(timeout=_MONITOR_TIMEOUT_SECONDS, follow_redirects=True) as client:
         checks.append(await _monitor_http_check(client, "api_health", f"{site}/api/health", '"status"'))
         checks.append(await _monitor_http_check(client, "robots", f"{site}/robots.txt", "Sitemap:"))
-        checks.append(await _monitor_http_check(client, "sitemap", f"{site}/sitemap.xml", "<urlset"))
+        checks.append(await _monitor_http_check(client, "sitemap", f"{site}/sitemap.xml", "<sitemapindex"))
         try:
             sample = await db.listings.find_one({"status": "active", "moderation": "approved"}, {"_id": 0, "id": 1, "slug": 1})
         except Exception:
@@ -9525,6 +9540,7 @@ async def admin_monitoring_status():
         "history": history,
         "email_alerts_configured": bool(RESEND_API_KEY and _monitor_alert_recipient()),
         "metrics": await _metrics_endpoint(),
+        "indexnow": await _indexnow_queue_summary(db),
     }
 
 
@@ -9702,9 +9718,18 @@ async def _generate_listing_seo_localizations(listing: dict) -> None:
         logger.info("[seo] listing localisation skipped: %s", exc)
 
 
-async def _build_sitemap_xml() -> str:
-    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
-    static_pages = [
+# Sitemap limits are 50,000 URLs per document. Keep pages below the limit so
+# growing public inventory remains fully discoverable without silently dropping
+# older, active listings.
+_SITEMAP_LISTING_PAGE_SIZE = 45_000
+
+
+def _sitemap_site_url() -> str:
+    return (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+
+
+def _sitemap_static_pages() -> list[tuple[str, float, str]]:
+    return [
         ("", 1.0, "daily"),
         ("/auctions", 0.9, "daily"),
         ("/deals", 0.9, "daily"),
@@ -9715,39 +9740,102 @@ async def _build_sitemap_xml() -> str:
         ("/privacy", 0.4, "monthly"),
         ("/contact", 0.4, "monthly"),
     ]
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
-    listings = await db.listings.find(
-        public_listing_filter({"created_at": {"$gte": cutoff}}),
-        {"_id": 0, "id": 1, "slug": 1, "title": 1, "description": 1, "updated_at": 1, "created_at": 1, "images": 1, "seo_localizations": 1}
-    ).sort("created_at", -1).limit(50000).to_list(length=50000)
 
-    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:xhtml="http://www.w3.org/1999/xhtml">']
-    for path, prio, freq in static_pages:
-        parts.append(f"<url><loc>{site}{path}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>")
-    for l in listings:
-        lastmod = (l.get("updated_at") or l.get("created_at") or "").split("T")[0] or ""
-        img = (l.get("images") or [None])[0]
-        title_safe = html_escape(str(l.get("title", "") or "").replace("]]>", ""), quote=False)
-        loc = f"{site}/listing/{l.get('slug') or l['id']}"
-        loc_xml = html_escape(loc, quote=True)
-        img_safe = html_escape(str(img), quote=False) if img else ""
-        img_part = f"<image:image><image:loc>{img_safe}</image:loc><image:title><![CDATA[{title_safe}]]></image:title></image:image>" if img else ""
-        # Only advertise real, fresh localisations. Query-string alternates that
-        # all render the same Arabic text would be invalid hreflang signals.
-        localized_languages = _listing_seo_languages(l)
-        alt = "".join(
-            f'<xhtml:link rel="alternate" hreflang="{lng}" href="{html_escape(loc if lng == "ar" else loc + "?lang=" + lng, quote=True)}"/>'
-            for lng in localized_languages
-        )
-        alt += f'<xhtml:link rel="alternate" hreflang="x-default" href="{loc_xml}"/>'
-        parts.append(
-            f"<url><loc>{loc_xml}</loc>"
-            + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
-            + "<changefreq>weekly</changefreq><priority>0.7</priority>"
-            + alt + img_part + "</url>"
-        )
-    parts.append('</urlset>')
+
+def _category_definition(category_key: str) -> Optional[dict]:
+    key = str(category_key or "").strip().lower()
+    return next((item for item in CATEGORIES if str(item.get("key") or "").lower() == key), None)
+
+
+async def _public_category_keys() -> list[str]:
+    """Return only categories with public listings so sitemap never advertises thin hubs."""
+    try:
+        keys = await db.listings.distinct("category", public_listing_filter({}))
+    except Exception:
+        return []
+    known = {str(item.get("key") or "").lower() for item in CATEGORIES}
+    return sorted({str(key).strip().lower() for key in keys if str(key).strip().lower() in known})
+
+
+def _listing_sitemap_entry(listing: dict, site: str) -> str:
+    lastmod = str(listing.get("updated_at") or listing.get("created_at") or "").split("T")[0]
+    image = (listing.get("images") or [None])[0]
+    title_safe = html_escape(str(listing.get("title", "") or "").replace("]]>", ""), quote=False)
+    canonical = _listing_canonical_url(listing)
+    if not canonical:
+        return ""
+    loc_xml = html_escape(canonical, quote=True)
+    image_safe = html_escape(str(image), quote=False) if image else ""
+    image_part = (
+        f"<image:image><image:loc>{image_safe}</image:loc><image:title><![CDATA[{title_safe}]]></image:title></image:image>"
+        if image else ""
+    )
+    # Only advertise real, fresh localisations. Query-string alternates that
+    # all render the same Arabic text would be invalid hreflang signals.
+    localized_languages = _listing_seo_languages(listing)
+    alternates = "".join(
+        f'<xhtml:link rel="alternate" hreflang="{language}" href="{html_escape(canonical if language == "ar" else canonical + "?lang=" + language, quote=True)}"/>'
+        for language in localized_languages
+    )
+    alternates += f'<xhtml:link rel="alternate" hreflang="x-default" href="{loc_xml}"/>'
+    return (
+        f"<url><loc>{loc_xml}</loc>"
+        + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
+        + "<changefreq>weekly</changefreq><priority>0.7</priority>"
+        + alternates + image_part + "</url>"
+    )
+
+
+async def _build_static_sitemap_xml() -> str:
+    site = _sitemap_site_url()
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for path, priority, frequency in _sitemap_static_pages():
+        parts.append(f"<url><loc>{site}{path}</loc><changefreq>{frequency}</changefreq><priority>{priority}</priority></url>")
+    # Category hubs are useful discovery pages only when they contain public
+    # inventory. Empty filters are intentionally excluded to avoid thin URLs.
+    for category_key in await _public_category_keys():
+        parts.append(f"<url><loc>{site}/category/{quote(category_key, safe='-._~')}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>")
+    parts.append("</urlset>")
+    return "\n".join(parts)
+
+
+async def _build_listing_sitemap_xml(page: int) -> str:
+    if page < 1:
+        raise HTTPException(404, "Sitemap page not found")
+    site = _sitemap_site_url()
+    projection = {"_id": 0, "id": 1, "slug": 1, "title": 1, "updated_at": 1, "created_at": 1, "images": 1, "seo_localizations": 1}
+    cursor = db.listings.find(public_listing_filter({}), projection).sort("updated_at", -1)
+    offset = (page - 1) * _SITEMAP_LISTING_PAGE_SIZE
+    if offset:
+        cursor = cursor.skip(offset)
+    listings = await cursor.limit(_SITEMAP_LISTING_PAGE_SIZE).to_list(length=_SITEMAP_LISTING_PAGE_SIZE)
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
+    ]
+    parts.extend(entry for entry in (_listing_sitemap_entry(listing, site) for listing in listings) if entry)
+    parts.append("</urlset>")
+    return "\n".join(parts)
+
+
+async def _build_sitemap_index_xml() -> str:
+    site = _sitemap_site_url()
+    count = await db.listings.count_documents(public_listing_filter({}))
+    listing_pages = max(1, math.ceil(count / _SITEMAP_LISTING_PAGE_SIZE))
+    today = datetime.now(timezone.utc).date().isoformat()
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        f"<sitemap><loc>{site}/sitemaps/static.xml</loc><lastmod>{today}</lastmod></sitemap>",
+    ]
+    parts.extend(
+        f"<sitemap><loc>{site}/sitemaps/listings/{page}.xml</loc><lastmod>{today}</lastmod></sitemap>"
+        for page in range(1, listing_pages + 1)
+    )
+    parts.append("</sitemapindex>")
     return "\n".join(parts)
 
 
@@ -9796,27 +9884,44 @@ async def _build_robots_txt() -> str:
     return DEFAULT
 
 
-# Both /api/sitemap.xml and /sitemap.xml work (frontend rewrites for the latter in production)
-# In-memory cache (1 hour TTL) so we don't rebuild XML on every crawler hit.
-_SITEMAP_CACHE = {"xml": None, "ts": 0.0}
+# Sitemap index and child documents are cached briefly, then invalidated on
+# every public listing transition. This keeps new listing URLs discoverable within
+# seconds without rebuilding all inventory for every crawler request.
+_SITEMAP_CACHE = {"index": None, "static": None, "listing_pages": {}, "ts": 0.0}
 _SITEMAP_TTL_SECONDS = 3600
 
 
-async def _cached_sitemap_xml() -> str:
+async def _cached_sitemap_document(kind: str, page: Optional[int] = None) -> str:
     import time as _t
     now = _t.time()
-    if _SITEMAP_CACHE["xml"] and (now - _SITEMAP_CACHE["ts"]) < _SITEMAP_TTL_SECONDS:
-        return _SITEMAP_CACHE["xml"]
-    xml = await _build_sitemap_xml()
-    _SITEMAP_CACHE["xml"] = xml
+    fresh = (now - _SITEMAP_CACHE["ts"]) < _SITEMAP_TTL_SECONDS
+    if kind == "index":
+        if fresh and _SITEMAP_CACHE["index"]:
+            return _SITEMAP_CACHE["index"]
+        document = await _build_sitemap_index_xml()
+        _SITEMAP_CACHE["index"] = document
+    elif kind == "static":
+        if fresh and _SITEMAP_CACHE["static"]:
+            return _SITEMAP_CACHE["static"]
+        document = await _build_static_sitemap_xml()
+        _SITEMAP_CACHE["static"] = document
+    elif kind == "listings":
+        if not page:
+            raise HTTPException(404, "Sitemap page not found")
+        cached = _SITEMAP_CACHE["listing_pages"].get(page)
+        if fresh and cached:
+            return cached
+        document = await _build_listing_sitemap_xml(page)
+        _SITEMAP_CACHE["listing_pages"][page] = document
+    else:
+        raise HTTPException(404, "Sitemap not found")
     _SITEMAP_CACHE["ts"] = now
-    return xml
+    return document
 
 
 def _sitemap_cache_invalidate():
-    """Force sitemap rebuild on next request whenever public inventory changes."""
-    _SITEMAP_CACHE["xml"] = None
-    _SITEMAP_CACHE["ts"] = 0.0
+    """Force all sitemap documents to rebuild on the next crawler request."""
+    _SITEMAP_CACHE.update({"index": None, "static": None, "listing_pages": {}, "ts": 0.0})
 
 
 def _listing_is_indexable(listing: dict) -> bool:
@@ -9852,15 +9957,17 @@ def _refresh_listing_discovery(listing: dict, *, previous_slug: Optional[str] = 
         site = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
         from urllib.parse import urlparse as _up
         host = _up(site).hostname or "alhraj.online"
-        if removed or not _listing_is_indexable(listing):
-            _google_idx_deleted(canonical)
-        else:
-            _seo_submit_bg(db, [canonical], host)
-            _google_idx_updated(canonical)
+        # IndexNow accepts URLs that were added, updated, or removed. For a
+        # removed/hidden listing, the crawler sees the canonical URL's current
+        # non-public response and can retire it. Google discovers normal listing
+        # pages through the canonical sitemap and Search Console, because its
+        # Indexing API is not eligible for marketplace inventory.
+        urls = [canonical]
         old_slug = str(previous_slug or "").strip()
         current_ref = _listing_seo_ref(listing)
         if old_slug and old_slug != current_ref:
-            _google_idx_deleted(f"{site}/listing/{quote(old_slug, safe='-._~')}")
+            urls.append(f"{site}/listing/{quote(old_slug, safe='-._~')}")
+        _seo_submit_bg(db, urls, host, trigger="listing_removed" if removed or not _listing_is_indexable(listing) else "listing_updated")
     except Exception as exc:
         logger.warning("[seo] listing discovery refresh failed: %s", exc)
 
@@ -10331,16 +10438,33 @@ async def apple_app_site_association_file():
     return JSONResponse(content=document, headers={"Cache-Control": "public, max-age=3600"})
 
 
-@api.get("/sitemap.xml", include_in_schema=False)
+_SITEMAP_HEADERS = {"Cache-Control": "public, max-age=3600"}
+
+
+@api.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
 async def sitemap_xml_api():
-    xml = await _cached_sitemap_xml()
-    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+    xml = await _cached_sitemap_document("index")
+    return Response(content=xml, media_type="application/xml", headers=_SITEMAP_HEADERS)
 
 
-@app.get("/sitemap.xml", include_in_schema=False)
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
 async def sitemap_xml_root():
-    xml = await _cached_sitemap_xml()
-    return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+    xml = await _cached_sitemap_document("index")
+    return Response(content=xml, media_type="application/xml", headers=_SITEMAP_HEADERS)
+
+
+@api.api_route("/sitemaps/static.xml", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/sitemaps/static.xml", methods=["GET", "HEAD"], include_in_schema=False)
+async def sitemap_static_xml():
+    xml = await _cached_sitemap_document("static")
+    return Response(content=xml, media_type="application/xml", headers=_SITEMAP_HEADERS)
+
+
+@api.api_route("/sitemaps/listings/{page}.xml", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/sitemaps/listings/{page}.xml", methods=["GET", "HEAD"], include_in_schema=False)
+async def sitemap_listings_xml(page: int):
+    xml = await _cached_sitemap_document("listings", page)
+    return Response(content=xml, media_type="application/xml", headers=_SITEMAP_HEADERS)
 
 
 # ============================================================
@@ -10376,29 +10500,29 @@ async def seo_indexnow_key_view(user: dict = Depends(require_admin)):
 @api.post("/seo/indexnow/resubmit-all", include_in_schema=False)
 async def seo_resubmit_all_listings(user: dict = Depends(require_admin)):
     """Admin: bulk re-submit all active listings to IndexNow (use sparingly)."""
-    from seo_submitter import submit_urls as _submit_urls
     fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
     from urllib.parse import urlparse as _up
     host = _up(fe).hostname or "alhraj.online"
     urls: List[str] = []
-    cursor = db.listings.find({"status": "active"}, {"_id": 0, "id": 1}).limit(10000)
-    async for it in cursor:
-        urls.append(f"{fe}/listing/{it['id']}")
-    # Also include sitemap + top static pages so engines re-crawl them
+    cursor = db.listings.find(public_listing_filter({}), {"_id": 0, "id": 1, "slug": 1}).limit(10000)
+    async for item in cursor:
+        canonical = _listing_canonical_url(item)
+        if canonical:
+            urls.append(canonical)
+    # Re-crawl the public sitemap index and home page as part of a deliberate
+    # maintenance submission. Google sitemap ping is deprecated and omitted.
     urls.extend([f"{fe}/", f"{fe}/sitemap.xml"])
-    res = await _submit_urls(db, urls, host)
-    # Best-effort Google sitemap ping
-    await _ping_google_sitemap(f"{fe}/sitemap.xml")
-    return {"total": len(urls), "indexnow": res}
+    event_id = await _queue_indexnow_urls(db, urls, host, trigger="admin_resubmit")
+    return {"total": len(urls), "indexnow_event_id": event_id, "google": "sitemap_only"}
 
 
-@api.get("/robots.txt", include_in_schema=False)
+@api.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
 async def robots_txt_api():
     text = await _build_robots_txt()
     return PlainTextResponse(text)
 
 
-@app.get("/robots.txt", include_in_schema=False)
+@app.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
 async def robots_txt_root():
     text = await _build_robots_txt()
     return PlainTextResponse(text)
@@ -10701,6 +10825,131 @@ async def primary_listing_page(listing_ref: str, request: Request):
     return HTMLResponse(_listing_seo_html(listing, listing_ref, requested_language), headers=headers)
 
 
+async def _category_public_inventory(category_key: str, limit: int = 20) -> tuple[int, list[dict]]:
+    query = public_listing_filter({"category": category_key})
+    count = await db.listings.count_documents(query)
+    cursor = db.listings.find(
+        query,
+        {"_id": 0, "id": 1, "slug": 1, "title": 1, "description": 1, "price": 1, "currency": 1, "city": 1, "images": 1, "created_at": 1, "updated_at": 1},
+    ).sort("updated_at", -1).limit(limit)
+    return count, await cursor.to_list(length=limit)
+
+
+def _category_seo_html(category: dict, count: int, listings: list[dict]) -> str:
+    """Render a fact-based category hub for crawlers; never fabricate inventory."""
+    site = _sitemap_site_url()
+    category_key = str(category.get("key") or "").strip().lower()
+    category_name = str(category.get("name_ar") or category_key).strip()
+    canonical = f"{site}/category/{quote(category_key, safe='-._~')}"
+    shown = []
+    item_list = []
+    for position, listing in enumerate(listings, start=1):
+        listing_url = _listing_canonical_url(listing)
+        if not listing_url:
+            continue
+        title = str(listing.get("title") or "إعلان").strip()
+        price = listing.get("price")
+        currency = str(listing.get("currency") or "ر.س")
+        city = str(listing.get("city") or "").strip()
+        price_text = f"{price} {currency}" if price not in (None, "", 0, "0") else "السعر عند التواصل"
+        shown.append(
+            f'<li><a href="{html_escape(listing_url, quote=True)}">{html_escape(title, quote=True)}</a>'
+            f' — {html_escape(price_text, quote=True)}'
+            + (f' — {html_escape(city, quote=True)}' if city else "")
+            + "</li>"
+        )
+        item_list.append({"@type": "ListItem", "position": position, "url": listing_url, "name": title})
+    description = f"تصفح أحدث إعلانات {category_name} العامة على الحراج بلس. عدد الإعلانات المتاحة حاليًا: {count}."
+    document = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "@id": canonical,
+        "url": canonical,
+        "name": f"إعلانات {category_name} | الحراج بلس",
+        "description": description,
+        "inLanguage": "ar",
+        "mainEntity": {"@type": "ItemList", "numberOfItems": count, "itemListElement": item_list},
+    }
+    schema_json = json.dumps(document, ensure_ascii=False).replace("<", "\\u003c")
+    return f'''<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="index, follow, max-snippet:-1" />
+<title>{html_escape(document["name"], quote=True)}</title>
+<meta name="description" content="{html_escape(description, quote=True)}" />
+<link rel="canonical" href="{html_escape(canonical, quote=True)}" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="{html_escape(document["name"], quote=True)}" />
+<meta property="og:description" content="{html_escape(description, quote=True)}" />
+<meta property="og:url" content="{html_escape(canonical, quote=True)}" />
+<script type="application/ld+json">{schema_json}</script>
+</head>
+<body>
+<main>
+<nav aria-label="Breadcrumb"><a href="{html_escape(site + '/', quote=True)}">الحراج بلس</a> › <span>{html_escape(category_name, quote=True)}</span></nav>
+<h1>إعلانات {html_escape(category_name, quote=True)}</h1>
+<p>{html_escape(description, quote=True)}</p>
+<h2>أحدث الإعلانات العامة</h2>
+<ul>{''.join(shown)}</ul>
+<p><a href="{html_escape(canonical, quote=True)}">عرض إعلانات {html_escape(category_name, quote=True)} على الحراج بلس</a></p>
+</main>
+</body>
+</html>'''
+
+
+def _category_agent_markdown(category: dict, count: int, listings: list[dict]) -> str:
+    site = _sitemap_site_url()
+    category_key = str(category.get("key") or "").strip().lower()
+    category_name = str(category.get("name_ar") or category_key).strip()
+    canonical = f"{site}/category/{quote(category_key, safe='-._~')}"
+    lines = [
+        "---",
+        f"title: {json.dumps(f'إعلانات {category_name} | الحراج بلس', ensure_ascii=False)}",
+        f"url: {json.dumps(canonical, ensure_ascii=False)}",
+        "language: ar",
+        "content_signal: ai-train=no, search=yes, ai-input=yes",
+        "---",
+        "",
+        f"# إعلانات {category_name}",
+        "",
+        f"عدد الإعلانات العامة المتاحة: {count}",
+        "",
+        "## أحدث الإعلانات",
+        "",
+    ]
+    for listing in listings:
+        url = _listing_canonical_url(listing)
+        if url:
+            lines.append(f"- [{str(listing.get('title') or 'إعلان').strip()}]({url})")
+    return "\n".join(lines).strip() + "\n"
+
+
+@app.get("/category/{category_key}", include_in_schema=False)
+async def primary_category_page(category_key: str, request: Request):
+    """Canonical public category route: Markdown for agents, factual HTML for bots, SPA for people."""
+    category = _category_definition(category_key)
+    if not category:
+        return HTMLResponse("<h1>Category not found</h1>", status_code=404, headers={"Vary": "User-Agent, Accept"})
+    count, listings = await _category_public_inventory(str(category.get("key") or ""))
+    if not count:
+        return HTMLResponse("<h1>Category not found</h1>", status_code=404, headers={"Vary": "User-Agent, Accept"})
+    accepts_markdown = "text/markdown" in request.headers.get("accept", "").lower()
+    if accepts_markdown:
+        markdown = _category_agent_markdown(category, count, listings)
+        return Response(content=markdown, media_type="text/markdown", headers=_agent_markdown_headers(markdown, vary="User-Agent"))
+    user_agent = request.headers.get("user-agent", "")
+    if BOT_UAS.search(user_agent):
+        return HTMLResponse(_category_seo_html(category, count, listings), headers=_agent_public_headers(vary="User-Agent, Accept"))
+    shell = await _frontend_shell_for_listing()
+    if shell:
+        headers = _agent_public_headers(vary="User-Agent, Accept")
+        headers["Cache-Control"] = "no-store"
+        return HTMLResponse(shell, headers=headers)
+    headers = _agent_public_headers(vary="User-Agent, Accept")
+    headers["Cache-Control"] = "no-store"
+    return HTMLResponse(_category_seo_html(category, count, listings), headers=headers)
 
 
 # ============================================================
@@ -11903,6 +12152,8 @@ async def startup():
     await _safe_index(db.ai_provider_monthly, [("provider", 1), ("month", 1)], unique=True)
     await _safe_index(db.ai_usage_events, [("provider", 1), ("created_at", -1)])
     await _safe_index(db.monitoring_runs, [("checked_at", -1)])
+    await _safe_index(db.indexnow_outbox, [("status", 1), ("next_attempt_at", 1), ("created_at", 1)], name="indexnow_delivery_queue")
+    await _safe_index(db.indexnow_outbox, [("status", 1), ("updated_at", -1)], name="indexnow_delivery_status")
     await _safe_index(db.account_deletion_requests, [("user_id", 1), ("status", 1)], unique=True, partialFilterExpression={"status": "pending"})
     await _safe_index(db.messages, [("sender_id", 1), ("client_message_id", 1)], unique=True, partialFilterExpression={"client_message_id": {"$type": "string"}})
     await db.conversations.create_index("id", unique=True)

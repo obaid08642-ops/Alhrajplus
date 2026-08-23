@@ -29,6 +29,8 @@ export default function PostListing() {
     const [countries, setCountries] = useState([]);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
+    const [discovery, setDiscovery] = useState(null);
+    const [discoveryBusy, setDiscoveryBusy] = useState(false);
     const [form, setForm] = useState({
         category: "",
         subcategory: "",
@@ -306,6 +308,28 @@ export default function PostListing() {
             if (!value) return `${tr("حقل مطلوب:")} ${tr(label)}`;
         }
         return null;
+    };
+
+    const previewDiscovery = async () => {
+        setDiscoveryBusy(true);
+        try {
+            const { data } = await api.post("/listings/discovery-preview", {
+                title: form.title || "",
+                description: form.description || "",
+                price: form.price ? parseFloat(form.price) : null,
+                category: form.category || "",
+                city: form.city || "",
+                district: form.district || null,
+                custom_fields: form.custom_fields || {},
+                images: form.images || [],
+                post_type: form.post_type || null,
+            });
+            setDiscovery(data || null);
+        } catch (e) {
+            setErr(formatApiError(e.response?.data?.detail) || e.message || tr("تعذر تقييم جاهزية الظهور"));
+        } finally {
+            setDiscoveryBusy(false);
+        }
     };
 
     const submit = async () => {
@@ -1124,6 +1148,7 @@ export default function PostListing() {
                             <div>{tr("الصور: ")}<span className="text-[var(--text)] font-bold">{form.images.length}</span></div>
                         </div>
                     </div>
+                    {discovery && <DiscoveryReadinessCard discovery={discovery} t={t} />}
                 </div>
             )}
 
@@ -1137,12 +1162,41 @@ export default function PostListing() {
                         {t("next")} <ChevronLeft className="w-4 h-4" />
                     </button>
                 ) : (
-                    <button data-testid="submit-listing-btn" disabled={busy} onClick={submit} className="px-6 py-2.5 rounded-full bg-[var(--success)] text-white font-bold font-arabic disabled:opacity-40 flex items-center gap-1.5 text-sm hover:opacity-90">
-                        <Check className="w-4 h-4" /> {busy ? t("loading") : t("publish")}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button data-testid="discovery-preview-btn" type="button" disabled={discoveryBusy || busy} onClick={previewDiscovery} className="px-4 py-2.5 rounded-full border border-[var(--primary)] text-[var(--primary)] font-bold font-arabic disabled:opacity-40 flex items-center gap-1.5 text-sm">
+                            <Sparkles className="w-4 h-4" /> {discoveryBusy ? tr("جاري التقييم...") : t("تقييم ظهور الإعلان")}
+                        </button>
+                        <button data-testid="submit-listing-btn" disabled={busy} onClick={submit} className="px-6 py-2.5 rounded-full bg-[var(--success)] text-white font-bold font-arabic disabled:opacity-40 flex items-center gap-1.5 text-sm hover:opacity-90">
+                            <Check className="w-4 h-4" /> {busy ? t("loading") : t("publish")}
+                        </button>
+                    </div>
                 )}
             </div>
         </div>
+    );
+}
+
+function DiscoveryReadinessCard({ discovery, t }) {
+    const score = Math.max(0, Math.min(100, Number(discovery?.quality_score || 0)));
+    const tone = score >= 80 ? "text-emerald-600" : score >= 55 ? "text-amber-600" : "text-red-600";
+    const labels = {
+        title_present: "عنوان الإعلان", descriptive_title: "عنوان وصفي", description_present: "وصف كافٍ",
+        location_present: "المدينة", image_present: "صورة", price_or_contact: "السعر أو وسيلة التواصل",
+        category_fields_present: "المواصفات الخاصة بالفئة",
+    };
+    if (!discovery) return null;
+    return (
+        <section data-testid="discovery-readiness-card" className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 font-arabic-body">
+            <div className="flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-[var(--primary)] mt-0.5" />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-3"><h3 className="font-arabic font-bold text-sm text-[var(--text)]">{t("جاهزية الظهور والاكتشاف")}</h3><span className={`text-2xl font-black tabular-nums ${tone}`}>{score}</span></div>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">{t("تقييم من حقائق الإعلان الحالية فقط؛ لا يضمن ترتيبًا أو فهرسة.")}</p>
+                    {!!discovery.missing?.length && <p className="mt-3 text-xs text-[var(--text)]"><strong>{t("أكمل هذه العناصر:")}</strong> {discovery.missing.map((key) => t(labels[key] || key)).join(" · ")}</p>}
+                    {!!discovery.facts?.length && <p className="mt-2 text-xs text-[var(--text-muted)]"><strong>{t("حقائق ستظهر للمستخدم ومحركات البحث:")}</strong> {discovery.facts.slice(0, 6).map((item) => `${t(item.label)}: ${item.value}`).join(" · ")}</p>}
+                </div>
+            </div>
+        </section>
     );
 }
 

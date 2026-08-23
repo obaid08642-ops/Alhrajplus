@@ -1,0 +1,102 @@
+
+=== /api/health/ready ===
+HTTP/2 405 
+date: Sun, 23 Aug 2026 07:26:06 GMT
+content-type: application/json; charset=utf-8
+allow: GET
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 270e28fd-bee7-48c9
+server: cloudflare
+server-timing: app;dur=2
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+cf-ray: a2f86318dda090d0-GYD
+alt-svc: h3=":443"; ma=86400
+
+{"status":"ready","checks":{"mongo":"ok","redis":"fallback"}}
+
+=== /health ===
+HTTP/2 200 
+date: Sun, 23 Aug 2026 07:26:11 GMT
+content-type: application/json; charset=utf-8
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 0eb80edf-7c43-46a9
+server: cloudflare
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+cf-ray: a2f863385d106e7f-GYD
+alt-svc: h3=":443"; ma=86400
+
+{"status":"ok","service":"haraj-plus-backend"}
+
+=== /.well-known/oauth-protected-resource ===
+HTTP/2 200 
+date: Sun, 23 Aug 2026 07:26:16 GMT
+content-type: application/json; charset=utf-8
+access-control-allow-origin: *
+cache-control: public, max-age=3600
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 418156df-b75d-4d36
+server: cloudflare
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+cf-ray: a2f86355ee6cf362-GYD
+alt-svc: h3=":443"; ma=86400
+
+{"resource":"https://alhraj.online/api/mcp","resource_name":"Haraj Plus public listing discovery","resource_documentation":"https://alhraj.online/docs/api","authorization_servers":[],"bearer_methods_supported":[],"scopes_supported":[]}
+
+=== /auth.md ===
+HTTP/2 200 
+date: Sun, 23 Aug 2026 07:26:21 GMT
+content-type: text/markdown; charset=utf-8
+content-length: 1040
+access-control-allow-origin: *
+cache-control: public, max-age=900
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: cf5a77ed-e658-4b78
+server: cloudflare
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+cf-ray: a2f863792f99adcd-GYD
+alt-svc: h3=":443"; ma=86400
+
+# Auth.md — Haraj Plus agent authentication
+
+## Public read-only access
+
+The public listing API and the read-only MCP server are available without credentials. Start with `https://alhraj.online/.well-known/api-catalog` or `https://alhraj.online/.well-known/mcp/server-card.json`.
+
+## Protected operations
+
+Haraj Plus does not offer third-party OAuth client registration or OAuth authorization grants in this deployment. Agents must not request, store, or reuse a user's password, JWT, device token, or session. Private actions such as messaging, promotion, bidding, wallet activity, account management, and administration require an authenticated first-party user session and are not exposed through MCP or the public API catalog.
+
+## Registration and revocation
+
+No agent registration, credential issuance, delegated scope, or revocation endpoint is available. Do not represent the platform as supporting OAuth/OIDC until authorization-code flow, PKCE, consent, client registration, and revocation are deployed and independently tested.
+

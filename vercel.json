@@ -25,8 +25,10 @@
     { "source": "/openapi.json", "destination": "https://alhrajplus.onrender.com/openapi.json" },
     { "source": "/api/:path*", "destination": "https://alhrajplus.onrender.com/api/:path*" },
     { "source": "/sitemap.xml", "destination": "https://alhrajplus.onrender.com/sitemap.xml" },
+    { "source": "/sitemaps/:path*", "destination": "https://alhrajplus.onrender.com/sitemaps/:path*" },
     { "source": "/robots.txt", "destination": "https://alhrajplus.onrender.com/robots.txt" },
     { "source": "/listing/:path*", "destination": "https://alhrajplus.onrender.com/listing/:path*" },
+    { "source": "/category/:path*", "destination": "https://alhrajplus.onrender.com/category/:path*" },
     { "source": "/:key([a-f0-9]{16,128}).txt", "destination": "https://alhrajplus.onrender.com/:key.txt" },
     { "source": "/((?!api|sitemap|robots|auth.md|llms.txt|docs|openapi.json|favicon|logo|assets|static).*)", "destination": "/index.html" }
   ],

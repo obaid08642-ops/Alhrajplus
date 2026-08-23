@@ -374,24 +374,28 @@ function MonitoringPanel() {
     const statusStyles = { healthy: "bg-emerald-500/10 text-emerald-700", degraded: "bg-amber-500/10 text-amber-700", down: "bg-red-500/10 text-red-700" };
     const statusLabel = { healthy: tr("سليم"), degraded: tr("بحاجة إلى متابعة"), down: tr("عطل") };
     const formatWhen = (value) => value ? new Date(value).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : tr("لم يُنفذ فحص بعد");
+    const checkDetail = (detail) => detail && typeof detail === "object" ? Object.entries(detail).map(([key, value]) => `${key}: ${value}`).join(" · ") : String(detail || "—");
+    const indexnow = data?.indexnow || {};
     return <section className="space-y-4" data-testid="admin-monitoring-panel">
         <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div><h3 className="font-arabic font-black text-lg text-[var(--text)]">{tr("مراقبة المنصة والفهرسة")}</h3><p className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{tr("API وMongo وRedis وrobots وsitemap وSchema صفحة الإعلان")}</p></div>
+                <div><h3 className="font-arabic font-black text-lg text-[var(--text)]">{tr("مراقبة المنصة والفهرسة")}</h3><p className="text-xs text-[var(--text-muted)] font-arabic-body mt-1">{tr("API وMongo وRedis وrobots وsitemap وSchema صفحة الإعلان وتسليم IndexNow")}</p></div>
                 <div className="flex items-center gap-2"><span className={`px-3 py-1 rounded-full text-xs font-arabic font-bold ${statusStyles[latest?.status] || "bg-slate-500/10 text-slate-600"}`}>{statusLabel[latest?.status] || tr("بانتظار الفحص")}</span><button onClick={run} disabled={running} className="px-3 py-2 rounded-xl bg-[var(--primary)] text-[var(--primary-fg)] font-arabic font-bold text-sm disabled:opacity-50">{running ? tr("جاري الفحص...") : tr("فحص الآن")}</button></div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <FinanceCard label={tr("فحوص فاشلة")} value={latest?.failed_count || 0} />
                 <FinanceCard label={tr("تحذيرات")} value={latest?.warning_count || 0} />
                 <FinanceCard label={tr("P95 API (ms)")} value={data?.metrics?.latency_ms?.p95 || 0} />
                 <FinanceCard label={tr("أخطاء API")} value={data?.metrics?.errors_total || 0} />
+                <FinanceCard label={tr("IndexNow بانتظار الإرسال")} value={indexnow.pending || 0} />
+                <FinanceCard label={tr("IndexNow فشل نهائيًا")} value={indexnow.failed || 0} />
             </div>
             <p className="mt-4 text-xs text-[var(--text-muted)] font-arabic-body">{tr("آخر فحص:")} {formatWhen(latest?.checked_at)} · {data?.email_alerts_configured ? tr("تنبيه البريد مفعّل") : tr("تنبيه البريد يحتاج إعداد Resend والبريد الإداري")}</p>
             {error && <p className="mt-3 text-xs text-red-600 font-arabic">{error}</p>}
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
             {(latest?.checks || []).map((check) => <div key={check.name} className={`rounded-xl border p-4 ${check.ok ? (check.warning ? "border-amber-400/40 bg-amber-50/30" : "border-emerald-400/30 bg-emerald-50/30") : "border-red-400/40 bg-red-50/30"}`}>
-                <div className="flex items-center justify-between gap-2"><strong className="font-latin text-sm text-[var(--text)]">{check.name}</strong><span className="text-xs font-latin">{check.status_code || "—"}{check.latency_ms != null ? ` · ${check.latency_ms}ms` : ""}</span></div><p className="text-xs mt-1 font-arabic-body text-[var(--text-muted)]">{check.detail}</p>
+                <div className="flex items-center justify-between gap-2"><strong className="font-latin text-sm text-[var(--text)]">{check.name}</strong><span className="text-xs font-latin">{check.status_code || "—"}{check.latency_ms != null ? ` · ${check.latency_ms}ms` : ""}</span></div><p className="text-xs mt-1 font-arabic-body text-[var(--text-muted)]">{checkDetail(check.detail)}</p>
             </div>)}
         </div>
         <div className="bg-[var(--surface)] rounded-2xl p-5 border border-[var(--border)]"><h4 className="font-arabic font-black text-base text-[var(--text)] mb-3">{tr("آخر حالات المراقبة")}</h4><div className="space-y-2">{(data?.history || []).slice(0, 10).map((row) => <div key={row.id || row.checked_at} className="flex items-center justify-between gap-3 text-xs border-b border-[var(--border)] pb-2 last:border-0"><span className="font-latin">{formatWhen(row.checked_at)}</span><span className={`px-2 py-1 rounded-full font-arabic ${statusStyles[row.status] || "bg-slate-100"}`}>{statusLabel[row.status] || row.status}</span><span className="font-latin text-[var(--text-muted)]">{row.failed_count || 0} / {row.warning_count || 0}</span></div>) || <p className="text-sm text-[var(--text-muted)] font-arabic">{tr("لا توجد نتائج بعد")}</p>}</div></div>

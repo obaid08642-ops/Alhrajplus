@@ -1,47 +1,63 @@
 """
-IndexNow + Google Indexing submitter.
+Durable IndexNow delivery for public listing discovery.
 
-Submits new/updated listing URLs to multiple search engines INSTANTLY (instead of
-waiting weeks for the next crawl).
-
-Supported engines (via IndexNow protocol — a single submission goes to all):
-  - Bing
-  - Yandex
-  - Seznam
-  - Naver
-  - DuckDuckGo (uses Bing index)
-
-Google: IndexNow is not adopted by Google. We add the listing URL to sitemap.xml
-(already done) which Google fetches frequently. For instant Google submission, a
-proper Indexing API requires a Google Cloud Service Account (out of scope for free tier).
-
-The IndexNow key is a random hex string we generate on first run and store in MongoDB.
-A file `/{KEY}.txt` is served at the site root so search engines can verify ownership.
-
-All submissions are FIRE-AND-FORGET — if a search engine is down, listing creation
-succeeds anyway. Calls are non-blocking (background tasks) so they never slow down
-the user-facing API.
+The sitemap remains the canonical discovery mechanism for Google and all crawlers.
+Google's Indexing API is reserved for eligible JobPosting and livestreaming
+BroadcastEvent pages, so it is intentionally not used for marketplace listings.
+IndexNow supplements the sitemap for participating engines when a public URL is
+added, updated, moved, hidden, or deleted. Delivery is persisted in MongoDB so a
+temporary network outage never turns a listing write into a failed user action or a
+lost signal.
 """
 from __future__ import annotations
-import os
+
 import asyncio
-import secrets
 import logging
-from typing import List, Optional
+import secrets
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Any, List, Optional
+from urllib.parse import urlparse
+
 import httpx
+from pymongo import ReturnDocument
 
 logger = logging.getLogger(__name__)
 
-# Single endpoint that fans out to all participating search engines.
 INDEXNOW_ENDPOINT = "https://api.indexnow.org/IndexNow"
+INDEXNOW_MAX_URLS = 10_000
+INDEXNOW_MAX_ATTEMPTS = 8
+INDEXNOW_RETRY_BASE_SECONDS = 30
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _iso(value: datetime) -> str:
+    return value.isoformat()
+
+
+def _normalise_urls(urls: List[str], host: str) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in urls:
+        url = str(raw or "").strip()
+        parsed = urlparse(url)
+        if parsed.scheme != "https" or parsed.hostname != host or not parsed.path:
+            continue
+        if url not in seen:
+            result.append(url)
+            seen.add(url)
+    return result[:INDEXNOW_MAX_URLS]
 
 
 async def get_or_create_indexnow_key(db) -> str:
-    """Idempotent: returns the same key on subsequent calls."""
+    """Return a stable ownership key without logging or exposing it."""
     doc = await db.system.find_one({"_id": "indexnow_key"})
     if doc and doc.get("key"):
         return doc["key"]
-    key = secrets.token_hex(16)  # 32-char hex, IndexNow spec accepts 8-128
+    key = secrets.token_hex(16)
     await db.system.update_one(
         {"_id": "indexnow_key"},
         {"$set": {"key": key}},
@@ -50,143 +66,104 @@ async def get_or_create_indexnow_key(db) -> str:
     return key
 
 
-async def submit_urls(
-    db,
-    urls: List[str],
-    host: str,
-    timeout: float = 8.0,
-) -> Optional[dict]:
-    """
-    Submit a batch of up to 10,000 URLs to IndexNow.
-    Returns the API response or None on failure (errors are logged, never raised).
-
-    `host` should be just the domain: e.g. 'alhraj.online' (no scheme).
-    """
+async def submit_urls(db, urls: List[str], host: str, timeout: float = 8.0) -> Optional[dict]:
+    """Submit one validated batch to IndexNow; caller owns retries and persistence."""
+    urls = _normalise_urls(urls, host)
     if not urls:
-        return None
-    # IndexNow requires all URLs to share the same host
-    urls = [u for u in urls if host in u]
-    if not urls:
-        return None
+        return {"status": "skipped", "submitted": 0}
     try:
         key = await get_or_create_indexnow_key(db)
         payload = {
             "host": host,
             "key": key,
             "keyLocation": f"https://{host}/{key}.txt",
-            "urlList": urls[:10000],
+            "urlList": urls,
         }
         async with httpx.AsyncClient(timeout=timeout) as client_http:
-            r = await client_http.post(INDEXNOW_ENDPOINT, json=payload)
-        if r.status_code in (200, 202):
-            logger.info(f"[IndexNow] submitted {len(urls)} url(s) → {r.status_code}")
-            return {"status": r.status_code, "submitted": len(urls)}
-        logger.warning(f"[IndexNow] {r.status_code}: {r.text[:200]}")
-        return {"status": r.status_code, "error": r.text[:200]}
-    except Exception as e:
-        logger.warning(f"[IndexNow] submission failed: {e}")
+            response = await client_http.post(INDEXNOW_ENDPOINT, json=payload)
+        if response.status_code in (200, 202):
+            logger.info("[IndexNow] accepted %d URL(s): %s", len(urls), response.status_code)
+            return {"status": response.status_code, "submitted": len(urls)}
+        logger.warning("[IndexNow] rejected batch: status=%s", response.status_code)
+        return {"status": response.status_code, "submitted": 0}
+    except Exception as exc:
+        logger.warning("[IndexNow] delivery failed: %s", type(exc).__name__)
         return None
 
 
-def submit_in_background(db, urls: List[str], host: str) -> None:
-    """
-    Schedule submission to ALL configured engines without awaiting.
-    - IndexNow (Bing, Yandex, Seznam, Naver) — always
-    - Google Indexing API — only if GOOGLE_INDEXING_SA_JSON env is set
-    """
+async def queue_urls(db, urls: List[str], host: str, trigger: str) -> Optional[str]:
+    """Persist a discovery event, then make a best-effort first delivery attempt."""
+    urls = _normalise_urls(urls, host)
+    if not urls:
+        return None
+    now = _now()
+    event_id = f"indexnow_{uuid.uuid4().hex}"
+    await db.indexnow_outbox.insert_one({
+        "id": event_id,
+        "host": host,
+        "urls": urls,
+        "trigger": trigger,
+        "status": "pending",
+        "attempts": 0,
+        "created_at": _iso(now),
+        "updated_at": _iso(now),
+        "next_attempt_at": _iso(now),
+    })
+    await flush_pending(db, limit=1)
+    return event_id
+
+
+def enqueue_in_background(db, urls: List[str], host: str, trigger: str = "listing_change") -> None:
+    """Queue delivery asynchronously so publication and edits never wait on a crawler."""
     try:
-        asyncio.create_task(submit_urls(db, urls, host))
-        # Google Indexing — fan-out in parallel; no-op if not configured
-        asyncio.create_task(submit_google(urls, "URL_UPDATED"))
+        asyncio.create_task(queue_urls(db, urls, host, trigger))
     except RuntimeError:
-        # No running loop — happens during startup tasks; just skip
-        pass
+        logger.warning("[IndexNow] no active event loop; event was not queued")
 
 
-async def ping_google_sitemap(sitemap_url: str, timeout: float = 5.0) -> None:
-    """Legacy Google sitemap ping (deprecated 2023, harmless if it fails)."""
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client_http:
-            await client_http.get("https://www.google.com/ping", params={"sitemap": sitemap_url})
-    except Exception:
-        pass
-    """
-    Legacy 'sitemap ping' to Google. Google deprecated this in 2023 but it still
-    works for many sites and is harmless. Best-effort; ignores errors.
-    """
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client_http:
-            await client_http.get(
-                "https://www.google.com/ping",
-                params={"sitemap": sitemap_url},
-            )
-    except Exception:
-        pass
-
-
-# ============================================================
-# Google Indexing API
-# ============================================================
-# Officially supports JobPosting + BroadcastEvent. In practice many sites use it
-# for general pages too. Requires a Google Cloud Service Account JSON file with
-# "Owner" permission in Search Console for the property.
-#
-# Setup steps (one-time, manual):
-#   1. https://console.cloud.google.com → enable "Indexing API"
-#   2. IAM → Service Accounts → Create → grant role "Service Account User"
-#   3. Keys → Add Key → JSON → download
-#   4. Search Console → Property → Settings → Users & permissions → add the
-#      service account email with "Owner" role
-#   5. Set env GOOGLE_INDEXING_SA_JSON to the JSON file contents (full string)
-# ============================================================
-_GOOGLE_INDEX_SCOPES = ["https://www.googleapis.com/auth/indexing"]
-_google_index_client = None  # lazy, cached
-
-
-def _build_google_indexing_client():
-    """Return a cached google-api client, or None if not configured."""
-    global _google_index_client
-    if _google_index_client is not None:
-        return _google_index_client
-    import json
-    sa_json = os.environ.get("GOOGLE_INDEXING_SA_JSON", "").strip()
-    if not sa_json:
-        return None
-    try:
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-        info = json.loads(sa_json)
-        creds = service_account.Credentials.from_service_account_info(
-            info, scopes=_GOOGLE_INDEX_SCOPES
+async def flush_pending(db, limit: int = 20) -> dict[str, int]:
+    """Claim and deliver queued events. Safe to call from the protected cron route."""
+    delivered = failed = 0
+    for _ in range(max(0, min(int(limit), 100))):
+        now = _now()
+        event = await db.indexnow_outbox.find_one_and_update(
+            {"status": "pending", "next_attempt_at": {"$lte": _iso(now)}},
+            {"$set": {"status": "processing", "updated_at": _iso(now), "processing_started_at": _iso(now)}, "$inc": {"attempts": 1}},
+            sort=[("created_at", 1)],
+            return_document=ReturnDocument.AFTER,
         )
-        _google_index_client = build("indexing", "v3", credentials=creds, cache_discovery=False)
-        return _google_index_client
-    except Exception as e:
-        logger.warning(f"[GoogleIndexing] client init failed: {e}")
-        return None
+        if not event:
+            break
+        result = await submit_urls(db, event.get("urls") or [], event.get("host") or "")
+        completed_at = _now()
+        if result and result.get("status") in (200, 202):
+            await db.indexnow_outbox.update_one(
+                {"id": event["id"], "status": "processing"},
+                {"$set": {"status": "delivered", "delivered_at": _iso(completed_at), "updated_at": _iso(completed_at), "result": result}, "$unset": {"processing_started_at": ""}},
+            )
+            delivered += 1
+            continue
+        attempts = int(event.get("attempts") or 1)
+        terminal = attempts >= INDEXNOW_MAX_ATTEMPTS
+        delay = min(3600, INDEXNOW_RETRY_BASE_SECONDS * (2 ** min(attempts, 7)))
+        update: dict[str, Any] = {
+            "status": "failed" if terminal else "pending",
+            "updated_at": _iso(completed_at),
+            "last_failure_at": _iso(completed_at),
+            "next_attempt_at": _iso(completed_at + timedelta(seconds=delay)),
+            "result": result or {"status": "network_error"},
+        }
+        await db.indexnow_outbox.update_one(
+            {"id": event["id"], "status": "processing"},
+            {"$set": update, "$unset": {"processing_started_at": ""}},
+        )
+        failed += 1
+    return {"delivered": delivered, "failed": failed}
 
 
-async def submit_google(urls: List[str], action: str = "URL_UPDATED") -> Optional[dict]:
-    """
-    Submit URLs to Google Indexing API. action ∈ {"URL_UPDATED", "URL_DELETED"}.
-    Returns count of successes/failures or None when not configured.
-    """
-    cli = _build_google_indexing_client()
-    if cli is None or not urls:
-        return None
-    # google-api-python-client is sync; run in executor to keep loop free
-    def _do():
-        ok, fail = 0, 0
-        for u in urls:
-            try:
-                cli.urlNotifications().publish(body={"url": u, "type": action}).execute()
-                ok += 1
-            except Exception as e:
-                logger.warning(f"[GoogleIndexing] {u} → {e}")
-                fail += 1
-        return {"ok": ok, "fail": fail}
-    try:
-        return await asyncio.to_thread(_do)
-    except Exception as e:
-        logger.warning(f"[GoogleIndexing] batch failed: {e}")
-        return None
+async def queue_summary(db) -> dict[str, int]:
+    """Return safe aggregate queue counts for the admin monitoring dashboard."""
+    pending = await db.indexnow_outbox.count_documents({"status": "pending"})
+    processing = await db.indexnow_outbox.count_documents({"status": "processing"})
+    failed = await db.indexnow_outbox.count_documents({"status": "failed"})
+    return {"pending": pending, "processing": processing, "failed": failed}
