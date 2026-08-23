@@ -134,9 +134,14 @@ def test_web_and_deployment_register_only_safe_agent_entrypoints():
     assert "/.well-known/mcp/:path*" in rewrite_sources
     assert "/auth.md" in rewrite_sources
     assert "/docs/api" in rewrite_sources
-    home_markdown_rewrite = next(item for item in vercel["rewrites"] if item["source"] == "/" and item.get("has"))
-    assert home_markdown_rewrite["destination"].endswith("/agent/home.md")
-    assert home_markdown_rewrite["has"][0]["value"] == "(.*)text/markdown(.*)"
+    assert vercel["proxy"] == {"entrypoint": "frontend/agent-markdown-proxy.ts"}
+    assert not any(item["source"] == "/" and item.get("has") for item in vercel["rewrites"])
+    markdown_proxy = (ROOT / "frontend" / "agent-markdown-proxy.ts").read_text(encoding="utf-8")
+    assert 'matcher: "/"' in markdown_proxy
+    assert "text/markdown" in markdown_proxy
+    assert "@vercel/functions" in markdown_proxy
+    assert 'BACKEND_ORIGIN = "https://alhrajplus.onrender.com"' in markdown_proxy
+    assert "${BACKEND_ORIGIN}/agent/home.md" in markdown_proxy
     root_headers = next(item for item in vercel["headers"] if item["source"] == "/")["headers"]
     assert {header["key"].lower(): header["value"] for header in root_headers}["vary"] == "Accept"
 

@@ -5,8 +5,10 @@
   "outputDirectory": "frontend/build",
   "installCommand": "echo 'skip-root-install'",
   "framework": null,
+  "proxy": {
+    "entrypoint": "frontend/agent-markdown-proxy.ts"
+  },
   "rewrites": [
-    { "source": "/", "has": [{ "type": "header", "key": "accept", "value": "(.*)text/markdown(.*)" }], "destination": "https://alhrajplus.onrender.com/agent/home.md" },
     { "source": "/.well-known/assetlinks.json", "destination": "https://alhrajplus.onrender.com/.well-known/assetlinks.json" },
     { "source": "/.well-known/apple-app-site-association", "destination": "https://alhrajplus.onrender.com/.well-known/apple-app-site-association" },
     { "source": "/.well-known/api-catalog", "destination": "https://alhrajplus.onrender.com/.well-known/api-catalog" },
