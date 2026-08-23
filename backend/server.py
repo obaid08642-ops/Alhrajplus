@@ -376,8 +376,18 @@ async def _baseline_security_headers(request, call_next):
     return response
 
 
+def _public_site_url() -> str:
+    """Return the final crawlable origin, never the apex URL that redirects to www."""
+    configured = (os.environ.get("FRONTEND_URL", "https://www.alhraj.online") or "https://www.alhraj.online").rstrip("/")
+    # The apex currently returns a redirect to www. Canonical metadata, sitemap
+    # URLs, IndexNow ownership, and share links must name the final response URL.
+    if configured == "https://alhraj.online":
+        return "https://www.alhraj.online"
+    return configured
+
+
 def _agent_site_url() -> str:
-    return (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+    return _public_site_url()
 
 
 def _agent_discovery_link_header() -> str:
@@ -844,7 +854,7 @@ _MONITOR_LATENCY_WARNING_MS = 4000
 
 
 def _monitor_site_url() -> str:
-    return os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    return _public_site_url()
 
 
 def _monitor_alert_recipient() -> str:
@@ -4754,7 +4764,7 @@ async def discovery_listings(
     items = await db.listings.find(query, projection).sort("created_at", -1).limit(limit + 1).to_list(length=limit + 1)
     has_more = len(items) > limit
     items = items[:limit]
-    site = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+    site = _public_site_url()
     requested_language = str(lang or "ar").lower()
     payload = []
     for item in items:
@@ -9725,7 +9735,7 @@ _SITEMAP_LISTING_PAGE_SIZE = 45_000
 
 
 def _sitemap_site_url() -> str:
-    return (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+    return _public_site_url()
 
 
 def _sitemap_static_pages() -> list[tuple[str, float, str]]:
@@ -9840,7 +9850,7 @@ async def _build_sitemap_index_xml() -> str:
 
 
 async def _build_robots_txt() -> str:
-    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    site = _public_site_url()
     DEFAULT = (
         "# Content Signals express the publisher's preferences for public content.\n"
         "# Search and retrieval/grounding are allowed; model training is not.\n"
@@ -9938,7 +9948,7 @@ def _listing_canonical_url(listing: dict) -> Optional[str]:
     ref = _listing_seo_ref(listing)
     if not ref:
         return None
-    site = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+    site = _public_site_url()
     return f"{site}/listing/{quote(ref, safe='-._~')}"
 
 
@@ -9954,7 +9964,7 @@ def _refresh_listing_discovery(listing: dict, *, previous_slug: Optional[str] = 
     if not canonical:
         return
     try:
-        site = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "https://alhraj.online").rstrip("/")
+        site = _public_site_url()
         from urllib.parse import urlparse as _up
         host = _up(site).hostname or "alhraj.online"
         # IndexNow accepts URLs that were added, updated, or removed. For a
@@ -10493,14 +10503,14 @@ async def indexnow_key_file(key: str):
 async def seo_indexnow_key_view(user: dict = Depends(require_admin)):
     """Admin: view IndexNow key + verification URL (for manual checks)."""
     key = await _get_indexnow_key(db)
-    fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
+    fe = _public_site_url()
     return {"key": key, "verification_url": f"{fe}/{key}.txt"}
 
 
 @api.post("/seo/indexnow/resubmit-all", include_in_schema=False)
 async def seo_resubmit_all_listings(user: dict = Depends(require_admin)):
     """Admin: bulk re-submit all active listings to IndexNow (use sparingly)."""
-    fe = (os.environ.get("FRONTEND_URL", "https://alhraj.online") or "").rstrip("/")
+    fe = _public_site_url()
     from urllib.parse import urlparse as _up
     host = _up(fe).hostname or "alhraj.online"
     urls: List[str] = []
@@ -10685,7 +10695,7 @@ def _listing_seo_html(listing: dict, fallback_ref: str = "", language: str = "ar
     # Never declare an untranslated query parameter as a separate language page.
     effective_language = requested_language if localization else "ar"
     localization = localization or _listing_seo_localization(listing, "ar") or {}
-    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    site = _public_site_url()
     ref = _listing_seo_ref(listing, fallback_ref)
     base_url = f"{site}/listing/{quote(ref, safe='-._~')}"
     canonical = base_url if effective_language == "ar" else f"{base_url}?lang={effective_language}"
@@ -10767,7 +10777,7 @@ async def _frontend_shell_for_listing() -> Optional[str]:
     `/index.html` preserves the normal React app without recursively requesting
     `/listing/...`; bots instead receive the equivalent visible listing document.
     """
-    site = os.environ.get("FRONTEND_URL", "https://alhraj.online").rstrip("/")
+    site = _public_site_url()
     shell_url = os.environ.get("SEO_FRONTEND_SHELL_URL", f"{site}/index.html").strip()
     try:
         async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client_http:

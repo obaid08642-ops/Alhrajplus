@@ -81,7 +81,7 @@ def test_listing_sitemap_uses_canonical_slug_and_does_not_filter_by_listing_age(
     try:
         xml = asyncio.run(server._build_listing_sitemap_xml(1))
         assert "<urlset" in xml
-        assert "https://alhraj.online/listing/public-listing" in xml
+        assert "https://www.alhraj.online/listing/public-listing" in xml
         assert "2026-08-23" in xml
     finally:
         server.db = previous
@@ -93,9 +93,9 @@ def test_static_sitemap_and_category_document_only_use_public_inventory():
     try:
         sitemap = asyncio.run(server._build_static_sitemap_xml())
         html = server._category_seo_html({"key": "cars", "name_ar": "السيارات"}, 1, [_listing()])
-        assert "https://alhraj.online/category/cars" in sitemap
+        assert "https://www.alhraj.online/category/cars" in sitemap
         assert '"@type": "CollectionPage"' in html
-        assert "https://alhraj.online/listing/public-listing" in html
+        assert "https://www.alhraj.online/listing/public-listing" in html
         assert "عدد الإعلانات المتاحة حاليًا: 1" in html
     finally:
         server.db = previous

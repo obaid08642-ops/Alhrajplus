@@ -26,16 +26,16 @@ def test_public_agent_discovery_documents_are_well_formed_and_read_only(monkeypa
 
     ard = server._ard_manifest()
     assert ard["specVersion"] == "1.0"
-    assert ard["host"] == {"displayName": "Haraj Plus", "identifier": "did:web:alhraj.online"}
+    assert ard["host"] == {"displayName": "Haraj Plus", "identifier": "did:web:www.alhraj.online"}
     assert len(ard["entries"]) == 3
-    assert all(entry["identifier"].startswith("urn:air:alhraj.online:") for entry in ard["entries"])
+    assert all(entry["identifier"].startswith("urn:air:www.alhraj.online:") for entry in ard["entries"])
     assert all(entry["id"] == entry["identifier"] for entry in ard["entries"])
     assert all(("url" in entry) ^ ("data" in entry) for entry in ard["entries"])
     assert all(2 <= len(entry["representativeQueries"]) <= 5 for entry in ard["entries"])
     assert ard["entries"][1]["type"] == "application/mcp-server-card+json"
 
     server_card = server._mcp_server_card()
-    assert server_card["transport"]["url"] == "https://alhraj.online/api/mcp"
+    assert server_card["transport"]["url"] == "https://www.alhraj.online/api/mcp"
     assert "read-only" in server_card["description"].lower()
 
     oauth = server._oauth_discovery_metadata()
@@ -98,7 +98,7 @@ def test_agent_markdown_renderer_excludes_nonpublic_fields(monkeypatch):
     assert rendered.startswith("---")
     assert "سيارة عامة" in rendered
     assert "never-render" not in rendered
-    assert "https://alhraj.online/listing/public-listing" in rendered
+    assert "https://www.alhraj.online/listing/public-listing" in rendered
 
 
 def test_agent_skill_digest_matches_published_markdown():

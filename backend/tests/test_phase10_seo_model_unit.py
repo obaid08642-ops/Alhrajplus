@@ -55,7 +55,7 @@ def test_seo_html_escapes_attributes_and_uses_slug():
         request = Request({"type": "http", "method": "GET", "path": "/api/seo/listing/listing-1", "query_string": b"", "headers": []})
         response = asyncio.run(server.seo_listing_html("listing-1", request))
         body = response.body.decode("utf-8")
-        assert 'canonical" href="https://alhraj.online/listing/safe-listing-1"' in body
+        assert 'canonical" href="https://www.alhraj.online/listing/safe-listing-1"' in body
         assert "<script>alert(1)</script>" not in body
         assert "&lt;script&gt;alert(1)&lt;/script&gt;" in body
         assert "https://cdn.example/image.jpg?a=1&amp;b=2" in body
@@ -76,12 +76,12 @@ def test_listing_seo_schema_does_not_invent_price_or_brand():
     }
     schema = server._listing_seo_schema(
         listing,
-        "https://alhraj.online",
-        "https://alhraj.online/listing/contact-price",
+        "https://www.alhraj.online",
+        "https://www.alhraj.online/listing/contact-price",
     )
     assert "offers" not in schema
     assert "brand" not in schema
-    assert schema["url"] == "https://alhraj.online/listing/contact-price"
+    assert schema["url"] == "https://www.alhraj.online/listing/contact-price"
 
 
 def test_primary_listing_page_serves_listing_document_to_search_bot():
@@ -99,7 +99,7 @@ def test_primary_listing_page_serves_listing_document_to_search_bot():
         response = asyncio.run(server.primary_listing_page("safe-listing-1", request))
         body = response.body.decode("utf-8")
         assert response.status_code == 200
-        assert 'rel="canonical" href="https://alhraj.online/listing/safe-listing-1"' in body
+        assert 'rel="canonical" href="https://www.alhraj.online/listing/safe-listing-1"' in body
         assert 'application/ld+json' in body
         assert '"price": 100.0' in body
         assert response.headers["vary"] == "User-Agent, Accept"
@@ -136,7 +136,7 @@ def test_car_schema_uses_verified_custom_fields_and_correct_condition():
             "seller_type": "معرض",
         },
     }
-    schema = server._listing_seo_schema(listing, "https://alhraj.online", "https://alhraj.online/listing/toyota-camry-2024")
+    schema = server._listing_seo_schema(listing, "https://www.alhraj.online", "https://www.alhraj.online/listing/toyota-camry-2024")
     assert schema["@type"] == ["Product", "Car"]
     assert schema["brand"]["name"] == "تويوتا"
     assert schema["vehicleIdentificationNumber"] == "ABC123456789"
@@ -165,11 +165,11 @@ def test_discovery_refresh_uses_canonical_slug_and_notifies_indexnow_for_public_
         visible = {"id": "l1", "slug": "visible-listing", "status": "active", "moderation": "approved", "title": "إعلان حقيقي"}
         server._SITEMAP_CACHE.update({"index": "stale", "static": "stale", "listing_pages": {1: "stale"}, "ts": 123.0})
         server._refresh_listing_discovery(visible)
-        assert submitted == ["https://alhraj.online/listing/visible-listing"]
+        assert submitted == ["https://www.alhraj.online/listing/visible-listing"]
         assert server._SITEMAP_CACHE["index"] is None
         assert server._SITEMAP_CACHE["listing_pages"] == {}
         server._refresh_listing_discovery({**visible, "status": "sold"}, removed=True)
-        assert submitted == ["https://alhraj.online/listing/visible-listing", "https://alhraj.online/listing/visible-listing"]
+        assert submitted == ["https://www.alhraj.online/listing/visible-listing", "https://www.alhraj.online/listing/visible-listing"]
     finally:
         server._SITEMAP_CACHE.update(previous_cache)
 
@@ -219,7 +219,7 @@ def test_localized_listing_html_uses_only_fresh_translation_and_language_canonic
     }
     body = server._listing_seo_html(listing, language="en")
     assert '<html lang="en" dir="ltr">' in body
-    assert 'canonical" href="https://alhraj.online/listing/arabic-listing?lang=en"' in body
+    assert 'canonical" href="https://www.alhraj.online/listing/arabic-listing?lang=en"' in body
     assert 'hreflang="en"' in body
     assert 'hreflang="ur"' not in body
     assert '"inLanguage": "en"' in body
@@ -280,7 +280,7 @@ def test_discovery_feed_is_read_only_and_strips_private_listing_data():
         response = asyncio.run(server.discovery_listings(country_code="SA", category="cars", city=None, q="تويوتا", lang="ar", limit=20, cursor=None))
         payload = __import__("json").loads(response.body)
         assert payload["read_only"] is True
-        assert payload["items"][0]["url"] == "https://alhraj.online/listing/public-listing"
+        assert payload["items"][0]["url"] == "https://www.alhraj.online/listing/public-listing"
         assert payload["items"][0]["availability"] == "active"
         assert "contact_phone" not in payload["items"][0]
         assert "seller" not in payload["items"][0]
@@ -303,10 +303,10 @@ def test_listing_html_emits_product_webpage_and_visible_breadcrumb_schema():
         "city": "الرياض",
     }
     body = server._listing_seo_html(listing)
-    assert '"@id": "https://alhraj.online/listing/schema-car#product"' in body
-    assert '"mainEntityOfPage": {"@type": "WebPage", "@id": "https://alhraj.online/listing/schema-car"}' in body
+    assert '"@id": "https://www.alhraj.online/listing/schema-car#product"' in body
+    assert '"mainEntityOfPage": {"@type": "WebPage", "@id": "https://www.alhraj.online/listing/schema-car"}' in body
     assert '"@type": "BreadcrumbList"' in body
-    assert 'href="https://alhraj.online/category/cars"' in body
+    assert 'href="https://www.alhraj.online/category/cars"' in body
     assert '<nav aria-label="Breadcrumb">' in body
 
 
@@ -315,7 +315,7 @@ def test_platform_monitoring_checks_api_indexing_and_schema_without_external_net
         def __init__(self, url):
             self.status_code = 200
             if url.endswith("/robots.txt"):
-                self.text = "User-agent: *\nSitemap: https://alhraj.online/sitemap.xml"
+                self.text = "User-agent: *\nSitemap: https://www.alhraj.online/sitemap.xml"
             elif url.endswith("/sitemap.xml"):
                 self.text = "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></sitemapindex>"
             elif "/listing/" in url:
