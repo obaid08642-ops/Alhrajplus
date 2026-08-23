@@ -115,7 +115,7 @@ def test_web_and_deployment_register_only_safe_agent_entrypoints():
     assert "/.well-known/mcp/:path*" in rewrite_sources
     assert "/auth.md" in rewrite_sources
     assert "/docs/api" in rewrite_sources
-    home_markdown_rewrite = next(item for item in vercel["rewrites"] if item["source"] == "/" and item.get("has"))
+    home_markdown_rewrite = next(item for item in vercel["rewrites"] if item["source"] == "^/$" and item.get("has"))
     assert home_markdown_rewrite["destination"].endswith("/agent/home.md")
     assert home_markdown_rewrite["has"][0]["value"] == "(.*)text/markdown(.*)"
 
