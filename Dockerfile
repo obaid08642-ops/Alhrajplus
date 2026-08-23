@@ -13,7 +13,9 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
 # System deps required by some Python packages (bcrypt, pillow, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -21,8 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 1. Install dependencies (cached layer)
+# 1. Install dependencies (cached layer) in an isolated virtual environment.
+#    The final service process does not need root privileges.
 WORKDIR /app
+RUN python -m venv "$VIRTUAL_ENV"
 COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
@@ -32,8 +36,12 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 RUN pip install --no-cache-dir emergentintegrations \
     --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/ || true
 
-# 3. Copy application code
+# 3. Copy application code and drop privileges for the runtime process.
 COPY backend/ /app/backend/
+RUN groupadd --system appuser \
+    && useradd --system --gid appuser --home-dir /nonexistent --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
 
 # 4. Switch to the backend directory so Python imports resolve
 #    exactly like in local dev (sys.path includes /app/backend).

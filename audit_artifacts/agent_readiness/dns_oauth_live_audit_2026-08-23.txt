@@ -1,0 +1,133 @@
+
+=== DNS _index._agents.alhraj.online SVCB ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"_index._agents.alhraj.online","type":64}],"Authority":[{"name":"alhraj.online","type":6,"TTL":600,"data":"ns1.vercel-dns.com. hostmaster.nsone.net. 1778506156 43200 7200 1209600 600"}]}
+
+=== DNS _index._agents.alhraj.online HTTPS ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"_index._agents.alhraj.online","type":65}],"Authority":[{"name":"alhraj.online","type":6,"TTL":600,"data":"ns1.vercel-dns.com. hostmaster.nsone.net. 1778506156 43200 7200 1209600 600"}]}
+
+=== DNS _a2a._agents.alhraj.online SVCB ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"_a2a._agents.alhraj.online","type":64}],"Authority":[{"name":"alhraj.online","type":6,"TTL":600,"data":"ns1.vercel-dns.com. hostmaster.nsone.net. 1778506156 43200 7200 1209600 600"}]}
+
+=== DNS _a2a._agents.alhraj.online HTTPS ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"_a2a._agents.alhraj.online","type":65}],"Authority":[{"name":"alhraj.online","type":6,"TTL":600,"data":"ns1.vercel-dns.com. hostmaster.nsone.net. 1778506156 43200 7200 1209600 600"}]}
+
+=== DNS alhraj.online SVCB ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"alhraj.online","type":64}],"Authority":[{"name":"alhraj.online","type":6,"TTL":600,"data":"ns1.vercel-dns.com. hostmaster.nsone.net. 1778506156 43200 7200 1209600 600"}]}
+
+=== DNS alhraj.online HTTPS ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"alhraj.online","type":65}],"Authority":[{"name":"alhraj.online","type":6,"TTL":600,"data":"ns1.vercel-dns.com. hostmaster.nsone.net. 1778506156 43200 7200 1209600 600"}]}
+
+=== DNS alhraj.online DS ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"alhraj.online","type":43}],"Authority":[{"name":"online","type":6,"TTL":300,"data":"ns.trs-dns.com. trs-ops.tucows.com. 1787468310 1800 900 604800 300"}]}
+
+=== DNS alhraj.online DNSKEY ===
+{"Status":0,"TC":false,"RD":true,"RA":true,"AD":false,"CD":false,"Question":[{"name":"alhraj.online","type":48}],"Authority":[{"name":"alhraj.online","type":6,"TTL":600,"data":"ns1.vercel-dns.com. hostmaster.nsone.net. 1778506156 43200 7200 1209600 600"}]}
+
+=== HTTP /.well-known/oauth-protected-resource ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f84389fb9241e2-CPT
+content-type: application/json; charset=utf-8
+date: Sun, 23 Aug 2026 07:04:34 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: c5723c1c-22d9-4076
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::7k29z-1787468673306-bbdbdad39b49
+
+{"resource":"https://alhraj.online/api/mcp","resource_name":"Haraj Plus public listing discovery","resource_documentation":"https://alhraj.online/docs/api","authorization_servers":[],"bearer_methods_supported":[],"scopes_supported":[]}
+
+=== HTTP /.well-known/oauth-authorization-server ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f843bfcfa741e2-CPT
+content-type: application/json; charset=utf-8
+date: Sun, 23 Aug 2026 07:04:42 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: cc1b73b4-2eb6-474d
+server: Vercel
+server-timing: app;dur=2
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::xpxl5-1787468681930-1ca47d93e699
+
+{"issuer":"https://alhraj.online","response_types_supported":[],"grant_types_supported":[],"scopes_supported":[],"service_documentation":"https://alhraj.online/auth.md","agent_auth":{"registration_status":"not_available","supported_identity_types":[],"credential_types":[],"notice":"OAuth authorization grants are not issued by this deployment. Public MCP and public discovery APIs do not require credentials."}}
+
+=== HTTP /auth.md ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=900
+cf-cache-status: DYNAMIC
+cf-ray: a2f843ee8be05b7c-CPT
+content-type: text/markdown; charset=utf-8
+date: Sun, 23 Aug 2026 07:04:49 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: b772b283-cbb5-49f5
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::kjd5l-1787468689386-29d674b19f7a
+content-length: 1040
+
+# Auth.md — Haraj Plus agent authentication
+
+## Public read-only access
+
+The public listing API and the read-only MCP server are available without credentials. Start with `https://alhraj.online/.well-known/api-catalog` or `https://alhraj.online/.well-known/mcp/server-card.json`.
+
+## Protected operations
+
+Haraj Plus does not offer third-party OAuth client registration or OAuth authorization grants in this deployment. Agents must not request, store, or reuse a user's password, JWT, device token, or session. Private actions such as messaging, promotion, bidding, wallet activity, account management, and administration require an authenticated first-party user session and are not exposed through MCP or the public API catalog.
+
+## Registration and revocation
+
+No agent registration, credential issuance, delegated scope, or revocation endpoint is available. Do not represent the platform as supporting OAuth/OIDC until authorization-code flow, PKCE, consent, client registration, and revocation are deployed and independently tested.
+
+
+=== HTTP /.well-known/ai-catalog.json ===
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f8441cca7e5b7c-CPT
+content-type: application/json; charset=utf-8
+date: Sun, 23 Aug 2026 07:04:57 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 69b4a45a-1d81-467b
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: cpt1::kjd5l-1787468697083-243cddaff005
+
+{"specVersion":"1.0","host":{"displayName":"Haraj Plus","identifier":"did:web:alhraj.online"},"entries":[{"id":"urn:air:alhraj.online:api:public-listings","identifier":"urn:air:alhraj.online:api:public-listings","displayName":"Haraj Plus public listings API","type":"application/linkset+json","url":"https://alhraj.online/.well-known/api-catalog","representativeQueries":["Search public used cars in Riyadh","Find public property listings","Browse marketplace categories"]},{"id":"urn:air:alhraj.online:mcp:public-listings","identifier":"urn:air:alhraj.online:mcp:public-listings","displayName":"Haraj Plus read-only MCP tools","type":"application/mcp-server-card+json","url":"https://alhraj.online/.well-known/mcp/server-card.json","representativeQueries":["Find approved public listings","Get details of a public listing","Search Haraj Plus inventory"]},{"id":"urn:air:alhraj.online:skills:public-listing-search","identifier":"urn:air:alhraj.online:skills:public-listing-search","displayName":"Public listing search agent skill","type":"application/json","url":"https://alhraj.online/.well-known/agent-skills/index.json","representativeQueries":["Discover Haraj Plus agent skills","Use the public listing search skill"]}]}
