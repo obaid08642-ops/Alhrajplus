@@ -1125,23 +1125,43 @@ def verify_password(pw: str, hashed: str) -> bool:
     except Exception:
         return False
 
+def _mfa_fernet_for(source: str) -> Fernet:
+    key = base64.urlsafe_b64encode(hashlib.sha256(source.encode()).digest())
+    return Fernet(key)
+
+
 def _mfa_fernet() -> Fernet:
     # Dedicated MFA_ENCRYPTION_KEY is preferred. The fallback is key-derived
     # from the existing production JWT secret so MFA is never stored plaintext.
-    source = MFA_ENCRYPTION_KEY or JWT_SECRET
-    key = base64.urlsafe_b64encode(hashlib.sha256(source.encode()).digest())
-    return Fernet(key)
+    return _mfa_fernet_for(MFA_ENCRYPTION_KEY or JWT_SECRET)
 
 
 def _mfa_encrypt(secret: str) -> str:
     return _mfa_fernet().encrypt(secret.encode()).decode()
 
 
-def _mfa_decrypt(ciphertext: str) -> str:
+def _mfa_decrypt_with_legacy_fallback(ciphertext: str) -> tuple[str, bool]:
+    """Return (secret, used_legacy_jwt_key) during a one-way MFA key migration.
+
+    Before MFA_ENCRYPTION_KEY is configured, TOTP values are encrypted with a
+    deterministic key derived from JWT_SECRET. Once a dedicated key is added,
+    this fallback preserves existing MFA enrollment long enough for verified
+    flows to re-encrypt it with the dedicated key. It must not be removed until
+    every legacy TOTP value has been migrated or deliberately reset.
+    """
     try:
-        return _mfa_fernet().decrypt(ciphertext.encode()).decode()
+        return _mfa_fernet().decrypt(ciphertext.encode()).decode(), False
     except (InvalidToken, ValueError, TypeError):
+        if MFA_ENCRYPTION_KEY:
+            try:
+                return _mfa_fernet_for(JWT_SECRET).decrypt(ciphertext.encode()).decode(), True
+            except (InvalidToken, ValueError, TypeError):
+                pass
         raise HTTPException(500, "تعذر قراءة إعدادات التحقق الثنائي. تواصل مع الدعم")
+
+
+def _mfa_decrypt(ciphertext: str) -> str:
+    return _mfa_decrypt_with_legacy_fallback(ciphertext)[0]
 
 
 def _totp_secret() -> str:
@@ -1993,7 +2013,11 @@ async def mfa_login_verify(body: MfaVerifyIn, request: Request, response: Respon
         raise HTTPException(401, "التحقق الثنائي غير متاح للحساب")
     recovery_hash = _recovery_code_hash(body.code)
     used_recovery = recovery_hash in (user.get("mfa_recovery_hashes") or [])
-    valid_totp = _verify_totp(_mfa_decrypt(user["mfa_secret"]), body.code) if not used_recovery else False
+    legacy_mfa_key = False
+    valid_totp = False
+    if not used_recovery:
+        secret, legacy_mfa_key = _mfa_decrypt_with_legacy_fallback(user["mfa_secret"])
+        valid_totp = _verify_totp(secret, body.code)
     if not (used_recovery or valid_totp):
         await db.mfa_attempts.insert_one({"challenge_id": body.challenge_id, "user_id": user["id"], "at": now, **_session_metadata(request)})
         await _security_event(user["id"], "mfa_login_failed", request)
@@ -2003,6 +2027,13 @@ async def mfa_login_verify(body: MfaVerifyIn, request: Request, response: Respon
         raise HTTPException(401, "تم استخدام طلب التحقق بالفعل")
     if used_recovery:
         await db.users.update_one({"id": user["id"]}, {"$pull": {"mfa_recovery_hashes": recovery_hash}})
+    elif legacy_mfa_key:
+        # Migrate only after the correct current TOTP is proven. This is safe to
+        # retry and avoids invalidating accounts when MFA_ENCRYPTION_KEY is first set.
+        await db.users.update_one(
+            {"id": user["id"], "mfa_secret": user["mfa_secret"]},
+            {"$set": {"mfa_secret": _mfa_encrypt(secret), "mfa_reencrypted_at": now}},
+        )
     access, refresh, _ = await _create_auth_session(user, request, mfa_verified=True)
     set_auth_cookies(response, access, refresh)
     public_user = {k: v for k, v in user.items() if k not in {"_id", "password_hash", "mfa_secret", "mfa_recovery_hashes"}}
