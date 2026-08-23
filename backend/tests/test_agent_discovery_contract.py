@@ -16,17 +16,23 @@ def test_public_agent_discovery_documents_are_well_formed_and_read_only(monkeypa
     assert list(catalog) == ["linkset"]
     entry = catalog["linkset"][0]
     assert entry["anchor"].endswith("/.well-known/api-catalog")
-    assert entry["service-desc"][0]["href"].endswith("/.well-known/public-openapi.json")
+    assert entry["service-desc"][0]["href"].endswith("/openapi.json")
     public_openapi = server._public_openapi_document()
     assert set(public_openapi["paths"]) == {"/health", "/listings", "/listings/{listing_id}", "/meta/categories", "/meta/countries"}
+    assert public_openapi["x-service-info"]["categories"] == ["search", "data"]
     assert all("chat" not in path and "wallet" not in path and "admin" not in path for path in public_openapi["paths"])
     assert entry["service-doc"][0]["href"].endswith("/docs/api")
     assert all("/chat" not in item["href"] and "/wallet" not in item["href"] for item in entry["item"])
 
     ard = server._ard_manifest()
-    assert ard["specVersion"] == "0.1"
+    assert ard["specVersion"] == "1.0"
+    assert ard["host"] == {"displayName": "Haraj Plus", "identifier": "did:web:alhraj.online"}
     assert len(ard["entries"]) == 3
-    assert all(entry["id"].startswith("urn:air:alhraj.online:") for entry in ard["entries"])
+    assert all(entry["identifier"].startswith("urn:air:alhraj.online:") for entry in ard["entries"])
+    assert all(entry["id"] == entry["identifier"] for entry in ard["entries"])
+    assert all(("url" in entry) ^ ("data" in entry) for entry in ard["entries"])
+    assert all(2 <= len(entry["representativeQueries"]) <= 5 for entry in ard["entries"])
+    assert ard["entries"][1]["type"] == "application/mcp-server-card+json"
 
     server_card = server._mcp_server_card()
     assert server_card["transport"]["url"] == "https://alhraj.online/api/mcp"
@@ -49,11 +55,16 @@ def test_agent_discovery_http_endpoints_return_machine_readable_contracts():
     assert catalog.headers["access-control-allow-origin"] == "*"
     assert "linkset" in catalog.json()
 
-    for path in ("/.well-known/public-openapi.json", "/.well-known/ai-catalog.json", "/.well-known/mcp/server-card.json", "/.well-known/agent-skills/index.json", "/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource"):
+    for path in ("/openapi.json", "/.well-known/public-openapi.json", "/.well-known/ai-catalog.json", "/.well-known/mcp/server-card.json", "/.well-known/agent-skills/index.json", "/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource"):
         response = client.get(path)
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("application/json")
         assert isinstance(response.json(), dict)
+
+    root_openapi = client.get("/openapi.json")
+    assert root_openapi.json() == server._public_openapi_document()
+    assert all(not any(private in path for private in ("wallet", "chat", "admin", "promotion", "bid")) for path in root_openapi.json()["paths"])
+    assert client.get("/docs").status_code == 404
 
     skill = client.get("/.well-known/agent-skills/public-listing-search/SKILL.md")
     assert skill.status_code == 200
@@ -65,6 +76,11 @@ def test_agent_discovery_http_endpoints_return_machine_readable_contracts():
     assert home_markdown.headers["content-type"].startswith("text/markdown")
     assert home_markdown.headers["vary"] == "Accept"
     assert int(home_markdown.headers["x-markdown-tokens"]) > 10
+
+    auth_md = client.get("/auth.md")
+    assert auth_md.status_code == 200
+    assert auth_md.headers["content-type"].startswith("text/markdown")
+    assert auth_md.text.startswith("# Auth.md")
 
     listed_tools = client.post("/api/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
     assert listed_tools.status_code == 200
@@ -98,6 +114,7 @@ def test_agent_headers_and_robots_preserve_public_only_policy(monkeypatch):
     monkeypatch.setenv("FRONTEND_URL", "https://alhraj.online")
     headers = server._agent_public_headers(markdown=True, vary="User-Agent")
     assert 'rel="api-catalog"' in headers["Link"]
+    assert 'rel="ai-catalog"' in headers["Link"]
     assert headers["Content-Signal"] == "ai-train=no, search=yes, ai-input=yes"
     assert headers["Vary"] == "User-Agent, Accept"
 
@@ -105,6 +122,7 @@ def test_agent_headers_and_robots_preserve_public_only_policy(monkeypatch):
     assert "Content-Signal: ai-train=no, search=yes, ai-input=yes" in source
     for path in ("/chat", "/profile", "/wallet", "/admin"):
         assert f"Disallow: {path}" in source
+    assert "Agentmap:" in source
 
 
 def test_web_and_deployment_register_only_safe_agent_entrypoints():
@@ -112,12 +130,19 @@ def test_web_and_deployment_register_only_safe_agent_entrypoints():
     rewrite_sources = {item["source"] for item in vercel["rewrites"]}
     assert "/.well-known/api-catalog" in rewrite_sources
     assert "/.well-known/public-openapi.json" in rewrite_sources
+    assert "/openapi.json" in rewrite_sources
     assert "/.well-known/mcp/:path*" in rewrite_sources
     assert "/auth.md" in rewrite_sources
     assert "/docs/api" in rewrite_sources
-    home_markdown_rewrite = next(item for item in vercel["rewrites"] if item["source"] == "^/$" and item.get("has"))
+    home_markdown_rewrite = next(item for item in vercel["rewrites"] if item["source"] == "/" and item.get("has"))
     assert home_markdown_rewrite["destination"].endswith("/agent/home.md")
     assert home_markdown_rewrite["has"][0]["value"] == "(.*)text/markdown(.*)"
+    root_headers = next(item for item in vercel["headers"] if item["source"] == "/")["headers"]
+    assert {header["key"].lower(): header["value"] for header in root_headers}["vary"] == "Accept"
+
+    html = (ROOT / "frontend" / "public" / "index.html").read_text(encoding="utf-8")
+    assert 'rel="ai-catalog"' in html
+    assert '/.well-known/ai-catalog.json' in html
 
     webmcp = (ROOT / "frontend" / "src" / "lib" / "webMcp.js").read_text(encoding="utf-8")
     app = (ROOT / "frontend" / "src" / "App.js").read_text(encoding="utf-8")

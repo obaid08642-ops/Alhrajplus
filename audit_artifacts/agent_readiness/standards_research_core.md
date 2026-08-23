@@ -62,3 +62,12 @@
 يوضح دليل Vercel الرسمي أن شرط `has` لتفاوض `Accept: text/markdown` يستخدم القيمة regex التالية: `(.*)text/markdown(.*)`، لا الصيغة المختصرة `.*text/markdown.*`. ستتغير قاعدة Rewrite لصفحة البداية إلى هذه الصياغة ثم يعاد نشر Web والتحقق الحي.
 
 **المصدر:** https://vercel.com/kb/guide/how-to-serve-documentation-for-agents
+
+### تحديث متطلبات DNS-AID وAuth.md وMPP وARD
+
+- مسودة DNS-AID الحالية (`draft-mozleywilliams-dnsop-dnsaid-02`, 2026-05-27) هي Internet-Draft وليست معيارًا نهائيًا. تعتمد على SVCB، وقد تستخدم DNS-SD، وتوصي بـDNSSEC، وتصف descriptor URI وبصمة SHA-256 للقدرات. لا يجوز نشر SvcParam تجريبي غير مدعوم من مزود DNS كأنه معيار نهائي. المصدر: https://datatracker.ietf.org/doc/draft-mozleywilliams-dnsop-dnsaid/
+- RFC 9460 هو المعيار النهائي لسجلات SVCB/HTTPS: ServiceMode يستخدم priority غير صفري وTargetName وSvcParams؛ يجب أن تكون القيمة متسقة ولا تتكرر المفاتيح. المصدر: https://www.rfc-editor.org/rfc/rfc9460
+- RFC 9728 يتطلب `resource` مطابقًا لمعرّف المورد، ويعرّف `authorization_servers` و`scopes_supported` و`bearer_methods_supported`. لا ينبغي إدراجها إلا لقيم تشغيلية فعلية. المصدر: https://www.rfc-editor.org/rfc/rfc9728
+- auth.md يصف تدفقات تسجيل الوكلاء، بينما المرجع يبين أن التشغيل الحقيقي يحتاج identity/token/revoke endpoints وagent_auth metadata وJWKS/دورات claim؛ لا يكفي ملف Markdown وحده. المصادر: https://workos.com/auth-md/docs وhttps://github.com/workos/auth.md
+- MPP يعمل عبر HTTP 402 Challenge ثم Credential ثم Receipt. مكتبة Python الرسمية هي `pympp` وتتطلب `MPP_SECRET_KEY` على الخادم؛ Stripe يوصي بالـsandbox والتحقق end-to-end قبل live. المصادر: https://mpp.dev/sdk/python وhttps://docs.stripe.com/payments/machine/mpp
+- ARD/AI Catalog ما زال Draft v0.9؛ يجب اختبار حقل المعرّف الفعلي (`identifier` بحسب الفاحص المستخدم مع الاحتفاظ بـ`id` للرجعية) بمخطط/فاحص حي قبل الإعلان بالإتمام. المصادر: https://agenticresourcediscovery.org/ وhttps://github.com/ards-project/ard-spec

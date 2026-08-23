@@ -1,0 +1,65 @@
+=== GIT STATUS ===
+ [31mM[m audit_artifacts/agent_readiness/standards_research_core.md
+[31m??[m audit_artifacts/agent_readiness/baseline_live_verification_2026-08-23.txt
+[31m??[m audit_artifacts/agent_readiness/pasted_content_23_corrected_execution_plan.md
+[31m??[m audit_artifacts/agent_readiness/pasted_content_23_full_traceability_matrix.md
+[31m??[m audit_artifacts/agent_readiness/updated_agent_readiness_execution_plan.md
+=== LAST COMMITS ===
+[33meb9e4d2[m fix: match root markdown negotiation at edge
+[33m6abb6d4[m fix: route markdown negotiation and document platform coverage
+[33m1e02a85[m feat: publish safe agent discovery and public MCP
+=== HTML HEADERS ===
+HTTP/2 200 
+accept-ranges: bytes
+access-control-allow-origin: *
+age: 0
+cache-control: public, max-age=0, must-revalidate
+content-disposition: inline
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 00:36:40 GMT
+etag: "5cfc5b08557db71aac89312dc4a7a8a6"
+last-modified: Sun, 23 Aug 2026 00:36:40 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+server: Vercel
+strict-transport-security: max-age=63072000
+x-vercel-cache: MISS
+x-vercel-id: cdg1::tknwn-1787445399786-46dc934c3812
+content-length: 7685
+
+=== MARKDOWN HEADERS ===
+HTTP/2 200 
+accept-ranges: bytes
+access-control-allow-origin: *
+age: 2
+cache-control: public, max-age=0, must-revalidate
+content-disposition: inline
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 00:36:42 GMT
+etag: "5cfc5b08557db71aac89312dc4a7a8a6"
+last-modified: Sun, 23 Aug 2026 00:36:40 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+server: Vercel
+strict-transport-security: max-age=63072000
+x-vercel-cache: HIT
+x-vercel-id: cdg1::w4c5k-1787445402868-a0e3c85793b6
+content-length: 7685
+
+=== MARKDOWN BODY PREVIEW ===
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#4FB6E6"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta name="description" content="الحراج بلس - أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي للسعودية، الإمارات، الكويت، قطر، البحرين، عُمان ومصر. سيارات، عقارات، إلكترونيات، وظائف، خدمات، رحلات طيران بأفضل الأسعار."/><meta name="keywords" content="حراج, الحراج بلس, alhraj, السعودية, الإمارات, الكويت, قطر, البحرين, عمان, مصر, بيع, شراء, إعلانات مبوبة, سيارات مستعملة, عقارات للبيع, شقق للإيجار, جوالات, إلكترونيات, وظائف, خدمات, مزادات, طيران, حجز فنادق, الرياض, جدة, دبي, أبوظبي, الكويت, الدوحة, المنامة, مسقط, القاهرة"/><meta name="author" content="Haraj Plus"/><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1"/><meta name="googlebot" content="index, follow"/><link rel="canonical" href="https://alhraj.online/"/><link rel="icon" type="image/x-icon" href="/favicon.ico"/><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/><link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png"/><link rel="apple-touch-icon" sizes="192x192" href="/favicon-192.png"/><meta property="og:type" content="website"/><meta property="og:url" content="https://alhraj.online/"/><meta property="og:title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta property="og:description" content="أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي - سيارات، عقارات، إلكترونيات، وظائف، طيران."/><meta property="og:image" content="https://alhraj.online/og-image.png"/><meta property="og:locale" content="ar_SA"/><meta property="og:site_name" content="الحراج بلس"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:url" content="https://alhraj.online/"/><meta name="twitter:title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta name="twitter:description" content="أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي."/><meta name="twitter:image" content="https://alhraj.online/og-image.png"/><script type="application/ld+json">{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "الحراج بلس",
+          "alternateName": "Haraj Plus",
+          "url": "https://alhraj.online",
+          "logo": "https://alhraj.online/logo-haraj.png",
+          "description": "أكبر سوق رقمي للخليج العربي - بيع، اشترِ، استأجر، وظّف",
+          "areaServed": ["SA","AE","KW","QA","BH","OM","EG"],
+          "sameAs": [
+            "https://twitter.com/harajplus",
+            "https://snapchat.com/add/harajplus"
+          ],
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://alhraj.online/search?q={search_term_string}",

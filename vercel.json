@@ -6,7 +6,7 @@
   "installCommand": "echo 'skip-root-install'",
   "framework": null,
   "rewrites": [
-    { "source": "^/$", "has": [{ "type": "header", "key": "accept", "value": "(.*)text/markdown(.*)" }], "destination": "https://alhrajplus.onrender.com/agent/home.md" },
+    { "source": "/", "has": [{ "type": "header", "key": "accept", "value": "(.*)text/markdown(.*)" }], "destination": "https://alhrajplus.onrender.com/agent/home.md" },
     { "source": "/.well-known/assetlinks.json", "destination": "https://alhrajplus.onrender.com/.well-known/assetlinks.json" },
     { "source": "/.well-known/apple-app-site-association", "destination": "https://alhrajplus.onrender.com/.well-known/apple-app-site-association" },
     { "source": "/.well-known/api-catalog", "destination": "https://alhrajplus.onrender.com/.well-known/api-catalog" },
@@ -32,8 +32,9 @@
     {
       "source": "/",
       "headers": [
-        { "key": "Link", "value": "</.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain" },
-        { "key": "Content-Signal", "value": "ai-train=no, search=yes, ai-input=yes" }
+        { "key": "Link", "value": "</.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </.well-known/ai-catalog.json>; rel=ai-catalog; type=application/json, </openapi.json>; rel=service-desc; type=application/vnd.oai.openapi+json;version=3.1, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain" },
+        { "key": "Content-Signal", "value": "ai-train=no, search=yes, ai-input=yes" },
+        { "key": "Vary", "value": "Accept" }
       ]
     },
     {

@@ -252,7 +252,15 @@ logger.info("[db] MONGO_URL=%s DB_NAME=%s", _mask_mongo_url(MONGO_URL), DB_NAME)
 # ============================================================
 # App
 # ============================================================
-app = FastAPI(title="Haraj Plus API", version="1.0")
+app = FastAPI(
+    title="Haraj Plus API",
+    version="1.0",
+    # Never expose FastAPI's complete operational schema on the public origin.
+    # A deliberately limited, read-only contract is served explicitly at /openapi.json.
+    openapi_url=None,
+    docs_url=None,
+    redoc_url=None,
+)
 api = APIRouter(prefix="/api")
 
 
@@ -378,6 +386,8 @@ def _agent_discovery_link_header() -> str:
     site = _agent_site_url()
     return ", ".join([
         f'<{site}/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"',
+        f'<{site}/.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json"',
+        f'<{site}/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"',
         f'<{site}/docs/api>; rel="service-doc"; type="text/markdown"',
         f'<{site}/llms.txt>; rel="alternate"; type="text/plain"',
     ])
@@ -558,7 +568,7 @@ async def health_root():
 @app.get("/", include_in_schema=False)
 @app.head("/", include_in_schema=False)
 async def root_index():
-    return {"status": "ok", "service": "haraj-plus-backend", "docs": "/docs"}
+    return {"status": "ok", "service": "haraj-plus-backend", "docs": "/docs/api"}
 
 
 # Debug endpoint — restricted to Admin because it exposes deployment and data diagnostics.
@@ -9740,6 +9750,7 @@ async def _build_robots_txt() -> str:
         "User-agent: Applebot-Extended\nAllow: /\n"
         "\n"
         f"Sitemap: {site}/sitemap.xml\n"
+        f"Agentmap: {site}/.well-known/ai-catalog.json\n"
     )
     rec = await db.settings.find_one({"_key": "seo"}, {"_id": 0, "value": 1})
     if rec and rec.get("value", {}).get("robots_txt"):
@@ -9748,6 +9759,8 @@ async def _build_robots_txt() -> str:
         # explicitly declares at least one AI-search crawler rather than relying
         # on an ambiguous wildcard rule.
         if "Disallow" in custom and any(bot in custom for bot in ("OAI-SearchBot", "GPTBot", "ClaudeBot", "PerplexityBot")):
+            if "Agentmap:" not in custom:
+                custom = custom.rstrip() + f"\nAgentmap: {site}/.well-known/ai-catalog.json\n"
             return custom
     return DEFAULT
 
@@ -9948,6 +9961,14 @@ def _public_openapi_document() -> dict:
     return {
         "openapi": "3.1.0",
         "info": {"title": "Haraj Plus Public Discovery API", "version": "2026.08.23", "description": "Read-only public discovery endpoints. Private account, chat, wallet, promotion, bidding, and administration endpoints are intentionally excluded."},
+        "x-service-info": {
+            "categories": ["search", "data"],
+            "docs": {
+                "homepage": site,
+                "apiReference": f"{site}/docs/api",
+                "llms": f"{site}/llms.txt",
+            },
+        },
         "servers": [{"url": f"{site}/api"}],
         "paths": {
             "/health": {"get": {"summary": "Service health", "responses": {"200": {"description": "Service is responding"}}}},
@@ -9971,7 +9992,7 @@ def _api_catalog_document() -> dict:
                 {"href": f"{api}/meta/categories", "title": "Public categories", "type": "application/json"},
                 {"href": f"{api}/meta/countries", "title": "Supported marketplaces", "type": "application/json"},
             ],
-            "service-desc": [{"href": f"{site}/.well-known/public-openapi.json", "type": "application/vnd.oai.openapi+json;version=3.1", "title": "Public OpenAPI description"}],
+            "service-desc": [{"href": f"{site}/openapi.json", "type": "application/vnd.oai.openapi+json;version=3.1", "title": "Public OpenAPI description"}],
             "service-doc": [{"href": f"{site}/docs/api", "type": "text/markdown", "title": "Public API documentation"}],
             "status": [{"href": f"{api}/health", "type": "application/json", "title": "Service health"}],
         }]
@@ -9982,11 +10003,16 @@ def _ard_manifest() -> dict:
     site = _agent_site_url()
     host = site.removeprefix("https://").removeprefix("http://")
     return {
-        "specVersion": "0.1",
-        "host": {"name": "Haraj Plus", "url": site},
+        "specVersion": "1.0",
+        "host": {
+            "displayName": "Haraj Plus",
+            "identifier": f"did:web:{host}",
+        },
         "entries": [
             {
+                # `id` is retained temporarily for older consumers; ARD scanners use `identifier`.
                 "id": f"urn:air:{host}:api:public-listings",
+                "identifier": f"urn:air:{host}:api:public-listings",
                 "displayName": "Haraj Plus public listings API",
                 "type": "application/linkset+json",
                 "url": f"{site}/.well-known/api-catalog",
@@ -9994,13 +10020,15 @@ def _ard_manifest() -> dict:
             },
             {
                 "id": f"urn:air:{host}:mcp:public-listings",
+                "identifier": f"urn:air:{host}:mcp:public-listings",
                 "displayName": "Haraj Plus read-only MCP tools",
-                "type": "application/json",
+                "type": "application/mcp-server-card+json",
                 "url": f"{site}/.well-known/mcp/server-card.json",
                 "representativeQueries": ["Find approved public listings", "Get details of a public listing", "Search Haraj Plus inventory"],
             },
             {
                 "id": f"urn:air:{host}:skills:public-listing-search",
+                "identifier": f"urn:air:{host}:skills:public-listing-search",
                 "displayName": "Public listing search agent skill",
                 "type": "application/json",
                 "url": f"{site}/.well-known/agent-skills/index.json",
@@ -10126,6 +10154,12 @@ async def _mcp_call_tool(name: str, arguments: object) -> dict:
     raise LookupError("Tool not found")
 
 
+@app.api_route("/openapi.json", methods=["GET", "HEAD"], include_in_schema=False)
+async def public_openapi_root():
+    """The only public OpenAPI contract: deliberately read-only and safe to index."""
+    return JSONResponse(content=_public_openapi_document(), headers=_agent_well_known_headers(max_age=300))
+
+
 @app.api_route("/.well-known/public-openapi.json", methods=["GET", "HEAD"], include_in_schema=False)
 async def public_openapi_well_known():
     return JSONResponse(content=_public_openapi_document(), headers=_agent_well_known_headers())
@@ -10206,7 +10240,7 @@ async def llms_txt():
 @app.api_route("/auth.md", methods=["GET", "HEAD"], include_in_schema=False)
 async def agent_auth_markdown():
     site = _agent_site_url()
-    text = f"""# Haraj Plus authentication for agents
+    text = f"""# Auth.md — Haraj Plus agent authentication
 
 ## Public read-only access
 
