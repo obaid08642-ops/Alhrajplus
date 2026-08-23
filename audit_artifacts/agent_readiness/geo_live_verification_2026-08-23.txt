@@ -1,0 +1,150 @@
+=== Render health ===
+{"status":"ready","checks":{"mongo":"ok","redis":"on"}}
+=== Render sitemap index ===
+HTTP/2 200 
+date: Sun, 23 Aug 2026 09:33:45 GMT
+content-type: application/xml
+content-length: 327
+cache-control: public, max-age=3600
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: b8762dcc-2787-43c2
+server: cloudflare
+server-timing: app;dur=5
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+cf-cache-status: DYNAMIC
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<sitemap><loc>https://alhraj.online/sitemaps/static.xml</loc><lastmod>2026-08-23</lastmod></sitemap>
+<sitemap><loc>https://alhraj.online/sitemaps/listings/1.xml</loc><lastmod>2026-08-23</lastmod></sitemap>
+</sitemapindex>
+=== Public sitemap index ===
+HTTP/2 200 
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f91e297efd8934-BOM
+content-type: application/xml
+date: Sun, 23 Aug 2026 09:33:48 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: ee1b00d0-e2df-4c18
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<sitemap><loc>https://alhraj.online/sitemaps/static.xml</loc><lastmod>2026-08-23</lastmod></sitemap>
+<sitemap><loc>https://alhraj.online/sitemaps/listings/1.xml</loc><lastmod>2026-08-23</lastmod></sitemap>
+</sitemapindex>
+=== Public static sitemap ===
+HTTP/2 200 
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f91e3dad10563e-BOM
+content-type: application/xml
+date: Sun, 23 Aug 2026 09:33:51 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 52f270a1-a5aa-4b56
+server: Vercel
+server-timing: app;dur=5
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>https://alhraj.online</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+<url><loc>https://alhraj.online/auctions</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+<url><loc>https://alhraj.online/deals</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+<url><loc>https://alhraj.online/reels</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+<url><loc>https://alhraj.online/flights</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>https://alhraj.online/about</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+<url><loc>https://alhraj.online/terms</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+<url><loc>https://alhraj.online/privacy</loc><changefreq>monthly</ch
+=== Public category crawler ===
+HTTP/2 200 
+cache-control: public, max-age=300
+cf-cache-status: DYNAMIC
+cf-ray: a2f91e560c9e563e-BOM
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 09:33:55 GMT
+link: <https://alhraj.online/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json", <https://alhraj.online/.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json", <https://alhraj.online/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1", <https://alhraj.online/docs/api>; rel="service-doc"; type="text/markdown", <https://alhraj.online/llms.txt>; rel="alternate"; type="text/plain"
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 57f6d34e-a37e-48d6
+server: Vercel
+server-timing: app;dur=10
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: User-Agent, Accept
+vary: Accept-Encoding
+<title>إعلانات السيارات | الحراج بلس
+canonical" href="https://alhraj.online/category/cars" /
+CollectionPage
+أحدث الإعلانات العامة
+
+=== Public category markdown ===
+HTTP/2 200 
+cache-control: public, max-age=300
+cf-cache-status: DYNAMIC
+cf-ray: a2f91e6cceb68934-BOM
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/markdown; charset=utf-8
+date: Sun, 23 Aug 2026 09:33:59 GMT
+link: <https://alhraj.online/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json", <https://alhraj.online/.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json", <https://alhraj.online/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1", <https://alhraj.online/docs/api>; rel="service-doc"; type="text/markdown", <https://alhraj.online/llms.txt>; rel="alternate"; type="text/plain"
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 69fe8ae8-14b0-4785
+server: Vercel
+server-timing: app;dur=7
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: User-Agent, Accept
+x-content-type-options: nosniff
+---
+title: "إعلانات السيارات | الحراج بلس"
+url: "https://alhraj.online/category/cars"
+language: ar
+content_signal: ai-train=no, search=yes, ai-input=yes
+---
+
+# إعلانات السيارات
+
+عدد الإعلانات العامة المتاحة: 3
+
+## أحدث الإعلانات
+
+- [سيارة كورولا](https://alhraj.online/listing/syarh-kwrwla-bbd025)
+- [كامري](https://alhraj.online/listing/kamry-1d5e57)
+- [سيارة](https://alhraj.online/listing/syarh-ad0ad0)
+
+=== robots ===
+HTTP/2 200 
+cache-control: public, max-age=0, must-revalidate
+cf-cache-status: DYNAMIC
+cf-ray: a2f91e8188a0563e-BOM
+content-type: text/plain; charset=utf-8
+date: Sun, 23 Aug 2026 09:34:02 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: bd45237e-9491-499e
+server: Vercel
+server-timing: app;dur=3
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: bom1::wrhbf-1787477642201-dc42a470799f
+

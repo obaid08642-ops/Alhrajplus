@@ -1,0 +1,94 @@
+=== timestamp UTC ===
+2026-08-23T09:43:01Z
+
+=== backend readiness ===
+{"status":"ready","checks":{"mongo":"ok","redis":"on"}}
+=== public sitemap index ===
+HTTP/2 200 
+age: 34
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f92b0f0d9d0cdc-BOM
+content-type: application/xml
+date: Sun, 23 Aug 2026 09:42:36 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: b574961b-54b0-4568
+server: Vercel
+server-timing: app;dur=5
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: HIT
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<sitemap><loc>https://www.alhraj.online/sitemaps/static.xml</loc><lastmod>2026-08-23</lastmod></sitemap>
+<sitemap><loc>https://www.alhraj.online/sitemaps/listings/1.xml</loc><lastmod>2026-08-23</lastmod></sitemap>
+</sitemapindex>
+=== static sitemap canonical origins ===
+https://www.alhraj.online
+https://www.alhraj.online/auctions
+https://www.alhraj.online/deals
+https://www.alhraj.online/reels
+https://www.alhraj.online/flights
+https://www.alhraj.online/about
+https://www.alhraj.online/terms
+https://www.alhraj.online/privacy
+https://www.alhraj.online/contact
+https://www.alhraj.online/category/all
+https://www.alhraj.online/category/beauty_health
+https://www.alhraj.online/category/cars
+https://www.alhraj.online/category/electronics
+https://www.alhraj.online/category/food
+https://www.alhraj.online/category/games
+https://www.alhraj.online/category/phones
+https://www.alhraj.online/category/realestate
+https://www.alhraj.online/category/sports
+
+=== listing sitemap canonical origins ===
+https://www.alhraj.online/listing/ayfwn-2881db
+https://www.alhraj.online/listing/shqh-lliyjar-add518
+https://www.alhraj.online/listing/mwbayl-f7108a
+https://www.alhraj.online/listing/snak-qrmshy-waltfrwshy-bhshwh-alshwkwlath-allthythh-6af5b7
+https://www.alhraj.online/listing/21st-century-mghnysywm-250-mljm-110-aqras-b7ac6c
+https://www.alhraj.online/listing/syarh-kwrwla-bbd025
+https://www.alhraj.online/listing/kamry-1d5e57
+https://www.alhraj.online/listing/mak-bwk-e4e2bc
+https://www.alhraj.online/listing/kmbywtr-dyl-f743ee
+https://www.alhraj.online/listing/syarh-ad0ad0
+https://www.alhraj.online/listing/djdh-fa0637
+https://www.alhraj.online/listing/ffcf-c7c3f9
+https://www.alhraj.online/listing/qatl-alnamws-alkhrbayy-ars-slim-cordless-ma-sayl-c82e7d
+https://www.alhraj.online/listing/zjajh-rany-asyr-tfah-blastykyh-farghh-1a3ba0
+
+=== first listing final response and canonical ===
+url=https://www.alhraj.online/listing/ayfwn-2881db
+HTTP/2 200 
+cache-control: public, max-age=300
+cf-cache-status: DYNAMIC
+cf-ray: a2f92c21c8d8ff66-BOM
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 09:43:20 GMT
+link: <https://www.alhraj.online/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json", <https://www.alhraj.online/.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json", <https://www.alhraj.online/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1", <https://www.alhraj.online/docs/api>; rel="service-doc"; type="text/markdown", <https://www.alhraj.online/llms.txt>; rel="alternate"; type="text/plain"
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: a054d65f-a365-4967
+server: Vercel
+server-timing: app;dur=5
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: User-Agent, Accept
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+<title>ايفون - السعر عند التواصل - الحراج بلس
+rel="canonical" href="https://www.alhraj.online/listing/ayfwn-2881db" /
+application/ld+json
+BreadcrumbList
+
+=== robots sitemap directive ===
+Sitemap: https://www.alhraj.online/sitemap.xml

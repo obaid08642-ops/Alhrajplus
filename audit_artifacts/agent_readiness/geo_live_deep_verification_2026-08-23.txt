@@ -1,0 +1,80 @@
+=== robots sitemap directives ===
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /chat
+Disallow: /profile
+Disallow: /settings
+Disallow: /wallet
+Disallow: /notifications
+Disallow: /auth/
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+Sitemap: https://alhraj.online/sitemap.xml
+
+=== child sitemap listing count ===
+https://alhraj.online/listing/ayfwn-2881db
+https://alhraj.online/listing/shqh-lliyjar-add518
+https://alhraj.online/listing/mwbayl-f7108a
+https://alhraj.online/listing/snak-qrmshy-waltfrwshy-bhshwh-alshwkwlath-allthythh-6af5b7
+https://alhraj.online/listing/21st-century-mghnysywm-250-mljm-110-aqras-b7ac6c
+https://alhraj.online/listing/syarh-kwrwla-bbd025
+https://alhraj.online/listing/kamry-1d5e57
+https://alhraj.online/listing/mak-bwk-e4e2bc
+https://alhraj.online/listing/kmbywtr-dyl-f743ee
+https://alhraj.online/listing/syarh-ad0ad0
+https://alhraj.online/listing/djdh-fa0637
+https://alhraj.online/listing/ffcf-c7c3f9
+https://alhraj.online/listing/qatl-alnamws-alkhrbayy-ars-slim-cordless-ma-sayl-c82e7d
+https://alhraj.online/listing/zjajh-rany-asyr-tfah-blastykyh-farghh-1a3ba0
+listing_urls=14
+
+=== first public listing crawler document ===
+url=https://alhraj.online/listing/ayfwn-2881db
+HTTP/2 307 
+cache-control: public, max-age=0, must-revalidate
+content-type: text/plain
+date: Sun, 23 Aug 2026 09:35:15 GMT
+location: https://www.alhraj.online/listing/ayfwn-2881db
+server: Vercel
+strict-transport-security: max-age=63072000
+x-vercel-id: bom1::4ggpr-1787477715579-ac046c7321b6
+
+
+=== public browser category fallback ===
+HTTP/2 200 
+cache-control: no-store
+cf-cache-status: DYNAMIC
+cf-ray: a2f9205c5eb54433-BOM
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 09:35:18 GMT
+link: <https://alhraj.online/.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json", <https://alhraj.online/.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json", <https://alhraj.online/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1", <https://alhraj.online/docs/api>; rel="service-doc"; type="text/markdown", <https://alhraj.online/llms.txt>; rel="alternate"; type="text/plain"
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 39321774-6747-4a2a
+server: Vercel
+server-timing: app;dur=196
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: User-Agent, Accept
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+<div id="root"
