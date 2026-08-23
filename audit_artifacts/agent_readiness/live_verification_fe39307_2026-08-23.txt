@@ -1,0 +1,220 @@
+
+=== www root markdown ===
+curl_exit=0
+HTTP/2 200 
+accept-ranges: bytes
+access-control-allow-origin: *
+age: 11584
+cache-control: public, max-age=0, must-revalidate
+content-disposition: inline
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 06:08:42 GMT
+etag: "3974b605f74ad356a29643fe832d5fda"
+last-modified: Sun, 23 Aug 2026 02:55:38 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </.well-known/ai-catalog.json>; rel=ai-catalog; type=application/json, </openapi.json>; rel=service-desc; type=application/vnd.oai.openapi+json;version=3.1, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+server: Vercel
+strict-transport-security: max-age=63072000
+vary: Accept
+x-vercel-cache: HIT
+x-vercel-id: iad1::tqvpv-1787465322787-7f997447ea48
+content-length: 7872
+
+--- body preview ---
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#4FB6E6"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta name="description" content="الحراج بلس - أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي للسعودية، الإمارات، الكويت، قطر، البحرين، عُمان ومصر. سيارات، عقارات، إلكترونيات، وظائف، خدمات، رحلات طيران بأفضل الأسعار."/><meta name="keywords" content="حراج, الحراج بلس, alhraj, السعودية, الإمارات,
+
+=== www root html default ===
+curl_exit=0
+HTTP/2 200 
+accept-ranges: bytes
+access-control-allow-origin: *
+age: 11586
+cache-control: public, max-age=0, must-revalidate
+content-disposition: inline
+content-signal: ai-train=no, search=yes, ai-input=yes
+content-type: text/html; charset=utf-8
+date: Sun, 23 Aug 2026 06:08:45 GMT
+etag: "3974b605f74ad356a29643fe832d5fda"
+last-modified: Sun, 23 Aug 2026 02:55:38 GMT
+link: </.well-known/api-catalog>; rel=api-catalog; type=application/linkset+json, </.well-known/ai-catalog.json>; rel=ai-catalog; type=application/json, </openapi.json>; rel=service-desc; type=application/vnd.oai.openapi+json;version=3.1, </docs/api>; rel=service-doc; type=text/markdown, </llms.txt>; rel=alternate; type=text/plain
+server: Vercel
+strict-transport-security: max-age=63072000
+vary: Accept
+x-vercel-cache: HIT
+x-vercel-id: iad1::9hgmz-1787465325221-250c9435a061
+content-length: 7872
+
+--- body preview ---
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#4FB6E6"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="title" content="الحراج بلس | بيع، اشترِ، استأجر، وظّف"/><meta name="description" content="الحراج بلس - أكبر سوق رقمي خليجي مدعوم بالذكاء الاصطناعي للسعودية، الإمارات، الكويت، قطر، البحرين، عُمان ومصر. سيارات، عقارات، إلكترونيات، وظائف، خدمات، رحلات طيران بأفضل الأسعار."/><meta name="keywords" content="حراج, الحراج بلس, alhraj, السعودية, الإمارات,
+
+=== www public OpenAPI root ===
+curl_exit=0
+HTTP/2 200 
+cache-control: public, max-age=0, must-revalidate
+cf-cache-status: DYNAMIC
+cf-ray: a2f7f1d718441342-IAD
+content-type: application/json; charset=utf-8
+date: Sun, 23 Aug 2026 06:08:47 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: df065b3b-678d-4475
+server: Vercel
+server-timing: app;dur=9
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: iad1::b9qpv-1787465327188-890340a13b78
+
+--- body preview ---
+{"openapi":"3.1.0","info":{"title":"Haraj Plus API","version":"1.0"},"paths":{"/api/cron/daily-digest":{"get":{"summary":"Cron Daily Digest","description":"Send daily digest to all active sellers. Protected by CRON_SECRET header.\nSetup with Cloud Scheduler / cron-job.org: HTTP GET or POST every day at 20:00.\nAuthentication: pass the secret via either:\n  - Header:  X-Cron-Secret: <CRON_SECRET>\n  - Query:   ?secret=<CRON_SECRET>   (handy for cron-job.org / UptimeRobot)","operationId":"cron_daily_digest_api_cron_daily_digest_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}},"post":{"summary":"Cron Daily Digest","description":"Send daily digest to all active sellers. Protected by CRON_SECRET header.\nSetup with Cloud Scheduler / cron-job.org: HTTP GET or POST every day at 20:00.\nAuthentication: pass the secret via either:\n  - Header:  X-Cron-Secret: <CRON_SECRET>\n  - Query:   ?secret=<CRON_SECRET>   (handy for cron-job.org /
+
+=== www ARD catalog ===
+curl_exit=0
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=3600
+cf-cache-status: DYNAMIC
+cf-ray: a2f7f1e80fa8c968-IAD
+content-type: application/json; charset=utf-8
+date: Sun, 23 Aug 2026 06:08:50 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: b9dada43-8a5c-458d
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: iad1::t6z6r-1787465329861-a557d5c0633c
+
+--- body preview ---
+{"specVersion":"0.1","host":{"name":"Haraj Plus","url":"https://alhraj.online"},"entries":[{"id":"urn:air:alhraj.online:api:public-listings","displayName":"Haraj Plus public listings API","type":"application/linkset+json","url":"https://alhraj.online/.well-known/api-catalog","representativeQueries":["Search public used cars in Riyadh","Find public property listings","Browse marketplace categories"]},{"id":"urn:air:alhraj.online:mcp:public-listings","displayName":"Haraj Plus read-only MCP tools","type":"application/json","url":"https://alhraj.online/.well-known/mcp/server-card.json","representativeQueries":["Find approved public listings","Get details of a public listing","Search Haraj Plus inventory"]},{"id":"urn:air:alhraj.online:skills:public-listing-search","displayName":"Public listing search agent skill","type":"application/json","url":"https://alhraj.online/.well-known/agent-skills/index.json","representativeQueries":["Discover Haraj Plus agent skills","Use the public listing sea
+
+=== www Auth.md ===
+curl_exit=0
+HTTP/2 200 
+access-control-allow-origin: *
+cache-control: public, max-age=900
+cf-cache-status: DYNAMIC
+cf-ray: a2f7f1f72ab9c968-IAD
+content-type: text/markdown; charset=utf-8
+date: Sun, 23 Aug 2026 06:08:52 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: a9ae2ae3-6bae-4b8e
+server: Vercel
+server-timing: app;dur=1
+strict-transport-security: max-age=31536000; includeSubDomains
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: iad1::mrjh8-1787465332324-471cca2c46eb
+
+--- body preview ---
+# Haraj Plus authentication for agents
+
+## Public read-only access
+
+The public listing API and the read-only MCP server are available without credentials. Start with `https://alhraj.online/.well-known/api-catalog` or `https://alhraj.online/.well-known/mcp/server-card.json`.
+
+## Protected operations
+
+Haraj Plus does not offer third-party OAuth client registration or OAuth authorization grants in this deployment. Agents must not request, store, or reuse a user's password, JWT, device token, or session. Private actions such as messaging, promotion, bidding, wallet activity, account management, and administration require an authenticated first-party user session and are not exposed through MCP or the public API catalog.
+
+## Registration and revocation
+
+No agent registration, credential issuance, delegated scope, or revocation endpoint is available. Do not represent the platform as supporting OAuth/OIDC until authorization-code flow, PKCE, consent, client registration, and revocation are de
+
+=== www robots ===
+curl_exit=0
+HTTP/2 200 
+cache-control: public, max-age=0, must-revalidate
+cf-cache-status: DYNAMIC
+cf-ray: a2f7f204d89f1342-IAD
+content-type: text/plain; charset=utf-8
+date: Sun, 23 Aug 2026 06:08:54 GMT
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 86b7a9ad-e05d-4fd7
+server: Vercel
+server-timing: app;dur=4
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+x-vercel-cache: MISS
+x-vercel-id: iad1::qppx6-1787465334514-ac81197835e4
+
+--- body preview ---
+# Content Signals express the publisher's preferences for public content.
+# Search and retrieval/grounding are allowed; model training is not.
+User-agent: *
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /chat
+Disallow: /profile
+Disallow: /settings
+Disallow: /wallet
+Disallow: /notifications
+Disallow: /auth/
+
+# AI search and answer engines — public listing pages are crawlable.
+# OAI-SearchBot is ChatGPT Search discovery; GPTBot controls model training.
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://alhraj.online/sitemap.xml
+
+
+=== render public OpenAPI root ===
+curl_exit=0
+HTTP/2 200 
+date: Sun, 23 Aug 2026 06:08:56 GMT
+content-type: application/json; charset=utf-8
+cf-cache-status: DYNAMIC
+permissions-policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()
+referrer-policy: strict-origin-when-cross-origin
+rndr-id: 5f98af70-15c5-410f
+server: cloudflare
+server-timing: app;dur=5
+strict-transport-security: max-age=31536000; includeSubDomains
+vary: Accept-Encoding
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-permitted-cross-domain-policies: none
+x-render-origin-server: uvicorn
+cf-ray: a2f7f2121fea443a-MIA
+alt-svc: h3=":443"; ma=86400
+
+--- body preview ---
+{"openapi":"3.1.0","info":{"title":"Haraj Plus API","version":"1.0"},"paths":{"/api/cron/daily-digest":{"get":{"summary":"Cron Daily Digest","description":"Send daily digest to all active sellers. Protected by CRON_SECRET header.\nSetup with Cloud Scheduler / cron-job.org: HTTP GET or POST every day at 20:00.\nAuthentication: pass the secret via either:\n  - Header:  X-Cron-Secret: <CRON_SECRET>\n  - Query:   ?secret=<CRON_SECRET>   (handy for cron-job.org / UptimeRobot)","operationId":"cron_daily_digest_api_cron_daily_digest_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}},"post":{"summary":"Cron Daily Digest","description":"Send daily digest to all active sellers. Protected by CRON_SECRET header.\nSetup with Cloud Scheduler / cron-job.org: HTTP GET or POST every day at 20:00.\nAuthentication: pass the secret via either:\n  - Header:  X-Cron-Secret: <CRON_SECRET>\n  - Query:   ?secret=<CRON_SECRET>   (handy for cron-job.org /
