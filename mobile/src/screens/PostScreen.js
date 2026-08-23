@@ -201,7 +201,7 @@ export default function PostScreen({
       ].filter(Boolean).join("\n");
       Alert.alert(t("تم بالذكاء الاصطناعي"), filledMsg || t("تم"));
     } catch (e) {
-      Alert.alert(t("خطأ"), formatApiError(e.response?.data?.detail) || t("تعذر التعبئة"));
+      Alert.alert(t("خطأ"), formatApiError(e) || t("تعذر التعبئة"));
     } finally {
       setAiBusy(false);
     }
@@ -482,7 +482,7 @@ export default function PostScreen({
       });
       setDiscovery(data || null);
     } catch (e) {
-      setErr(formatApiError(e.response?.data?.detail) || t("تعذر تقييم اكتمال الإعلان"));
+      setErr(formatApiError(e) || t("تعذر تقييم اكتمال الإعلان"));
     } finally {
       setDiscoveryBusy(false);
     }
@@ -549,7 +549,7 @@ export default function PostScreen({
         });
       }
     } catch (e) {
-      setErr(formatApiError(e.response?.data?.detail) || t("تعذر النشر"));
+      setErr(formatApiError(e) || t("تعذر النشر"));
     } finally {
       setBusy(false);
     }

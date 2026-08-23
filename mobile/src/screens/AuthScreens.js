@@ -197,7 +197,7 @@ export function LoginScreen({
         }
       } catch (_) {}
     } catch (e) {
-      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+      setErr(formatApiError(e) || t("حدث خطأ. حاول مرة أخرى."));
     } finally {
       setBusy(false);
     }
@@ -205,7 +205,7 @@ export function LoginScreen({
   const submitMfa = async () => {
     setErr(""); setBusy(true);
     try { await verifyMfa(mfaCode); goHome(navigation); }
-    catch (e) { setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى.")); }
+    catch (e) { setErr(formatApiError(e) || t("حدث خطأ. حاول مرة أخرى.")); }
     finally { setBusy(false); }
   };
   const doEnableBio = async () => {
@@ -228,7 +228,7 @@ export function LoginScreen({
         setErr(t("حدث خطأ. حاول مرة أخرى."));
       }
     } catch (e) {
-      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+      setErr(formatApiError(e) || t("حدث خطأ. حاول مرة أخرى."));
     } finally {
       setBusy(false);
     }
@@ -324,7 +324,7 @@ export function RegisterScreen({
       });
       goHome(navigation);
     } catch (e) {
-      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+      setErr(formatApiError(e) || t("حدث خطأ. حاول مرة أخرى."));
     } finally {
       setBusy(false);
     }

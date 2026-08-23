@@ -27,7 +27,7 @@ export function ForgotPasswordScreen({
         Alert.alert(t("رمز التحقق"), data.dev_reset_link);
       }
     } catch (e) {
-      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+      setErr(formatApiError(e) || t("حدث خطأ. حاول مرة أخرى."));
     } finally {
       setBusy(false);
     }
@@ -79,7 +79,7 @@ export function ResetPasswordScreen({
       Alert.alert("تم تغيير كلمة المرور بنجاح");
       navigation.navigate("Login");
     } catch (e) {
-      setErr(formatApiError(e.response?.data?.detail) || t("حدث خطأ. حاول مرة أخرى."));
+      setErr(formatApiError(e) || t("حدث خطأ. حاول مرة أخرى."));
     } finally {
       setBusy(false);
     }

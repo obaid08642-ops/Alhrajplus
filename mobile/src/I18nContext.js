@@ -2294,6 +2294,48 @@ const SHARED_UI_STRINGS = {
         hi: "स्वचालित (डिवाइस भाषा)", bn: "স্বয়ংক্রিয় (ডিভাইসের ভাষা)", fr: "Automatique (langue de l’appareil)",
     },
     "العربية": { en: "Arabic", ur: "عربی", hi: "अरबी", bn: "আরবি", fr: "Arabe" },
+    "هذه العملية تتطلب تفويض دفع من الخدمة.": {
+        en: "This action requires a payment authorization from the service.",
+        ur: "اس عمل کے لیے سروس سے ادائیگی کی اجازت درکار ہے۔",
+        hi: "इस कार्रवाई के लिए सेवा से भुगतान प्राधिकरण आवश्यक है।",
+        bn: "এই কাজটির জন্য পরিষেবা থেকে পেমেন্ট অনুমোদন প্রয়োজন।",
+        fr: "Cette action nécessite une autorisation de paiement du service.",
+    },
+    "انتهت جلسة الدخول. سجل الدخول ثم أعد المحاولة.": {
+        en: "Your session has ended. Sign in and try again.",
+        ur: "آپ کا سیشن ختم ہو گیا ہے۔ سائن اِن کریں اور دوبارہ کوشش کریں۔",
+        hi: "आपका सत्र समाप्त हो गया है। साइन इन करके फिर से प्रयास करें।",
+        bn: "আপনার সেশন শেষ হয়েছে। সাইন ইন করে আবার চেষ্টা করুন।",
+        fr: "Votre session a expiré. Connectez-vous puis réessayez.",
+    },
+    "ليس لديك صلاحية لإتمام هذه العملية.": {
+        en: "You do not have permission to complete this action.",
+        ur: "آپ کے پاس یہ عمل مکمل کرنے کی اجازت نہیں ہے۔",
+        hi: "आपको यह कार्रवाई पूरी करने की अनुमति नहीं है।",
+        bn: "এই কাজটি সম্পন্ন করার অনুমতি আপনার নেই।",
+        fr: "Vous n’avez pas l’autorisation d’effectuer cette action.",
+    },
+    "تمت محاولات كثيرة. أعد المحاولة بعد قليل.": {
+        en: "Too many attempts. Try again shortly.",
+        ur: "بہت زیادہ کوششیں کی گئی ہیں۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+        hi: "बहुत अधिक प्रयास किए गए। थोड़ी देर बाद फिर कोशिश करें।",
+        bn: "অনেক বেশি চেষ্টা করা হয়েছে। একটু পরে আবার চেষ্টা করুন।",
+        fr: "Trop de tentatives. Réessayez dans quelques instants.",
+    },
+    "الخدمة غير متاحة مؤقتًا. أعد المحاولة لاحقًا.": {
+        en: "The service is temporarily unavailable. Try again later.",
+        ur: "سروس عارضی طور پر دستیاب نہیں ہے۔ بعد میں دوبارہ کوشش کریں۔",
+        hi: "सेवा अस्थायी रूप से उपलब्ध नहीं है। बाद में फिर प्रयास करें।",
+        bn: "পরিষেবাটি সাময়িকভাবে অনুপলব্ধ। পরে আবার চেষ্টা করুন।",
+        fr: "Le service est temporairement indisponible. Réessayez plus tard.",
+    },
+    "تعذر الاتصال بالخدمة. تحقق من الإنترنت ثم أعد المحاولة.": {
+        en: "Unable to connect to the service. Check your internet connection and try again.",
+        ur: "سروس سے رابطہ نہیں ہو سکا۔ انٹرنیٹ کنکشن چیک کریں اور دوبارہ کوشش کریں۔",
+        hi: "सेवा से कनेक्ट नहीं हो सका। अपना इंटरनेट कनेक्शन जांचें और फिर प्रयास करें।",
+        bn: "পরিষেবার সঙ্গে সংযোগ করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।",
+        fr: "Impossible de se connecter au service. Vérifiez votre connexion Internet puis réessayez.",
+    },
 };
 
 const KEY = "hp_lang";

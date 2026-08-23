@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Wallet, TrendingUp, TrendingDown, Gift, Sparkles, Coins as CoinsIcon, ShieldCheck } from "lucide-react-native";
 import { useAuth } from "../AuthContext";
-import api from "../api";
+import api, { formatApiError } from "../api";
 import { colors, shadow } from "../theme";
 import { useI18n } from "../I18nContext";
 import { useThemeMode } from "../ThemeContext";
@@ -50,7 +50,7 @@ export default function WalletScreen() {
       setCoins((old) => ({ ...old, balance: data.balance }));
       load();
     } catch (e) {
-      Alert.alert(t("تنبيه"), e.response?.data?.detail || t("تعذر استلام مكافأة الـCoins"));
+      Alert.alert(t("تنبيه"), formatApiError(e) || t("تعذر استلام مكافأة الـCoins"));
     } finally {
       setClaiming(false);
     }

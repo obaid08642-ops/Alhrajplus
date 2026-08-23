@@ -156,12 +156,64 @@ export function getFeatureFlags({ force = false } = {}) {
     return featureFlagsPromise;
 }
 
+function normalizeApiDetail(value) {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return value.map(normalizeApiDetail).filter(Boolean).join(" • ");
+    if (typeof value?.msg === "string") return value.msg;
+    return "";
+}
+
+function safeRetryAfter(headers) {
+    const raw = headers?.["retry-after"] ?? headers?.["Retry-After"];
+    const seconds = Number(raw);
+    return Number.isFinite(seconds) && seconds >= 0 && seconds <= 86400 ? seconds : null;
+}
+
+/**
+ * Normalizes transport failures for native screens without interpreting payment
+ * offers or OAuth challenges. A real provider flow can be added later only
+ * after its backend contract is deployed and verified end-to-end.
+ */
+export function getApiErrorContract(err) {
+    const response = err?.response;
+    const status = Number(response?.status || 0) || null;
+    const headers = response?.headers || {};
+    const body = response?.data;
+    const detail = normalizeApiDetail(body?.detail ?? body?.message ?? err?.message ?? err);
+    const challenge = String(headers?.["www-authenticate"] ?? headers?.["WWW-Authenticate"] ?? "").toLowerCase();
+
+    let kind = "request_failed";
+    if (!response) kind = "network_unavailable";
+    else if (status === 401 || challenge.includes("bearer")) kind = "authentication_required";
+    else if (status === 402) kind = "payment_required";
+    else if (status === 403) kind = "authorization_denied";
+    else if (status === 422) kind = "validation_failed";
+    else if (status === 429) kind = "rate_limited";
+    else if (status >= 500) kind = "service_unavailable";
+
+    return {
+        kind,
+        status,
+        detail,
+        retryAfterSeconds: safeRetryAfter(headers),
+        retryable: kind === "network_unavailable" || kind === "rate_limited" || kind === "service_unavailable",
+        requiresSignIn: kind === "authentication_required",
+        // This is a state marker only. It deliberately exposes no payment URL,
+        // amount, token, or provider until a real MPP contract exists.
+        paymentRequired: kind === "payment_required",
+    };
+}
+
 export function formatApiError(err) {
-    const detail = err?.response?.data?.detail ?? err?.response?.data?.message ?? err;
-    if (!detail) return tr("خطأ غير متوقع");
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) return detail.map(formatApiError).filter(Boolean).join(" • ");
-    if (typeof detail?.msg === "string") return detail.msg;
+    const contract = getApiErrorContract(err);
+    if (contract.paymentRequired) return tr("هذه العملية تتطلب تفويض دفع من الخدمة.");
+    if (contract.detail) return contract.detail;
+    if (contract.kind === "authentication_required") return tr("انتهت جلسة الدخول. سجل الدخول ثم أعد المحاولة.");
+    if (contract.kind === "authorization_denied") return tr("ليس لديك صلاحية لإتمام هذه العملية.");
+    if (contract.kind === "rate_limited") return tr("تمت محاولات كثيرة. أعد المحاولة بعد قليل.");
+    if (contract.kind === "service_unavailable") return tr("الخدمة غير متاحة مؤقتًا. أعد المحاولة لاحقًا.");
+    if (contract.kind === "network_unavailable") return tr("تعذر الاتصال بالخدمة. تحقق من الإنترنت ثم أعد المحاولة.");
     return tr("خطأ غير متوقع");
 }
 

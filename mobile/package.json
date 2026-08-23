@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test:api-contract": "node scripts/verify_api_error_contract.cjs"
   },
   "dependencies": {
     "@config-plugins/react-native-callkeep": "12.0.0",
